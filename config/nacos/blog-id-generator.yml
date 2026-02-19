@@ -1,0 +1,71 @@
+# ===========================================
+# Blog ID Generator Service Configuration
+# Nacos DataId: blog-id-generator.yml
+# Group: BLOG_SERVICE
+# ===========================================
+#
+# Configuration for Blog ID Generator Service
+# Acts as a lightweight proxy layer for id-generator-server
+#
+
+# ID Generator Client Configuration
+id-generator:
+  client:
+    # ID Generator server URL
+    server-url: ${ID_GENERATOR_SERVER_URL:http://localhost:8011}
+    
+    # Connection timeout in milliseconds
+    connect-timeout-ms: ${ID_GENERATOR_CONNECT_TIMEOUT:5000}
+    
+    # Read timeout in milliseconds
+    read-timeout-ms: ${ID_GENERATOR_READ_TIMEOUT:10000}
+    
+    # Maximum retry attempts
+    max-retries: ${ID_GENERATOR_MAX_RETRIES:3}
+    
+    # Local buffer configuration
+    buffer-size: ${ID_GENERATOR_BUFFER_SIZE:100}
+    refill-threshold: ${ID_GENERATOR_REFILL_THRESHOLD:20}
+    batch-fetch-size: ${ID_GENERATOR_BATCH_FETCH_SIZE:50}
+    async-refill: ${ID_GENERATOR_ASYNC_REFILL:true}
+    buffer-enabled: ${ID_GENERATOR_BUFFER_ENABLED:true}
+
+# Logging Configuration
+logging:
+  level:
+    com.blog.idgenerator: ${LOG_LEVEL_ID_GENERATOR:INFO}
+    com.platform.idgen.client: ${LOG_LEVEL_ID_CLIENT:INFO}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"
+
+# Management Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      service: blog-id-generator
+      version: ${spring.application.version:1.0.0}
+
+# Knife4j Configuration
+knife4j:
+  enable: true
+  setting:
+    language: zh_CN
+  production: false
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html

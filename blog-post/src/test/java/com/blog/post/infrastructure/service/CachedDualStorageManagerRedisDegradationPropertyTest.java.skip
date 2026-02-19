@@ -1,0 +1,155 @@
+package com.blog.post.infrastructure.service;
+
+import com.blog.common.cache.HotDataIdentifier;
+import com.blog.common.config.CacheProperties;
+import com.blog.post.domain.model.PostContent;
+import com.blog.post.infrastructure.cache.PostRedisKeys;
+import net.jqwik.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.redisson.api.RedissonClient;
+import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
+/**
+ * Feature: cache-penetration-protection, Property 10: Redis连接失败降级
+ * Validates: Requirements 8.1, 8.2
+ * 
+ * Property: For any entity ID, when Redis connection fails,
+ * should degrade to direct database query.
+ */
+class CachedDualStorageManagerRedisDegradationPropertyTest {
+
+    @Mock
+    private DualStorageManager delegate;
+    
+    @Mock
+    private RedisTemplate<String, Object> redisTemplate;
+    
+    @Mock
+    private RedissonClient redissonClient;
+    
+    @Mock
+    private HotDataIdentifier hotDataIdentifier;
+    
+    @Mock
+    private ValueOperations<String, Object> valueOperations;
+    
+    private CacheProperties cacheProperties;
+    private CachedDualStorageManager cachedManager;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        
+        cacheProperties = new CacheProperties();
+        cacheProperties.setEntityDetail(600);
+        cacheProperties.setLockWaitTime(5);
+        cacheProperties.setLockLeaseTime(10);
+        cacheProperties.setNullValueTtl(60);
+        cacheProperties.setHotDataIdentificationEnabled(true);
+        
+        cachedManager = new CachedDualStorageManager(
+            delegate,
+            redisTemplate,
+            redissonClient,
+            hotDataIdentifier,
+            cacheProperties
+        );
+        
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    }
+
+    /**
+     * Property 10: Redis连接失败降级
+     * For any entity ID, Redis failure should trigger database fallback
+     */
+    @Property(tries = 100)
+    void redisFailureTriggersDegrad ation(@ForAll @LongRange(min = 1, max = 10000) Long postId) {
+        // Given: Redis connection fails
+        when(valueOperations.get(anyString()))
+            .thenThrow(new RedisConnectionFailureException("Redis connection failed"));
+        
+        PostContent mockContent = new PostContent();
+        mockContent.setPostId(postId.toString());
+        mockContent.setTitle("Test Post " + postId);
+        mockContent.setRaw("Test content");
+        
+        when(delegate.getPostContent(postId)).thenReturn(mockContent);
+        
+        // When: Get post content (Redis will fail)
+        PostContent result = cachedManager.getPostContent(postId);
+        
+        // Then: Should degrade to database and return result
+        assertThat(result).isNotNull();
+        assertThat(result.getPostId()).isEqualTo(postId.toString());
+        
+        // Verify database was queried (degradation)
+        verify(delegate).getPostContent(postId);
+        
+        // Verify no lock was attempted (Redis unavailable)
+        verify(redissonClient, never()).getLock(anyString());
+    }
+    
+    /**
+     * Property 10b: Redis timeout also triggers degradation
+     */
+    @Property(tries = 100)
+    void redisTimeoutTriggersDegrad ation(@ForAll @LongRange(min = 1, max = 10000) Long postId) {
+        // Given: Redis operation times out
+        when(valueOperations.get(anyString()))
+            .thenThrow(new RuntimeException("Redis operation timeout"));
+        
+        PostContent mockContent = new PostContent();
+        mockContent.setPostId(postId.toString());
+        mockContent.setTitle("Test Post " + postId);
+        mockContent.setRaw("Test content");
+        
+        when(delegate.getPostContent(postId)).thenReturn(mockContent);
+        
+        // When: Get post content (Redis will timeout)
+        PostContent result = cachedManager.getPostContent(postId);
+        
+        // Then: Should degrade to database and return result
+        assertThat(result).isNotNull();
+        assertThat(result.getPostId()).isEqualTo(postId.toString());
+        
+        // Verify database was queried (degradation)
+        verify(delegate).getPostContent(postId);
+    }
+    
+    /**
+     * Property 10c: Service remains available despite Redis failure
+     */
+    @Property(tries = 100)
+    void serviceAvailableDespiteRedisFailure(@ForAll @LongRange(min = 1, max = 10000) Long postId) {
+        // Given: Redis completely unavailable
+        when(valueOperations.get(anyString()))
+            .thenThrow(new RedisConnectionFailureException("Cannot connect to Redis"));
+        when(hotDataIdentifier.isHotData(anyString(), anyLong()))
+            .thenThrow(new RedisConnectionFailureException("Cannot connect to Redis"));
+        
+        PostContent mockContent = new PostContent();
+        mockContent.setPostId(postId.toString());
+        mockContent.setTitle("Test Post " + postId);
+        mockContent.setRaw("Test content");
+        
+        when(delegate.getPostContent(postId)).thenReturn(mockContent);
+        
+        // When: Get post content (Redis completely down)
+        PostContent result = cachedManager.getPostContent(postId);
+        
+        // Then: Service should still work (degraded mode)
+        assertThat(result).isNotNull();
+        assertThat(result.getPostId()).isEqualTo(postId.toString());
+        
+        // Verify database was queried
+        verify(delegate).getPostContent(postId);
+    }
+}

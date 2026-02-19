@@ -1,0 +1,44 @@
+# ===========================================
+# Blog Microservices Base Dockerfile
+# ===========================================
+# 基础镜像，包含 JDK 17 和 SkyWalking Agent
+# ===========================================
+
+FROM eclipse-temurin:17-jre-alpine
+
+LABEL maintainer="Blog Team"
+LABEL description="Base image for Blog Microservices"
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# 安装必要工具
+RUN apk add --no-cache curl wget
+
+# 创建应用目录
+RUN mkdir -p /app /app/logs /app/config
+
+# 下载 SkyWalking Agent
+ARG SKYWALKING_VERSION=9.0.0
+RUN wget -q https://archive.apache.org/dist/skywalking/java-agent/${SKYWALKING_VERSION}/apache-skywalking-java-agent-${SKYWALKING_VERSION}.tgz \
+    && tar -xzf apache-skywalking-java-agent-${SKYWALKING_VERSION}.tgz -C /app \
+    && rm apache-skywalking-java-agent-${SKYWALKING_VERSION}.tgz \
+    && mv /app/skywalking-agent /app/skywalking
+
+# 设置工作目录
+WORKDIR /app
+
+# 健康检查脚本
+COPY docker/scripts/healthcheck.sh /app/healthcheck.sh
+RUN chmod +x /app/healthcheck.sh
+
+# 默认 JVM 参数
+ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+ENV SKYWALKING_OPTS="-javaagent:/app/skywalking/skywalking-agent.jar"
+
+# 暴露默认端口
+EXPOSE 8080
+
+# 默认启动命令
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS $SKYWALKING_OPTS -jar /app/app.jar"]

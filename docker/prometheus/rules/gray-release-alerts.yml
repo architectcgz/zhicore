@@ -1,0 +1,95 @@
+groups:
+  - name: gray-release-alerts
+    rules:
+      # 灰度错误率告警
+      - alert: GrayReleaseHighErrorRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{gray="true", status=~"5.."}[5m]))
+            /
+            sum(rate(http_server_requests_seconds_count{gray="true"}[5m]))
+          ) > 0.01
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "灰度环境错误率过高"
+          description: "灰度环境错误率超过 1%，当前值: {{ $value | humanizePercentage }}"
+          runbook_url: "https://wiki.example.com/runbooks/gray-release-high-error-rate"
+
+      # 灰度延迟告警
+      - alert: GrayReleaseHighLatency
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_server_requests_seconds_bucket{gray="true"}[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "灰度环境延迟过高"
+          description: "灰度环境 P95 延迟超过 500ms，当前值: {{ $value | humanizeDuration }}"
+
+      # 灰度流量异常告警
+      - alert: GrayReleaseTrafficAnomaly
+        expr: |
+          abs(
+            sum(rate(http_server_requests_seconds_count{gray="true"}[5m]))
+            -
+            avg_over_time(sum(rate(http_server_requests_seconds_count{gray="true"}[5m]))[1h:5m])
+          ) / avg_over_time(sum(rate(http_server_requests_seconds_count{gray="true"}[5m]))[1h:5m]) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "灰度流量异常波动"
+          description: "灰度流量与过去1小时平均值偏差超过 50%"
+
+      # 数据对账失败告警
+      - alert: GrayDataReconciliationFailed
+        expr: gray_reconciliation_success == 0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "灰度数据对账失败"
+          description: "灰度数据对账任务失败，可能存在数据不一致"
+
+      # 数据差异告警
+      - alert: GrayDataDiffDetected
+        expr: gray_reconciliation_diff_count > 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "检测到灰度数据差异"
+          description: "灰度数据对账发现 {{ $value }} 处差异"
+
+      # 灰度回滚告警
+      - alert: GrayReleaseRolledBack
+        expr: gray_release_phase == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "灰度发布已回滚"
+          description: "灰度发布已执行回滚操作，请检查原因"
+
+      # 灰度阶段停滞告警
+      - alert: GrayReleaseStalled
+        expr: |
+          (time() - gray_release_last_advance_time) > 86400
+          and gray_release_phase < 4
+        for: 1h
+        labels:
+          severity: info
+          team: platform
+        annotations:
+          summary: "灰度发布阶段停滞"
+          description: "灰度发布已超过 24 小时未推进，当前阶段: {{ $labels.phase }}"

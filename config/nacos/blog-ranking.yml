@@ -1,0 +1,25 @@
+# Ranking Service Configuration
+# This configuration file is stored in Nacos Config Center
+
+# Database Configuration
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:blog_ranking}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+# Ranking Configuration
+ranking:
+  top-n: 100
+  update-interval-minutes: 10
+  score-decay-days: 7
+  dimensions:
+    - hot
+    - new
+    - trending
+
+# Cache TTL Configuration (seconds)
+cache:
+  ttl:
+    ranking-list: 600       # Ranking list cache 10 minutes
+    user-rank: 300          # User rank cache 5 minutes

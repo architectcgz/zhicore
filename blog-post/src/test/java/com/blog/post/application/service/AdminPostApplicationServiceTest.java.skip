@@ -1,0 +1,276 @@
+package com.blog.post.application.service;
+
+import com.blog.common.exception.BusinessException;
+import com.blog.common.exception.ValidationException;
+import com.blog.common.result.PageResult;
+import com.blog.post.domain.model.Post;
+import com.blog.post.domain.model.PostStats;
+import com.blog.post.domain.repository.PostRepository;
+import com.blog.post.interfaces.dto.response.PostManageDTO;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+/**
+ * AdminPostApplicationService 单元测试
+ * 测试管理员文章查询功�?
+ *
+ * @author Blog Team
+ */
+@ExtendWith(MockitoExtension.class)
+@DisplayName("AdminPostApplicationService 测试")
+class AdminPostApplicationServiceTest {
+
+    @Mock
+    private PostRepository postRepository;
+
+    @InjectMocks
+    private AdminPostApplicationService adminPostApplicationService;
+
+    @Test
+    @DisplayName("正常查询文章列表")
+    void testQueryPosts_success() {
+        // Given
+        List<Post> mockPosts = createMockPosts(10);
+        when(postRepository.findByConditions(any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(mockPosts);
+        when(postRepository.countByConditions(any(), any(), any()))
+                .thenReturn(10L);
+
+        // When
+        PageResult<PostManageDTO> result = adminPostApplicationService
+                .queryPosts("test", "PUBLISHED", 123L, 1, 10);
+
+        // Then
+        assertThat(result.getRecords()).hasSize(10);
+        assertThat(result.getTotal()).isEqualTo(10);
+        assertThat(result.getCurrent()).isEqualTo(1);
+        assertThat(result.getSize()).isEqualTo(10);
+        
+        verify(postRepository).findByConditions("test", "PUBLISHED", 123L, 0, 10);
+        verify(postRepository).countByConditions("test", "PUBLISHED", 123L);
+    }
+
+    @Test
+    @DisplayName("使用无效页码应使用默认�?)
+    void testQueryPosts_withInvalidPage() {
+        // Given
+        when(postRepository.findByConditions(any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(Collections.emptyList());
+        when(postRepository.countByConditions(any(), any(), any()))
+                .thenReturn(0L);
+
+        // When
+        PageResult<PostManageDTO> result = adminPostApplicationService
+                .queryPosts(null, null, null, -1, 10);
+
+        // Then
+        verify(postRepository).findByConditions(null, null, null, 0, 10);
+    }
+
+    @Test
+    @DisplayName("使用无效页面大小应使用默认�?)
+    void testQueryPosts_withInvalidSize() {
+        // Given
+        when(postRepository.findByConditions(any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(Collections.emptyList());
+        when(postRepository.countByConditions(any(), any(), any()))
+                .thenReturn(0L);
+
+        // When
+        PageResult<PostManageDTO> result = adminPostApplicationService
+                .queryPosts(null, null, null, 1, -1);
+
+        // Then
+        verify(postRepository).findByConditions(null, null, null, 0, 20);
+    }
+
+    @Test
+    @DisplayName("超长关键词应抛出验证异常")
+    void testQueryPosts_withLongKeyword() {
+        // Given
+        String longKeyword = "a".repeat(150);
+
+        // When & Then
+        assertThatThrownBy(() -> adminPostApplicationService
+                .queryPosts(longKeyword, null, null, 1, 10))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    @DisplayName("空关键词应被规范化为null")
+    void testQueryPosts_withEmptyKeyword() {
+        // Given
+        when(postRepository.findByConditions(any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(Collections.emptyList());
+        when(postRepository.countByConditions(any(), any(), any()))
+                .thenReturn(0L);
+
+        // When
+        adminPostApplicationService.queryPosts("  ", null, null, 1, 10);
+
+        // Then
+        verify(postRepository).findByConditions(null, null, null, 0, 10);
+    }
+
+    @Test
+    @DisplayName("空白状态应被规范化为null")
+    void testQueryPosts_withEmptyStatus() {
+        // Given
+        when(postRepository.findByConditions(any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(Collections.emptyList());
+        when(postRepository.countByConditions(any(), any(), any()))
+                .thenReturn(0L);
+
+        // When
+        adminPostApplicationService.queryPosts(null, "  ", null, 1, 10);
+
+        // Then
+        verify(postRepository).findByConditions(null, null, null, 0, 10);
+    }
+
+    @Test
+    @DisplayName("状态应被转换为大写")
+    void testQueryPosts_statusNormalization() {
+        // Given
+        when(postRepository.findByConditions(any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(Collections.emptyList());
+        when(postRepository.countByConditions(any(), any(), any()))
+                .thenReturn(0L);
+
+        // When
+        adminPostApplicationService.queryPosts(null, "published", null, 1, 10);
+
+        // Then
+        verify(postRepository).findByConditions(null, "PUBLISHED", null, 0, 10);
+    }
+
+    @Test
+    @DisplayName("计算正确的偏移量")
+    void testQueryPosts_offsetCalculation() {
+        // Given
+        when(postRepository.findByConditions(any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(Collections.emptyList());
+        when(postRepository.countByConditions(any(), any(), any()))
+                .thenReturn(0L);
+
+        // When
+        adminPostApplicationService.queryPosts(null, null, null, 3, 20);
+
+        // Then
+        verify(postRepository).findByConditions(null, null, null, 40, 20);
+    }
+
+    @Test
+    @DisplayName("正确转换为DTO")
+    void testQueryPosts_dtoConversion() {
+        // Given
+        Post post = Post.createDraft(1L, 123L, "测试文章", "内容");
+        when(postRepository.findByConditions(any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(Collections.singletonList(post));
+        when(postRepository.countByConditions(any(), any(), any()))
+                .thenReturn(1L);
+
+        // When
+        PageResult<PostManageDTO> result = adminPostApplicationService
+                .queryPosts(null, null, null, 1, 10);
+
+        // Then
+        assertThat(result.getRecords()).hasSize(1);
+        PostManageDTO dto = result.getRecords().get(0);
+        assertThat(dto.getId()).isEqualTo(1L);
+        assertThat(dto.getTitle()).isEqualTo("测试文章");
+        assertThat(dto.getAuthorId()).isEqualTo(123L);
+        assertThat(dto.getStatus()).isEqualTo("DRAFT");
+    }
+
+    @Test
+    @DisplayName("查询结果为空")
+    void testQueryPosts_emptyResult() {
+        // Given
+        when(postRepository.findByConditions(any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(Collections.emptyList());
+        when(postRepository.countByConditions(any(), any(), any()))
+                .thenReturn(0L);
+
+        // When
+        PageResult<PostManageDTO> result = adminPostApplicationService
+                .queryPosts("不存�?, null, null, 1, 10);
+
+        // Then
+        assertThat(result.getRecords()).isEmpty();
+        assertThat(result.getTotal()).isZero();
+    }
+
+    @Test
+    @DisplayName("查询多篇文章")
+    void testQueryPosts_multipleResults() {
+        // Given
+        List<Post> mockPosts = createMockPosts(5);
+        when(postRepository.findByConditions(any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(mockPosts);
+        when(postRepository.countByConditions(any(), any(), any()))
+                .thenReturn(5L);
+
+        // When
+        PageResult<PostManageDTO> result = adminPostApplicationService
+                .queryPosts(null, null, null, 1, 10);
+
+        // Then
+        assertThat(result.getRecords()).hasSize(5);
+        assertThat(result.getTotal()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("Repository异常应被包装为BusinessException")
+    void testQueryPosts_repositoryException() {
+        // Given
+        when(postRepository.findByConditions(any(), any(), any(), anyInt(), anyInt()))
+                .thenThrow(new RuntimeException("Database error"));
+
+        // When & Then
+        assertThatThrownBy(() -> adminPostApplicationService
+                .queryPosts(null, null, null, 1, 10))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("查询文章列表失败");
+    }
+
+    @Test
+    @DisplayName("Count异常应被包装为BusinessException")
+    void testQueryPosts_countException() {
+        // Given
+        when(postRepository.findByConditions(any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(Collections.emptyList());
+        when(postRepository.countByConditions(any(), any(), any()))
+                .thenThrow(new RuntimeException("Database error"));
+
+        // When & Then
+        assertThatThrownBy(() -> adminPostApplicationService
+                .queryPosts(null, null, null, 1, 10))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("查询文章列表失败");
+    }
+
+    // ==================== 辅助方法 ====================
+
+    private List<Post> createMockPosts(int count) {
+        List<Post> posts = new java.util.ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            posts.add(Post.createDraft(System.nanoTime() + i, 123L, "测试文章", "内容"));
+        }
+        return posts;
+    }
+}
+

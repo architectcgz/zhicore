@@ -1,0 +1,354 @@
+# ===========================================
+# Blog Microservices - Application Services
+# ===========================================
+# 使用方法:
+# 1. 先启动基础设施: docker-compose up -d
+# 2. 确保 ID Generator Service 已启动 (外部服务，端口 8011)
+# 3. 构建服务镜像: docker-compose -f docker-compose.services.yml build
+# 4. 启动服务: docker-compose -f docker-compose.services.yml up -d
+# ===========================================
+#
+# 注意事项:
+# - ID Generator Service 是独立部署的外部服务
+# - 默认地址: http://host.docker.internal:8011
+# - 可通过环境变量 ID_GENERATOR_SERVER_URL 覆盖
+# ===========================================
+
+services:
+  # ===========================================
+  # Gateway Service
+  # ===========================================
+  blog-gateway:
+    build:
+      context: ../blog-gateway
+      dockerfile: Dockerfile
+    container_name: blog-gateway
+    env_file:
+      - ../.env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - NACOS_ADDR=blog-nacos:8848
+      - REDIS_HOST=blog-redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+    ports:
+      - "8000:8000"
+    networks:
+      - blog-network
+    depends_on:
+      - blog-nacos
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================
+  # User Service
+  # ===========================================
+  blog-user:
+    build:
+      context: ../blog-user
+      dockerfile: Dockerfile
+    container_name: blog-user
+    env_file:
+      - ../.env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SERVER_PORT=8081
+      - NACOS_ADDR=blog-nacos:8848
+      - POSTGRES_HOST=blog-postgres
+      - POSTGRES_PORT=5432
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=blog-redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - ROCKETMQ_NAMESRV=blog-rocketmq-namesrv:9876
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+    ports:
+      - "8081:8081"
+    networks:
+      - blog-network
+    depends_on:
+      - blog-nacos
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================
+  # Post Service
+  # ===========================================
+  blog-post:
+    build:
+      context: ../blog-post
+      dockerfile: Dockerfile
+    container_name: blog-post
+    env_file:
+      - ../.env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SERVER_PORT=8082
+      - NACOS_ADDR=blog-nacos:8848
+      - POSTGRES_HOST=blog-postgres
+      - POSTGRES_PORT=5432
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=blog-redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - ROCKETMQ_NAMESRV=blog-rocketmq-namesrv:9876
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+    ports:
+      - "8082:8082"
+    networks:
+      - blog-network
+    depends_on:
+      - blog-nacos
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================
+  # Comment Service
+  # ===========================================
+  blog-comment:
+    build:
+      context: ../blog-comment
+      dockerfile: Dockerfile
+    container_name: blog-comment
+    env_file:
+      - ../.env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SERVER_PORT=8083
+      - NACOS_ADDR=blog-nacos:8848
+      - POSTGRES_HOST=blog-postgres
+      - POSTGRES_PORT=5432
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=blog-redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - ROCKETMQ_NAMESRV=blog-rocketmq-namesrv:9876
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+    ports:
+      - "8083:8083"
+    networks:
+      - blog-network
+    depends_on:
+      - blog-nacos
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================
+  # Message Service
+  # ===========================================
+  blog-message:
+    build:
+      context: ../blog-message
+      dockerfile: Dockerfile
+    container_name: blog-message
+    env_file:
+      - ../.env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SERVER_PORT=8084
+      - NACOS_ADDR=blog-nacos:8848
+      - POSTGRES_HOST=blog-postgres
+      - POSTGRES_PORT=5432
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=blog-redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - ROCKETMQ_NAMESRV=blog-rocketmq-namesrv:9876
+      - ID_GENERATOR_SERVER_URL=${ID_GENERATOR_SERVER_URL:-http://host.docker.internal:8011}
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+    ports:
+      - "8084:8084"
+    networks:
+      - blog-network
+    depends_on:
+      - blog-nacos
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================
+  # Notification Service
+  # ===========================================
+  blog-notification:
+    build:
+      context: ../blog-notification
+      dockerfile: Dockerfile
+    container_name: blog-notification
+    env_file:
+      - ../.env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SERVER_PORT=8085
+      - NACOS_ADDR=blog-nacos:8848
+      - POSTGRES_HOST=blog-postgres
+      - POSTGRES_PORT=5432
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=blog-redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - ROCKETMQ_NAMESRV=blog-rocketmq-namesrv:9876
+      - ID_GENERATOR_SERVER_URL=${ID_GENERATOR_SERVER_URL:-http://host.docker.internal:8011}
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+    ports:
+      - "8085:8085"
+    networks:
+      - blog-network
+    depends_on:
+      - blog-nacos
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================
+  # Search Service
+  # ===========================================
+  blog-search:
+    build:
+      context: ../blog-search
+      dockerfile: Dockerfile
+    container_name: blog-search
+    env_file:
+      - ../.env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SERVER_PORT=8086
+      - NACOS_ADDR=blog-nacos:8848
+      - ELASTICSEARCH_HOST=blog-elasticsearch
+      - ELASTICSEARCH_PORT=9200
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=blog-redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - ROCKETMQ_NAMESRV=blog-rocketmq-namesrv:9876
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+    ports:
+      - "8086:8086"
+    networks:
+      - blog-network
+    depends_on:
+      - blog-nacos
+      - blog-elasticsearch
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8086/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================
+  # Ranking Service
+  # ===========================================
+  blog-ranking:
+    build:
+      context: ../blog-ranking
+      dockerfile: Dockerfile
+    container_name: blog-ranking
+    env_file:
+      - ../.env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SERVER_PORT=8087
+      - NACOS_ADDR=blog-nacos:8848
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=blog-redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - ROCKETMQ_NAMESRV=blog-rocketmq-namesrv:9876
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+    ports:
+      - "8087:8087"
+    networks:
+      - blog-network
+    depends_on:
+      - blog-nacos
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8087/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================
+  # Admin Service
+  # ===========================================
+  blog-admin:
+    build:
+      context: ../blog-admin
+      dockerfile: Dockerfile
+    container_name: blog-admin
+    env_file:
+      - ../.env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SERVER_PORT=8090
+      - NACOS_ADDR=blog-nacos:8848
+      - POSTGRES_HOST=blog-postgres
+      - POSTGRES_PORT=5432
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+    ports:
+      - "8090:8090"
+    networks:
+      - blog-network
+    depends_on:
+      - blog-nacos
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+networks:
+  blog-network:
+    external: true

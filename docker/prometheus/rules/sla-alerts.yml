@@ -1,0 +1,308 @@
+# ===========================================
+# SLA 指标告警规则
+# Blog Microservices
+# ===========================================
+
+groups:
+  # ===========================================
+  # 服务可用性告警
+  # ===========================================
+  - name: service-availability
+    rules:
+      # 服务实例下线告警
+      - alert: ServiceDown
+        expr: up{job=~"blog-.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "服务实例下线"
+          description: "服务 {{ $labels.job }} 实例 {{ $labels.instance }} 已下线超过 1 分钟"
+
+      # 服务健康检查失败
+      - alert: ServiceUnhealthy
+        expr: |
+          spring_boot_actuator_health_status{job=~"blog-.*"} != 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "服务健康检查失败"
+          description: "服务 {{ $labels.job }} 健康检查失败超过 2 分钟"
+
+      # 服务实例数量不足
+      - alert: InsufficientInstances
+        expr: |
+          count(up{job=~"blog-.*"} == 1) by (job) < 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "服务实例数量不足"
+          description: "服务 {{ $labels.job }} 可用实例数量为 0"
+
+  # ===========================================
+  # 响应时间告警 (SLA: P95 < 500ms)
+  # ===========================================
+  - name: response-time
+    rules:
+      # API 响应时间过长
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_server_requests_seconds_bucket{job=~"blog-.*"}[5m])) by (job, le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API 响应时间过长"
+          description: "服务 {{ $labels.job }} P95 响应时间 {{ $value | humanizeDuration }} 超过 500ms"
+
+      # API 响应时间严重超标
+      - alert: CriticalResponseTime
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_server_requests_seconds_bucket{job=~"blog-.*"}[5m])) by (job, le)
+          ) > 2
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API 响应时间严重超标"
+          description: "服务 {{ $labels.job }} P95 响应时间 {{ $value | humanizeDuration }} 超过 2 秒"
+
+      # Gateway 响应时间告警
+      - alert: GatewayHighLatency
+        expr: |
+          histogram_quantile(0.99, 
+            sum(rate(http_server_requests_seconds_bucket{job="blog-gateway"}[5m])) by (le)
+          ) > 1
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gateway 响应时间过长"
+          description: "Gateway P99 响应时间 {{ $value | humanizeDuration }} 超过 1 秒"
+
+  # ===========================================
+  # 错误率告警 (SLA: 错误率 < 1%)
+  # ===========================================
+  - name: error-rate
+    rules:
+      # HTTP 5xx 错误率过高
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job=~"blog-.*", status=~"5.."}[5m])) by (job)
+          /
+          sum(rate(http_server_requests_seconds_count{job=~"blog-.*"}[5m])) by (job)
+          > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP 错误率过高"
+          description: "服务 {{ $labels.job }} 5xx 错误率 {{ $value | humanizePercentage }} 超过 1%"
+
+      # HTTP 5xx 错误率严重超标
+      - alert: CriticalErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job=~"blog-.*", status=~"5.."}[5m])) by (job)
+          /
+          sum(rate(http_server_requests_seconds_count{job=~"blog-.*"}[5m])) by (job)
+          > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP 错误率严重超标"
+          description: "服务 {{ $labels.job }} 5xx 错误率 {{ $value | humanizePercentage }} 超过 5%"
+
+      # 特定端点错误率
+      - alert: EndpointHighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job=~"blog-.*", status=~"5..", uri!~"/actuator.*"}[5m])) by (job, uri)
+          /
+          sum(rate(http_server_requests_seconds_count{job=~"blog-.*", uri!~"/actuator.*"}[5m])) by (job, uri)
+          > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "端点错误率过高"
+          description: "服务 {{ $labels.job }} 端点 {{ $labels.uri }} 错误率 {{ $value | humanizePercentage }} 超过 10%"
+
+  # ===========================================
+  # 吞吐量告警
+  # ===========================================
+  - name: throughput
+    rules:
+      # 请求量突增
+      - alert: RequestSpike
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job=~"blog-.*"}[5m])) by (job)
+          > 
+          sum(rate(http_server_requests_seconds_count{job=~"blog-.*"}[1h])) by (job) * 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "请求量突增"
+          description: "服务 {{ $labels.job }} 请求量是过去 1 小时平均值的 3 倍以上"
+
+      # 请求量骤降
+      - alert: RequestDrop
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job=~"blog-.*"}[5m])) by (job)
+          <
+          sum(rate(http_server_requests_seconds_count{job=~"blog-.*"}[1h])) by (job) * 0.1
+          and
+          sum(rate(http_server_requests_seconds_count{job=~"blog-.*"}[1h])) by (job) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "请求量骤降"
+          description: "服务 {{ $labels.job }} 请求量低于过去 1 小时平均值的 10%"
+
+  # ===========================================
+  # JVM 资源告警
+  # ===========================================
+  - name: jvm-resources
+    rules:
+      # JVM 堆内存使用率过高
+      - alert: JvmHeapUsageHigh
+        expr: |
+          jvm_memory_used_bytes{job=~"blog-.*", area="heap"}
+          /
+          jvm_memory_max_bytes{job=~"blog-.*", area="heap"}
+          > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM 堆内存使用率过高"
+          description: "服务 {{ $labels.job }} 堆内存使用率 {{ $value | humanizePercentage }} 超过 85%"
+
+      # JVM 堆内存使用率严重超标
+      - alert: JvmHeapUsageCritical
+        expr: |
+          jvm_memory_used_bytes{job=~"blog-.*", area="heap"}
+          /
+          jvm_memory_max_bytes{job=~"blog-.*", area="heap"}
+          > 0.95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "JVM 堆内存使用率严重超标"
+          description: "服务 {{ $labels.job }} 堆内存使用率 {{ $value | humanizePercentage }} 超过 95%"
+
+      # GC 时间过长
+      - alert: GcTimeHigh
+        expr: |
+          rate(jvm_gc_pause_seconds_sum{job=~"blog-.*"}[5m])
+          /
+          rate(jvm_gc_pause_seconds_count{job=~"blog-.*"}[5m])
+          > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GC 时间过长"
+          description: "服务 {{ $labels.job }} 平均 GC 暂停时间 {{ $value | humanizeDuration }} 超过 500ms"
+
+      # 线程数过多
+      - alert: ThreadCountHigh
+        expr: |
+          jvm_threads_live_threads{job=~"blog-.*"} > 500
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "线程数过多"
+          description: "服务 {{ $labels.job }} 活跃线程数 {{ $value }} 超过 500"
+
+  # ===========================================
+  # 数据库连接池告警
+  # ===========================================
+  - name: database
+    rules:
+      # 数据库连接池使用率过高
+      - alert: DbPoolUsageHigh
+        expr: |
+          hikaricp_connections_active{job=~"blog-.*"}
+          /
+          hikaricp_connections_max{job=~"blog-.*"}
+          > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "数据库连接池使用率过高"
+          description: "服务 {{ $labels.job }} 连接池使用率 {{ $value | humanizePercentage }} 超过 80%"
+
+      # 数据库连接等待
+      - alert: DbConnectionPending
+        expr: |
+          hikaricp_connections_pending{job=~"blog-.*"} > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "数据库连接等待"
+          description: "服务 {{ $labels.job }} 有 {{ $value }} 个请求等待数据库连接"
+
+  # ===========================================
+  # 熔断器告警
+  # ===========================================
+  - name: circuit-breaker
+    rules:
+      # 熔断器打开
+      - alert: CircuitBreakerOpen
+        expr: |
+          resilience4j_circuitbreaker_state{job=~"blog-.*", state="open"} == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "熔断器打开"
+          description: "服务 {{ $labels.job }} 熔断器 {{ $labels.name }} 已打开"
+
+      # 熔断器半开
+      - alert: CircuitBreakerHalfOpen
+        expr: |
+          resilience4j_circuitbreaker_state{job=~"blog-.*", state="half_open"} == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "熔断器半开状态持续"
+          description: "服务 {{ $labels.job }} 熔断器 {{ $labels.name }} 半开状态超过 5 分钟"
+
+  # ===========================================
+  # 消息队列告警
+  # ===========================================
+  - name: message-queue
+    rules:
+      # 消息消费延迟
+      - alert: MessageConsumeLag
+        expr: |
+          rocketmq_consumer_offset_diff{job=~"blog-.*"} > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "消息消费延迟"
+          description: "消费者组 {{ $labels.group }} 消息积压 {{ $value }} 条"
+
+      # 消息发送失败
+      - alert: MessageSendFailure
+        expr: |
+          increase(rocketmq_producer_send_failure_total{job=~"blog-.*"}[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "消息发送失败"
+          description: "服务 {{ $labels.job }} 过去 5 分钟消息发送失败 {{ $value }} 次"

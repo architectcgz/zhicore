@@ -1,0 +1,61 @@
+﻿[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for com.blog:blog-comment:jar:1.0.0-SNAPSHOT
+[WARNING] 'build.plugins.plugin.version' for org.apache.maven.plugins:maven-surefire-plugin is missing. @ line 170, column 21
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO] 
+[INFO] ------------------------< com.blog:blog-common >------------------------
+[INFO] Building Blog Common 1.0.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ blog-common ---
+[INFO] skip non existing resourceDirectory E:\learn\projects\blog-microservice\blog-common\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ blog-common ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ blog-common ---
+[INFO] skip non existing resourceDirectory E:\learn\projects\blog-microservice\blog-common\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.11.0:testCompile (default-testCompile) @ blog-common ---
+[INFO] Changes detected - recompiling the module! :source
+[INFO] Compiling 6 source files with javac [debug target 17] to target\test-classes
+[WARNING] /E:/learn/projects/blog-microservice/blog-common/src/test/java/com/blog/common/cache/HotDataIdentifierTest.java:[659,63] 最后一个参数使用了不准确的变量类型的 varargs 方法的非 varargs 调用; 
+  对于 varargs 调用, 应使用 java.lang.Object
+  对于非 varargs 调用, 应使用 java.lang.Object[], 这样也可以抑制此警告
+[INFO] 
+[INFO] --- exec:3.6.3:java (default-cli) @ blog-common ---
+[WARNING] 
+java.lang.RuntimeException: ERROR: Unable to find the resource: /META-INF/BenchmarkList
+    at org.openjdk.jmh.runner.AbstractResourceReader.getReaders (AbstractResourceReader.java:98)
+    at org.openjdk.jmh.runner.BenchmarkList.find (BenchmarkList.java:124)
+    at org.openjdk.jmh.runner.Runner.internalRun (Runner.java:252)
+    at org.openjdk.jmh.runner.Runner.run (Runner.java:208)
+    at com.blog.common.cache.CacheLockBenchmark.main (CacheLockBenchmark.java:221)
+    at jdk.internal.reflect.NativeMethodAccessorImpl.invoke0 (Native Method)
+    at jdk.internal.reflect.NativeMethodAccessorImpl.invoke (NativeMethodAccessorImpl.java:77)
+    at jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke (DelegatingMethodAccessorImpl.java:43)
+    at java.lang.reflect.Method.invoke (Method.java:568)
+    at org.codehaus.mojo.exec.AbstractExecJavaBase.executeMainMethod (AbstractExecJavaBase.java:402)
+    at org.codehaus.mojo.exec.ExecJavaMojo.executeMainMethod (ExecJavaMojo.java:142)
+    at org.codehaus.mojo.exec.AbstractExecJavaBase.doExecClassLoader (AbstractExecJavaBase.java:377)
+    at org.codehaus.mojo.exec.AbstractExecJavaBase.lambda$execute$0 (AbstractExecJavaBase.java:287)
+    at java.lang.Thread.run (Thread.java:840)
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  8.572 s
+[INFO] Finished at: 2026-01-28T16:32:29+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.codehaus.mojo:exec-maven-plugin:3.6.3:java (default-cli) on project blog-common: An exception occurred while executing the Java class. ERROR: Unable to find the resource: /META-INF/BenchmarkList -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException

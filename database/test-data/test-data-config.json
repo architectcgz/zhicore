@@ -1,0 +1,72 @@
+{
+  "apiBaseUrl": "http://localhost:8100",
+  "idGeneratorUrl": "http://localhost:8088",
+  "appId": "test-app",
+  "users": {
+    "adminCount": 3,
+    "moderatorCount": 5,
+    "regularCount": 50
+  },
+  "posts": {
+    "totalCount": 200,
+    "publishedRatio": 0.7,
+    "draftRatio": 0.2,
+    "scheduledRatio": 0.1
+  },
+  "tags": {
+    "count": 30,
+    "tagsPerPost": {
+      "min": 1,
+      "max": 5
+    }
+  },
+  "comments": {
+    "perPost": {
+      "min": 5,
+      "max": 30
+    },
+    "replyRatio": 0.3
+  },
+  "interactions": {
+    "viewsPerPost": {
+      "min": 10,
+      "max": 100
+    },
+    "likesPerPost": {
+      "min": 5,
+      "max": 50
+    },
+    "favoritesPerPost": {
+      "min": 2,
+      "max": 30
+    }
+  },
+  "userRelations": {
+    "followsPerUser": {
+      "min": 5,
+      "max": 20
+    },
+    "blocksPerUser": {
+      "min": 0,
+      "max": 5
+    }
+  },
+  "messages": {
+    "conversationCount": 50,
+    "messagesPerConversation": {
+      "min": 5,
+      "max": 20
+    }
+  },
+  "notifications": {
+    "perUser": {
+      "min": 10,
+      "max": 50
+    },
+    "readRatio": 0.5
+  },
+  "announcements": {
+    "count": 5,
+    "enabledRatio": 0.6
+  }
+}

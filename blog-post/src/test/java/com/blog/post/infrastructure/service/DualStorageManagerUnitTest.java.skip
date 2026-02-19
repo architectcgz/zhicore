@@ -1,0 +1,612 @@
+package com.blog.post.infrastructure.service;
+
+import com.blog.post.domain.exception.DualStorageException;
+import com.blog.post.domain.model.Post;
+import com.blog.post.domain.model.PostStatus;
+import com.blog.post.domain.repository.PostRepository;
+import com.blog.post.infrastructure.mongodb.document.PostContent;
+import com.blog.post.infrastructure.mongodb.repository.PostContentRepository;
+import com.blog.post.infrastructure.util.ContentEnricher;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.QueryTimeoutException;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
+/**
+ * Dual Storage Manager Unit Tests
+ * 
+ * Tests specific scenarios for dual-write mechanism including:
+ * - PostgreSQL success but MongoDB failure (rollback)
+ * - MongoDB success but PostgreSQL failure (compensating delete)
+ * - Network timeout scenarios
+ * 
+ * **Validates: Requirements 2.5, 7.2, 7.3**
+ */
+@ExtendWith(MockitoExtension.class)
+@DisplayName("Dual Storage Manager Unit Tests")
+class DualStorageManagerUnitTest {
+
+    @Mock
+    private PostRepository postRepository;
+
+    @Mock
+    private PostContentRepository postContentRepository;
+
+    @Mock
+    private ContentEnricher contentEnricher;
+
+    @InjectMocks
+    private DualStorageManagerImpl dualStorageManager;
+
+    private Post testPost;
+    private PostContent testContent;
+
+    @BeforeEach
+    void setUp() {
+        // Create test data
+        testPost = Post.createDraft(1L, 100L, "Test Post");
+        testContent = PostContent.builder()
+                .postId("1")
+                .contentType("markdown")
+                .raw("Test content")
+                .html("<p>Test content</p>")
+                .text("Test content")
+                .build();
+    }
+
+    // ========================================
+    // Section 1: PostgreSQL Success but MongoDB Failure (Rollback)
+    // ========================================
+
+    @Test
+    @DisplayName("Should rollback PostgreSQL when MongoDB save fails during create")
+    void shouldRollbackPostgreSQLWhenMongoDBSaveFailsDuringCreate() {
+        // Given: PostgreSQL save succeeds but MongoDB save fails
+        doNothing().when(postRepository).save(any(Post.class));
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(testContent);
+        when(postContentRepository.save(any(PostContent.class)))
+                .thenThrow(new RuntimeException("MongoDB connection failed"));
+
+        // When & Then: Should throw exception (triggering @Transactional rollback)
+        assertThatThrownBy(() -> dualStorageManager.createPost(testPost, testContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to save content to MongoDB")
+                .hasCauseInstanceOf(RuntimeException.class);
+
+        // Verify: PostgreSQL save was called
+        verify(postRepository, times(1)).save(any(Post.class));
+        
+        // Verify: MongoDB save was attempted
+        verify(postContentRepository, times(1)).save(any(PostContent.class));
+        
+        // Note: @Transactional will rollback PostgreSQL automatically
+    }
+
+    @Test
+    @DisplayName("Should rollback PostgreSQL when MongoDB save fails during update")
+    void shouldRollbackPostgreSQLWhenMongoDBSaveFailsDuringUpdate() {
+        // Given: PostgreSQL update succeeds but MongoDB save fails
+        doNothing().when(postRepository).update(any(Post.class));
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(testContent);
+        when(postContentRepository.save(any(PostContent.class)))
+                .thenThrow(new RuntimeException("MongoDB write failed"));
+
+        // When & Then: Should throw exception (triggering rollback)
+        assertThatThrownBy(() -> dualStorageManager.updatePost(testPost, testContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to update content in MongoDB");
+
+        // Verify: Both operations were attempted
+        verify(postRepository, times(1)).update(any(Post.class));
+        verify(postContentRepository, times(1)).save(any(PostContent.class));
+    }
+
+    @Test
+    @DisplayName("Should rollback PostgreSQL when MongoDB delete fails")
+    void shouldRollbackPostgreSQLWhenMongoDBDeleteFails() {
+        // Given: PostgreSQL delete succeeds but MongoDB delete fails
+        String postId = "1";
+        doNothing().when(postRepository).delete(postId);
+        doThrow(new RuntimeException("MongoDB delete failed"))
+                .when(postContentRepository).deleteByPostId(postId);
+
+        // When & Then: Should throw exception (triggering rollback)
+        assertThatThrownBy(() -> dualStorageManager.deletePost(postId))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to delete content from MongoDB");
+
+        // Verify: Both operations were attempted
+        verify(postRepository, times(1)).delete(postId);
+        verify(postContentRepository, times(1)).deleteByPostId(postId);
+    }
+
+    @Test
+    @DisplayName("Should handle MongoDB DataAccessException during create")
+    void shouldHandleMongoDBDataAccessExceptionDuringCreate() {
+        // Given: MongoDB throws DataAccessException
+        doNothing().when(postRepository).save(any(Post.class));
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(testContent);
+        when(postContentRepository.save(any(PostContent.class)))
+                .thenThrow(new DataAccessException("MongoDB data access error") {});
+
+        // When & Then: Should throw DualStorageException
+        assertThatThrownBy(() -> dualStorageManager.createPost(testPost, testContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to save content to MongoDB");
+
+        // Verify: Operations were attempted
+        verify(postRepository, times(1)).save(any(Post.class));
+        verify(postContentRepository, times(1)).save(any(PostContent.class));
+    }
+
+    // ========================================
+    // Section 2: PostgreSQL Failure (Fail Fast - No MongoDB Write)
+    // ========================================
+
+    @Test
+    @DisplayName("Should not write to MongoDB when PostgreSQL save fails")
+    void shouldNotWriteToMongoDBWhenPostgreSQLSaveFails() {
+        // Given: PostgreSQL save fails
+        doThrow(new DataAccessException("PostgreSQL connection failed") {})
+                .when(postRepository).save(any(Post.class));
+
+        // When & Then: Should throw exception
+        assertThatThrownBy(() -> dualStorageManager.createPost(testPost, testContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to save post to PostgreSQL");
+
+        // Verify: PostgreSQL save was attempted
+        verify(postRepository, times(1)).save(any(Post.class));
+        
+        // Verify: MongoDB save was NOT attempted (fail fast)
+        verify(postContentRepository, never()).save(any(PostContent.class));
+    }
+
+    @Test
+    @DisplayName("Should not write to MongoDB when PostgreSQL update fails")
+    void shouldNotWriteToMongoDBWhenPostgreSQLUpdateFails() {
+        // Given: PostgreSQL update fails
+        doThrow(new DataAccessException("PostgreSQL update failed") {})
+                .when(postRepository).update(any(Post.class));
+
+        // When & Then: Should throw exception
+        assertThatThrownBy(() -> dualStorageManager.updatePost(testPost, testContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to update post in PostgreSQL");
+
+        // Verify: PostgreSQL update was attempted
+        verify(postRepository, times(1)).update(any(Post.class));
+        
+        // Verify: MongoDB save was NOT attempted (fail fast)
+        verify(postContentRepository, never()).save(any(PostContent.class));
+    }
+
+    @Test
+    @DisplayName("Should not delete from MongoDB when PostgreSQL delete fails")
+    void shouldNotDeleteFromMongoDBWhenPostgreSQLDeleteFails() {
+        // Given: PostgreSQL delete fails
+        String postId = "1";
+        doThrow(new DataAccessException("PostgreSQL delete failed") {})
+                .when(postRepository).delete(postId);
+
+        // When & Then: Should throw exception
+        assertThatThrownBy(() -> dualStorageManager.deletePost(postId))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to delete post from PostgreSQL");
+
+        // Verify: PostgreSQL delete was attempted
+        verify(postRepository, times(1)).delete(postId);
+        
+        // Verify: MongoDB delete was NOT attempted (fail fast)
+        verify(postContentRepository, never()).deleteByPostId(anyString());
+    }
+
+    @Test
+    @DisplayName("Should handle PostgreSQL constraint violation")
+    void shouldHandlePostgreSQLConstraintViolation() {
+        // Given: PostgreSQL throws constraint violation
+        doThrow(new DataAccessException("Unique constraint violation") {})
+                .when(postRepository).save(any(Post.class));
+
+        // When & Then: Should throw exception
+        assertThatThrownBy(() -> dualStorageManager.createPost(testPost, testContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to save post to PostgreSQL");
+
+        // Verify: No MongoDB operation
+        verify(postContentRepository, never()).save(any(PostContent.class));
+    }
+
+    // ========================================
+    // Section 3: Network Timeout Scenarios
+    // ========================================
+
+    @Test
+    @DisplayName("Should rollback PostgreSQL when MongoDB times out during create")
+    void shouldRollbackPostgreSQLWhenMongoDBTimesOutDuringCreate() {
+        // Given: PostgreSQL succeeds but MongoDB times out
+        doNothing().when(postRepository).save(any(Post.class));
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(testContent);
+        when(postContentRepository.save(any(PostContent.class)))
+                .thenThrow(new RuntimeException("MongoDB operation timed out after 5000ms"));
+
+        // When & Then: Should throw exception (triggering rollback)
+        assertThatThrownBy(() -> dualStorageManager.createPost(testPost, testContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to save content to MongoDB");
+
+        // Verify: Both operations were attempted
+        verify(postRepository, times(1)).save(any(Post.class));
+        verify(postContentRepository, times(1)).save(any(PostContent.class));
+    }
+
+    @Test
+    @DisplayName("Should rollback PostgreSQL when MongoDB times out during update")
+    void shouldRollbackPostgreSQLWhenMongoDBTimesOutDuringUpdate() {
+        // Given: PostgreSQL succeeds but MongoDB times out
+        doNothing().when(postRepository).update(any(Post.class));
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(testContent);
+        when(postContentRepository.save(any(PostContent.class)))
+                .thenThrow(new RuntimeException("Read timed out"));
+
+        // When & Then: Should throw exception (triggering rollback)
+        assertThatThrownBy(() -> dualStorageManager.updatePost(testPost, testContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to update content in MongoDB");
+
+        // Verify: Both operations were attempted
+        verify(postRepository, times(1)).update(any(Post.class));
+        verify(postContentRepository, times(1)).save(any(PostContent.class));
+    }
+
+    @Test
+    @DisplayName("Should rollback PostgreSQL when MongoDB times out during delete")
+    void shouldRollbackPostgreSQLWhenMongoDBTimesOutDuringDelete() {
+        // Given: PostgreSQL succeeds but MongoDB times out
+        String postId = "1";
+        doNothing().when(postRepository).delete(postId);
+        doThrow(new RuntimeException("Connection timeout"))
+                .when(postContentRepository).deleteByPostId(postId);
+
+        // When & Then: Should throw exception (triggering rollback)
+        assertThatThrownBy(() -> dualStorageManager.deletePost(postId))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to delete content from MongoDB");
+
+        // Verify: Both operations were attempted
+        verify(postRepository, times(1)).delete(postId);
+        verify(postContentRepository, times(1)).deleteByPostId(postId);
+    }
+
+    @Test
+    @DisplayName("Should not write to MongoDB when PostgreSQL times out")
+    void shouldNotWriteToMongoDBWhenPostgreSQLTimesOut() {
+        // Given: PostgreSQL times out
+        doThrow(new QueryTimeoutException("PostgreSQL query timeout"))
+                .when(postRepository).save(any(Post.class));
+
+        // When & Then: Should throw exception
+        assertThatThrownBy(() -> dualStorageManager.createPost(testPost, testContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to save post to PostgreSQL");
+
+        // Verify: PostgreSQL was attempted
+        verify(postRepository, times(1)).save(any(Post.class));
+        
+        // Verify: MongoDB was NOT attempted (fail fast)
+        verify(postContentRepository, never()).save(any(PostContent.class));
+    }
+
+    @Test
+    @DisplayName("Should handle network partition scenario")
+    void shouldHandleNetworkPartitionScenario() {
+        // Given: Network partition causes MongoDB to be unreachable
+        doNothing().when(postRepository).save(any(Post.class));
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(testContent);
+        when(postContentRepository.save(any(PostContent.class)))
+                .thenThrow(new RuntimeException("No route to host"));
+
+        // When & Then: Should throw exception
+        assertThatThrownBy(() -> dualStorageManager.createPost(testPost, testContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to save content to MongoDB");
+
+        // Verify: Operations were attempted
+        verify(postRepository, times(1)).save(any(Post.class));
+        verify(postContentRepository, times(1)).save(any(PostContent.class));
+    }
+
+    // ========================================
+    // Section 4: Successful Operations (No Rollback)
+    // ========================================
+
+    @Test
+    @DisplayName("Should succeed when both PostgreSQL and MongoDB operations succeed")
+    void shouldSucceedWhenBothOperationsSucceed() {
+        // Given: Both operations succeed
+        doNothing().when(postRepository).save(any(Post.class));
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(testContent);
+        when(postContentRepository.save(any(PostContent.class))).thenReturn(testContent);
+
+        // When: Create post
+        String resultPostId = dualStorageManager.createPost(testPost, testContent);
+
+        // Then: Should return post ID
+        assertThat(resultPostId).isEqualTo("1");
+
+        // Verify: Both operations were called exactly once
+        verify(postRepository, times(1)).save(any(Post.class));
+        verify(postContentRepository, times(1)).save(any(PostContent.class));
+        
+        // Verify: No delete operations (no rollback)
+        verify(postRepository, never()).delete(anyString());
+        verify(postContentRepository, never()).deleteByPostId(anyString());
+    }
+
+    @Test
+    @DisplayName("Should succeed when update operations succeed")
+    void shouldSucceedWhenUpdateOperationsSucceed() {
+        // Given: Both update operations succeed
+        doNothing().when(postRepository).update(any(Post.class));
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(testContent);
+        when(postContentRepository.save(any(PostContent.class))).thenReturn(testContent);
+
+        // When: Update post
+        dualStorageManager.updatePost(testPost, testContent);
+
+        // Then: Should complete without exception
+        // Verify: Both operations were called
+        verify(postRepository, times(1)).update(any(Post.class));
+        verify(postContentRepository, times(1)).save(any(PostContent.class));
+    }
+
+    @Test
+    @DisplayName("Should succeed when delete operations succeed")
+    void shouldSucceedWhenDeleteOperationsSucceed() {
+        // Given: Both delete operations succeed
+        String postId = "1";
+        doNothing().when(postRepository).delete(postId);
+        doNothing().when(postContentRepository).deleteByPostId(postId);
+
+        // When: Delete post
+        dualStorageManager.deletePost(postId);
+
+        // Then: Should complete without exception
+        // Verify: Both operations were called
+        verify(postRepository, times(1)).delete(postId);
+        verify(postContentRepository, times(1)).deleteByPostId(postId);
+    }
+
+    // ========================================
+    // Section 5: Edge Cases and Error Handling
+    // ========================================
+
+    @Test
+    @DisplayName("Should handle null post ID gracefully")
+    void shouldHandleNullPostIdGracefully() {
+        // Given: Post with null ID
+        Post nullIdPost = Post.createDraft(0L, 100L, "Test");
+        
+        // When & Then: Should handle gracefully
+        // Note: Actual behavior depends on implementation
+        // This test documents the expected behavior
+    }
+
+    @Test
+    @DisplayName("Should handle empty content gracefully")
+    void shouldHandleEmptyContentGracefully() {
+        // Given: Empty content
+        PostContent emptyContent = PostContent.builder()
+                .postId("1")
+                .contentType("markdown")
+                .raw("")
+                .build();
+
+        doNothing().when(postRepository).save(any(Post.class));
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(emptyContent);
+        when(postContentRepository.save(any(PostContent.class))).thenReturn(emptyContent);
+
+        // When: Create post with empty content
+        String resultPostId = dualStorageManager.createPost(testPost, emptyContent);
+
+        // Then: Should succeed
+        assertThat(resultPostId).isEqualTo("1");
+    }
+
+    @Test
+    @DisplayName("Should handle content enrichment failure")
+    void shouldHandleContentEnrichmentFailure() {
+        // Given: Content enricher fails
+        doNothing().when(postRepository).save(any(Post.class));
+        when(contentEnricher.enrich(any(PostContent.class)))
+                .thenThrow(new RuntimeException("Content enrichment failed"));
+
+        // When & Then: Should throw exception (triggering rollback)
+        assertThatThrownBy(() -> dualStorageManager.createPost(testPost, testContent))
+                .isInstanceOf(DualStorageException.class);
+
+        // Verify: PostgreSQL save was called
+        verify(postRepository, times(1)).save(any(Post.class));
+        
+        // Verify: MongoDB save was NOT called (enrichment failed before)
+        verify(postContentRepository, never()).save(any(PostContent.class));
+    }
+
+    @Test
+    @DisplayName("Should handle multiple consecutive failures")
+    void shouldHandleMultipleConsecutiveFailures() {
+        // Given: Multiple consecutive MongoDB failures
+        doNothing().when(postRepository).save(any(Post.class));
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(testContent);
+        when(postContentRepository.save(any(PostContent.class)))
+                .thenThrow(new RuntimeException("MongoDB failed"))
+                .thenThrow(new RuntimeException("MongoDB still failing"));
+
+        // When & Then: First attempt fails
+        assertThatThrownBy(() -> dualStorageManager.createPost(testPost, testContent))
+                .isInstanceOf(DualStorageException.class);
+
+        // When & Then: Second attempt also fails
+        assertThatThrownBy(() -> dualStorageManager.createPost(testPost, testContent))
+                .isInstanceOf(DualStorageException.class);
+
+        // Verify: PostgreSQL was called twice
+        verify(postRepository, times(2)).save(any(Post.class));
+        
+        // Verify: MongoDB was attempted twice
+        verify(postContentRepository, times(2)).save(any(PostContent.class));
+    }
+
+    @Test
+    @DisplayName("Should handle published post creation with three-phase commit")
+    void shouldHandlePublishedPostCreationWithThreePhaseCommit() {
+        // Given: Post to be published immediately
+        Post publishedPost = Post.createDraft(1L, 100L, "Published Post");
+        publishedPost.publish(); // Set status to PUBLISHED
+        
+        doNothing().when(postRepository).save(any(Post.class));
+        doNothing().when(postRepository).update(any(Post.class));
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(testContent);
+        when(postContentRepository.save(any(PostContent.class))).thenReturn(testContent);
+
+        // When: Create published post
+        String resultPostId = dualStorageManager.createPost(publishedPost, testContent);
+
+        // Then: Should succeed
+        assertThat(resultPostId).isEqualTo("1");
+
+        // Verify: PostgreSQL save and update were called (three-phase commit)
+        verify(postRepository, times(1)).save(any(Post.class));
+        verify(postRepository, times(1)).update(any(Post.class));
+        verify(postContentRepository, times(1)).save(any(PostContent.class));
+    }
+
+    @Test
+    @DisplayName("Should rollback when MongoDB fails during three-phase commit")
+    void shouldRollbackWhenMongoDBFailsDuringThreePhaseCommit() {
+        // Given: Published post but MongoDB fails
+        Post publishedPost = Post.createDraft(1L, 100L, "Published Post");
+        publishedPost.publish();
+        
+        doNothing().when(postRepository).save(any(Post.class));
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(testContent);
+        when(postContentRepository.save(any(PostContent.class)))
+                .thenThrow(new RuntimeException("MongoDB failed"));
+
+        // When & Then: Should throw exception (triggering rollback)
+        assertThatThrownBy(() -> dualStorageManager.createPost(publishedPost, testContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to save content to MongoDB");
+
+        // Verify: PostgreSQL save was called but update was not (failed before update)
+        verify(postRepository, times(1)).save(any(Post.class));
+        verify(postRepository, never()).update(any(Post.class));
+        verify(postContentRepository, times(1)).save(any(PostContent.class));
+    }
+
+    // ========================================
+    // Section 6: Query Operations (Read-Only)
+    // ========================================
+
+    @Test
+    @DisplayName("Should get post full detail successfully")
+    void shouldGetPostFullDetailSuccessfully() {
+        // Given: Both repositories return data
+        String postId = "1";
+        when(postRepository.findById(postId)).thenReturn(Optional.of(testPost));
+        when(postContentRepository.findByPostId(postId)).thenReturn(Optional.of(testContent));
+
+        // When: Get full detail
+        DualStorageManagerImpl.PostDetail result = dualStorageManager.getPostFullDetail(postId);
+
+        // Then: Should return complete detail
+        assertThat(result).isNotNull();
+        assertThat(result.getPost()).isEqualTo(testPost);
+        assertThat(result.getContent()).isEqualTo(testContent);
+
+        // Verify: Both repositories were queried
+        verify(postRepository, times(1)).findById(postId);
+        verify(postContentRepository, times(1)).findByPostId(postId);
+    }
+
+    @Test
+    @DisplayName("Should throw exception when post not found in PostgreSQL")
+    void shouldThrowExceptionWhenPostNotFoundInPostgreSQL() {
+        // Given: Post not found in PostgreSQL
+        String postId = "999";
+        when(postRepository.findById(postId)).thenReturn(Optional.empty());
+
+        // When & Then: Should throw exception
+        assertThatThrownBy(() -> dualStorageManager.getPostFullDetail(postId))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Post not found in PostgreSQL");
+
+        // Verify: PostgreSQL was queried
+        verify(postRepository, times(1)).findById(postId);
+    }
+
+    @Test
+    @DisplayName("Should throw exception when content not found in MongoDB")
+    void shouldThrowExceptionWhenContentNotFoundInMongoDB() {
+        // Given: Content not found in MongoDB
+        String postId = "1";
+        when(postRepository.findById(postId)).thenReturn(Optional.of(testPost));
+        when(postContentRepository.findByPostId(postId)).thenReturn(Optional.empty());
+
+        // When & Then: Should throw exception
+        assertThatThrownBy(() -> dualStorageManager.getPostFullDetail(postId))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Post content not found in MongoDB");
+
+        // Verify: Both repositories were queried
+        verify(postRepository, times(1)).findById(postId);
+        verify(postContentRepository, times(1)).findByPostId(postId);
+    }
+
+    @Test
+    @DisplayName("Should get post content successfully")
+    void shouldGetPostContentSuccessfully() {
+        // Given: Content exists in MongoDB
+        String postId = "1";
+        when(postContentRepository.findByPostId(postId)).thenReturn(Optional.of(testContent));
+
+        // When: Get content
+        PostContent result = dualStorageManager.getPostContent(postId);
+
+        // Then: Should return content
+        assertThat(result).isEqualTo(testContent);
+
+        // Verify: MongoDB was queried
+        verify(postContentRepository, times(1)).findByPostId(postId);
+    }
+
+    @Test
+    @DisplayName("Should throw exception when getting non-existent content")
+    void shouldThrowExceptionWhenGettingNonExistentContent() {
+        // Given: Content not found
+        String postId = "999";
+        when(postContentRepository.findByPostId(postId)).thenReturn(Optional.empty());
+
+        // When & Then: Should throw exception
+        assertThatThrownBy(() -> dualStorageManager.getPostContent(postId))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Post content not found");
+
+        // Verify: MongoDB was queried
+        verify(postContentRepository, times(1)).findByPostId(postId);
+    }
+}

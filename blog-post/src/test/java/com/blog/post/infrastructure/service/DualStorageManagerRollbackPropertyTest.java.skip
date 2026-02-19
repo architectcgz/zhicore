@@ -1,0 +1,458 @@
+package com.blog.post.infrastructure.service;
+
+import com.blog.post.domain.exception.DualStorageException;
+import com.blog.post.domain.model.Post;
+import com.blog.post.domain.repository.PostRepository;
+import com.blog.post.infrastructure.mongodb.document.PostContent;
+import com.blog.post.infrastructure.mongodb.repository.PostContentRepository;
+import com.blog.post.infrastructure.util.ContentEnricher;
+import net.jqwik.api.*;
+import net.jqwik.api.constraints.IntRange;
+import net.jqwik.api.constraints.StringLength;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.dao.DataAccessException;
+
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
+/**
+ * Dual Storage Manager Rollback Integrity Property Test
+ * 
+ * Uses property-based testing to validate rollback integrity when
+ * write operations fail in either PostgreSQL or MongoDB.
+ * 
+ * **Feature: post-mongodb-hybrid, Property 4: 回滚完整性**
+ * 
+ * **Validates: Requirements 2.5, 7.2, 7.3**
+ * 
+ * Property 4: 回滚完整性
+ * 对于任意写入失败的操作，如果 PostgreSQL 写入成功但 MongoDB 失败，
+ * 则 PostgreSQL 的数据应该被回滚；如果 MongoDB 写入成功但 PostgreSQL 失败，
+ * 则 MongoDB 的数据应该被删除。
+ */
+class DualStorageManagerRollbackPropertyTest {
+
+    private PostRepository postRepository;
+    private PostContentRepository postContentRepository;
+    private ContentEnricher contentEnricher;
+    private DualStorageManagerImpl dualStorageManager;
+
+    @BeforeEach
+    void setUp() {
+        postRepository = mock(PostRepository.class);
+        postContentRepository = mock(PostContentRepository.class);
+        contentEnricher = mock(ContentEnricher.class);
+        dualStorageManager = new DualStorageManagerImpl(postRepository, postContentRepository, contentEnricher);
+    }
+
+    /**
+     * Property 4: Rollback integrity - PostgreSQL success but MongoDB failure
+     * 
+     * For any post, if PostgreSQL write succeeds but MongoDB write fails,
+     * then PostgreSQL data should be rolled back (via @Transactional).
+     * 
+     * **Validates: Requirements 2.5, 7.2**
+     */
+    @Property(tries = 100)
+    @Label("Property 4: PostgreSQL rollback when MongoDB fails")
+    void postgreSQLRollbackWhenMongoDBFails(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @StringLength(min = 1, max = 200) String title,
+            @ForAll @StringLength(min = 10, max = 5000) String content) {
+
+        // Given: PostgreSQL write succeeds but MongoDB write fails
+        String postIdStr = String.valueOf(postId);
+        Post post = Post.createDraft(postId, ownerId, title);
+        PostContent postContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(content)
+                .html("<p>" + content + "</p>")
+                .text(content)
+                .build();
+
+        // Mock PostgreSQL success
+        doNothing().when(postRepository).save(any(Post.class));
+        
+        // Mock content enricher
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(postContent);
+        
+        // Mock MongoDB failure
+        when(postContentRepository.save(any(PostContent.class)))
+                .thenThrow(new RuntimeException("MongoDB connection failed"));
+
+        // When: Create post
+        // Then: Should throw exception and PostgreSQL should rollback
+        assertThatThrownBy(() -> dualStorageManager.createPost(post, postContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to save content to MongoDB");
+
+        // Verify PostgreSQL save was called
+        verify(postRepository, times(1)).save(any(Post.class));
+        
+        // Verify MongoDB save was attempted
+        verify(postContentRepository, times(1)).save(any(PostContent.class));
+        
+        // Note: In real scenario with @Transactional, PostgreSQL would be rolled back
+        // In this test, we verify the exception is thrown which triggers rollback
+    }
+
+    /**
+     * Property 4: Rollback integrity - PostgreSQL failure
+     * 
+     * For any post, if PostgreSQL write fails,
+     * then MongoDB should not be written to (fail fast).
+     * 
+     * **Validates: Requirements 2.5, 7.2**
+     */
+    @Property(tries = 100)
+    @Label("Property 4: No MongoDB write when PostgreSQL fails")
+    void noMongoDBWriteWhenPostgreSQLFails(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @StringLength(min = 1, max = 200) String title,
+            @ForAll @StringLength(min = 10, max = 5000) String content) {
+
+        // Given: PostgreSQL write fails
+        Post post = Post.createDraft(postId, ownerId, title);
+        PostContent postContent = PostContent.builder()
+                .postId(String.valueOf(postId))
+                .contentType("markdown")
+                .raw(content)
+                .build();
+
+        // Mock PostgreSQL failure
+        doThrow(new DataAccessException("PostgreSQL connection failed") {})
+                .when(postRepository).save(any(Post.class));
+
+        // When: Create post
+        // Then: Should throw exception and MongoDB should not be written
+        assertThatThrownBy(() -> dualStorageManager.createPost(post, postContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to save post to PostgreSQL");
+
+        // Verify PostgreSQL save was attempted
+        verify(postRepository, times(1)).save(any(Post.class));
+        
+        // Verify MongoDB save was NOT attempted (fail fast)
+        verify(postContentRepository, never()).save(any(PostContent.class));
+    }
+
+    /**
+     * Property 4: Rollback integrity - Update operation PostgreSQL success but MongoDB failure
+     * 
+     * For any post update, if PostgreSQL update succeeds but MongoDB update fails,
+     * then PostgreSQL data should be rolled back.
+     * 
+     * **Validates: Requirements 2.5, 7.2**
+     */
+    @Property(tries = 100)
+    @Label("Property 4: PostgreSQL rollback on update when MongoDB fails")
+    void postgreSQLRollbackOnUpdateWhenMongoDBFails(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @StringLength(min = 1, max = 200) String title,
+            @ForAll @StringLength(min = 10, max = 5000) String updatedContent) {
+
+        // Given: PostgreSQL update succeeds but MongoDB update fails
+        String postIdStr = String.valueOf(postId);
+        Post post = Post.createDraft(postId, ownerId, title);
+        PostContent postContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(updatedContent)
+                .build();
+
+        // Mock PostgreSQL success
+        doNothing().when(postRepository).update(any(Post.class));
+        
+        // Mock content enricher
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(postContent);
+        
+        // Mock MongoDB failure
+        when(postContentRepository.save(any(PostContent.class)))
+                .thenThrow(new RuntimeException("MongoDB update failed"));
+
+        // When: Update post
+        // Then: Should throw exception and PostgreSQL should rollback
+        assertThatThrownBy(() -> dualStorageManager.updatePost(post, postContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to update content in MongoDB");
+
+        // Verify PostgreSQL update was called
+        verify(postRepository, times(1)).update(any(Post.class));
+        
+        // Verify MongoDB save was attempted
+        verify(postContentRepository, times(1)).save(any(PostContent.class));
+    }
+
+    /**
+     * Property 4: Rollback integrity - Update operation PostgreSQL failure
+     * 
+     * For any post update, if PostgreSQL update fails,
+     * then MongoDB should not be updated (fail fast).
+     * 
+     * **Validates: Requirements 2.5, 7.2**
+     */
+    @Property(tries = 100)
+    @Label("Property 4: No MongoDB update when PostgreSQL update fails")
+    void noMongoDBUpdateWhenPostgreSQLUpdateFails(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @StringLength(min = 1, max = 200) String title,
+            @ForAll @StringLength(min = 10, max = 5000) String updatedContent) {
+
+        // Given: PostgreSQL update fails
+        Post post = Post.createDraft(postId, ownerId, title);
+        PostContent postContent = PostContent.builder()
+                .postId(String.valueOf(postId))
+                .contentType("markdown")
+                .raw(updatedContent)
+                .build();
+
+        // Mock PostgreSQL failure
+        doThrow(new DataAccessException("PostgreSQL update failed") {})
+                .when(postRepository).update(any(Post.class));
+
+        // When: Update post
+        // Then: Should throw exception and MongoDB should not be updated
+        assertThatThrownBy(() -> dualStorageManager.updatePost(post, postContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to update post in PostgreSQL");
+
+        // Verify PostgreSQL update was attempted
+        verify(postRepository, times(1)).update(any(Post.class));
+        
+        // Verify MongoDB save was NOT attempted (fail fast)
+        verify(postContentRepository, never()).save(any(PostContent.class));
+    }
+
+    /**
+     * Property 4: Rollback integrity - Delete operation PostgreSQL success but MongoDB failure
+     * 
+     * For any post delete, if PostgreSQL delete succeeds but MongoDB delete fails,
+     * then PostgreSQL data should be rolled back.
+     * 
+     * **Validates: Requirements 2.5, 7.3**
+     */
+    @Property(tries = 100)
+    @Label("Property 4: PostgreSQL rollback on delete when MongoDB fails")
+    void postgreSQLRollbackOnDeleteWhenMongoDBFails(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId) {
+
+        // Given: PostgreSQL delete succeeds but MongoDB delete fails
+        String postIdStr = String.valueOf(postId);
+
+        // Mock PostgreSQL success
+        doNothing().when(postRepository).delete(postIdStr);
+        
+        // Mock MongoDB failure
+        doThrow(new RuntimeException("MongoDB delete failed"))
+                .when(postContentRepository).deleteByPostId(postIdStr);
+
+        // When: Delete post
+        // Then: Should throw exception and PostgreSQL should rollback
+        assertThatThrownBy(() -> dualStorageManager.deletePost(postIdStr))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to delete content from MongoDB");
+
+        // Verify PostgreSQL delete was called
+        verify(postRepository, times(1)).delete(postIdStr);
+        
+        // Verify MongoDB delete was attempted
+        verify(postContentRepository, times(1)).deleteByPostId(postIdStr);
+    }
+
+    /**
+     * Property 4: Rollback integrity - Delete operation PostgreSQL failure
+     * 
+     * For any post delete, if PostgreSQL delete fails,
+     * then MongoDB should not be deleted (fail fast).
+     * 
+     * **Validates: Requirements 2.5, 7.3**
+     */
+    @Property(tries = 100)
+    @Label("Property 4: No MongoDB delete when PostgreSQL delete fails")
+    void noMongoDBDeleteWhenPostgreSQLDeleteFails(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId) {
+
+        // Given: PostgreSQL delete fails
+        String postIdStr = String.valueOf(postId);
+
+        // Mock PostgreSQL failure
+        doThrow(new DataAccessException("PostgreSQL delete failed") {})
+                .when(postRepository).delete(postIdStr);
+
+        // When: Delete post
+        // Then: Should throw exception and MongoDB should not be deleted
+        assertThatThrownBy(() -> dualStorageManager.deletePost(postIdStr))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to delete post from PostgreSQL");
+
+        // Verify PostgreSQL delete was attempted
+        verify(postRepository, times(1)).delete(postIdStr);
+        
+        // Verify MongoDB delete was NOT attempted (fail fast)
+        verify(postContentRepository, never()).deleteByPostId(anyString());
+    }
+
+    /**
+     * Property 4: Rollback integrity - Network timeout scenario
+     * 
+     * For any post, if MongoDB write times out,
+     * then PostgreSQL data should be rolled back.
+     * 
+     * **Validates: Requirements 2.5, 7.2**
+     */
+    @Property(tries = 100)
+    @Label("Property 4: PostgreSQL rollback on MongoDB timeout")
+    void postgreSQLRollbackOnMongoDBTimeout(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @StringLength(min = 1, max = 200) String title,
+            @ForAll @StringLength(min = 10, max = 5000) String content) {
+
+        // Given: PostgreSQL write succeeds but MongoDB times out
+        String postIdStr = String.valueOf(postId);
+        Post post = Post.createDraft(postId, ownerId, title);
+        PostContent postContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(content)
+                .build();
+
+        // Mock PostgreSQL success
+        doNothing().when(postRepository).save(any(Post.class));
+        
+        // Mock content enricher
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(postContent);
+        
+        // Mock MongoDB timeout
+        when(postContentRepository.save(any(PostContent.class)))
+                .thenThrow(new RuntimeException("MongoDB operation timed out"));
+
+        // When: Create post
+        // Then: Should throw exception and PostgreSQL should rollback
+        assertThatThrownBy(() -> dualStorageManager.createPost(post, postContent))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to save content to MongoDB");
+
+        // Verify both operations were attempted
+        verify(postRepository, times(1)).save(any(Post.class));
+        verify(postContentRepository, times(1)).save(any(PostContent.class));
+    }
+
+    /**
+     * Property 4: Rollback integrity - Successful operation should not rollback
+     * 
+     * For any post, if both PostgreSQL and MongoDB writes succeed,
+     * then no rollback should occur and data should be consistent.
+     * 
+     * **Validates: Requirements 2.5, 7.2**
+     */
+    @Property(tries = 100)
+    @Label("Property 4: No rollback when both operations succeed")
+    void noRollbackWhenBothOperationsSucceed(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @StringLength(min = 1, max = 200) String title,
+            @ForAll @StringLength(min = 10, max = 5000) String content) {
+
+        // Given: Both PostgreSQL and MongoDB writes succeed
+        String postIdStr = String.valueOf(postId);
+        Post post = Post.createDraft(postId, ownerId, title);
+        PostContent postContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(content)
+                .html("<p>" + content + "</p>")
+                .text(content)
+                .build();
+
+        // Mock successful operations
+        doNothing().when(postRepository).save(any(Post.class));
+        when(contentEnricher.enrich(any(PostContent.class))).thenReturn(postContent);
+        when(postContentRepository.save(any(PostContent.class))).thenReturn(postContent);
+
+        // When: Create post
+        String resultPostId = dualStorageManager.createPost(post, postContent);
+
+        // Then: Should succeed without exception
+        assertThat(resultPostId).isEqualTo(postIdStr);
+
+        // Verify both operations were called exactly once
+        verify(postRepository, times(1)).save(any(Post.class));
+        verify(postContentRepository, times(1)).save(any(PostContent.class));
+        
+        // Verify no delete operations were called (no rollback)
+        verify(postRepository, never()).delete(anyString());
+        verify(postContentRepository, never()).deleteByPostId(anyString());
+    }
+
+    /**
+     * Property 4: Rollback integrity - Multiple failure scenarios
+     * 
+     * For any post, regardless of which database fails,
+     * the system should maintain consistency by rolling back or failing fast.
+     * 
+     * **Validates: Requirements 2.5, 7.2, 7.3**
+     */
+    @Property(tries = 100)
+    @Label("Property 4: Consistent behavior across different failure scenarios")
+    void consistentBehaviorAcrossDifferentFailureScenarios(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @StringLength(min = 1, max = 200) String title,
+            @ForAll @StringLength(min = 10, max = 5000) String content,
+            @ForAll("failureScenario") String failureScenario) {
+
+        // Given: Different failure scenarios
+        String postIdStr = String.valueOf(postId);
+        Post post = Post.createDraft(postId, ownerId, title);
+        PostContent postContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(content)
+                .build();
+
+        // Setup mocks based on failure scenario
+        switch (failureScenario) {
+            case "PG_FAIL":
+                doThrow(new DataAccessException("PostgreSQL failed") {})
+                        .when(postRepository).save(any(Post.class));
+                break;
+            case "MONGO_FAIL":
+                doNothing().when(postRepository).save(any(Post.class));
+                when(contentEnricher.enrich(any(PostContent.class))).thenReturn(postContent);
+                when(postContentRepository.save(any(PostContent.class)))
+                        .thenThrow(new RuntimeException("MongoDB failed"));
+                break;
+            case "SUCCESS":
+                doNothing().when(postRepository).save(any(Post.class));
+                when(contentEnricher.enrich(any(PostContent.class))).thenReturn(postContent);
+                when(postContentRepository.save(any(PostContent.class))).thenReturn(postContent);
+                break;
+        }
+
+        // When & Then: Verify consistent behavior
+        if ("SUCCESS".equals(failureScenario)) {
+            String resultPostId = dualStorageManager.createPost(post, postContent);
+            assertThat(resultPostId).isEqualTo(postIdStr);
+        } else {
+            assertThatThrownBy(() -> dualStorageManager.createPost(post, postContent))
+                    .isInstanceOf(DualStorageException.class);
+        }
+    }
+
+    // Data generators
+    @Provide
+    Arbitrary<String> failureScenario() {
+        return Arbitraries.of("PG_FAIL", "MONGO_FAIL", "SUCCESS");
+    }
+}

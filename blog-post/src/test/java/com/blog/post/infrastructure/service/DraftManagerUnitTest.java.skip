@@ -1,0 +1,655 @@
+package com.blog.post.infrastructure.service;
+
+import com.blog.post.infrastructure.mongodb.document.PostDraft;
+import com.blog.post.infrastructure.mongodb.repository.PostDraftRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
+/**
+ * Draft Manager Unit Tests
+ * 
+ * Tests specific scenarios for draft management including:
+ * - Upsert logic (one draft per user per post)
+ * - Draft recovery prompt logic
+ * - Draft expiration cleanup
+ * 
+ * **Validates: Requirements 4.1, 4.2, 4.3, 4.6**
+ */
+@ExtendWith(MockitoExtension.class)
+@DisplayName("Draft Manager Unit Tests")
+class DraftManagerUnitTest {
+
+    @Mock
+    private PostDraftRepository draftRepository;
+
+    @InjectMocks
+    private DraftManagerImpl draftManager;
+
+    private String testPostId;
+    private String testUserId;
+    private PostDraft testDraft;
+
+    @BeforeEach
+    void setUp() {
+        testPostId = "post-123";
+        testUserId = "user-100";
+        
+        testDraft = PostDraft.builder()
+                .id("draft-1")
+                .postId(testPostId)
+                .userId(testUserId)
+                .content("Test draft content")
+                .contentType("markdown")
+                .savedAt(LocalDateTime.now())
+                .isAutoSave(true)
+                .wordCount(17)
+                .build();
+    }
+
+    // ========================================
+    // Section 1: Upsert Logic Tests
+    // ========================================
+
+    @Test
+    @DisplayName("Should create new draft when none exists")
+    void shouldCreateNewDraftWhenNoneExists() {
+        // Given: No existing draft
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenReturn(Optional.empty());
+        when(draftRepository.save(any(PostDraft.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Save draft
+        draftManager.saveDraft(testPostId, testUserId, "New content", true);
+
+        // Then: Should create new draft
+        verify(draftRepository, times(1)).save(argThat(draft ->
+                draft.getPostId().equals(testPostId) &&
+                draft.getUserId().equals(testUserId) &&
+                draft.getContent().equals("New content") &&
+                draft.getIsAutoSave().equals(true) &&
+                draft.getContentType().equals("markdown") &&
+                draft.getWordCount().equals(10) // "New content" without spaces
+        ));
+    }
+
+    @Test
+    @DisplayName("Should update existing draft when one exists (Upsert)")
+    void shouldUpdateExistingDraftWhenOneExists() {
+        // Given: Existing draft
+        PostDraft existingDraft = PostDraft.builder()
+                .id("draft-1")
+                .postId(testPostId)
+                .userId(testUserId)
+                .content("Old content")
+                .contentType("markdown")
+                .savedAt(LocalDateTime.now().minusMinutes(5))
+                .isAutoSave(true)
+                .wordCount(10)
+                .build();
+        
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenReturn(Optional.of(existingDraft));
+        when(draftRepository.save(any(PostDraft.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Save draft again
+        LocalDateTime beforeSave = LocalDateTime.now().minusSeconds(1);
+        draftManager.saveDraft(testPostId, testUserId, "Updated content", false);
+        LocalDateTime afterSave = LocalDateTime.now().plusSeconds(1);
+
+        // Then: Should update existing draft
+        verify(draftRepository, times(1)).save(argThat(draft ->
+                draft.getId().equals("draft-1") && // Same ID
+                draft.getContent().equals("Updated content") &&
+                draft.getIsAutoSave().equals(false) &&
+                draft.getSavedAt().isAfter(beforeSave) &&
+                draft.getSavedAt().isBefore(afterSave) &&
+                draft.getWordCount().equals(14) // "Updated content" without spaces
+        ));
+    }
+
+    @Test
+    @DisplayName("Should ensure only one draft per user per post")
+    void shouldEnsureOnlyOneDraftPerUserPerPost() {
+        // Given: Existing draft
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenReturn(Optional.of(testDraft));
+        when(draftRepository.save(any(PostDraft.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Save draft multiple times
+        draftManager.saveDraft(testPostId, testUserId, "Content 1", true);
+        draftManager.saveDraft(testPostId, testUserId, "Content 2", true);
+        draftManager.saveDraft(testPostId, testUserId, "Content 3", true);
+
+        // Then: Should always update the same draft (3 saves total)
+        verify(draftRepository, times(3)).save(any(PostDraft.class));
+        verify(draftRepository, times(3)).findByPostIdAndUserId(testPostId, testUserId);
+    }
+
+    @Test
+    @DisplayName("Should allow different users to have separate drafts for same post")
+    void shouldAllowDifferentUsersToHaveSeparateDraftsForSamePost() {
+        // Given: No existing drafts
+        when(draftRepository.findByPostIdAndUserId(anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(draftRepository.save(any(PostDraft.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Two users save drafts for same post
+        draftManager.saveDraft(testPostId, "user-100", "User 100 content", true);
+        draftManager.saveDraft(testPostId, "user-200", "User 200 content", true);
+
+        // Then: Should create two separate drafts
+        verify(draftRepository, times(2)).save(any(PostDraft.class));
+        verify(draftRepository, times(1)).save(argThat(draft ->
+                draft.getUserId().equals("user-100") &&
+                draft.getContent().equals("User 100 content")
+        ));
+        verify(draftRepository, times(1)).save(argThat(draft ->
+                draft.getUserId().equals("user-200") &&
+                draft.getContent().equals("User 200 content")
+        ));
+    }
+
+    @Test
+    @DisplayName("Should allow same user to have separate drafts for different posts")
+    void shouldAllowSameUserToHaveSeparateDraftsForDifferentPosts() {
+        // Given: No existing drafts
+        when(draftRepository.findByPostIdAndUserId(anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(draftRepository.save(any(PostDraft.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Same user saves drafts for different posts
+        draftManager.saveDraft("post-100", testUserId, "Post 100 content", true);
+        draftManager.saveDraft("post-200", testUserId, "Post 200 content", true);
+
+        // Then: Should create two separate drafts
+        verify(draftRepository, times(2)).save(any(PostDraft.class));
+        verify(draftRepository, times(1)).save(argThat(draft ->
+                draft.getPostId().equals("post-100") &&
+                draft.getContent().equals("Post 100 content")
+        ));
+        verify(draftRepository, times(1)).save(argThat(draft ->
+                draft.getPostId().equals("post-200") &&
+                draft.getContent().equals("Post 200 content")
+        ));
+    }
+
+    @Test
+    @DisplayName("Should update savedAt timestamp on each save")
+    void shouldUpdateSavedAtTimestampOnEachSave() {
+        // Given: Existing draft with old timestamp
+        PostDraft oldDraft = PostDraft.builder()
+                .id("draft-1")
+                .postId(testPostId)
+                .userId(testUserId)
+                .content("Old content")
+                .savedAt(LocalDateTime.now().minusHours(1))
+                .isAutoSave(true)
+                .wordCount(10)
+                .build();
+        
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenReturn(Optional.of(oldDraft));
+        when(draftRepository.save(any(PostDraft.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Save draft
+        LocalDateTime beforeSave = LocalDateTime.now().minusSeconds(1);
+        draftManager.saveDraft(testPostId, testUserId, "New content", true);
+        LocalDateTime afterSave = LocalDateTime.now().plusSeconds(1);
+
+        // Then: Should update timestamp
+        verify(draftRepository, times(1)).save(argThat(draft ->
+                draft.getSavedAt().isAfter(beforeSave) &&
+                draft.getSavedAt().isBefore(afterSave)
+        ));
+    }
+
+    @Test
+    @DisplayName("Should calculate word count correctly")
+    void shouldCalculateWordCountCorrectly() {
+        // Given: No existing draft
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenReturn(Optional.empty());
+        when(draftRepository.save(any(PostDraft.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Save draft with content containing spaces
+        draftManager.saveDraft(testPostId, testUserId, "Hello World Test", true);
+
+        // Then: Should calculate word count (remove spaces)
+        verify(draftRepository, times(1)).save(argThat(draft ->
+                draft.getWordCount().equals(14) // "HelloWorldTest" = 14 characters
+        ));
+    }
+
+    @Test
+    @DisplayName("Should handle empty content")
+    void shouldHandleEmptyContent() {
+        // Given: No existing draft
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenReturn(Optional.empty());
+        when(draftRepository.save(any(PostDraft.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Save draft with empty content
+        draftManager.saveDraft(testPostId, testUserId, "", true);
+
+        // Then: Should save with word count 0
+        verify(draftRepository, times(1)).save(argThat(draft ->
+                draft.getContent().equals("") &&
+                draft.getWordCount().equals(0)
+        ));
+    }
+
+    @Test
+    @DisplayName("Should handle null content")
+    void shouldHandleNullContent() {
+        // Given: No existing draft
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenReturn(Optional.empty());
+        when(draftRepository.save(any(PostDraft.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Save draft with null content
+        draftManager.saveDraft(testPostId, testUserId, null, true);
+
+        // Then: Should save with word count 0
+        verify(draftRepository, times(1)).save(argThat(draft ->
+                draft.getContent() == null &&
+                draft.getWordCount().equals(0)
+        ));
+    }
+
+    @Test
+    @DisplayName("Should distinguish between auto-save and manual save")
+    void shouldDistinguishBetweenAutoSaveAndManualSave() {
+        // Given: No existing draft
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenReturn(Optional.empty());
+        when(draftRepository.save(any(PostDraft.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Save with auto-save flag
+        draftManager.saveDraft(testPostId, testUserId, "Content", true);
+
+        // Then: Should set isAutoSave to true
+        verify(draftRepository, times(1)).save(argThat(draft ->
+                draft.getIsAutoSave().equals(true)
+        ));
+
+        // When: Save with manual save flag
+        reset(draftRepository);
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenReturn(Optional.empty());
+        when(draftRepository.save(any(PostDraft.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        
+        draftManager.saveDraft(testPostId, testUserId, "Content", false);
+
+        // Then: Should set isAutoSave to false
+        verify(draftRepository, times(1)).save(argThat(draft ->
+                draft.getIsAutoSave().equals(false)
+        ));
+    }
+
+    // ========================================
+    // Section 2: Draft Recovery Prompt Logic Tests
+    // ========================================
+
+    @Test
+    @DisplayName("Should retrieve latest draft successfully")
+    void shouldRetrieveLatestDraftSuccessfully() {
+        // Given: Draft exists
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenReturn(Optional.of(testDraft));
+
+        // When: Get latest draft
+        Optional<PostDraft> result = draftManager.getLatestDraft(testPostId, testUserId);
+
+        // Then: Should return draft
+        assertThat(result).isPresent();
+        assertThat(result.get()).isEqualTo(testDraft);
+        assertThat(result.get().getContent()).isEqualTo("Test draft content");
+        assertThat(result.get().getSavedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Should return empty when no draft exists")
+    void shouldReturnEmptyWhenNoDraftExists() {
+        // Given: No draft exists
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenReturn(Optional.empty());
+
+        // When: Get latest draft
+        Optional<PostDraft> result = draftManager.getLatestDraft(testPostId, testUserId);
+
+        // Then: Should return empty
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should get user drafts ordered by saved time")
+    void shouldGetUserDraftsOrderedBySavedTime() {
+        // Given: Multiple drafts exist for user
+        List<PostDraft> drafts = createDraftList(testUserId, 3);
+        when(draftRepository.findByUserIdOrderBySavedAtDesc(testUserId))
+                .thenReturn(drafts);
+
+        // When: Get user drafts
+        List<PostDraft> result = draftManager.getUserDrafts(testUserId);
+
+        // Then: Should return drafts in descending order
+        assertThat(result).hasSize(3);
+        assertThat(result.get(0).getSavedAt()).isAfter(result.get(1).getSavedAt());
+        assertThat(result.get(1).getSavedAt()).isAfter(result.get(2).getSavedAt());
+    }
+
+    @Test
+    @DisplayName("Should return empty list when user has no drafts")
+    void shouldReturnEmptyListWhenUserHasNoDrafts() {
+        // Given: No drafts exist
+        when(draftRepository.findByUserIdOrderBySavedAtDesc(testUserId))
+                .thenReturn(new ArrayList<>());
+
+        // When: Get user drafts
+        List<PostDraft> result = draftManager.getUserDrafts(testUserId);
+
+        // Then: Should return empty list
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should handle repository exception gracefully when getting draft")
+    void shouldHandleRepositoryExceptionGracefullyWhenGettingDraft() {
+        // Given: Repository throws exception
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenThrow(new RuntimeException("Database error"));
+
+        // When: Get latest draft
+        Optional<PostDraft> result = draftManager.getLatestDraft(testPostId, testUserId);
+
+        // Then: Should return empty instead of throwing
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should handle repository exception gracefully when getting user drafts")
+    void shouldHandleRepositoryExceptionGracefullyWhenGettingUserDrafts() {
+        // Given: Repository throws exception
+        when(draftRepository.findByUserIdOrderBySavedAtDesc(testUserId))
+                .thenThrow(new RuntimeException("Database error"));
+
+        // When: Get user drafts
+        List<PostDraft> result = draftManager.getUserDrafts(testUserId);
+
+        // Then: Should return empty list instead of throwing
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should verify draft contains all necessary metadata for recovery prompt")
+    void shouldVerifyDraftContainsAllNecessaryMetadataForRecoveryPrompt() {
+        // Given: Draft with complete metadata
+        PostDraft completeDraft = PostDraft.builder()
+                .id("draft-1")
+                .postId(testPostId)
+                .userId(testUserId)
+                .content("Draft content")
+                .contentType("markdown")
+                .savedAt(LocalDateTime.now().minusMinutes(10))
+                .isAutoSave(true)
+                .wordCount(12)
+                .deviceId("device-123")
+                .build();
+        
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenReturn(Optional.of(completeDraft));
+
+        // When: Get latest draft
+        Optional<PostDraft> result = draftManager.getLatestDraft(testPostId, testUserId);
+
+        // Then: Should contain all metadata needed for recovery prompt
+        assertThat(result).isPresent();
+        PostDraft draft = result.get();
+        assertThat(draft.getPostId()).isEqualTo(testPostId);
+        assertThat(draft.getUserId()).isEqualTo(testUserId);
+        assertThat(draft.getContent()).isNotNull();
+        assertThat(draft.getSavedAt()).isNotNull();
+        assertThat(draft.getIsAutoSave()).isNotNull();
+        assertThat(draft.getWordCount()).isNotNull();
+    }
+
+    // ========================================
+    // Section 3: Draft Deletion Tests
+    // ========================================
+
+    @Test
+    @DisplayName("Should delete draft successfully")
+    void shouldDeleteDraftSuccessfully() {
+        // Given: Draft exists
+        doNothing().when(draftRepository).deleteByPostIdAndUserId(testPostId, testUserId);
+
+        // When: Delete draft
+        draftManager.deleteDraft(testPostId, testUserId);
+
+        // Then: Should call repository delete
+        verify(draftRepository, times(1)).deleteByPostIdAndUserId(testPostId, testUserId);
+    }
+
+    @Test
+    @DisplayName("Should handle deletion of non-existent draft gracefully")
+    void shouldHandleDeletionOfNonExistentDraftGracefully() {
+        // Given: No draft exists (repository does nothing)
+        doNothing().when(draftRepository).deleteByPostIdAndUserId(testPostId, testUserId);
+
+        // When: Delete draft
+        draftManager.deleteDraft(testPostId, testUserId);
+
+        // Then: Should not throw exception
+        verify(draftRepository, times(1)).deleteByPostIdAndUserId(testPostId, testUserId);
+    }
+
+    @Test
+    @DisplayName("Should handle repository exception gracefully when deleting")
+    void shouldHandleRepositoryExceptionGracefullyWhenDeleting() {
+        // Given: Repository throws exception
+        doThrow(new RuntimeException("Database error"))
+                .when(draftRepository).deleteByPostIdAndUserId(testPostId, testUserId);
+
+        // When: Delete draft
+        draftManager.deleteDraft(testPostId, testUserId);
+
+        // Then: Should not throw exception (logged internally)
+        verify(draftRepository, times(1)).deleteByPostIdAndUserId(testPostId, testUserId);
+    }
+
+    // ========================================
+    // Section 4: Draft Expiration Cleanup Tests
+    // ========================================
+
+    @Test
+    @DisplayName("Should clean expired drafts successfully")
+    void shouldCleanExpiredDraftsSuccessfully() {
+        // Given: 5 expired drafts exist
+        when(draftRepository.deleteBySavedAtBefore(any(LocalDateTime.class)))
+                .thenReturn(5L);
+
+        // When: Clean drafts older than 30 days
+        long deletedCount = draftManager.cleanExpiredDrafts(30);
+
+        // Then: Should return count of deleted drafts
+        assertThat(deletedCount).isEqualTo(5);
+        verify(draftRepository, times(1)).deleteBySavedAtBefore(any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("Should return 0 when no expired drafts exist")
+    void shouldReturn0WhenNoExpiredDraftsExist() {
+        // Given: No expired drafts
+        when(draftRepository.deleteBySavedAtBefore(any(LocalDateTime.class)))
+                .thenReturn(0L);
+
+        // When: Clean expired drafts
+        long deletedCount = draftManager.cleanExpiredDrafts(30);
+
+        // Then: Should return 0
+        assertThat(deletedCount).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("Should calculate correct expiration time")
+    void shouldCalculateCorrectExpirationTime() {
+        // Given: Current time
+        when(draftRepository.deleteBySavedAtBefore(any(LocalDateTime.class)))
+                .thenReturn(0L);
+
+        // When: Clean drafts older than 30 days
+        LocalDateTime beforeClean = LocalDateTime.now().minusDays(30).minusSeconds(1);
+        draftManager.cleanExpiredDrafts(30);
+        LocalDateTime afterClean = LocalDateTime.now().minusDays(30).plusSeconds(1);
+
+        // Then: Should use correct expiration time
+        verify(draftRepository, times(1)).deleteBySavedAtBefore(
+                argThat(expireTime ->
+                        expireTime.isAfter(beforeClean) &&
+                        expireTime.isBefore(afterClean)
+                )
+        );
+    }
+
+    @Test
+    @DisplayName("Should handle different expiration periods")
+    void shouldHandleDifferentExpirationPeriods() {
+        // Given: Repository ready
+        when(draftRepository.deleteBySavedAtBefore(any(LocalDateTime.class)))
+                .thenReturn(0L);
+
+        // When: Clean with different periods
+        draftManager.cleanExpiredDrafts(7);   // 7 days
+        draftManager.cleanExpiredDrafts(30);  // 30 days
+        draftManager.cleanExpiredDrafts(90);  // 90 days
+
+        // Then: Should call repository 3 times
+        verify(draftRepository, times(3)).deleteBySavedAtBefore(any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("Should handle 1 day expiration period")
+    void shouldHandle1DayExpirationPeriod() {
+        // Given: Repository ready
+        when(draftRepository.deleteBySavedAtBefore(any(LocalDateTime.class)))
+                .thenReturn(10L);
+
+        // When: Clean drafts older than 1 day
+        long deletedCount = draftManager.cleanExpiredDrafts(1);
+
+        // Then: Should work correctly
+        assertThat(deletedCount).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("Should handle repository exception gracefully when cleaning")
+    void shouldHandleRepositoryExceptionGracefullyWhenCleaning() {
+        // Given: Repository throws exception
+        when(draftRepository.deleteBySavedAtBefore(any(LocalDateTime.class)))
+                .thenThrow(new RuntimeException("Database error"));
+
+        // When: Clean expired drafts
+        long deletedCount = draftManager.cleanExpiredDrafts(30);
+
+        // Then: Should return 0 instead of throwing
+        assertThat(deletedCount).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("Should clean large number of expired drafts")
+    void shouldCleanLargeNumberOfExpiredDrafts() {
+        // Given: 1000 expired drafts
+        when(draftRepository.deleteBySavedAtBefore(any(LocalDateTime.class)))
+                .thenReturn(1000L);
+
+        // When: Clean expired drafts
+        long deletedCount = draftManager.cleanExpiredDrafts(30);
+
+        // Then: Should handle large count
+        assertThat(deletedCount).isEqualTo(1000);
+    }
+
+    // ========================================
+    // Section 5: Error Handling Tests
+    // ========================================
+
+    @Test
+    @DisplayName("Should not throw exception when save fails")
+    void shouldNotThrowExceptionWhenSaveFails() {
+        // Given: Repository throws exception on save
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenReturn(Optional.empty());
+        when(draftRepository.save(any(PostDraft.class)))
+                .thenThrow(new RuntimeException("Database error"));
+
+        // When: Save draft
+        draftManager.saveDraft(testPostId, testUserId, "Content", true);
+
+        // Then: Should not throw exception (logged internally)
+        verify(draftRepository, times(1)).save(any(PostDraft.class));
+    }
+
+    @Test
+    @DisplayName("Should not throw exception when find fails during save")
+    void shouldNotThrowExceptionWhenFindFailsDuringSave() {
+        // Given: Repository throws exception on find
+        when(draftRepository.findByPostIdAndUserId(testPostId, testUserId))
+                .thenThrow(new RuntimeException("Database error"));
+
+        // When: Save draft
+        draftManager.saveDraft(testPostId, testUserId, "Content", true);
+
+        // Then: Should not throw exception (logged internally)
+        verify(draftRepository, times(1)).findByPostIdAndUserId(testPostId, testUserId);
+    }
+
+    // ========================================
+    // Helper Methods
+    // ========================================
+
+    /**
+     * Create a list of drafts for testing
+     */
+    private List<PostDraft> createDraftList(String userId, int count) {
+        List<PostDraft> drafts = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            drafts.add(PostDraft.builder()
+                    .id("draft-" + i)
+                    .postId("post-" + i)
+                    .userId(userId)
+                    .content("Content " + i)
+                    .contentType("markdown")
+                    .savedAt(LocalDateTime.now().minusMinutes(i * 10))
+                    .isAutoSave(true)
+                    .wordCount(8 + i)
+                    .build());
+        }
+        return drafts;
+    }
+}

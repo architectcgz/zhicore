@@ -1,0 +1,100 @@
+package com.blog.post.integration;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+/**
+ * Post Service API 集成测试
+ * 
+ * 测试文章 CRUD、点赞、收藏等核心功能
+ */
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@DisplayName("Post Service API 集成测试")
+class PostApiIntegrationTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private static Long postId;
+
+    @Test
+    @Order(1)
+    @DisplayName("创建文章应成功")
+    void createPost_shouldSucceed() throws Exception {
+        Map<String, Object> request = new HashMap<>();
+        request.put("title", "测试文章标题");
+        request.put("content", "这是测试文章的内容，包含一些有意义的文字。");
+        request.put("summary", "文章摘要");
+        request.put("format", "MARKDOWN");
+
+        mockMvc.perform(post("/api/posts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-User-Id", "test-user-id")
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data").exists());
+    }
+
+    @Test
+    @Order(2)
+    @DisplayName("获取文章列表应返回分页数据")
+    void getPostList_shouldReturnPagedData() throws Exception {
+        mockMvc.perform(get("/api/posts")
+                .param("page", "1")
+                .param("size", "10"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.records").isArray());
+    }
+
+    @Test
+    @Order(3)
+    @DisplayName("获取热门文章应成功")
+    void getHotPosts_shouldSucceed() throws Exception {
+        mockMvc.perform(get("/api/posts/hot")
+                .param("limit", "10"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    @Order(4)
+    @DisplayName("健康检查端点应返回 UP")
+    void healthEndpoint_shouldReturnUp() throws Exception {
+        mockMvc.perform(get("/actuator/health"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("UP"));
+    }
+
+    @Test
+    @Order(5)
+    @DisplayName("Prometheus 指标端点应可访问")
+    void prometheusEndpoint_shouldBeAccessible() throws Exception {
+        mockMvc.perform(get("/actuator/prometheus"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("jvm_memory")));
+    }
+}

@@ -1,0 +1,594 @@
+package com.blog.post.infrastructure.service;
+
+import com.blog.post.infrastructure.mongodb.document.PostContent;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/**
+ * ContentProcessor 单元测试
+ * 测试富文本内容处理功能
+ * 
+ * Requirements: 5.2, 5.3, 5.4, 5.5, 5.6
+ * 
+ * @author Blog Team
+ */
+@ExtendWith(MockitoExtension.class)
+@DisplayName("ContentProcessor Unit Tests")
+class ContentProcessorUnitTest {
+
+    private ContentProcessorImpl contentProcessor;
+    private ObjectMapper objectMapper;
+
+    @BeforeEach
+    void setUp() {
+        objectMapper = new ObjectMapper();
+        contentProcessor = new ContentProcessorImpl(objectMapper);
+    }
+
+    // ==================== Content Block Processing Tests ====================
+
+    @Test
+    @DisplayName("Should process valid content blocks correctly")
+    void shouldProcessValidContentBlocks() {
+        // Given: Valid content blocks
+        List<PostContent.ContentBlock> blocks = Arrays.asList(
+                PostContent.ContentBlock.builder()
+                        .type("text")
+                        .content("This is a text block")
+                        .order(0)
+                        .build(),
+                PostContent.ContentBlock.builder()
+                        .type("image")
+                        .content("https://example.com/image.jpg")
+                        .order(1)
+                        .build(),
+                PostContent.ContentBlock.builder()
+                        .type("code")
+                        .content("console.log('Hello World');")
+                        .order(2)
+                        .build()
+        );
+
+        // When: Process blocks
+        List<PostContent.ContentBlock> result = contentProcessor.processContentBlocks(blocks);
+
+        // Then: All blocks should be processed
+        assertThat(result).hasSize(3);
+        assertThat(result.get(0).getType()).isEqualTo("text");
+        assertThat(result.get(1).getType()).isEqualTo("image");
+        assertThat(result.get(2).getType()).isEqualTo("code");
+    }
+
+    @Test
+    @DisplayName("Should auto-assign order when missing")
+    void shouldAutoAssignOrder() {
+        // Given: Blocks without order
+        List<PostContent.ContentBlock> blocks = Arrays.asList(
+                PostContent.ContentBlock.builder()
+                        .type("text")
+                        .content("Block 1")
+                        .build(),
+                PostContent.ContentBlock.builder()
+                        .type("text")
+                        .content("Block 2")
+                        .build()
+        );
+
+        // When: Process blocks
+        List<PostContent.ContentBlock> result = contentProcessor.processContentBlocks(blocks);
+
+        // Then: Order should be assigned
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getOrder()).isEqualTo(0);
+        assertThat(result.get(1).getOrder()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Should skip unsupported block types")
+    void shouldSkipUnsupportedBlockTypes() {
+        // Given: Blocks with unsupported type
+        List<PostContent.ContentBlock> blocks = Arrays.asList(
+                PostContent.ContentBlock.builder()
+                        .type("text")
+                        .content("Valid block")
+                        .build(),
+                PostContent.ContentBlock.builder()
+                        .type("unsupported_type")
+                        .content("Invalid block")
+                        .build(),
+                PostContent.ContentBlock.builder()
+                        .type("image")
+                        .content("https://example.com/image.jpg")
+                        .build()
+        );
+
+        // When: Process blocks
+        List<PostContent.ContentBlock> result = contentProcessor.processContentBlocks(blocks);
+
+        // Then: Only valid blocks should be included
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getType()).isEqualTo("text");
+        assertThat(result.get(1).getType()).isEqualTo("image");
+    }
+
+    @Test
+    @DisplayName("Should skip blocks with empty content")
+    void shouldSkipEmptyContentBlocks() {
+        // Given: Blocks with empty content
+        List<PostContent.ContentBlock> blocks = Arrays.asList(
+                PostContent.ContentBlock.builder()
+                        .type("text")
+                        .content("Valid content")
+                        .build(),
+                PostContent.ContentBlock.builder()
+                        .type("text")
+                        .content("")
+                        .build(),
+                PostContent.ContentBlock.builder()
+                        .type("text")
+                        .content("   ")
+                        .build()
+        );
+
+        // When: Process blocks
+        List<PostContent.ContentBlock> result = contentProcessor.processContentBlocks(blocks);
+
+        // Then: Only non-empty blocks should be included
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getContent()).isEqualTo("Valid content");
+    }
+
+    @Test
+    @DisplayName("Should handle null or empty block list")
+    void shouldHandleNullOrEmptyBlockList() {
+        // When & Then: Null list
+        assertThat(contentProcessor.processContentBlocks(null)).isEmpty();
+
+        // When & Then: Empty list
+        assertThat(contentProcessor.processContentBlocks(new ArrayList<>())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should support all defined block types")
+    void shouldSupportAllDefinedBlockTypes() {
+        // Given: All supported block types
+        List<String> supportedTypes = Arrays.asList(
+                "text", "image", "video", "code", "chart", "quote", "list", "table"
+        );
+
+        for (String type : supportedTypes) {
+            List<PostContent.ContentBlock> blocks = List.of(
+                    PostContent.ContentBlock.builder()
+                            .type(type)
+                            .content("Test content for " + type)
+                            .build()
+            );
+
+            // When: Process blocks
+            List<PostContent.ContentBlock> result = contentProcessor.processContentBlocks(blocks);
+
+            // Then: Block should be processed
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getType()).isEqualTo(type);
+        }
+    }
+
+    // ==================== Media Metadata Extraction Tests ====================
+
+    @Test
+    @DisplayName("Should extract image URLs from Markdown")
+    void shouldExtractImageUrlsFromMarkdown() {
+        // Given: Content with Markdown images
+        String content = "![Alt text](https://example.com/image1.jpg) Some text ![](https://example.com/image2.png)";
+
+        // When: Extract media
+        List<PostContent.MediaResource> media = contentProcessor.extractMediaMetadata(content);
+
+        // Then: Images should be extracted
+        assertThat(media).hasSize(2);
+        assertThat(media.get(0).getType()).isEqualTo("image");
+        assertThat(media.get(0).getUrl()).isEqualTo("https://example.com/image1.jpg");
+        assertThat(media.get(1).getUrl()).isEqualTo("https://example.com/image2.png");
+    }
+
+    @Test
+    @DisplayName("Should extract image URLs from HTML")
+    void shouldExtractImageUrlsFromHtml() {
+        // Given: Content with HTML images
+        String content = "<img src='https://example.com/image1.jpg' alt='Image 1'> <img src=\"https://example.com/image2.png\">";
+
+        // When: Extract media
+        List<PostContent.MediaResource> media = contentProcessor.extractMediaMetadata(content);
+
+        // Then: Images should be extracted
+        assertThat(media).hasSize(2);
+        assertThat(media.get(0).getType()).isEqualTo("image");
+        assertThat(media.get(0).getUrl()).isEqualTo("https://example.com/image1.jpg");
+        assertThat(media.get(1).getUrl()).isEqualTo("https://example.com/image2.png");
+    }
+
+    @Test
+    @DisplayName("Should extract video URLs from HTML")
+    void shouldExtractVideoUrlsFromHtml() {
+        // Given: Content with HTML videos
+        String content = "<video src='https://example.com/video1.mp4'></video> <source src=\"https://example.com/video2.mp4\">";
+
+        // When: Extract media
+        List<PostContent.MediaResource> media = contentProcessor.extractMediaMetadata(content);
+
+        // Then: Videos should be extracted
+        assertThat(media).hasSize(2);
+        assertThat(media.get(0).getType()).isEqualTo("video");
+        assertThat(media.get(0).getUrl()).isEqualTo("https://example.com/video1.mp4");
+        assertThat(media.get(1).getUrl()).isEqualTo("https://example.com/video2.mp4");
+    }
+
+    @Test
+    @DisplayName("Should extract mixed media types")
+    void shouldExtractMixedMediaTypes() {
+        // Given: Content with mixed media
+        String content = "![Image](https://example.com/image.jpg) <video src='https://example.com/video.mp4'></video>";
+
+        // When: Extract media
+        List<PostContent.MediaResource> media = contentProcessor.extractMediaMetadata(content);
+
+        // Then: Both types should be extracted
+        assertThat(media).hasSize(2);
+        assertThat(media.get(0).getType()).isEqualTo("image");
+        assertThat(media.get(1).getType()).isEqualTo("video");
+    }
+
+    @Test
+    @DisplayName("Should handle content with no media")
+    void shouldHandleContentWithNoMedia() {
+        // Given: Content without media
+        String content = "This is plain text without any media";
+
+        // When: Extract media
+        List<PostContent.MediaResource> media = contentProcessor.extractMediaMetadata(content);
+
+        // Then: No media should be extracted
+        assertThat(media).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should handle null or empty content for media extraction")
+    void shouldHandleNullOrEmptyContentForMediaExtraction() {
+        // When & Then: Null content
+        assertThat(contentProcessor.extractMediaMetadata(null)).isEmpty();
+
+        // When & Then: Empty content
+        assertThat(contentProcessor.extractMediaMetadata("")).isEmpty();
+        assertThat(contentProcessor.extractMediaMetadata("   ")).isEmpty();
+    }
+
+    // ==================== Word Count Calculation Tests ====================
+
+    @Test
+    @DisplayName("Should calculate word count for plain text")
+    void shouldCalculateWordCountForPlainText() {
+        // Given: Plain text
+        String content = "This is a simple test";
+
+        // When: Calculate word count
+        int wordCount = contentProcessor.calculateWordCount(content);
+
+        // Then: Word count should be correct
+        assertThat(wordCount).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("Should calculate word count for Chinese text")
+    void shouldCalculateWordCountForChineseText() {
+        // Given: Chinese text
+        String content = "这是一个测试";
+
+        // When: Calculate word count
+        int wordCount = contentProcessor.calculateWordCount(content);
+
+        // Then: Each Chinese character counts as one word
+        assertThat(wordCount).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("Should calculate word count for mixed Chinese and English")
+    void shouldCalculateWordCountForMixedText() {
+        // Given: Mixed text
+        String content = "这是 test 测试 content";
+
+        // When: Calculate word count
+        int wordCount = contentProcessor.calculateWordCount(content);
+
+        // Then: Chinese characters + English words
+        assertThat(wordCount).isEqualTo(6); // 4 Chinese + 2 English
+    }
+
+    @Test
+    @DisplayName("Should remove HTML tags before counting")
+    void shouldRemoveHtmlTagsBeforeCounting() {
+        // Given: HTML content
+        String content = "<p>This is <strong>bold</strong> text</p>";
+
+        // When: Calculate word count
+        int wordCount = contentProcessor.calculateWordCount(content);
+
+        // Then: Only text should be counted
+        assertThat(wordCount).isEqualTo(4); // "This is bold text"
+    }
+
+    @Test
+    @DisplayName("Should remove Markdown syntax before counting")
+    void shouldRemoveMarkdownSyntaxBeforeCounting() {
+        // Given: Markdown content
+        String content = "# Heading\n**Bold** text with [link](url) and ![image](url)";
+
+        // When: Calculate word count
+        int wordCount = contentProcessor.calculateWordCount(content);
+
+        // Then: Only text should be counted (Heading Bold text with link and)
+        assertThat(wordCount).isEqualTo(6);
+    }
+
+    @Test
+    @DisplayName("Should handle empty content for word count")
+    void shouldHandleEmptyContentForWordCount() {
+        // When & Then: Null content
+        assertThat(contentProcessor.calculateWordCount(null)).isEqualTo(0);
+
+        // When & Then: Empty content
+        assertThat(contentProcessor.calculateWordCount("")).isEqualTo(0);
+        assertThat(contentProcessor.calculateWordCount("   ")).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("Should handle content with only HTML tags")
+    void shouldHandleContentWithOnlyHtmlTags() {
+        // Given: Content with only HTML tags
+        String content = "<div><p></p></div>";
+
+        // When: Calculate word count
+        int wordCount = contentProcessor.calculateWordCount(content);
+
+        // Then: Word count should be zero
+        assertThat(wordCount).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("Should handle content with special characters")
+    void shouldHandleContentWithSpecialCharacters() {
+        // Given: Content with special characters
+        String content = "Test @#$%^&*() content!";
+
+        // When: Calculate word count
+        int wordCount = contentProcessor.calculateWordCount(content);
+
+        // Then: Special characters should not affect count
+        assertThat(wordCount).isEqualTo(2); // "Test" and "content"
+    }
+
+    // ==================== Reading Time Calculation Tests ====================
+
+    @Test
+    @DisplayName("Should calculate reading time correctly")
+    void shouldCalculateReadingTimeCorrectly() {
+        // Given: Word counts
+        int wordCount1 = 225;  // Exactly 1 minute
+        int wordCount2 = 450;  // Exactly 2 minutes
+        int wordCount3 = 300;  // ~1.33 minutes, should round up to 2
+
+        // When: Calculate reading time
+        int readingTime1 = contentProcessor.calculateReadingTime(wordCount1);
+        int readingTime2 = contentProcessor.calculateReadingTime(wordCount2);
+        int readingTime3 = contentProcessor.calculateReadingTime(wordCount3);
+
+        // Then: Reading time should be correct
+        assertThat(readingTime1).isEqualTo(1);
+        assertThat(readingTime2).isEqualTo(2);
+        assertThat(readingTime3).isEqualTo(2); // Rounded up
+    }
+
+    @Test
+    @DisplayName("Should return minimum 1 minute for small word counts")
+    void shouldReturnMinimumOneMinute() {
+        // Given: Small word counts
+        int wordCount1 = 0;
+        int wordCount2 = 50;
+        int wordCount3 = 100;
+
+        // When: Calculate reading time
+        int readingTime1 = contentProcessor.calculateReadingTime(wordCount1);
+        int readingTime2 = contentProcessor.calculateReadingTime(wordCount2);
+        int readingTime3 = contentProcessor.calculateReadingTime(wordCount3);
+
+        // Then: Minimum should be 1 minute
+        assertThat(readingTime1).isEqualTo(1);
+        assertThat(readingTime2).isEqualTo(1);
+        assertThat(readingTime3).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Should handle large word counts")
+    void shouldHandleLargeWordCounts() {
+        // Given: Large word count
+        int wordCount = 10000; // ~44 minutes
+
+        // When: Calculate reading time
+        int readingTime = contentProcessor.calculateReadingTime(wordCount);
+
+        // Then: Reading time should be calculated correctly
+        assertThat(readingTime).isEqualTo(45); // Rounded up
+    }
+
+    @Test
+    @DisplayName("Should handle negative word counts")
+    void shouldHandleNegativeWordCounts() {
+        // Given: Negative word count
+        int wordCount = -100;
+
+        // When: Calculate reading time
+        int readingTime = contentProcessor.calculateReadingTime(wordCount);
+
+        // Then: Should return minimum 1 minute
+        assertThat(readingTime).isEqualTo(1);
+    }
+
+    // ==================== Content Block Serialization Tests ====================
+
+    @Test
+    @DisplayName("Should serialize content blocks to JSON")
+    void shouldSerializeContentBlocksToJson() {
+        // Given: Content blocks
+        Map<String, Object> props = new HashMap<>();
+        props.put("language", "java");
+        props.put("lineNumbers", true);
+
+        List<PostContent.ContentBlock> blocks = Arrays.asList(
+                PostContent.ContentBlock.builder()
+                        .type("text")
+                        .content("Hello World")
+                        .order(0)
+                        .build(),
+                PostContent.ContentBlock.builder()
+                        .type("code")
+                        .content("System.out.println(\"Hello\");")
+                        .props(props)
+                        .order(1)
+                        .build()
+        );
+
+        // When: Serialize blocks
+        String json = contentProcessor.serializeContentBlocks(blocks);
+
+        // Then: JSON should be valid
+        assertThat(json).isNotNull();
+        assertThat(json).contains("\"type\":\"text\"");
+        assertThat(json).contains("\"type\":\"code\"");
+        assertThat(json).contains("\"content\":\"Hello World\"");
+    }
+
+    @Test
+    @DisplayName("Should serialize empty block list")
+    void shouldSerializeEmptyBlockList() {
+        // Given: Empty list
+        List<PostContent.ContentBlock> blocks = new ArrayList<>();
+
+        // When: Serialize blocks
+        String json = contentProcessor.serializeContentBlocks(blocks);
+
+        // Then: Should return empty array JSON
+        assertThat(json).isEqualTo("[]");
+    }
+
+    @Test
+    @DisplayName("Should serialize null block list")
+    void shouldSerializeNullBlockList() {
+        // When: Serialize null
+        String json = contentProcessor.serializeContentBlocks(null);
+
+        // Then: Should return empty array JSON
+        assertThat(json).isEqualTo("[]");
+    }
+
+    // ==================== Content Block Deserialization Tests ====================
+
+    @Test
+    @DisplayName("Should deserialize JSON to content blocks")
+    void shouldDeserializeJsonToContentBlocks() {
+        // Given: JSON string
+        String json = "[{\"type\":\"text\",\"content\":\"Hello\",\"order\":0},{\"type\":\"image\",\"content\":\"url\",\"order\":1}]";
+
+        // When: Deserialize JSON
+        List<PostContent.ContentBlock> blocks = contentProcessor.deserializeContentBlocks(json);
+
+        // Then: Blocks should be deserialized correctly
+        assertThat(blocks).hasSize(2);
+        assertThat(blocks.get(0).getType()).isEqualTo("text");
+        assertThat(blocks.get(0).getContent()).isEqualTo("Hello");
+        assertThat(blocks.get(1).getType()).isEqualTo("image");
+    }
+
+    @Test
+    @DisplayName("Should deserialize empty JSON array")
+    void shouldDeserializeEmptyJsonArray() {
+        // Given: Empty JSON array
+        String json = "[]";
+
+        // When: Deserialize JSON
+        List<PostContent.ContentBlock> blocks = contentProcessor.deserializeContentBlocks(json);
+
+        // Then: Should return empty list
+        assertThat(blocks).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should handle null or empty JSON string")
+    void shouldHandleNullOrEmptyJsonString() {
+        // When & Then: Null JSON
+        assertThat(contentProcessor.deserializeContentBlocks(null)).isEmpty();
+
+        // When & Then: Empty JSON
+        assertThat(contentProcessor.deserializeContentBlocks("")).isEmpty();
+        assertThat(contentProcessor.deserializeContentBlocks("   ")).isEmpty();
+        assertThat(contentProcessor.deserializeContentBlocks("[]")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should throw exception for invalid JSON")
+    void shouldThrowExceptionForInvalidJson() {
+        // Given: Invalid JSON
+        String invalidJson = "{invalid json}";
+
+        // When & Then: Should throw exception
+        assertThatThrownBy(() -> contentProcessor.deserializeContentBlocks(invalidJson))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to deserialize content blocks");
+    }
+
+    // ==================== Round-trip Serialization Tests ====================
+
+    @Test
+    @DisplayName("Should maintain data integrity in round-trip serialization")
+    void shouldMaintainDataIntegrityInRoundTrip() {
+        // Given: Original blocks
+        Map<String, Object> props = new HashMap<>();
+        props.put("language", "java");
+
+        List<PostContent.ContentBlock> originalBlocks = Arrays.asList(
+                PostContent.ContentBlock.builder()
+                        .type("text")
+                        .content("Test content")
+                        .order(0)
+                        .build(),
+                PostContent.ContentBlock.builder()
+                        .type("code")
+                        .content("code content")
+                        .props(props)
+                        .order(1)
+                        .build()
+        );
+
+        // When: Serialize and deserialize
+        String json = contentProcessor.serializeContentBlocks(originalBlocks);
+        List<PostContent.ContentBlock> deserializedBlocks = contentProcessor.deserializeContentBlocks(json);
+
+        // Then: Data should be preserved
+        assertThat(deserializedBlocks).hasSize(2);
+        assertThat(deserializedBlocks.get(0).getType()).isEqualTo("text");
+        assertThat(deserializedBlocks.get(0).getContent()).isEqualTo("Test content");
+        assertThat(deserializedBlocks.get(1).getType()).isEqualTo("code");
+        assertThat(deserializedBlocks.get(1).getContent()).isEqualTo("code content");
+    }
+}

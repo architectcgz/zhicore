@@ -1,0 +1,96 @@
+server:
+  port: 8103
+
+spring:
+  application:
+    name: blog-comment
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  cloud:
+    nacos:
+      discovery:
+        group: BLOG_SERVICE
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:blog_comment}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres123456}
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 30000
+      pool-name: CommentHikariCP
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: input
+      logic-delete-field: deleted
+      logic-delete-value: true
+      logic-not-delete-value: false
+
+# 缓存配置
+cache:
+  ttl:
+    entity-detail: 600      # 评论详情缓存 10分钟
+    list: 300               # 列表缓存 5分钟
+    stats: -1               # 统计数据永久缓存
+    user-liked: 86400       # 用户点赞状态 1天
+
+# 评论配置
+comment:
+  max-content-length: 2000
+  hot-replies-limit: 3      # 预加载热门回复数量
+  page-size:
+    default: 20
+    max: 100
+
+# JWT 配置（本地默认值，生产环境从 Nacos 加载）
+jwt:
+  secret: ${JWT_SECRET:blog-microservice-jwt-secret-key-2024-very-long-and-secure-key-for-production-use}
+  access-token-expiration: 7200
+  refresh-token-expiration: 604800
+
+# File Service 配置
+file-service:
+  serverUrl: ${FILE_SERVICE_URL:http://localhost:8089}
+  enabled: ${FILE_SERVICE_ENABLED:true}
+
+# Actuator 配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+# Knife4j API 文档配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true  # 必须启用，Knife4j 依赖此配置
+    path: /swagger-ui.html
+
+knife4j:
+  enable: true
+  title: 评论服务 API 文档
+  version: 1.0.0
+  description: 评论服务微服务接口文档，包含评论CRUD、点赞、嵌套回复等功能
+  setting:
+    language: zh_cn  # 中文界面
+    enable-swagger-models: true
+    enable-document-manage: true
+    swagger-model-name: 实体类列表
+  production: false

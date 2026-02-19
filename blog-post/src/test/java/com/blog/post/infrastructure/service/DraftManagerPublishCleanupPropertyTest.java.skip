@@ -1,0 +1,420 @@
+package com.blog.post.infrastructure.service;
+
+import com.blog.post.domain.service.DraftManager;
+import com.blog.post.infrastructure.mongodb.document.PostDraft;
+import com.blog.post.infrastructure.mongodb.repository.PostDraftRepository;
+import net.jqwik.api.*;
+import net.jqwik.api.constraints.IntRange;
+import net.jqwik.api.constraints.StringLength;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Draft Manager Publish Cleanup Property Test
+ * 
+ * Uses property-based testing to validate that drafts are automatically
+ * deleted when a post is published.
+ * 
+ * **Feature: post-mongodb-hybrid, Property 13: 草稿发布清理**
+ * 
+ * **Validates: Requirements 4.4**
+ * 
+ * Property 13: 草稿发布清理
+ * 对于任意文章，当用户发布文章后，对应的草稿记录应该被自动删除。
+ */
+@SpringBootTest
+@Testcontainers
+class DraftManagerPublishCleanupPropertyTest {
+
+    @Container
+    static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:8.0")
+            .withExposedPorts(27017);
+
+    @DynamicPropertySource
+    static void setProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
+    }
+
+    @Autowired
+    private DraftManager draftManager;
+
+    @Autowired
+    private PostDraftRepository draftRepository;
+
+    /**
+     * Property 13: Draft is deleted after publish
+     * 
+     * For any post and user, after saving a draft and then deleting it
+     * (simulating publish), the draft should no longer exist in the database.
+     * 
+     * **Validates: Requirements 4.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 13: Draft is deleted after publish")
+    void draftIsDeletedAfterPublish(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long userId,
+            @ForAll @StringLength(min = 10, max = 2000) String draftContent) {
+
+        // Given: A user has saved a draft for a post
+        String postIdStr = String.valueOf(postId);
+        String userIdStr = String.valueOf(userId);
+
+        draftManager.saveDraft(postIdStr, userIdStr, draftContent, false);
+
+        // Verify draft exists
+        Optional<PostDraft> draftBeforePublish = draftManager.getLatestDraft(postIdStr, userIdStr);
+        assertThat(draftBeforePublish)
+                .as("Draft should exist before publish")
+                .isPresent();
+        assertThat(draftBeforePublish.get().getContent()).isEqualTo(draftContent);
+
+        // When: User publishes the post (simulated by deleting the draft)
+        draftManager.deleteDraft(postIdStr, userIdStr);
+
+        // Then: The draft should no longer exist
+        Optional<PostDraft> draftAfterPublish = draftManager.getLatestDraft(postIdStr, userIdStr);
+        assertThat(draftAfterPublish)
+                .as("Draft should not exist after publish")
+                .isEmpty();
+
+        // Verify in database directly
+        Optional<PostDraft> draftInDb = draftRepository.findByPostIdAndUserId(postIdStr, userIdStr);
+        assertThat(draftInDb)
+                .as("Draft should not exist in database after publish")
+                .isEmpty();
+    }
+
+    /**
+     * Property 13: Multiple drafts are cleaned up independently
+     * 
+     * For any set of posts and users, when publishing one post,
+     * only that post's draft should be deleted, not affecting other drafts.
+     * 
+     * **Validates: Requirements 4.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 13: Multiple drafts are cleaned up independently")
+    void multipleDraftsAreCleanedUpIndependently(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId1,
+            @ForAll @IntRange(min = 1, max = 1000000) long postId2,
+            @ForAll @IntRange(min = 1, max = 100000) long userId,
+            @ForAll @StringLength(min = 10, max = 1000) String content1,
+            @ForAll @StringLength(min = 10, max = 1000) String content2) {
+
+        Assume.that(postId1 != postId2);
+
+        // Given: A user has saved drafts for two different posts
+        String postId1Str = String.valueOf(postId1);
+        String postId2Str = String.valueOf(postId2);
+        String userIdStr = String.valueOf(userId);
+
+        draftManager.saveDraft(postId1Str, userIdStr, content1, false);
+        draftManager.saveDraft(postId2Str, userIdStr, content2, false);
+
+        // Verify both drafts exist
+        assertThat(draftManager.getLatestDraft(postId1Str, userIdStr)).isPresent();
+        assertThat(draftManager.getLatestDraft(postId2Str, userIdStr)).isPresent();
+
+        // When: User publishes the first post
+        draftManager.deleteDraft(postId1Str, userIdStr);
+
+        // Then: Only the first draft should be deleted
+        assertThat(draftManager.getLatestDraft(postId1Str, userIdStr))
+                .as("First draft should be deleted after publish")
+                .isEmpty();
+
+        assertThat(draftManager.getLatestDraft(postId2Str, userIdStr))
+                .as("Second draft should still exist")
+                .isPresent();
+        assertThat(draftManager.getLatestDraft(postId2Str, userIdStr).get().getContent())
+                .isEqualTo(content2);
+    }
+
+    /**
+     * Property 13: Draft deletion is idempotent
+     * 
+     * For any post and user, deleting a draft multiple times should not
+     * cause errors and should result in the same state (no draft exists).
+     * 
+     * **Validates: Requirements 4.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 13: Draft deletion is idempotent")
+    void draftDeletionIsIdempotent(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long userId,
+            @ForAll @StringLength(min = 10, max = 1000) String draftContent,
+            @ForAll @IntRange(min = 2, max = 5) int deletionAttempts) {
+
+        // Given: A user has saved a draft
+        String postIdStr = String.valueOf(postId);
+        String userIdStr = String.valueOf(userId);
+
+        draftManager.saveDraft(postIdStr, userIdStr, draftContent, false);
+
+        // Verify draft exists
+        assertThat(draftManager.getLatestDraft(postIdStr, userIdStr)).isPresent();
+
+        // When: Delete the draft multiple times
+        for (int i = 0; i < deletionAttempts; i++) {
+            draftManager.deleteDraft(postIdStr, userIdStr);
+        }
+
+        // Then: The draft should not exist (idempotent behavior)
+        assertThat(draftManager.getLatestDraft(postIdStr, userIdStr))
+                .as("Draft should not exist after multiple deletions")
+                .isEmpty();
+
+        // Verify in database
+        Optional<PostDraft> draftInDb = draftRepository.findByPostIdAndUserId(postIdStr, userIdStr);
+        assertThat(draftInDb)
+                .as("Draft should not exist in database")
+                .isEmpty();
+    }
+
+    /**
+     * Property 13: Different users' drafts are cleaned up independently
+     * 
+     * For any post with drafts from multiple users, when one user publishes,
+     * only that user's draft should be deleted.
+     * 
+     * **Validates: Requirements 4.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 13: Different users' drafts are cleaned up independently")
+    void differentUsersDraftsAreCleanedUpIndependently(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long userId1,
+            @ForAll @IntRange(min = 1, max = 100000) long userId2,
+            @ForAll @StringLength(min = 10, max = 1000) String content1,
+            @ForAll @StringLength(min = 10, max = 1000) String content2) {
+
+        Assume.that(userId1 != userId2);
+
+        // Given: Two different users have saved drafts for the same post
+        String postIdStr = String.valueOf(postId);
+        String user1Str = String.valueOf(userId1);
+        String user2Str = String.valueOf(userId2);
+
+        draftManager.saveDraft(postIdStr, user1Str, content1, false);
+        draftManager.saveDraft(postIdStr, user2Str, content2, false);
+
+        // Verify both drafts exist
+        assertThat(draftManager.getLatestDraft(postIdStr, user1Str)).isPresent();
+        assertThat(draftManager.getLatestDraft(postIdStr, user2Str)).isPresent();
+
+        // When: First user publishes the post
+        draftManager.deleteDraft(postIdStr, user1Str);
+
+        // Then: Only the first user's draft should be deleted
+        assertThat(draftManager.getLatestDraft(postIdStr, user1Str))
+                .as("First user's draft should be deleted")
+                .isEmpty();
+
+        assertThat(draftManager.getLatestDraft(postIdStr, user2Str))
+                .as("Second user's draft should still exist")
+                .isPresent();
+        assertThat(draftManager.getLatestDraft(postIdStr, user2Str).get().getContent())
+                .isEqualTo(content2);
+    }
+
+    /**
+     * Property 13: Auto-saved drafts are cleaned up on publish
+     * 
+     * For any post, regardless of whether the draft was auto-saved or
+     * manually saved, it should be deleted when the post is published.
+     * 
+     * **Validates: Requirements 4.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 13: Auto-saved drafts are cleaned up on publish")
+    void autoSavedDraftsAreCleanedUpOnPublish(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long userId,
+            @ForAll @StringLength(min = 10, max = 1000) String draftContent,
+            @ForAll boolean isAutoSave) {
+
+        // Given: A user has saved a draft (auto-saved or manual)
+        String postIdStr = String.valueOf(postId);
+        String userIdStr = String.valueOf(userId);
+
+        draftManager.saveDraft(postIdStr, userIdStr, draftContent, isAutoSave);
+
+        // Verify draft exists with correct auto-save flag
+        Optional<PostDraft> draftBeforePublish = draftManager.getLatestDraft(postIdStr, userIdStr);
+        assertThat(draftBeforePublish).isPresent();
+        assertThat(draftBeforePublish.get().getIsAutoSave()).isEqualTo(isAutoSave);
+
+        // When: User publishes the post
+        draftManager.deleteDraft(postIdStr, userIdStr);
+
+        // Then: The draft should be deleted regardless of auto-save flag
+        assertThat(draftManager.getLatestDraft(postIdStr, userIdStr))
+                .as("Draft should be deleted regardless of auto-save flag")
+                .isEmpty();
+    }
+
+    /**
+     * Property 13: Draft cleanup after multiple saves and publish
+     * 
+     * For any post, after saving a draft multiple times (simulating
+     * auto-save) and then publishing, the draft should be completely removed.
+     * 
+     * **Validates: Requirements 4.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 13: Draft cleanup after multiple saves and publish")
+    void draftCleanupAfterMultipleSavesAndPublish(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long userId,
+            @ForAll("contentUpdateList") java.util.List<String> contentUpdates) {
+
+        // Given: A user has saved a draft multiple times (simulating auto-save)
+        String postIdStr = String.valueOf(postId);
+        String userIdStr = String.valueOf(userId);
+
+        // Save draft multiple times with different content
+        for (String content : contentUpdates) {
+            draftManager.saveDraft(postIdStr, userIdStr, content, true);
+        }
+
+        // Verify only one draft exists (Upsert mode)
+        Optional<PostDraft> draftBeforePublish = draftManager.getLatestDraft(postIdStr, userIdStr);
+        assertThat(draftBeforePublish).isPresent();
+        assertThat(draftBeforePublish.get().getContent())
+                .isEqualTo(contentUpdates.get(contentUpdates.size() - 1));
+
+        // When: User publishes the post
+        draftManager.deleteDraft(postIdStr, userIdStr);
+
+        // Then: The draft should be completely removed
+        assertThat(draftManager.getLatestDraft(postIdStr, userIdStr))
+                .as("Draft should be deleted after publish")
+                .isEmpty();
+
+        // Verify no drafts exist in database for this post and user
+        long draftCount = draftRepository.countByPostIdAndUserId(postIdStr, userIdStr);
+        assertThat(draftCount)
+                .as("No drafts should exist in database after publish")
+                .isZero();
+    }
+
+    /**
+     * Property 13: Deleting non-existent draft is safe
+     * 
+     * For any post and user, attempting to delete a draft that doesn't exist
+     * should not cause errors and should be a no-op.
+     * 
+     * **Validates: Requirements 4.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 13: Deleting non-existent draft is safe")
+    void deletingNonExistentDraftIsSafe(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long userId) {
+
+        // Given: No draft exists for this post and user
+        String postIdStr = String.valueOf(postId);
+        String userIdStr = String.valueOf(userId);
+
+        // Ensure no draft exists
+        draftRepository.deleteByPostIdAndUserId(postIdStr, userIdStr);
+        assertThat(draftManager.getLatestDraft(postIdStr, userIdStr)).isEmpty();
+
+        // When: Attempt to delete the non-existent draft
+        // Then: Should not throw exception
+        draftManager.deleteDraft(postIdStr, userIdStr);
+
+        // And: Still no draft should exist
+        assertThat(draftManager.getLatestDraft(postIdStr, userIdStr))
+                .as("No draft should exist after deleting non-existent draft")
+                .isEmpty();
+    }
+
+    /**
+     * Property 13: Draft cleanup preserves other user data
+     * 
+     * For any user with multiple drafts, deleting one draft should not
+     * affect the user's other drafts for different posts.
+     * 
+     * **Validates: Requirements 4.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 13: Draft cleanup preserves other user data")
+    void draftCleanupPreservesOtherUserData(
+            @ForAll("postIdList") java.util.List<Long> postIds,
+            @ForAll @IntRange(min = 1, max = 100000) long userId,
+            @ForAll @StringLength(min = 10, max = 500) String baseContent) {
+
+        // Given: A user has saved drafts for multiple posts
+        String userIdStr = String.valueOf(userId);
+
+        for (Long postId : postIds) {
+            String postIdStr = String.valueOf(postId);
+            String content = baseContent + " for post " + postId;
+            draftManager.saveDraft(postIdStr, userIdStr, content, false);
+        }
+
+        // Verify all drafts exist
+        for (Long postId : postIds) {
+            String postIdStr = String.valueOf(postId);
+            assertThat(draftManager.getLatestDraft(postIdStr, userIdStr)).isPresent();
+        }
+
+        // When: User publishes the first post
+        String firstPostId = String.valueOf(postIds.get(0));
+        draftManager.deleteDraft(firstPostId, userIdStr);
+
+        // Then: Only the first draft should be deleted
+        assertThat(draftManager.getLatestDraft(firstPostId, userIdStr))
+                .as("First draft should be deleted")
+                .isEmpty();
+
+        // And: All other drafts should still exist
+        for (int i = 1; i < postIds.size(); i++) {
+            String postIdStr = String.valueOf(postIds.get(i));
+            assertThat(draftManager.getLatestDraft(postIdStr, userIdStr))
+                    .as("Draft for post %s should still exist", postIdStr)
+                    .isPresent();
+        }
+
+        // Verify total draft count
+        java.util.List<PostDraft> userDrafts = draftManager.getUserDrafts(userIdStr);
+        assertThat(userDrafts)
+                .as("User should have %d drafts remaining", postIds.size() - 1)
+                .hasSize(postIds.size() - 1);
+    }
+
+    // Data generators
+
+    @Provide
+    Arbitrary<java.util.List<String>> contentUpdateList() {
+        return Arbitraries.strings()
+                .alpha()
+                .ofMinLength(10)
+                .ofMaxLength(500)
+                .list()
+                .ofMinSize(1)
+                .ofMaxSize(10);
+    }
+
+    @Provide
+    Arbitrary<java.util.List<Long>> postIdList() {
+        return Arbitraries.longs()
+                .between(1, 1000000)
+                .list()
+                .ofMinSize(2)
+                .ofMaxSize(5)
+                .uniqueElements();
+    }
+}

@@ -1,0 +1,10 @@
+[
+  {
+    "resource": "system",
+    "highestSystemLoad": -1,
+    "avgRt": 3000,
+    "maxThread": -1,
+    "qps": 1000,
+    "highestCpuUsage": 0.8
+  }
+]

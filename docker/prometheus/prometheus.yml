@@ -1,0 +1,160 @@
+# ===========================================
+# Prometheus Configuration
+# Blog Microservices Monitoring
+# ===========================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'blog-microservices'
+
+# Alertmanager 配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# 告警规则文件
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+# 数据采集配置
+scrape_configs:
+  # Prometheus 自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Spring Boot Actuator 端点
+  # Gateway Service
+  - job_name: 'blog-gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8000']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'gateway'
+
+  # User Service
+  - job_name: 'blog-user'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8001']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'user-service'
+
+  # Post Service
+  - job_name: 'blog-post'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8002']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'post-service'
+
+  # Comment Service
+  - job_name: 'blog-comment'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8003']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'comment-service'
+
+  # Message Service
+  - job_name: 'blog-message'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8004']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'message-service'
+
+  # Notification Service
+  - job_name: 'blog-notification'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8005']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'notification-service'
+
+  # Search Service
+  - job_name: 'blog-search'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8006']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'search-service'
+
+  # Ranking Service
+  - job_name: 'blog-ranking'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8007']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'ranking-service'
+
+  # Upload Service
+  - job_name: 'blog-upload'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8008']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'upload-service'
+
+  # Admin Service
+  - job_name: 'blog-admin'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8009']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'admin-service'
+
+  # Leaf ID Service
+  - job_name: 'blog-leaf'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8010']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'leaf-service'
+
+  # Nacos 监控
+  - job_name: 'nacos'
+    metrics_path: '/nacos/actuator/prometheus'
+    static_configs:
+      - targets: ['nacos:8848']
+
+  # RocketMQ 监控
+  - job_name: 'rocketmq'
+    static_configs:
+      - targets: ['rocketmq-broker:10911']
+
+  # Elasticsearch 监控
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['elasticsearch:9200']
+    metrics_path: '/_prometheus/metrics'
+
+  # SkyWalking OAP 监控
+  - job_name: 'skywalking-oap'
+    static_configs:
+      - targets: ['skywalking-oap:1234']

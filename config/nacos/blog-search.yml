@@ -1,0 +1,32 @@
+# Search Service Configuration
+# This configuration file is stored in Nacos Config Center
+
+# Database Configuration
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:blog_search}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+# Elasticsearch Configuration
+elasticsearch:
+  host: ${ES_HOST:localhost}
+  port: ${ES_PORT:9200}
+  username: ${ES_USERNAME:}
+  password: ${ES_PASSWORD:}
+  index:
+    post: blog_post
+    user: blog_user
+
+# Search Configuration
+search:
+  max-results: 100
+  highlight-pre-tag: "<em>"
+  highlight-post-tag: "</em>"
+  timeout-seconds: 5
+
+# Cache TTL Configuration (seconds)
+cache:
+  ttl:
+    search-result: 300      # Search result cache 5 minutes
+    hot-keywords: 3600      # Hot keywords cache 1 hour

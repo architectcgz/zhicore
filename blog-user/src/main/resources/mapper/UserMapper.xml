@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.blog.user.infrastructure.repository.mapper.UserMapper">
+
+    <!-- 根据条件查询用户列表 -->
+    <select id="selectByConditions" resultType="com.blog.user.infrastructure.repository.po.UserPO">
+        SELECT * FROM users
+        <where>
+            <!-- 默认只查询未删除的用户 -->
+            deleted = false
+            
+            <!-- 关键词过滤：用户名或邮箱模糊匹配 -->
+            <if test="keyword != null and keyword != ''">
+                AND (username LIKE CONCAT('%', #{keyword}, '%') 
+                     OR email LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            
+            <!-- 状态过滤：将 ACTIVE/DISABLED 转换为 is_active 布尔值 -->
+            <if test="status != null and status != ''">
+                <choose>
+                    <when test="status == 'ACTIVE'">
+                        AND is_active = TRUE
+                    </when>
+                    <when test="status == 'DISABLED'">
+                        AND is_active = FALSE
+                    </when>
+                </choose>
+            </if>
+        </where>
+        <!-- 按创建时间降序排序 -->
+        ORDER BY created_at DESC
+        <!-- 分页 -->
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 根据条件统计用户数量 -->
+    <select id="countByConditions" resultType="long">
+        SELECT COUNT(*) FROM users
+        <where>
+            <!-- 默认只统计未删除的用户 -->
+            deleted = false
+            
+            <!-- 关键词过滤：用户名或邮箱模糊匹配 -->
+            <if test="keyword != null and keyword != ''">
+                AND (username LIKE CONCAT('%', #{keyword}, '%') 
+                     OR email LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            
+            <!-- 状态过滤：将 ACTIVE/DISABLED 转换为 is_active 布尔值 -->
+            <if test="status != null and status != ''">
+                <choose>
+                    <when test="status == 'ACTIVE'">
+                        AND is_active = TRUE
+                    </when>
+                    <when test="status == 'DISABLED'">
+                        AND is_active = FALSE
+                    </when>
+                </choose>
+            </if>
+        </where>
+    </select>
+
+</mapper>

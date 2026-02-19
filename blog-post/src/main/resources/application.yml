@@ -1,0 +1,332 @@
+server:
+  port: 8102
+
+spring:
+  application:
+    name: blog-post
+  config:
+    import:
+      - optional:nacos:common.yml?group=BLOG_SERVICE&refreshEnabled=true
+      - optional:nacos:blog-post.yml?group=BLOG_SERVICE&refreshEnabled=true
+  cloud:
+    nacos:
+      discovery:
+        group: BLOG_SERVICE
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+    sentinel:
+      transport:
+        # Sentinel 控制台地址
+        dashboard: ${SENTINEL_DASHBOARD:localhost:8858}
+        # 与控制台通信的端口，默认8719，如果被占用会自动+1扫描
+        port: 8719
+      # 饥饿加载，应用启动时立即连接 Sentinel 控制台
+      eager: true
+      # Nacos 数据源配置（规则持久化）
+      datasource:
+        # 流控规则
+        flow:
+          nacos:
+            server-addr: ${spring.cloud.nacos.config.server-addr:localhost:8848}
+            username: ${NACOS_USERNAME:nacos}
+            password: ${NACOS_PASSWORD:nacos}
+            dataId: ${spring.application.name}-flow-rules
+            groupId: SENTINEL_RULES
+            rule-type: flow
+        # 降级规则
+        degrade:
+          nacos:
+            server-addr: ${spring.cloud.nacos.config.server-addr:localhost:8848}
+            username: ${NACOS_USERNAME:nacos}
+            password: ${NACOS_PASSWORD:nacos}
+            dataId: ${spring.application.name}-degrade-rules
+            groupId: SENTINEL_RULES
+            rule-type: degrade
+        # 系统规则
+        system:
+          nacos:
+            server-addr: ${spring.cloud.nacos.config.server-addr:localhost:8848}
+            username: ${NACOS_USERNAME:nacos}
+            password: ${NACOS_PASSWORD:nacos}
+            dataId: ${spring.application.name}-system-rules
+            groupId: SENTINEL_RULES
+            rule-type: system
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 5000
+            readTimeout: 10000
+          file-service:
+            connectTimeout: 10000
+            readTimeout: 30000
+      circuitbreaker:
+        enabled: true
+        alphanumeric-ids:
+          enabled: true
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:blog_post}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres123456}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 30000
+      pool-name: PostHikariCP
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6800}
+      password: ${REDIS_PASSWORD:redis123456}
+      database: 0
+    mongodb:
+      host: ${MONGO_HOST:localhost}
+      port: ${MONGO_PORT:27017}
+      database: ${MONGO_DATABASE:blog}
+      username: ${MONGO_USERNAME:admin}
+      password: ${MONGO_PASSWORD:mongo123456}
+      authentication-database: ${MONGO_AUTH_DB:admin}
+      # 连接池配置
+      connection-timeout: 10000
+      socket-timeout: 10000
+      max-connection-pool-size: 100
+      min-connection-pool-size: 10
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: input
+      logic-delete-field: deleted
+      logic-delete-value: true
+      logic-not-delete-value: false
+
+# 性能监控配置
+performance:
+  # 慢查询阈值（毫秒）
+  slow-query-threshold-ms: 1000
+  # 是否启用慢查询日志
+  slow-query-log-enabled: true
+
+rocketmq:
+  name-server: ${ROCKETMQ_NAMESRV:localhost:9876}
+  producer:
+    group: post-producer-group
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 2
+    retry-times-when-send-async-failed: 2
+
+# File Service 配置
+file-service:
+  client:
+    server-url: ${FILE_SERVICE_URL:http://localhost:8089}
+    tenant-id: ${FILE_SERVICE_TENANT_ID:blog}
+    # token 可选，会自动从 Spring Security Context 获取
+    # token: ${FILE_SERVICE_TOKEN}
+    
+    # 连接设置
+    connect-timeout: 10000
+    read-timeout: 30000
+    max-connections: 50
+    
+    # 域名设置
+    custom-domain: ${FILE_SERVICE_CUSTOM_DOMAIN:}
+    cdn-domain: ${FILE_SERVICE_CDN_DOMAIN:}
+    
+    # 重试设置
+    max-retries: 3
+    retry-delay-ms: 1000
+
+# 缓存配置
+cache:
+  ttl:
+    entity-detail: 600
+    list: 300
+    stats: -1
+  jitter:
+    max-seconds: 60
+  draft:
+    ttl: 300          # 草稿缓存 TTL（秒）
+    list-ttl: 180     # 草稿列表缓存 TTL（秒）
+
+# Blog 服务配置
+blog:
+  post:
+    content:
+      words-per-minute: 225  # 每分钟阅读字数
+    
+    monitoring:
+      slow-query-threshold-ms: 1000  # 慢查询阈值（毫秒）
+    
+    alert:
+      dedup-window-minutes: 5  # 告警去重窗口（分钟）
+
+# Actuator 配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+# 归档策略配置
+post:
+  archive:
+    # 归档时间阈值（天数）- 文章超过此天数未更新将被标记为冷数据候选
+    threshold-days: 180
+    # 归档任务执行频率（cron 表达式）- 每天凌晨 3 点执行
+    schedule-cron: "0 0 3 * * ?"
+    # 每批次归档的最大文章数
+    batch-size: 100
+    # 是否启用自动归档
+    enabled: true
+    # 归档失败重试次数
+    retry-count: 3
+    # 归档后是否保留 PostgreSQL 中的内容字段
+    keep-content-in-postgres: false
+    # 归档前是否需要备份
+    backup-before-archive: true
+    # 归档日志保留天数
+    log-retention-days: 90
+
+  # 版本控制配置
+  version:
+    # 每篇文章保留的最大版本数
+    max-versions-per-post: 50
+    # 版本清理策略（auto: 自动清理, manual: 手动清理）
+    cleanup-strategy: auto
+    # 版本清理任务执行频率（cron 表达式）- 每天凌晨 4 点执行
+    cleanup-schedule-cron: "0 0 4 * * ?"
+    # 是否启用版本控制
+    enabled: true
+    # 版本内容压缩
+    compression-enabled: false
+    # 版本保留最小天数
+    min-retention-days: 30
+    # 是否记录版本变更详情
+    track-changes: true
+    # 版本快照包含的字段（full: 完整内容, content-only: 仅内容）
+    snapshot-mode: full
+
+  # 草稿配置
+  draft:
+    # 自动保存间隔（秒）
+    auto-save-interval-seconds: 30
+    # 草稿过期时间（天数）
+    expiration-days: 30
+    # 草稿清理任务执行频率（cron 表达式）- 每天凌晨 2 点执行
+    cleanup-schedule-cron: "0 0 2 * * ?"
+    # 是否启用自动保存
+    auto-save-enabled: true
+    # 每个用户最多保留的草稿数
+    max-drafts-per-user: 100
+    # 草稿保存失败是否中断编辑
+    fail-on-save-error: false
+    # 是否启用草稿缓存
+    cache-enabled: true
+    # 草稿缓存过期时间（秒）
+    cache-ttl-seconds: 3600
+    # 草稿恢复提示阈值（秒）
+    restore-prompt-threshold-seconds: 60
+    # 是否在发布时自动删除草稿
+    delete-on-publish: true
+
+  # 一致性检查配置
+  consistency:
+    # 一致性检查任务执行频率（cron 表达式）- 每天凌晨 2 点执行
+    check-schedule-cron: "0 0 2 * * ?"
+    # 每批次检查的文章数
+    batch-size: 100
+    # 是否启用定时一致性检查
+    scheduled-check-enabled: true
+    # 数据修复策略（postgres: 以 PostgreSQL 为准, mongodb: 以 MongoDB 为准, manual: 手动修复）
+    repair-strategy: postgres
+    # 是否自动修复不一致数据
+    auto-repair: false
+    # 检查超时时间（秒）
+    check-timeout-seconds: 30
+    # 不一致数据告警阈值
+    alert-threshold: 10
+    # 是否记录一致性检查日志
+    log-enabled: true
+    # 检查报告保留天数
+    report-retention-days: 90
+    # 是否自动清理 MongoDB 中的孤儿数据
+    clean-orphan-data: true
+    # 孤儿数据清理任务执行频率（cron 表达式）- 每天凌晨 3 点执行
+    orphan-cleanup-schedule-cron: "0 0 3 * * ?"
+
+  # 降级策略配置
+  degradation:
+    # 是否启用降级功能
+    enabled: true
+    # MongoDB 连接失败降级
+    fallback-on-mongo-failure: true
+    # 降级触发条件 - 错误率阈值
+    error-rate-threshold: 0.5
+    # 降级触发条件 - 慢调用比例阈值
+    slow-call-rate-threshold: 0.8
+    # 慢调用阈值（毫秒）
+    slow-call-threshold-ms: 1000
+    # 降级时间窗口（秒）
+    time-window-seconds: 60
+    # 最小请求数
+    min-request-amount: 10
+    # 降级持续时间（秒）
+    degradation-duration-seconds: 60
+    # 降级恢复策略（auto: 自动恢复, manual: 手动恢复）
+    recovery-strategy: auto
+    # 是否在降级时发送告警
+    alert-on-degradation: true
+    # 降级时的默认行为（return-metadata-only: 仅返回元数据, return-cached: 返回缓存数据, throw-exception: 抛出异常）
+    fallback-behavior: return-metadata-only
+    # 是否记录降级日志
+    log-enabled: true
+    # 降级指标收集
+    metrics-enabled: true
+
+# 日志配置
+logging:
+  level:
+    com.blog.post: DEBUG
+    com.baomidou.mybatisplus: DEBUG
+    # SQL 执行日志
+    com.blog.post.infrastructure.repository.mapper: DEBUG
+    # 慢查询日志
+    org.springframework.jdbc.core: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+  file:
+    name: logs/blog-post.log
+    max-size: 100MB
+    max-history: 30
+
+# Knife4j API 文档配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true  # 必须启用，Knife4j 依赖此配置
+    path: /swagger-ui.html
+
+knife4j:
+  enable: true
+  title: 文章服务 API 文档
+  version: 1.0.0
+  description: 文章服务微服务接口文档，包含文章CRUD、点赞、收藏、分类等功能
+  setting:
+    language: zh_cn  # 中文界面
+    enable-swagger-models: true
+    enable-document-manage: true
+    swagger-model-name: 实体类列表
+  production: false

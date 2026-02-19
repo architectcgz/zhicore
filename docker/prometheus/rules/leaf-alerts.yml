@@ -1,0 +1,108 @@
+# ===========================================
+# Leaf ID Service Alert Rules
+# ===========================================
+
+groups:
+  - name: leaf-id-alerts
+    rules:
+      # ID 生成延迟告警
+      - alert: LeafIdGenerationLatencyHigh
+        expr: histogram_quantile(0.99, rate(leaf_id_generation_duration_seconds_bucket[5m])) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Leaf ID 生成延迟过高"
+          description: "Leaf ID 生成 P99 延迟超过 10ms，当前值: {{ $value }}s"
+
+      # ID 生成失败率告警
+      - alert: LeafIdGenerationFailureRateHigh
+        expr: rate(leaf_id_generation_failures_total[5m]) / rate(leaf_id_generation_total[5m]) > 0.01
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Leaf ID 生成失败率过高"
+          description: "Leaf ID 生成失败率超过 1%，当前值: {{ $value | humanizePercentage }}"
+
+      # 时钟回拨告警
+      - alert: LeafClockBackward
+        expr: increase(leaf_clock_backward_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "检测到时钟回拨"
+          description: "Leaf 服务检测到时钟回拨，可能导致 ID 重复"
+
+      # WorkerId 分配失败告警
+      - alert: LeafWorkerIdAllocationFailed
+        expr: leaf_worker_id_allocation_status == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "WorkerId 分配失败"
+          description: "Leaf 服务无法从 Nacos 获取 WorkerId"
+
+      # ID 序列号即将耗尽告警
+      - alert: LeafSequenceNearExhaustion
+        expr: leaf_sequence_current / 4096 > 0.9
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ID 序列号即将耗尽"
+          description: "当前毫秒内序列号使用率超过 90%，可能需要扩容"
+
+  - name: service-health-alerts
+    rules:
+      # 服务实例下线告警
+      - alert: ServiceInstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "服务实例下线"
+          description: "{{ $labels.job }} 服务实例 {{ $labels.instance }} 已下线"
+
+      # 服务响应时间告警
+      - alert: ServiceResponseTimeHigh
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "服务响应时间过高"
+          description: "{{ $labels.job }} 服务 P95 响应时间超过 1s"
+
+      # 服务错误率告警
+      - alert: ServiceErrorRateHigh
+        expr: rate(http_server_requests_seconds_count{status=~"5.."}[5m]) / rate(http_server_requests_seconds_count[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "服务错误率过高"
+          description: "{{ $labels.job }} 服务 5xx 错误率超过 5%"
+
+      # JVM 内存使用率告警
+      - alert: JvmMemoryUsageHigh
+        expr: jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM 堆内存使用率过高"
+          description: "{{ $labels.job }} 服务 JVM 堆内存使用率超过 85%"
+
+      # GC 时间过长告警
+      - alert: JvmGcTimeHigh
+        expr: rate(jvm_gc_pause_seconds_sum[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM GC 时间过长"
+          description: "{{ $labels.job }} 服务 GC 暂停时间过长"

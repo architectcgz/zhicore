@@ -1,0 +1,24 @@
+# Environment variables
+.env
+.env.local
+.env.production
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Build
+target/
+*.jar
+*.war
+
+# Logs
+logs/
+*.log
+
+# Sensitive files
+*.key
+*.pem
+application-local.yml
+application-prod.yml

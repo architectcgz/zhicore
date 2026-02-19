@@ -1,0 +1,2 @@
+# Nacos logs directory
+# Logs will be mounted here from the container

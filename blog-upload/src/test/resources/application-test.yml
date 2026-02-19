@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: blog-upload-test
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+
+# File Service Client 配置（测试环境）
+file-service:
+  client:
+    server-url: http://localhost:8089
+    tenant-id: blog-test
+    connect-timeout: 5000
+    read-timeout: 10000
+
+# 文件上传配置（测试环境）
+file-upload:
+  max-file-size: 10485760  # 10MB for testing
+  allowed-image-types:
+    - image/jpeg
+    - image/png
+
+logging:
+  level:
+    com.blog.upload: DEBUG

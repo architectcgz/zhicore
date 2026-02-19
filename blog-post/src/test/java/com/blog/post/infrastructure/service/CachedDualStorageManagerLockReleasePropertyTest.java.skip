@@ -1,0 +1,135 @@
+package com.blog.post.infrastructure.service;
+
+import com.blog.common.cache.HotDataIdentifier;
+import com.blog.common.config.CacheProperties;
+import com.blog.post.infrastructure.cache.PostRedisKeys;
+import net.jqwik.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+
+import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+/**
+ * Feature: cache-penetration-protection, Property 5: 异常时锁释放
+ * Validates: Requirements 1.6
+ * 
+ * Property: For any entity ID, when database query fails,
+ * the lock should be properly released.
+ */
+class CachedDualStorageManagerLockReleasePropertyTest {
+
+    @Mock
+    private DualStorageManager delegate;
+    
+    @Mock
+    private RedisTemplate<String, Object> redisTemplate;
+    
+    @Mock
+    private RedissonClient redissonClient;
+    
+    @Mock
+    private HotDataIdentifier hotDataIdentifier;
+    
+    @Mock
+    private ValueOperations<String, Object> valueOperations;
+    
+    @Mock
+    private RLock lock;
+    
+    private CacheProperties cacheProperties;
+    private CachedDualStorageManager cachedManager;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        
+        cacheProperties = new CacheProperties();
+        cacheProperties.setEntityDetail(600);
+        cacheProperties.setLockWaitTime(5);
+        cacheProperties.setLockLeaseTime(10);
+        cacheProperties.setNullValueTtl(60);
+        cacheProperties.setHotDataIdentificationEnabled(true);
+        
+        cachedManager = new CachedDualStorageManager(
+            delegate,
+            redisTemplate,
+            redissonClient,
+            hotDataIdentifier,
+            cacheProperties
+        );
+        
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    }
+
+    /**
+     * Property 5: 异常时锁释放
+     * For any entity ID, lock should be released even when exception occurs
+     */
+    @Property(tries = 100)
+    void lockReleasedOnException(@ForAll @LongRange(min = 1, max = 10000) Long postId) throws Exception {
+        // Given: Cache miss, hot data, lock acquired, but database query fails
+        String cacheKey = PostRedisKeys.content(postId);
+        String lockKey = PostRedisKeys.lockContent(postId);
+        
+        when(valueOperations.get(cacheKey)).thenReturn(null);
+        when(hotDataIdentifier.isHotData("post", postId)).thenReturn(true);
+        when(hotDataIdentifier.isManuallyMarkedAsHot("post", postId)).thenReturn(false);
+        when(redissonClient.getLock(lockKey)).thenReturn(lock);
+        when(lock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
+        when(lock.isHeldByCurrentThread()).thenReturn(true);
+        
+        // Simulate database failure
+        RuntimeException dbException = new RuntimeException("Database connection failed");
+        when(delegate.getPostContent(postId)).thenThrow(dbException);
+        
+        // When: Get post content (will throw exception)
+        assertThatThrownBy(() -> cachedManager.getPostContent(postId))
+            .isInstanceOf(RuntimeException.class)
+            .hasMessage("Database connection failed");
+        
+        // Then: Lock should be released despite exception
+        verify(lock).unlock();
+    }
+    
+    /**
+     * Property 5b: Lock released on cache write failure
+     */
+    @Property(tries = 100)
+    void lockReleasedOnCacheWriteFailure(@ForAll @LongRange(min = 1, max = 10000) Long postId) throws Exception {
+        // Given: Cache miss, hot data, lock acquired, database succeeds but cache write fails
+        String cacheKey = PostRedisKeys.content(postId);
+        String lockKey = PostRedisKeys.lockContent(postId);
+        
+        when(valueOperations.get(cacheKey)).thenReturn(null);
+        when(hotDataIdentifier.isHotData("post", postId)).thenReturn(true);
+        when(hotDataIdentifier.isManuallyMarkedAsHot("post", postId)).thenReturn(false);
+        when(redissonClient.getLock(lockKey)).thenReturn(lock);
+        when(lock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
+        when(lock.isHeldByCurrentThread()).thenReturn(true);
+        
+        // Database succeeds but cache write fails
+        when(delegate.getPostContent(postId)).thenReturn(null);
+        doThrow(new RuntimeException("Redis connection failed"))
+            .when(valueOperations).set(anyString(), any(), anyLong(), any(TimeUnit.class));
+        
+        // When: Get post content (cache write will fail but should not throw)
+        // The implementation should handle cache write failures gracefully
+        try {
+            cachedManager.getPostContent(postId);
+        } catch (Exception e) {
+            // Expected if cache write failure is not handled
+        }
+        
+        // Then: Lock should be released despite cache write failure
+        verify(lock).unlock();
+    }
+}

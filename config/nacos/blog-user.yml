@@ -1,0 +1,30 @@
+# User Service Configuration
+# This configuration file is stored in Nacos Config Center
+
+# Database Configuration
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:blog_user}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+# JWT configuration has been moved to common.yml, shared by all services
+# Cache TTL Configuration (seconds)
+cache:
+  ttl:
+    entity-detail: 600    # User detail cache 10 minutes
+    list: 300             # List cache 5 minutes
+    stats: -1             # Stats data permanent cache
+    session: 604800       # Session cache 7 days
+
+# Follow Feature Configuration
+follow:
+  max-following: 5000     # Maximum following count
+  lock-timeout: 5         # Distributed lock timeout (seconds)
+
+# Check-in Feature Configuration
+check-in:
+  reward:
+    base: 10              # Base check-in points
+    continuous-bonus: 5   # Continuous check-in bonus points
+    max-continuous: 7     # Maximum continuous check-in reward days

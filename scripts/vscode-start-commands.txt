@@ -1,0 +1,30 @@
+# 网关服务 (端口 8100)
+.\scripts\start-service.ps1 -Service gateway
+
+# 用户服务 (端口 8101)
+.\scripts\start-service.ps1 -Service user
+
+# 文章服务 (端口 8102)
+.\scripts\start-service.ps1 -Service post
+
+# 评论服务 (端口 8103)
+.\scripts\start-service.ps1 -Service comment
+
+# 上传服务 (端口 8104)
+.\scripts\start-service.ps1 -Service upload
+
+# 消息服务 (端口 8105)
+.\scripts\start-service.ps1 -Service message
+
+# 通知服务 (端口 8106)
+.\scripts\start-service.ps1 -Service notification
+
+# 搜索服务 (端口 8107)
+.\scripts\start-service.ps1 -Service search
+
+# 排行服务 (端口 8108)
+.\scripts\start-service.ps1 -Service ranking
+
+# 管理服务 (端口 8109)
+.\scripts\start-service.ps1 -Service admin
+

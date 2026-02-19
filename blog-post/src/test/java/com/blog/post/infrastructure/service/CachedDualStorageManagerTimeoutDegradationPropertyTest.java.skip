@@ -1,0 +1,149 @@
+package com.blog.post.infrastructure.service;
+
+import com.blog.common.cache.HotDataIdentifier;
+import com.blog.common.config.CacheProperties;
+import com.blog.post.domain.model.PostContent;
+import com.blog.post.infrastructure.cache.PostRedisKeys;
+import net.jqwik.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+
+import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+/**
+ * Feature: cache-penetration-protection, Property 4: 超时降级策略
+ * Validates: Requirements 1.4, 2.4
+ * 
+ * Property: For any entity ID, when lock acquisition times out,
+ * should degrade to direct database query.
+ */
+class CachedDualStorageManagerTimeoutDegradationPropertyTest {
+
+    @Mock
+    private DualStorageManager delegate;
+    
+    @Mock
+    private RedisTemplate<String, Object> redisTemplate;
+    
+    @Mock
+    private RedissonClient redissonClient;
+    
+    @Mock
+    private HotDataIdentifier hotDataIdentifier;
+    
+    @Mock
+    private ValueOperations<String, Object> valueOperations;
+    
+    @Mock
+    private RLock lock;
+    
+    private CacheProperties cacheProperties;
+    private CachedDualStorageManager cachedManager;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        
+        cacheProperties = new CacheProperties();
+        cacheProperties.setEntityDetail(600);
+        cacheProperties.setLockWaitTime(5);
+        cacheProperties.setLockLeaseTime(10);
+        cacheProperties.setNullValueTtl(60);
+        cacheProperties.setHotDataIdentificationEnabled(true);
+        
+        cachedManager = new CachedDualStorageManager(
+            delegate,
+            redisTemplate,
+            redissonClient,
+            hotDataIdentifier,
+            cacheProperties
+        );
+        
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    }
+
+    /**
+     * Property 4: 超时降级策略
+     * For any entity ID, timeout should trigger degradation to database query
+     */
+    @Property(tries = 100)
+    void timeoutTriggersDegrad ation(@ForAll @LongRange(min = 1, max = 10000) Long postId) throws Exception {
+        // Given: Cache miss, hot data, but lock acquisition times out
+        String cacheKey = PostRedisKeys.content(postId);
+        String lockKey = PostRedisKeys.lockContent(postId);
+        
+        when(valueOperations.get(cacheKey)).thenReturn(null);
+        when(hotDataIdentifier.isHotData("post", postId)).thenReturn(true);
+        when(hotDataIdentifier.isManuallyMarkedAsHot("post", postId)).thenReturn(false);
+        when(redissonClient.getLock(lockKey)).thenReturn(lock);
+        
+        // Simulate lock timeout
+        when(lock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(false);
+        
+        PostContent mockContent = new PostContent();
+        mockContent.setPostId(postId.toString());
+        mockContent.setTitle("Test Post " + postId);
+        mockContent.setRaw("Test content");
+        
+        when(delegate.getPostContent(postId)).thenReturn(mockContent);
+        
+        // When: Get post content (lock will timeout)
+        PostContent result = cachedManager.getPostContent(postId);
+        
+        // Then: Should degrade to database query and return result
+        assertThat(result).isNotNull();
+        assertThat(result.getPostId()).isEqualTo(postId.toString());
+        
+        // Verify database was queried (degradation)
+        verify(delegate).getPostContent(postId);
+        
+        // Verify lock was attempted but not acquired
+        verify(lock).tryLock(anyLong(), anyLong(), any(TimeUnit.class));
+        verify(lock, never()).unlock();
+    }
+    
+    /**
+     * Property 4b: Interrupted exception also triggers degradation
+     */
+    @Property(tries = 100)
+    void interruptedExceptionTriggersDegrad ation(@ForAll @LongRange(min = 1, max = 10000) Long postId) throws Exception {
+        // Given: Cache miss, hot data, but lock acquisition is interrupted
+        String cacheKey = PostRedisKeys.content(postId);
+        String lockKey = PostRedisKeys.lockContent(postId);
+        
+        when(valueOperations.get(cacheKey)).thenReturn(null);
+        when(hotDataIdentifier.isHotData("post", postId)).thenReturn(true);
+        when(hotDataIdentifier.isManuallyMarkedAsHot("post", postId)).thenReturn(false);
+        when(redissonClient.getLock(lockKey)).thenReturn(lock);
+        
+        // Simulate interrupted exception
+        when(lock.tryLock(anyLong(), anyLong(), any(TimeUnit.class)))
+            .thenThrow(new InterruptedException("Simulated interruption"));
+        
+        PostContent mockContent = new PostContent();
+        mockContent.setPostId(postId.toString());
+        mockContent.setTitle("Test Post " + postId);
+        mockContent.setRaw("Test content");
+        
+        when(delegate.getPostContent(postId)).thenReturn(mockContent);
+        
+        // When: Get post content (will be interrupted)
+        PostContent result = cachedManager.getPostContent(postId);
+        
+        // Then: Should degrade to database query and return result
+        assertThat(result).isNotNull();
+        assertThat(result.getPostId()).isEqualTo(postId.toString());
+        
+        // Verify database was queried (degradation)
+        verify(delegate).getPostContent(postId);
+    }
+}

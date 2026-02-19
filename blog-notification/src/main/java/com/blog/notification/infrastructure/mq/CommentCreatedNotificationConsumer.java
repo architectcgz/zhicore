@@ -1,0 +1,81 @@
+package com.blog.notification.infrastructure.mq;
+
+import com.blog.api.event.comment.CommentCreatedEvent;
+import com.blog.common.mq.AbstractEventConsumer;
+import com.blog.common.mq.StatefulIdempotentHandler;
+import com.blog.common.mq.TopicConstants;
+import com.blog.notification.application.service.NotificationApplicationService;
+import com.blog.notification.domain.model.Notification;
+import com.blog.notification.infrastructure.push.NotificationPushService;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
+import org.springframework.stereotype.Component;
+
+/**
+ * 评论创建通知消费者
+ * 
+ * 消费 CommentCreatedEvent 事件，创建评论通知并推送给相关用户：
+ * 1. 通知文章作者有新评论
+ * 2. 如果是回复，通知被回复者
+ *
+ * @author Blog Team
+ */
+@Slf4j
+@Component
+@RocketMQMessageListener(
+    topic = TopicConstants.TOPIC_COMMENT_EVENTS,
+    selectorExpression = TopicConstants.TAG_COMMENT_CREATED,
+    consumerGroup = NotificationConsumerGroups.COMMENT_CREATED_CONSUMER
+)
+public class CommentCreatedNotificationConsumer extends AbstractEventConsumer<CommentCreatedEvent> {
+
+    private final NotificationApplicationService notificationService;
+    private final NotificationPushService pushService;
+
+    public CommentCreatedNotificationConsumer(StatefulIdempotentHandler idempotentHandler,
+                                              NotificationApplicationService notificationService,
+                                              NotificationPushService pushService) {
+        super(idempotentHandler, CommentCreatedEvent.class);
+        this.notificationService = notificationService;
+        this.pushService = pushService;
+    }
+
+    @Override
+    protected void doHandle(CommentCreatedEvent event) {
+        Long postOwnerId = event.getPostOwnerId();
+        Long commentAuthorId = event.getCommentAuthorId();
+        Long postId = event.getPostId();
+        Long commentId = event.getCommentId();
+        String commentContent = event.getCommentContent();
+        Long replyToUserId = event.getReplyToUserId();
+
+        // 1. 通知文章作者（如果评论者不是作者本人）
+        if (!postOwnerId.equals(commentAuthorId)) {
+            Notification notification = notificationService.createCommentNotification(
+                postOwnerId,
+                commentAuthorId,
+                postId,
+                commentId,
+                commentContent
+            );
+            pushService.push(String.valueOf(postOwnerId), notification);
+            
+            log.info("处理评论通知（通知文章作者）: postId={}, commentId={}, author={}, owner={}",
+                    postId, commentId, commentAuthorId, postOwnerId);
+        }
+
+        // 2. 如果是回复，通知被回复者（如果被回复者不是评论者本人）
+        if (replyToUserId != null && !replyToUserId.equals(commentAuthorId)) {
+            Notification replyNotification = notificationService.createReplyNotification(
+                replyToUserId,
+                commentAuthorId,
+                commentId,
+                commentContent
+            );
+            pushService.push(String.valueOf(replyToUserId), replyNotification);
+            
+            log.info("处理回复通知: commentId={}, author={}, replyTo={}",
+                    commentId, commentAuthorId, replyToUserId);
+        }
+    }
+}

@@ -1,0 +1,652 @@
+package com.blog.post.infrastructure.service;
+
+import com.blog.post.domain.service.VersionManager;
+import com.blog.post.infrastructure.mongodb.document.PostContent;
+import com.blog.post.infrastructure.mongodb.document.PostVersion;
+import com.blog.post.infrastructure.mongodb.repository.PostContentRepository;
+import com.blog.post.infrastructure.mongodb.repository.PostVersionRepository;
+import net.jqwik.api.*;
+import net.jqwik.api.constraints.IntRange;
+import net.jqwik.api.constraints.StringLength;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Version Manager Cleanup Strategy Property Test
+ * 
+ * Uses property-based testing to validate that version cleanup correctly
+ * maintains the most recent N versions and deletes older versions.
+ * 
+ * **Feature: post-mongodb-hybrid, Property 10: 版本清理策略**
+ * 
+ * **Validates: Requirements 3.5**
+ * 
+ * Property 10: 版本清理策略
+ * 对于任意文章，当版本数量超过配置的最大值时，系统应该自动删除最旧的版本，保留最新的 N 个版本。
+ */
+@SpringBootTest
+@Testcontainers
+class VersionManagerCleanupPropertyTest {
+
+    @Container
+    static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:8.0")
+            .withExposedPorts(27017);
+
+    @DynamicPropertySource
+    static void setProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
+    }
+
+    @Autowired
+    private VersionManager versionManager;
+
+    @Autowired
+    private PostVersionRepository versionRepository;
+
+    @Autowired
+    private PostContentRepository contentRepository;
+
+    @BeforeEach
+    void setUp() {
+        versionRepository.deleteAll();
+        contentRepository.deleteAll();
+    }
+
+    /**
+     * Property 10: Cleanup keeps exactly N most recent versions
+     * 
+     * For any post with more than N versions, after cleanup, exactly N versions
+     * should remain, and they should be the most recent ones.
+     * 
+     * **Validates: Requirements 3.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 10: Cleanup keeps exactly N most recent versions")
+    void cleanupKeepsExactlyNMostRecentVersions(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 5, max = 20) int totalVersions,
+            @ForAll @IntRange(min = 1, max = 10) int keepCount,
+            @ForAll @StringLength(min = 10, max = 200) String baseContent) {
+
+        // Given: A post with multiple versions
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(baseContent)
+                .html("<p>" + baseContent + "</p>")
+                .text(baseContent)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // Create multiple versions
+        for (int i = 0; i < totalVersions; i++) {
+            versionManager.createVersion(
+                    postIdStr,
+                    baseContent + " v" + (i + 1),
+                    ownerIdStr,
+                    "Version " + (i + 1)
+            );
+        }
+
+        // Verify all versions were created
+        long versionCountBefore = versionRepository.countByPostId(postIdStr);
+        assertThat(versionCountBefore).isEqualTo(totalVersions);
+
+        // When: Clean old versions
+        versionManager.cleanOldVersions(postIdStr, keepCount);
+
+        // Then: Exactly keepCount versions should remain
+        long versionCountAfter = versionRepository.countByPostId(postIdStr);
+        int expectedCount = Math.min(keepCount, totalVersions);
+        assertThat(versionCountAfter).isEqualTo(expectedCount);
+
+        // And: The remaining versions should be the most recent ones
+        List<PostVersion> remainingVersions = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+        assertThat(remainingVersions).hasSize(expectedCount);
+
+        // Verify version numbers are the highest ones
+        for (int i = 0; i < remainingVersions.size(); i++) {
+            int expectedVersion = totalVersions - i;
+            assertThat(remainingVersions.get(i).getVersion())
+                    .as("Remaining version at position %d should be version %d", i, expectedVersion)
+                    .isEqualTo(expectedVersion);
+        }
+    }
+
+    /**
+     * Property 10: Cleanup deletes oldest versions first
+     * 
+     * For any post, cleanup should always delete the oldest versions
+     * (lowest version numbers) and keep the newest versions (highest version numbers).
+     * 
+     * **Validates: Requirements 3.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 10: Cleanup deletes oldest versions first")
+    void cleanupDeletesOldestVersionsFirst(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 10, max = 30) int totalVersions,
+            @ForAll @IntRange(min = 3, max = 8) int keepCount,
+            @ForAll @StringLength(min = 10, max = 200) String baseContent) {
+
+        // Given: A post with multiple versions
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(baseContent)
+                .html("<p>" + baseContent + "</p>")
+                .text(baseContent)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // Create versions and track their version numbers
+        List<Integer> createdVersions = new ArrayList<>();
+        for (int i = 0; i < totalVersions; i++) {
+            Integer version = versionManager.createVersion(
+                    postIdStr,
+                    baseContent + " v" + (i + 1),
+                    ownerIdStr,
+                    "Version " + (i + 1)
+            );
+            createdVersions.add(version);
+        }
+
+        // When: Clean old versions
+        versionManager.cleanOldVersions(postIdStr, keepCount);
+
+        // Then: Only the newest versions should remain
+        List<PostVersion> remainingVersions = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+        
+        // Extract remaining version numbers
+        List<Integer> remainingVersionNumbers = remainingVersions.stream()
+                .map(PostVersion::getVersion)
+                .sorted()
+                .toList();
+
+        // The remaining versions should be the last keepCount versions
+        int startIndex = Math.max(0, totalVersions - keepCount);
+        List<Integer> expectedVersions = createdVersions.subList(startIndex, totalVersions);
+
+        assertThat(remainingVersionNumbers)
+                .as("Remaining versions should be the newest %d versions", keepCount)
+                .containsExactlyElementsOf(expectedVersions);
+
+        // Verify oldest versions were deleted
+        for (int i = 0; i < startIndex; i++) {
+            int oldVersion = createdVersions.get(i);
+            assertThat(versionRepository.findByPostIdAndVersion(postIdStr, oldVersion))
+                    .as("Old version %d should be deleted", oldVersion)
+                    .isEmpty();
+        }
+    }
+
+    /**
+     * Property 10: Cleanup is idempotent
+     * 
+     * For any post, calling cleanup multiple times with the same keepCount
+     * should have the same effect as calling it once.
+     * 
+     * **Validates: Requirements 3.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 10: Cleanup is idempotent")
+    void cleanupIsIdempotent(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 8, max = 15) int totalVersions,
+            @ForAll @IntRange(min = 3, max = 6) int keepCount,
+            @ForAll @StringLength(min = 10, max = 200) String baseContent) {
+
+        // Given: A post with multiple versions
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(baseContent)
+                .html("<p>" + baseContent + "</p>")
+                .text(baseContent)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // Create versions
+        for (int i = 0; i < totalVersions; i++) {
+            versionManager.createVersion(
+                    postIdStr,
+                    baseContent + " v" + (i + 1),
+                    ownerIdStr,
+                    "Version " + (i + 1)
+            );
+        }
+
+        // When: Clean old versions multiple times
+        versionManager.cleanOldVersions(postIdStr, keepCount);
+        long countAfterFirstCleanup = versionRepository.countByPostId(postIdStr);
+        List<PostVersion> versionsAfterFirstCleanup = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+
+        versionManager.cleanOldVersions(postIdStr, keepCount);
+        long countAfterSecondCleanup = versionRepository.countByPostId(postIdStr);
+        List<PostVersion> versionsAfterSecondCleanup = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+
+        versionManager.cleanOldVersions(postIdStr, keepCount);
+        long countAfterThirdCleanup = versionRepository.countByPostId(postIdStr);
+        List<PostVersion> versionsAfterThirdCleanup = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+
+        // Then: All cleanup operations should result in the same state
+        assertThat(countAfterFirstCleanup).isEqualTo(countAfterSecondCleanup);
+        assertThat(countAfterSecondCleanup).isEqualTo(countAfterThirdCleanup);
+
+        // Verify version numbers are identical
+        List<Integer> versionsAfterFirst = versionsAfterFirstCleanup.stream()
+                .map(PostVersion::getVersion)
+                .sorted()
+                .toList();
+        List<Integer> versionsAfterSecond = versionsAfterSecondCleanup.stream()
+                .map(PostVersion::getVersion)
+                .sorted()
+                .toList();
+        List<Integer> versionsAfterThird = versionsAfterThirdCleanup.stream()
+                .map(PostVersion::getVersion)
+                .sorted()
+                .toList();
+
+        assertThat(versionsAfterFirst).containsExactlyElementsOf(versionsAfterSecond);
+        assertThat(versionsAfterSecond).containsExactlyElementsOf(versionsAfterThird);
+    }
+
+    /**
+     * Property 10: Cleanup with keepCount >= total versions does nothing
+     * 
+     * For any post, if keepCount is greater than or equal to the total number
+     * of versions, cleanup should not delete any versions.
+     * 
+     * **Validates: Requirements 3.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 10: Cleanup with keepCount >= total versions does nothing")
+    void cleanupWithKeepCountGreaterThanTotalDoesNothing(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 3, max = 10) int totalVersions,
+            @ForAll @StringLength(min = 10, max = 200) String baseContent) {
+
+        // Given: A post with some versions
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(baseContent)
+                .html("<p>" + baseContent + "</p>")
+                .text(baseContent)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // Create versions
+        List<Integer> createdVersions = new ArrayList<>();
+        for (int i = 0; i < totalVersions; i++) {
+            Integer version = versionManager.createVersion(
+                    postIdStr,
+                    baseContent + " v" + (i + 1),
+                    ownerIdStr,
+                    "Version " + (i + 1)
+            );
+            createdVersions.add(version);
+        }
+
+        long versionCountBefore = versionRepository.countByPostId(postIdStr);
+        List<PostVersion> versionsBefore = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+
+        // When: Clean with keepCount equal to total versions
+        versionManager.cleanOldVersions(postIdStr, totalVersions);
+
+        // Then: No versions should be deleted
+        long versionCountAfter = versionRepository.countByPostId(postIdStr);
+        assertThat(versionCountAfter).isEqualTo(versionCountBefore);
+
+        List<PostVersion> versionsAfter = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+        assertThat(versionsAfter).hasSize(versionsBefore.size());
+
+        // When: Clean with keepCount greater than total versions
+        int largerKeepCount = totalVersions + 5;
+        versionManager.cleanOldVersions(postIdStr, largerKeepCount);
+
+        // Then: Still no versions should be deleted
+        long versionCountAfterLarger = versionRepository.countByPostId(postIdStr);
+        assertThat(versionCountAfterLarger).isEqualTo(versionCountBefore);
+    }
+
+    /**
+     * Property 10: Cleanup preserves version metadata
+     * 
+     * For any post, after cleanup, the remaining versions should have
+     * all their metadata (content, editedBy, changeNote, etc.) intact.
+     * 
+     * **Validates: Requirements 3.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 10: Cleanup preserves version metadata")
+    void cleanupPreservesVersionMetadata(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll("editorList") List<Long> editors,
+            @ForAll("changeNoteList") List<String> changeNotes,
+            @ForAll @IntRange(min = 3, max = 6) int keepCount,
+            @ForAll @StringLength(min = 10, max = 200) String baseContent) {
+
+        // Given: A post with versions containing different metadata
+        String postIdStr = String.valueOf(postId);
+        int totalVersions = Math.min(editors.size(), changeNotes.size());
+
+        // Create initial content
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(baseContent)
+                .html("<p>" + baseContent + "</p>")
+                .text(baseContent)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // Create versions with specific metadata
+        for (int i = 0; i < totalVersions; i++) {
+            String editorId = String.valueOf(editors.get(i));
+            String changeNote = changeNotes.get(i);
+            String content = baseContent + " - Edit " + (i + 1) + " by " + editorId;
+
+            versionManager.createVersion(
+                    postIdStr,
+                    content,
+                    editorId,
+                    changeNote
+            );
+        }
+
+        // Store metadata of versions that should remain
+        List<PostVersion> allVersionsBefore = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+        int expectedRemaining = Math.min(keepCount, totalVersions);
+        List<PostVersion> expectedToRemain = allVersionsBefore.subList(0, expectedRemaining);
+
+        // When: Clean old versions
+        versionManager.cleanOldVersions(postIdStr, keepCount);
+
+        // Then: Remaining versions should have intact metadata
+        List<PostVersion> remainingVersions = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+        assertThat(remainingVersions).hasSize(expectedRemaining);
+
+        for (int i = 0; i < remainingVersions.size(); i++) {
+            PostVersion actual = remainingVersions.get(i);
+            PostVersion expected = expectedToRemain.get(i);
+
+            assertThat(actual.getVersion()).isEqualTo(expected.getVersion());
+            assertThat(actual.getPostId()).isEqualTo(expected.getPostId());
+            assertThat(actual.getContent()).isEqualTo(expected.getContent());
+            assertThat(actual.getEditedBy()).isEqualTo(expected.getEditedBy());
+            assertThat(actual.getChangeNote()).isEqualTo(expected.getChangeNote());
+            assertThat(actual.getContentType()).isEqualTo(expected.getContentType());
+        }
+    }
+
+    /**
+     * Property 10: Cleanup with keepCount = 1 keeps only latest version
+     * 
+     * For any post with multiple versions, cleanup with keepCount = 1
+     * should keep only the most recent version (highest version number).
+     * 
+     * **Validates: Requirements 3.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 10: Cleanup with keepCount = 1 keeps only latest version")
+    void cleanupWithKeepCountOneKeepsOnlyLatestVersion(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 5, max = 20) int totalVersions,
+            @ForAll @StringLength(min = 10, max = 200) String baseContent) {
+
+        // Given: A post with multiple versions
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(baseContent)
+                .html("<p>" + baseContent + "</p>")
+                .text(baseContent)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // Create versions
+        Integer lastVersion = null;
+        for (int i = 0; i < totalVersions; i++) {
+            lastVersion = versionManager.createVersion(
+                    postIdStr,
+                    baseContent + " v" + (i + 1),
+                    ownerIdStr,
+                    "Version " + (i + 1)
+            );
+        }
+
+        // When: Clean with keepCount = 1
+        versionManager.cleanOldVersions(postIdStr, 1);
+
+        // Then: Only one version should remain
+        long versionCount = versionRepository.countByPostId(postIdStr);
+        assertThat(versionCount).isEqualTo(1);
+
+        // And: It should be the latest version
+        List<PostVersion> remainingVersions = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+        assertThat(remainingVersions).hasSize(1);
+        assertThat(remainingVersions.get(0).getVersion()).isEqualTo(lastVersion);
+        assertThat(remainingVersions.get(0).getVersion()).isEqualTo(totalVersions);
+    }
+
+    /**
+     * Property 10: Multiple posts cleanup independently
+     * 
+     * For any set of different posts, cleanup on one post should not
+     * affect versions of other posts.
+     * 
+     * **Validates: Requirements 3.5**
+     */
+    @Property(tries = 50)
+    @Label("Property 10: Multiple posts cleanup independently")
+    void multiplePostsCleanupIndependently(
+            @ForAll("postIdList") List<Long> postIds,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 8, max = 15) int versionsPerPost,
+            @ForAll @IntRange(min = 3, max = 6) int keepCount,
+            @ForAll @StringLength(min = 10, max = 200) String baseContent) {
+
+        // Given: Multiple posts with versions
+        String ownerIdStr = String.valueOf(ownerId);
+
+        for (Long postId : postIds) {
+            String postIdStr = String.valueOf(postId);
+
+            // Create initial content for each post
+            PostContent initialContent = PostContent.builder()
+                    .postId(postIdStr)
+                    .contentType("markdown")
+                    .raw(baseContent + " for post " + postId)
+                    .html("<p>" + baseContent + " for post " + postId + "</p>")
+                    .text(baseContent + " for post " + postId)
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+            contentRepository.save(initialContent);
+
+            // Create versions for each post
+            for (int i = 0; i < versionsPerPost; i++) {
+                versionManager.createVersion(
+                        postIdStr,
+                        baseContent + " v" + (i + 1),
+                        ownerIdStr,
+                        "Version " + (i + 1)
+                );
+            }
+        }
+
+        // Verify all posts have the expected number of versions
+        for (Long postId : postIds) {
+            String postIdStr = String.valueOf(postId);
+            long count = versionRepository.countByPostId(postIdStr);
+            assertThat(count).isEqualTo(versionsPerPost);
+        }
+
+        // When: Clean versions for the first post only
+        String firstPostId = String.valueOf(postIds.get(0));
+        versionManager.cleanOldVersions(firstPostId, keepCount);
+
+        // Then: First post should have keepCount versions
+        long firstPostCount = versionRepository.countByPostId(firstPostId);
+        assertThat(firstPostCount).isEqualTo(keepCount);
+
+        // And: Other posts should still have all their versions
+        for (int i = 1; i < postIds.size(); i++) {
+            String otherPostId = String.valueOf(postIds.get(i));
+            long otherPostCount = versionRepository.countByPostId(otherPostId);
+            assertThat(otherPostCount)
+                    .as("Post %s should still have all %d versions", otherPostId, versionsPerPost)
+                    .isEqualTo(versionsPerPost);
+        }
+    }
+
+    /**
+     * Property 10: Cleanup maintains version sequence continuity
+     * 
+     * For any post, after cleanup, the remaining version numbers should
+     * still form a continuous sequence (though not necessarily starting from 1).
+     * 
+     * **Validates: Requirements 3.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 10: Cleanup maintains version sequence continuity")
+    void cleanupMaintainsVersionSequenceContinuity(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 10, max = 25) int totalVersions,
+            @ForAll @IntRange(min = 3, max = 8) int keepCount,
+            @ForAll @StringLength(min = 10, max = 200) String baseContent) {
+
+        // Given: A post with multiple versions
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(baseContent)
+                .html("<p>" + baseContent + "</p>")
+                .text(baseContent)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // Create versions
+        for (int i = 0; i < totalVersions; i++) {
+            versionManager.createVersion(
+                    postIdStr,
+                    baseContent + " v" + (i + 1),
+                    ownerIdStr,
+                    "Version " + (i + 1)
+            );
+        }
+
+        // When: Clean old versions
+        versionManager.cleanOldVersions(postIdStr, keepCount);
+
+        // Then: Remaining versions should form a continuous sequence
+        List<PostVersion> remainingVersions = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+        List<Integer> versionNumbers = remainingVersions.stream()
+                .map(PostVersion::getVersion)
+                .sorted()
+                .toList();
+
+        // Verify continuity: each version number should be exactly 1 more than the previous
+        for (int i = 1; i < versionNumbers.size(); i++) {
+            assertThat(versionNumbers.get(i))
+                    .as("Version at index %d should be exactly 1 more than previous", i)
+                    .isEqualTo(versionNumbers.get(i - 1) + 1);
+        }
+
+        // Verify the sequence ends at totalVersions
+        if (!versionNumbers.isEmpty()) {
+            assertThat(versionNumbers.get(versionNumbers.size() - 1))
+                    .as("Last remaining version should be the total version count")
+                    .isEqualTo(totalVersions);
+        }
+    }
+
+    // Data generators
+
+    @Provide
+    Arbitrary<List<Long>> postIdList() {
+        return Arbitraries.longs()
+                .between(1, 1000000)
+                .list()
+                .ofMinSize(2)
+                .ofMaxSize(5)
+                .uniqueElements();
+    }
+
+    @Provide
+    Arbitrary<List<Long>> editorList() {
+        return Arbitraries.longs()
+                .between(1, 100000)
+                .list()
+                .ofMinSize(5)
+                .ofMaxSize(15);
+    }
+
+    @Provide
+    Arbitrary<List<String>> changeNoteList() {
+        return Arbitraries.strings()
+                .alpha()
+                .ofMinLength(5)
+                .ofMaxLength(100)
+                .list()
+                .ofMinSize(5)
+                .ofMaxSize(15);
+    }
+}

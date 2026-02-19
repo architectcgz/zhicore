@@ -1,0 +1,94 @@
+# User Service 测试配置
+server:
+  port: 0
+
+spring:
+  application:
+    name: blog-user-test
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  h2:
+    console:
+      enabled: false
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+  config:
+    import: ""
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: deleted
+      logic-delete-value: true
+      logic-not-delete-value: false
+
+# Redis 测试配置（使用嵌入式 Redis 或 Mock）
+spring.data.redis:
+  host: localhost
+  port: 6379
+
+# RocketMQ 测试配置
+rocketmq:
+  name-server: localhost:9876
+  producer:
+    group: test-producer-group
+    send-message-timeout: 3000
+
+# JWT 测试配置
+jwt:
+  secret: test-secret-key-for-integration-testing-must-be-at-least-256-bits-long
+  access-token-expiration: 3600000
+  refresh-token-expiration: 604800000
+
+# 缓存配置
+cache:
+  ttl:
+    entity-detail: 10m
+    list: 5m
+    stats: -1
+    session: 7d
+
+# Actuator 配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  endpoint:
+    health:
+      show-details: always
+
+# 日志配置
+logging:
+  level:
+    com.blog: DEBUG
+    org.springframework.web: DEBUG
+
+# Knife4j API 文档配置（测试环境启用）
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: false
+
+knife4j:
+  enable: true
+  title: 用户服务 API 文档（测试）
+  version: 1.0.0-TEST
+  description: 用户服务测试环境接口文档
+  setting:
+    language: zh_cn
+    enable-swagger-models: true
+    enable-document-manage: true
+    swagger-model-name: 实体类列表

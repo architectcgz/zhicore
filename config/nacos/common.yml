@@ -1,0 +1,100 @@
+﻿spring:
+  cloud:
+    nacos:
+      discovery:
+        group: BLOG_SERVICE
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: redis123456
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: 3000ms
+
+cache:
+  ttl:
+    entity-detail: 600
+    list: 300
+    stats: -1
+    session: 604800
+    null-value: 60
+  lock:
+    wait-time: 5
+    lease-time: 10
+    fair: false
+  hot-data:
+    enabled: true
+    threshold: 100
+
+jwt:
+  secret: blog-microservice-jwt-secret-key-2024-very-long-and-secure-key-for-production-use
+  access-token-expiration: 7200
+  refresh-token-expiration: 604800
+
+file-service:
+  client:
+    server-url: ${FILE_SERVICE_URL:http://localhost:8089}
+    tenant-id: ${FILE_SERVICE_TENANT_ID:blog}
+    connect-timeout: 10000
+    read-timeout: 30000
+    max-connections: 50
+    custom-domain: ${FILE_SERVICE_CUSTOM_DOMAIN:}
+    cdn-domain: ${FILE_SERVICE_CDN_DOMAIN:}
+    max-retries: 3
+    retry-delay-ms: 1000
+  enabled: ${FILE_SERVICE_ENABLED:true}
+
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 10000
+        logger-level: basic
+  sentinel:
+    enabled: true
+  compression:
+    request:
+      enabled: true
+      mime-types: application/json
+      min-request-size: 2048
+    response:
+      enabled: true
+
+spring.cloud.sentinel:
+  transport:
+    dashboard: ${SENTINEL_DASHBOARD:localhost:8080}
+  eager: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO
+    com.blog: DEBUG
+    com.alibaba.nacos: WARN
+    org.springframework.cloud: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"

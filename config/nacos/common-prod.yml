@@ -1,0 +1,135 @@
+# 生产环境配置 - 使用 Jasypt 加密敏感信息
+# 加密密钥通过环境变量 JASYPT_ENCRYPTOR_PASSWORD 传入
+# 加密命令: java -cp jasypt-1.9.3.jar org.jasypt.intf.cli.JasyptPBEStringEncryptionCLI input="your-secret" password="your-encryption-key" algorithm=PBEWithMD5AndDES
+
+spring:
+  cloud:
+    nacos:
+      discovery:
+        group: BLOG_SERVICE
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  data:
+    redis:
+      host: redis-prod.example.com
+      port: 6379
+      # 生产环境 Redis 密码（已加密）
+      # 原始值示例: prod-redis-password-2024
+      password: ENC(请替换为加密后的密码)
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 50
+          max-idle: 20
+          min-idle: 10
+          max-wait: 3000ms
+      ssl:
+        enabled: true
+
+# Jasypt 加密配置
+jasypt:
+  encryptor:
+    # 加密算法
+    algorithm: PBEWithMD5AndDES
+    # 加密密钥从环境变量读取（不要写在配置文件中）
+    password: ${JASYPT_ENCRYPTOR_PASSWORD}
+    # 密钥获取次数
+    key-obtention-iterations: 1000
+    # 加密池大小
+    pool-size: 1
+    # 加密提供者
+    provider-name: SunJCE
+    # Salt 生成器
+    salt-generator-classname: org.jasypt.salt.RandomSaltGenerator
+    # IV 生成器
+    iv-generator-classname: org.jasypt.iv.RandomIvGenerator
+    # 字符串输出类型
+    string-output-type: base64
+
+cache:
+  ttl:
+    entity-detail: 600
+    list: 300
+    stats: -1
+    session: 604800
+    null-value: 60
+  lock:
+    wait-time: 5
+    lease-time: 10
+    fair: false
+  hot-data:
+    enabled: true
+    threshold: 100
+
+jwt:
+  # 生产环境 JWT 密钥（已加密）
+  # 原始值示例: prod-jwt-secret-key-2024-very-long-and-secure-key-for-production-use
+  secret: ENC(请替换为加密后的JWT密钥)
+  access-token-expiration: 7200
+  refresh-token-expiration: 604800
+
+file-service:
+  client:
+    server-url: https://file-service-prod.example.com
+    tenant-id: blog
+    connect-timeout: 10000
+    read-timeout: 30000
+    max-connections: 100
+    custom-domain: https://cdn.example.com
+    cdn-domain: https://cdn.example.com
+    max-retries: 3
+    retry-delay-ms: 1000
+  enabled: true
+
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 10000
+        logger-level: basic
+  sentinel:
+    enabled: true
+  compression:
+    request:
+      enabled: true
+      mime-types: application/json
+      min-request-size: 2048
+    response:
+      enabled: true
+
+spring.cloud.sentinel:
+  transport:
+    dashboard: sentinel-prod.example.com:8080
+  eager: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: production
+
+logging:
+  level:
+    root: INFO
+    com.blog: INFO
+    com.alibaba.nacos: WARN
+    org.springframework.cloud: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/blog/${spring.application.name}.log
+    max-size: 100MB
+    max-history: 30

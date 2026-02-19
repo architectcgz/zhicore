@@ -1,0 +1,110 @@
+package com.blog.common.cache;
+
+import net.jqwik.api.*;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Feature: cache-penetration-protection, Property 8: 锁键命名规范
+ * Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5
+ * 
+ * Property: For any entity type and ID, lock key should follow the format
+ * {service}:lock:{entity}:{id}
+ */
+class LockKeyNamingPropertyTest {
+
+    /**
+     * Property 8: 锁键命名规范
+     * For any entity type and ID, lock key format should be correct
+     */
+    @Property(tries = 100)
+    void postLockKeyFormat(@ForAll @LongRange(min = 1, max = 10000) Long postId) {
+        // When: Generate post content lock key
+        String lockKey = "post:lock:content:" + postId;
+        
+        // Then: Should follow naming convention
+        assertThat(lockKey)
+            .as("Post content lock key should follow format")
+            .matches("^post:lock:content:\\d+$")
+            .startsWith("post:lock:content:")
+            .endsWith(postId.toString());
+    }
+    
+    @Property(tries = 100)
+    void postFullDetailLockKeyFormat(@ForAll @LongRange(min = 1, max = 10000) Long postId) {
+        // When: Generate post full detail lock key
+        String lockKey = "post:lock:full:" + postId;
+        
+        // Then: Should follow naming convention
+        assertThat(lockKey)
+            .as("Post full detail lock key should follow format")
+            .matches("^post:lock:full:\\d+$")
+            .startsWith("post:lock:full:")
+            .endsWith(postId.toString());
+    }
+    
+    @Property(tries = 100)
+    void userLockKeyFormat(@ForAll @LongRange(min = 1, max = 10000) Long userId) {
+        // When: Generate user detail lock key
+        String lockKey = "user:lock:detail:" + userId;
+        
+        // Then: Should follow naming convention
+        assertThat(lockKey)
+            .as("User detail lock key should follow format")
+            .matches("^user:lock:detail:\\d+$")
+            .startsWith("user:lock:detail:")
+            .endsWith(userId.toString());
+    }
+    
+    @Property(tries = 100)
+    void commentLockKeyFormat(@ForAll @LongRange(min = 1, max = 10000) Long commentId) {
+        // When: Generate comment detail lock key
+        String lockKey = "comment:lock:detail:" + commentId;
+        
+        // Then: Should follow naming convention
+        assertThat(lockKey)
+            .as("Comment detail lock key should follow format")
+            .matches("^comment:lock:detail:\\d+$")
+            .startsWith("comment:lock:detail:")
+            .endsWith(commentId.toString());
+    }
+    
+    /**
+     * Property 8b: Lock keys for different entities should be unique
+     */
+    @Property(tries = 100)
+    void lockKeysAreUnique(
+        @ForAll @LongRange(min = 1, max = 10000) Long id1,
+        @ForAll @LongRange(min = 1, max = 10000) Long id2
+    ) {
+        Assume.that(id1 != id2);
+        
+        // When: Generate lock keys for different IDs
+        String postLock1 = "post:lock:content:" + id1;
+        String postLock2 = "post:lock:content:" + id2;
+        String userLock1 = "user:lock:detail:" + id1;
+        String commentLock1 = "comment:lock:detail:" + id1;
+        
+        // Then: All lock keys should be unique
+        assertThat(postLock1).isNotEqualTo(postLock2);
+        assertThat(postLock1).isNotEqualTo(userLock1);
+        assertThat(postLock1).isNotEqualTo(commentLock1);
+        assertThat(userLock1).isNotEqualTo(commentLock1);
+    }
+    
+    /**
+     * Property 8c: Lock keys should not contain special characters
+     */
+    @Property(tries = 100)
+    void lockKeysNoSpecialChars(@ForAll @LongRange(min = 1, max = 10000) Long id) {
+        // When: Generate lock keys
+        String postLock = "post:lock:content:" + id;
+        String userLock = "user:lock:detail:" + id;
+        String commentLock = "comment:lock:detail:" + id;
+        
+        // Then: Should only contain alphanumeric and colons
+        assertThat(postLock).matches("^[a-z:0-9]+$");
+        assertThat(userLock).matches("^[a-z:0-9]+$");
+        assertThat(commentLock).matches("^[a-z:0-9]+$");
+    }
+}

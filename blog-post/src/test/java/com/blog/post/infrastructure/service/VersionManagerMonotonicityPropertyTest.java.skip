@@ -1,0 +1,553 @@
+package com.blog.post.infrastructure.service;
+
+import com.blog.post.domain.service.VersionManager;
+import com.blog.post.infrastructure.mongodb.document.PostContent;
+import com.blog.post.infrastructure.mongodb.document.PostVersion;
+import com.blog.post.infrastructure.mongodb.repository.PostContentRepository;
+import com.blog.post.infrastructure.mongodb.repository.PostVersionRepository;
+import net.jqwik.api.*;
+import net.jqwik.api.constraints.IntRange;
+import net.jqwik.api.constraints.StringLength;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Version Manager Monotonicity Property Test
+ * 
+ * Uses property-based testing to validate that version numbers are
+ * monotonically increasing for each post.
+ * 
+ * **Feature: post-mongodb-hybrid, Property 6: 版本创建单调性**
+ * 
+ * **Validates: Requirements 3.1, 3.6**
+ * 
+ * Property 6: 版本创建单调性
+ * 对于任意文章的版本历史，版本号应该是单调递增的，且每次内容更新都应该创建一个新版本。
+ */
+@SpringBootTest
+@Testcontainers
+class VersionManagerMonotonicityPropertyTest {
+
+    @Container
+    static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:8.0")
+            .withExposedPorts(27017);
+
+    @DynamicPropertySource
+    static void setProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
+    }
+
+    @Autowired
+    private VersionManager versionManager;
+
+    @Autowired
+    private PostVersionRepository versionRepository;
+
+    @Autowired
+    private PostContentRepository contentRepository;
+
+    @BeforeEach
+    void setUp() {
+        versionRepository.deleteAll();
+        contentRepository.deleteAll();
+    }
+
+    /**
+     * Property 6: Version numbers are monotonically increasing
+     * 
+     * For any post, when creating multiple versions, the version numbers
+     * should be strictly increasing (1, 2, 3, ...).
+     * 
+     * **Validates: Requirements 3.1, 3.6**
+     */
+    @Property(tries = 100)
+    @Label("Property 6: Version numbers are monotonically increasing")
+    void versionNumbersAreMonotonicallyIncreasing(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll("contentUpdateList") List<String> contentUpdates) {
+
+        // Given: A post with initial content
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content in MongoDB
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw("Initial content")
+                .html("<p>Initial content</p>")
+                .text("Initial content")
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // When: Create multiple versions by updating content
+        List<Integer> versionNumbers = new ArrayList<>();
+        for (int i = 0; i < contentUpdates.size(); i++) {
+            String content = contentUpdates.get(i);
+            String changeNote = "Update " + (i + 1);
+            
+            Integer version = versionManager.createVersion(
+                    postIdStr,
+                    content,
+                    ownerIdStr,
+                    changeNote
+            );
+            
+            versionNumbers.add(version);
+        }
+
+        // Then: Version numbers should be monotonically increasing
+        assertThat(versionNumbers).hasSize(contentUpdates.size());
+        
+        // Verify strict monotonicity: each version is greater than the previous
+        for (int i = 1; i < versionNumbers.size(); i++) {
+            assertThat(versionNumbers.get(i))
+                    .as("Version %d should be greater than version %d", i, i-1)
+                    .isGreaterThan(versionNumbers.get(i - 1));
+        }
+
+        // Verify versions start from 1 and increment by 1
+        for (int i = 0; i < versionNumbers.size(); i++) {
+            assertThat(versionNumbers.get(i))
+                    .as("Version at index %d should be %d", i, i + 1)
+                    .isEqualTo(i + 1);
+        }
+    }
+
+    /**
+     * Property 6: Each content update creates a new version
+     * 
+     * For any post, each call to createVersion should result in a new
+     * version record with an incremented version number.
+     * 
+     * **Validates: Requirements 3.1, 3.6**
+     */
+    @Property(tries = 100)
+    @Label("Property 6: Each content update creates a new version")
+    void eachContentUpdateCreatesNewVersion(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 1, max = 20) int updateCount,
+            @ForAll @StringLength(min = 10, max = 500) String baseContent) {
+
+        // Given: A post with initial content
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content in MongoDB
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(baseContent)
+                .html("<p>" + baseContent + "</p>")
+                .text(baseContent)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // When: Create multiple versions
+        for (int i = 0; i < updateCount; i++) {
+            String content = baseContent + " - Update " + (i + 1);
+            versionManager.createVersion(
+                    postIdStr,
+                    content,
+                    ownerIdStr,
+                    "Change note " + (i + 1)
+            );
+        }
+
+        // Then: The number of versions should equal the update count
+        long versionCount = versionRepository.countByPostId(postIdStr);
+        assertThat(versionCount).isEqualTo(updateCount);
+
+        // And: All versions should have sequential version numbers
+        List<PostVersion> versions = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+        assertThat(versions).hasSize(updateCount);
+
+        // Verify version numbers are sequential from 1 to updateCount
+        for (int i = 0; i < versions.size(); i++) {
+            int expectedVersion = updateCount - i; // Descending order
+            assertThat(versions.get(i).getVersion())
+                    .as("Version at position %d should be %d", i, expectedVersion)
+                    .isEqualTo(expectedVersion);
+        }
+    }
+
+    /**
+     * Property 6: Version numbers never decrease
+     * 
+     * For any post, regardless of the order of operations, version numbers
+     * should never decrease. Each new version should have a higher number
+     * than all previous versions.
+     * 
+     * **Validates: Requirements 3.1, 3.6**
+     */
+    @Property(tries = 100)
+    @Label("Property 6: Version numbers never decrease")
+    void versionNumbersNeverDecrease(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll("contentUpdateList") List<String> contentUpdates) {
+
+        // Given: A post with initial content
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content in MongoDB
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw("Initial content")
+                .html("<p>Initial content</p>")
+                .text("Initial content")
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // When: Create versions and track the maximum version seen
+        Integer maxVersionSeen = 0;
+        for (String content : contentUpdates) {
+            Integer newVersion = versionManager.createVersion(
+                    postIdStr,
+                    content,
+                    ownerIdStr,
+                    "Update"
+            );
+
+            // Then: New version should always be greater than max seen
+            assertThat(newVersion)
+                    .as("New version should be greater than previous max %d", maxVersionSeen)
+                    .isGreaterThan(maxVersionSeen);
+
+            maxVersionSeen = newVersion;
+        }
+    }
+
+    /**
+     * Property 6: Version creation is idempotent in numbering
+     * 
+     * For any post, creating versions concurrently or sequentially should
+     * result in unique, monotonically increasing version numbers without gaps.
+     * 
+     * **Validates: Requirements 3.1, 3.6**
+     */
+    @Property(tries = 100)
+    @Label("Property 6: Version creation maintains sequential numbering")
+    void versionCreationMaintainsSequentialNumbering(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 2, max = 15) int versionCount,
+            @ForAll @StringLength(min = 10, max = 200) String content) {
+
+        // Given: A post with initial content
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content in MongoDB
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(content)
+                .html("<p>" + content + "</p>")
+                .text(content)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // When: Create multiple versions
+        List<Integer> createdVersions = new ArrayList<>();
+        for (int i = 0; i < versionCount; i++) {
+            Integer version = versionManager.createVersion(
+                    postIdStr,
+                    content + " v" + (i + 1),
+                    ownerIdStr,
+                    "Version " + (i + 1)
+            );
+            createdVersions.add(version);
+        }
+
+        // Then: Versions should be sequential without gaps
+        assertThat(createdVersions).hasSize(versionCount);
+        
+        // Check for sequential numbering (1, 2, 3, ...)
+        for (int i = 0; i < createdVersions.size(); i++) {
+            assertThat(createdVersions.get(i))
+                    .as("Version at index %d should be %d", i, i + 1)
+                    .isEqualTo(i + 1);
+        }
+
+        // Verify no gaps in version numbers
+        List<PostVersion> allVersions = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+        assertThat(allVersions).hasSize(versionCount);
+
+        // Check that all version numbers from 1 to versionCount exist
+        List<Integer> actualVersionNumbers = allVersions.stream()
+                .map(PostVersion::getVersion)
+                .sorted()
+                .toList();
+
+        for (int i = 1; i <= versionCount; i++) {
+            assertThat(actualVersionNumbers)
+                    .as("Version number %d should exist", i)
+                    .contains(i);
+        }
+    }
+
+    /**
+     * Property 6: Multiple posts maintain independent version sequences
+     * 
+     * For any set of different posts, each post should maintain its own
+     * independent version sequence starting from 1.
+     * 
+     * **Validates: Requirements 3.1, 3.6**
+     */
+    @Property(tries = 50)
+    @Label("Property 6: Multiple posts maintain independent version sequences")
+    void multiplePostsMaintainIndependentVersionSequences(
+            @ForAll("postIdList") List<Long> postIds,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 1, max = 5) int versionsPerPost,
+            @ForAll @StringLength(min = 10, max = 200) String baseContent) {
+
+        // Given: Multiple posts with initial content
+        String ownerIdStr = String.valueOf(ownerId);
+
+        for (Long postId : postIds) {
+            String postIdStr = String.valueOf(postId);
+            
+            // Create initial content for each post
+            PostContent initialContent = PostContent.builder()
+                    .postId(postIdStr)
+                    .contentType("markdown")
+                    .raw(baseContent + " for post " + postId)
+                    .html("<p>" + baseContent + " for post " + postId + "</p>")
+                    .text(baseContent + " for post " + postId)
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+            contentRepository.save(initialContent);
+        }
+
+        // When: Create versions for each post
+        for (Long postId : postIds) {
+            String postIdStr = String.valueOf(postId);
+            
+            for (int i = 0; i < versionsPerPost; i++) {
+                versionManager.createVersion(
+                        postIdStr,
+                        baseContent + " v" + (i + 1),
+                        ownerIdStr,
+                        "Version " + (i + 1)
+                );
+            }
+        }
+
+        // Then: Each post should have its own independent version sequence
+        for (Long postId : postIds) {
+            String postIdStr = String.valueOf(postId);
+            
+            List<PostVersion> versions = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+            assertThat(versions).hasSize(versionsPerPost);
+
+            // Verify each post's versions start from 1
+            List<Integer> versionNumbers = versions.stream()
+                    .map(PostVersion::getVersion)
+                    .sorted()
+                    .toList();
+
+            for (int i = 1; i <= versionsPerPost; i++) {
+                assertThat(versionNumbers)
+                        .as("Post %s should have version %d", postIdStr, i)
+                        .contains(i);
+            }
+        }
+    }
+
+    /**
+     * Property 6: Version metadata is preserved with monotonic numbering
+     * 
+     * For any post, when creating versions with different metadata,
+     * the version numbers should still be monotonically increasing
+     * and all metadata should be preserved.
+     * 
+     * **Validates: Requirements 3.1, 3.6**
+     */
+    @Property(tries = 100)
+    @Label("Property 6: Version metadata is preserved with monotonic numbering")
+    void versionMetadataIsPreservedWithMonotonicNumbering(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll("editorList") List<Long> editors,
+            @ForAll("changeNoteList") List<String> changeNotes,
+            @ForAll @StringLength(min = 10, max = 500) String baseContent) {
+
+        // Given: A post with initial content
+        String postIdStr = String.valueOf(postId);
+
+        // Create initial content in MongoDB
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(baseContent)
+                .html("<p>" + baseContent + "</p>")
+                .text(baseContent)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // When: Create versions with different editors and change notes
+        int versionCount = Math.min(editors.size(), changeNotes.size());
+        List<Integer> versionNumbers = new ArrayList<>();
+
+        for (int i = 0; i < versionCount; i++) {
+            String editorId = String.valueOf(editors.get(i));
+            String changeNote = changeNotes.get(i);
+            String content = baseContent + " - Edit by " + editorId;
+
+            Integer version = versionManager.createVersion(
+                    postIdStr,
+                    content,
+                    editorId,
+                    changeNote
+            );
+
+            versionNumbers.add(version);
+        }
+
+        // Then: Version numbers should be monotonically increasing
+        for (int i = 1; i < versionNumbers.size(); i++) {
+            assertThat(versionNumbers.get(i))
+                    .as("Version %d should be greater than version %d", i, i-1)
+                    .isGreaterThan(versionNumbers.get(i - 1));
+        }
+
+        // And: All metadata should be preserved
+        List<PostVersion> versions = versionRepository.findByPostIdOrderByVersionDesc(postIdStr);
+        assertThat(versions).hasSize(versionCount);
+
+        for (int i = 0; i < versionCount; i++) {
+            int versionIndex = versionCount - 1 - i; // Reverse order
+            PostVersion version = versions.get(i);
+            
+            assertThat(version.getVersion()).isEqualTo(versionIndex + 1);
+            assertThat(version.getEditedBy()).isEqualTo(String.valueOf(editors.get(versionIndex)));
+            assertThat(version.getChangeNote()).isEqualTo(changeNotes.get(versionIndex));
+            assertThat(version.getContent()).contains(String.valueOf(editors.get(versionIndex)));
+        }
+    }
+
+    /**
+     * Property 6: First version always starts at 1
+     * 
+     * For any new post, the first version created should always be version 1,
+     * regardless of the content or metadata.
+     * 
+     * **Validates: Requirements 3.1, 3.6**
+     */
+    @Property(tries = 100)
+    @Label("Property 6: First version always starts at 1")
+    void firstVersionAlwaysStartsAtOne(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @StringLength(min = 10, max = 500) String content,
+            @ForAll @StringLength(min = 1, max = 200) String changeNote) {
+
+        // Given: A new post with initial content
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content in MongoDB
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(content)
+                .html("<p>" + content + "</p>")
+                .text(content)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // When: Create the first version
+        Integer firstVersion = versionManager.createVersion(
+                postIdStr,
+                content,
+                ownerIdStr,
+                changeNote
+        );
+
+        // Then: The first version should always be 1
+        assertThat(firstVersion).isEqualTo(1);
+
+        // Verify in database
+        PostVersion version = versionRepository.findByPostIdAndVersion(postIdStr, 1)
+                .orElseThrow(() -> new AssertionError("Version 1 should exist"));
+
+        assertThat(version.getVersion()).isEqualTo(1);
+        assertThat(version.getPostId()).isEqualTo(postIdStr);
+        assertThat(version.getContent()).isEqualTo(content);
+        assertThat(version.getEditedBy()).isEqualTo(ownerIdStr);
+        assertThat(version.getChangeNote()).isEqualTo(changeNote);
+    }
+
+    // Data generators
+
+    @Provide
+    Arbitrary<List<String>> contentUpdateList() {
+        return Arbitraries.strings()
+                .alpha()
+                .ofMinLength(10)
+                .ofMaxLength(500)
+                .list()
+                .ofMinSize(1)
+                .ofMaxSize(10);
+    }
+
+    @Provide
+    Arbitrary<List<Long>> postIdList() {
+        return Arbitraries.longs()
+                .between(1, 1000000)
+                .list()
+                .ofMinSize(2)
+                .ofMaxSize(5)
+                .uniqueElements();
+    }
+
+    @Provide
+    Arbitrary<List<Long>> editorList() {
+        return Arbitraries.longs()
+                .between(1, 100000)
+                .list()
+                .ofMinSize(1)
+                .ofMaxSize(10);
+    }
+
+    @Provide
+    Arbitrary<List<String>> changeNoteList() {
+        return Arbitraries.strings()
+                .alpha()
+                .ofMinLength(5)
+                .ofMaxLength(100)
+                .list()
+                .ofMinSize(1)
+                .ofMaxSize(10);
+    }
+}
