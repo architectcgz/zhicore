@@ -2,7 +2,7 @@
 
 ## 概述
 
-本文档详细说明了博客文章服务（blog-post）的 Redis 缓存策略实现，包括架构设计、实现细节、优化特性和最佳实践。
+本文档详细说明了博客文章服务（ZhiCore-post）的 Redis 缓存策略实现，包括架构设计、实现细节、优化特性和最佳实践。
 
 ---
 
@@ -612,7 +612,7 @@ log.warn("Cache lookup failed, falling back to database: {}", e.getMessage());
 
 **会的！** 你的项目是微服务架构，很可能会多实例部署：
 
-1. **blog-post 服务多实例部署**：
+1. **ZhiCore-post 服务多实例部署**：
    - 负载均衡下有多个实例
    - 同一篇热点文章可能被多个实例同时查询
 
@@ -640,13 +640,13 @@ log.warn("Cache lookup failed, falling back to database: {}", e.getMessage());
 **实现示例**：
 
 ```java
-package com.blog.post.infrastructure.service;
+package com.zhicore.post.infrastructure.service;
 
-import com.blog.common.cache.CacheConstants;
-import com.blog.common.config.CacheProperties;
-import com.blog.post.domain.service.DualStorageManager;
-import com.blog.post.infrastructure.cache.PostRedisKeys;
-import com.blog.post.infrastructure.mongodb.document.PostContent;
+import com.zhicore.common.cache.CacheConstants;
+import com.zhicore.common.config.CacheProperties;
+import com.zhicore.post.domain.service.DualStorageManager;
+import com.zhicore.post.infrastructure.cache.PostRedisKeys;
+import com.zhicore.post.infrastructure.mongodb.document.PostContent;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -1184,7 +1184,7 @@ cat application.yml | grep redis
 **排查步骤**:
 ```bash
 # 查看日志
-tail -f logs/blog-post.log | grep -i "cache miss"
+tail -f logs/ZhiCore-post.log | grep -i "cache miss"
 
 # 检查 Redis 中是否有数据
 redis-cli -h localhost -p 6379 -a redis123456
@@ -1211,18 +1211,18 @@ redis-cli -h localhost -p 6379 -a redis123456
 ## 相关文件
 
 ### 实现文件
-- `blog-post/src/main/java/com/blog/post/infrastructure/service/CachedDualStorageManager.java`
-- `blog-post/src/main/java/com/blog/post/infrastructure/service/CachedDraftManager.java`
-- `blog-post/src/main/java/com/blog/post/infrastructure/cache/PostRedisKeys.java`
+- `ZhiCore-post/src/main/java/com/ZhiCore/post/infrastructure/service/CachedDualStorageManager.java`
+- `ZhiCore-post/src/main/java/com/ZhiCore/post/infrastructure/service/CachedDraftManager.java`
+- `ZhiCore-post/src/main/java/com/ZhiCore/post/infrastructure/cache/PostRedisKeys.java`
 
 ### 配置文件
-- `blog-common/src/main/java/com/blog/common/config/RedisConfig.java`
-- `blog-common/src/main/java/com/blog/common/config/CacheProperties.java`
-- `blog-common/src/main/java/com/blog/common/cache/CacheConstants.java`
-- `blog-post/src/main/resources/application.yml`
+- `ZhiCore-common/src/main/java/com/ZhiCore/common/config/RedisConfig.java`
+- `ZhiCore-common/src/main/java/com/ZhiCore/common/config/CacheProperties.java`
+- `ZhiCore-common/src/main/java/com/ZhiCore/common/cache/CacheConstants.java`
+- `ZhiCore-post/src/main/resources/application.yml`
 
 ---
 
 **文档版本**: 1.0  
 **最后更新**: 2025-01-26  
-**作者**: Blog Team
+**作者**: ZhiCore Team

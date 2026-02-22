@@ -2,7 +2,7 @@
 
 ## Overview
 
-本实施计划将 file-service 集成到 blog-microservice 系统中，实现统一的文件管理、多种上传方式支持、CDN 加速和服务解耦。实施将按照以下顺序进行：架构文档更新、依赖配置、核心服务实现、功能集成、Docker 部署、测试验证和文档更新。
+本实施计划将 file-service 集成到 ZhiCore-microservice 系统中，实现统一的文件管理、多种上传方式支持、CDN 加速和服务解耦。实施将按照以下顺序进行：架构文档更新、依赖配置、核心服务实现、功能集成、Docker 部署、测试验证和文档更新。
 
 ## Tasks
 
@@ -18,18 +18,18 @@
     - 在 `<dependencyManagement>` 中添加 file-service-spring-boot-starter 依赖
     - _Requirements: 2.1_
 
-  - [x] 2.2 在 blog-common 模块添加 file-service-spring-boot-starter 依赖
-    - 在 blog-common/pom.xml 中添加 starter 依赖
+  - [x] 2.2 在 ZhiCore-common 模块添加 file-service-spring-boot-starter 依赖
+    - 在 ZhiCore-common/pom.xml 中添加 starter 依赖
     - _Requirements: 2.2_
 
 - [x] 3. 实现核心文件上传服务
   - [x] 3.1 创建 FileUploadService 接口
-    - 在 blog-common 中创建 `com.blog.common.service.FileUploadService` 接口
+    - 在 ZhiCore-common 中创建 `com.zhicore.common.service.FileUploadService` 接口
     - 定义 uploadImage、uploadImage(file, isPublic)、deleteFile、extractFileId 方法
     - _Requirements: 3.1, 4.1, 5.1_
 
   - [x] 3.2 实现 FileUploadServiceImpl
-    - 在 blog-common 中创建 `com.blog.common.service.impl.FileUploadServiceImpl`
+    - 在 ZhiCore-common 中创建 `com.zhicore.common.service.impl.FileUploadServiceImpl`
     - 注入 FileServiceClient 依赖
     - 实现文件类型验证（只允许图片格式）
     - 实现文件大小验证（最大 10MB）
@@ -48,13 +48,13 @@
 
 - [x] 4. 创建文件服务异常类
   - [x] 4.1 创建自定义异常类
-    - 在 blog-common 中创建 `com.blog.common.exception.FileUploadException`
+    - 在 ZhiCore-common 中创建 `com.zhicore.common.exception.FileUploadException`
     - 创建 `FileNotFoundException`
     - 创建 `FileAccessDeniedException`
     - _Requirements: 9.1, 9.2_
 
   - [x] 4.2 实现全局异常处理器
-    - 在 blog-common 中创建 `com.blog.common.handler.FileServiceExceptionHandler`
+    - 在 ZhiCore-common 中创建 `com.zhicore.common.handler.FileServiceExceptionHandler`
     - 处理 FileUploadException、InvalidRequestException、AuthenticationException
     - 处理 FileAccessDeniedException、FileNotFoundException、QuotaExceededException
     - 处理 NetworkException、FileServiceException
@@ -68,7 +68,7 @@
 
 - [x] 5. 配置 File Service 连接
   - [x] 5.1 在 application.yml 中添加 file-service 配置
-    - 在 blog-user 和 blog-post 的 application.yml 中添加 file-service.client 配置
+    - 在 ZhiCore-user 和 ZhiCore-post 的 application.yml 中添加 file-service.client 配置
     - 配置 server-url、tenant-id、超时设置、重试设置
     - _Requirements: 2.3, 7.1, 7.3_
 
@@ -80,7 +80,7 @@
 
 - [x] 6. 实现用户头像上传功能
   - [x] 6.1 创建 UserAvatarController
-    - 在 blog-user 中创建 `com.blog.user.controller.UserAvatarController`
+    - 在 ZhiCore-user 中创建 `com.ZhiCore.user.controller.UserAvatarController`
     - 实现 POST /api/user/avatar/upload 接口（上传头像）
     - 实现 DELETE /api/user/avatar 接口（删除头像）
     - 注入 FileUploadService 和 UserService
@@ -105,7 +105,7 @@
 
 - [x] 7. 实现文章图片上传功能
   - [x] 7.1 创建 PostImageController
-    - 在 blog-post 中创建 `com.blog.post.controller.PostImageController`
+    - 在 ZhiCore-post 中创建 `com.zhicore.post.controller.PostImageController`
     - 实现 POST /api/post/image/cover 接口（上传封面图）
     - 实现 POST /api/post/image/content 接口（上传内容图片）
     - 注入 FileUploadService
@@ -131,7 +131,7 @@
 
 - [ ] 8. 实现认证集成
   - [ ] 8.1 创建自定义 TokenProvider（可选）
-    - 在 blog-common 中创建 `com.blog.common.config.FileServiceConfig`
+    - 在 ZhiCore-common 中创建 `com.zhicore.common.config.FileServiceConfig`
     - 实现自定义 TokenProvider Bean，从 Spring Security Context 获取 JWT 令牌
     - _Requirements: 8.1, 8.2_
 
@@ -195,20 +195,20 @@
     - _Requirements: 12.1, 12.3_
 
   - [ ] 12.2 配置跨 Docker 网络访问
-    - 在 blog 服务的 docker-compose.yml 中配置 extra_hosts
+    - 在 ZhiCore 服务的 docker-compose.yml 中配置 extra_hosts
     - 或配置使用宿主机 IP 访问 File Service
-    - 确保 Blog 服务能够访问独立部署的 File Service
+    - 确保 ZhiCore 服务能够访问独立部署的 File Service
     - _Requirements: 12.1, 12.2_
 
   - [ ] 12.3 创建启动脚本
     - 创建 start-with-file-service.sh 脚本
     - 脚本中说明需要先启动 File Service
-    - 然后启动 Blog 服务
+    - 然后启动 ZhiCore 服务
     - 添加健康检查等待逻辑
     - _Requirements: 12.1, 12.2, 12.4_
 
   - [ ]* 12.4 测试服务连接
-    - 测试 Blog 服务能否成功连接到 File Service
+    - 测试 ZhiCore 服务能否成功连接到 File Service
     - 验证文件上传功能正常工作
     - 测试服务间的网络连接
     - _Requirements: 12.1, 12.2, 12.3, 13.3_

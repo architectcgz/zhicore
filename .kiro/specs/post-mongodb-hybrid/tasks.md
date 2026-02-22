@@ -11,7 +11,7 @@
   - 使用 MongoDB 8.0 官方镜像（mongo:8.0）
   - 配置 MongoDB 连接参数（主机、端口、数据库名、认证）
   - 创建 MongoDB 初始化脚本（数据库、集合、索引）
-  - 在 blog-post 服务中添加 Spring Data MongoDB 依赖（兼容 MongoDB 8.0）
+  - 在 ZhiCore-post 服务中添加 Spring Data MongoDB 依赖（兼容 MongoDB 8.0）
   - 创建 MongoDB 配置类和连接验证
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 12.1_
   - _版本要求: MongoDB 8.0.x（支持到 2029-10-31）_

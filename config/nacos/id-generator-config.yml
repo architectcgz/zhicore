@@ -1,20 +1,20 @@
 # ===========================================
 # ID Generator 共享配置
 # Nacos DataId: id-generator-config.yml
-# Group: BLOG_SERVICE
+# Group: ZhiCore_SERVICE
 # ===========================================
 # 
 # 此配置文件为所有使用 ID Generator 服务的微服务提供统一配置
-# 包括：blog-notification, blog-message, blog-user, blog-post, 
-#       blog-comment, blog-search, blog-ranking, blog-upload, blog-admin
+# 包括：ZhiCore-notification, ZhiCore-message, ZhiCore-user, ZhiCore-post, 
+#       ZhiCore-comment, ZhiCore-search, ZhiCore-ranking, ZhiCore-upload, ZhiCore-admin
 #
 # 使用方式：
 # 在服务的 application.yml 中添加：
 # spring:
 #   config:
 #     import: 
-#       - optional:nacos:id-generator-config.yml?group=BLOG_SERVICE&refreshEnabled=true
-#       - optional:nacos:{service-name}.yml?group=BLOG_SERVICE&refreshEnabled=true
+#       - optional:nacos:id-generator-config.yml?group=ZhiCore_SERVICE&refreshEnabled=true
+#       - optional:nacos:{service-name}.yml?group=ZhiCore_SERVICE&refreshEnabled=true
 #
 
 # ID生成器客户端配置

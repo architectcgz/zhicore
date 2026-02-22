@@ -55,7 +55,7 @@ CommentAggregate
 ## 目录结构
 
 ```
-BlogCore/
+ZhiCoreCore/
 ├── Application/Comment/
 │   ├── ICommentApplicationService.cs
 │   ├── CommentApplicationService.cs

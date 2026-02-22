@@ -45,7 +45,7 @@ public class RankingService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IRankingRepository.cs
+// ZhiCoreCore/Domain/Repositories/IRankingRepository.cs
 public interface IRankingRepository
 {
     /// <summary>
@@ -83,7 +83,7 @@ public interface IRankingRepository
 ### Repository 实现
 
 ```csharp
-// BlogCore/Infrastructure/Repositories/RankingRepository.cs
+// ZhiCoreCore/Infrastructure/Repositories/RankingRepository.cs
 public class RankingRepository : IRankingRepository
 {
     private readonly AppDbContext _dbContext;
@@ -232,7 +232,7 @@ public class RankingRepository : IRankingRepository
 ### Domain Service
 
 ```csharp
-// BlogCore/Domain/Services/IRankingDomainService.cs
+// ZhiCoreCore/Domain/Services/IRankingDomainService.cs
 public interface IRankingDomainService
 {
     /// <summary>
@@ -246,7 +246,7 @@ public interface IRankingDomainService
     long CalculateAuthorInfluenceScore(int postCount, int totalLikes, long totalViews, int totalComments);
 }
 
-// BlogCore/Domain/Services/RankingDomainService.cs
+// ZhiCoreCore/Domain/Services/RankingDomainService.cs
 public class RankingDomainService : IRankingDomainService
 {
     public long CalculatePostHotScore(int viewCount, int likeCount, int commentCount)
@@ -266,7 +266,7 @@ public class RankingDomainService : IRankingDomainService
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Ranking/IRankingApplicationService.cs
+// ZhiCoreCore/Application/Ranking/IRankingApplicationService.cs
 public interface IRankingApplicationService
 {
     Task<List<HotPostDto>> GetHotPostsAsync(int limit);
@@ -276,7 +276,7 @@ public interface IRankingApplicationService
     Task<int> ClearRankingCacheAsync();
 }
 
-// BlogCore/Application/Ranking/RankingApplicationService.cs
+// ZhiCoreCore/Application/Ranking/RankingApplicationService.cs
 public class RankingApplicationService : IRankingApplicationService
 {
     private readonly IRankingDomainService _domainService;
@@ -548,7 +548,7 @@ private async Task<List<HotPostDto>> GetHotPostsFromDatabaseAsync(int limit)
 ## DI 注册
 
 ```csharp
-// BlogCore/Extensions/RankingServiceExtensions.cs
+// ZhiCoreCore/Extensions/RankingServiceExtensions.cs
 public static IServiceCollection AddRankingQueryServices(this IServiceCollection services)
 {
     // Repository

@@ -1,0 +1,205 @@
+package com.zhicore.post.infrastructure.repository;
+
+import model.domain.com.zhicore.content.Post;
+import model.domain.com.zhicore.content.PostStatus;
+import repository.domain.com.zhicore.content.PostRepository;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * PostRepositoryImpl 单元测试
+ * 测试数据库级别的条件查询和分页功能
+ *
+ * @author ZhiCore Team
+ */
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
+@DisplayName("PostRepositoryImpl 测试")
+class PostRepositoryImplTest {
+
+    @Autowired
+    private PostRepository postRepository;
+
+    @Test
+    @DisplayName("根据关键词查询文章")
+    void testFindByConditions_withKeyword() {
+        // Given: 创建测试文章
+        Post post1 = Post.createDraft("post1", "user1", "测试文章标题", "内容");
+        Post post2 = Post.createDraft("post2", "user1", "另一篇文章", "内容");
+        Post post3 = Post.createDraft("post3", "user1", "测试数据", "内容");
+        
+        postRepository.save(post1);
+        postRepository.save(post2);
+        postRepository.save(post3);
+
+        // When: 使用关键词查询
+        List<Post> results = postRepository.findByConditions("测试", null, null, 0, 10);
+
+        // Then: 应该返回包含关键词的文章
+        assertThat(results).hasSize(2);
+        assertThat(results).extracting(Post::getTitle)
+                .containsExactlyInAnyOrder("测试文章标题", "测试数据");
+    }
+
+    @Test
+    @DisplayName("根据状态查询文章")
+    void testFindByConditions_withStatus() {
+        // Given: 创建不同状态的文章
+        Post draft = Post.createDraft("post1", "user1", "草稿", "内容");
+        Post published = Post.createDraft("post2", "user1", "已发布", "内容");
+        published.publish();
+        
+        postRepository.save(draft);
+        postRepository.save(published);
+
+        // When: 查询已发布文章
+        List<Post> results = postRepository.findByConditions(null, "PUBLISHED", null, 0, 10);
+
+        // Then: 应该只返回已发布文章
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getStatus()).isEqualTo(PostStatus.PUBLISHED);
+    }
+
+    @Test
+    @DisplayName("根据作者ID查询文章")
+    void testFindByConditions_withAuthorId() {
+        // Given: 创建不同作者的文章
+        Post post1 = Post.createDraft("post1", "user1", "文章1", "内容");
+        Post post2 = Post.createDraft("post2", "user2", "文章2", "内容");
+        Post post3 = Post.createDraft("post3", "user1", "文章3", "内容");
+        
+        postRepository.save(post1);
+        postRepository.save(post2);
+        postRepository.save(post3);
+
+        // When: 查询user1的文章
+        List<Post> results = postRepository.findByConditions(null, null, "user1", 0, 10);
+
+        // Then: 应该只返回user1的文章
+        assertThat(results).hasSize(2);
+        assertThat(results).allMatch(post -> post.getOwnerId().equals("user1"));
+    }
+
+    @Test
+    @DisplayName("组合条件查询")
+    void testFindByConditions_withMultipleConditions() {
+        // Given: 创建测试数据
+        Post post1 = Post.createDraft("post1", "user1", "测试文章", "内容");
+        post1.publish();
+        Post post2 = Post.createDraft("post2", "user1", "测试草稿", "内容");
+        Post post3 = Post.createDraft("post3", "user2", "测试文章", "内容");
+        post3.publish();
+        
+        postRepository.save(post1);
+        postRepository.save(post2);
+        postRepository.save(post3);
+
+        // When: 使用多个条件查询
+        List<Post> results = postRepository.findByConditions("测试", "PUBLISHED", "user1", 0, 10);
+
+        // Then: 应该只返回符合所有条件的文章
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getId()).isEqualTo("post1");
+    }
+
+    @Test
+    @DisplayName("分页查询")
+    void testFindByConditions_withPagination() {
+        // Given: 创建多篇文章
+        for (int i = 1; i <= 25; i++) {
+            Post post = Post.createDraft("post" + i, "user1", "文章" + i, "内容");
+            postRepository.save(post);
+        }
+
+        // When: 分页查询
+        List<Post> page1 = postRepository.findByConditions(null, null, null, 0, 10);
+        List<Post> page2 = postRepository.findByConditions(null, null, null, 10, 10);
+        List<Post> page3 = postRepository.findByConditions(null, null, null, 20, 10);
+
+        // Then: 验证分页结果
+        assertThat(page1).hasSize(10);
+        assertThat(page2).hasSize(10);
+        assertThat(page3).hasSize(5);
+        
+        // 验证不重复
+        assertThat(page1).doesNotContainAnyElementsOf(page2);
+        assertThat(page2).doesNotContainAnyElementsOf(page3);
+    }
+
+    @Test
+    @DisplayName("空条件查询所有文章")
+    void testFindByConditions_withNullConditions() {
+        // Given: 创建测试文章
+        Post post1 = Post.createDraft("post1", "user1", "文章1", "内容");
+        Post post2 = Post.createDraft("post2", "user2", "文章2", "内容");
+        
+        postRepository.save(post1);
+        postRepository.save(post2);
+
+        // When: 使用空条件查询
+        List<Post> results = postRepository.findByConditions(null, null, null, 0, 10);
+
+        // Then: 应该返回所有文章
+        assertThat(results).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("查询结果为空")
+    void testFindByConditions_emptyResult() {
+        // Given: 创建测试文章
+        Post post = Post.createDraft("post1", "user1", "文章", "内容");
+        postRepository.save(post);
+
+        // When: 使用不存在的关键词查询
+        List<Post> results = postRepository.findByConditions("不存在的关键词", null, null, 0, 10);
+
+        // Then: 应该返回空列表
+        assertThat(results).isEmpty();
+    }
+
+    @Test
+    @DisplayName("统计符合条件的文章数量")
+    void testCountByConditions() {
+        // Given: 创建测试文章
+        Post post1 = Post.createDraft("post1", "user1", "测试文章1", "内容");
+        Post post2 = Post.createDraft("post2", "user1", "测试文章2", "内容");
+        Post post3 = Post.createDraft("post3", "user2", "其他文章", "内容");
+        
+        postRepository.save(post1);
+        postRepository.save(post2);
+        postRepository.save(post3);
+
+        // When: 统计数量
+        long totalCount = postRepository.countByConditions(null, null, null);
+        long keywordCount = postRepository.countByConditions("测试", null, null);
+        long authorCount = postRepository.countByConditions(null, null, "user1");
+
+        // Then: 验证统计结果
+        assertThat(totalCount).isEqualTo(3);
+        assertThat(keywordCount).isEqualTo(2);
+        assertThat(authorCount).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("统计结果为0")
+    void testCountByConditions_zeroResult() {
+        // Given: 创建测试文章
+        Post post = Post.createDraft("post1", "user1", "文章", "内容");
+        postRepository.save(post);
+
+        // When: 统计不存在的条件
+        long count = postRepository.countByConditions("不存在", null, null);
+
+        // Then: 应该返回0
+        assertThat(count).isZero();
+    }
+}

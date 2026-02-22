@@ -41,7 +41,7 @@
 ### 实现示例
 
 ```csharp
-// BlogCore/Infrastructure/Repositories/CachedPostRepository.cs
+// ZhiCoreCore/Infrastructure/Repositories/CachedPostRepository.cs
 public class CachedPostRepository : IPostRepository
 {
     private readonly IPostRepository _inner;
@@ -117,7 +117,7 @@ public class CachedPostRepository : IPostRepository
 ### DI 注册
 
 ```csharp
-// BlogCore/Extensions/RepositoryServiceExtensions.cs
+// ZhiCoreCore/Extensions/RepositoryServiceExtensions.cs
 public static class RepositoryServiceExtensions
 {
     public static IServiceCollection AddRepositories(this IServiceCollection services)
@@ -150,7 +150,7 @@ public static class RepositoryServiceExtensions
 ### 实现示例
 
 ```csharp
-// BlogCore/Infrastructure/Caching/CachedPostService.cs
+// ZhiCoreCore/Infrastructure/Caching/CachedPostService.cs
 public class CachedPostService : IPostService
 {
     private readonly IPostService _inner;
@@ -309,7 +309,7 @@ public async Task UpdateAsync(Post post)
 定期任务比对 Redis 和数据库，修复不一致：
 
 ```csharp
-// BlogCore/Services/Background/CacheReconciliationService.cs
+// ZhiCoreCore/Services/Background/CacheReconciliationService.cs
 public class CacheReconciliationService : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

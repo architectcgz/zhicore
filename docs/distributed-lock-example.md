@@ -58,13 +58,13 @@ spring:
 #### 文章服务缓存管理器
 
 ```java
-package com.blog.post.infrastructure.service;
+package com.zhicore.post.infrastructure.service;
 
-import com.blog.common.cache.CacheConstants;
-import com.blog.common.config.CacheProperties;
-import com.blog.post.domain.service.DualStorageManager;
-import com.blog.post.infrastructure.cache.PostRedisKeys;
-import com.blog.post.infrastructure.mongodb.document.PostContent;
+import com.zhicore.common.cache.CacheConstants;
+import com.zhicore.common.config.CacheProperties;
+import com.zhicore.post.domain.service.DualStorageManager;
+import com.zhicore.post.infrastructure.cache.PostRedisKeys;
+import com.zhicore.post.infrastructure.mongodb.document.PostContent;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -279,14 +279,14 @@ public static String fullDetailLock(Long postId) {
 ### 实现代码
 
 ```java
-package com.blog.post.infrastructure.service;
+package com.zhicore.post.infrastructure.service;
 
-import com.blog.common.cache.CacheConstants;
-import com.blog.common.config.CacheProperties;
-import com.blog.post.domain.service.DualStorageManager;
-import com.blog.post.domain.model.Post;
-import com.blog.post.infrastructure.cache.PostRedisKeys;
-import com.blog.post.infrastructure.mongodb.document.PostContent;
+import com.zhicore.common.cache.CacheConstants;
+import com.zhicore.common.config.CacheProperties;
+import com.zhicore.post.domain.service.DualStorageManager;
+import com.zhicore.post.domain.model.Post;
+import com.zhicore.post.infrastructure.cache.PostRedisKeys;
+import com.zhicore.post.infrastructure.mongodb.document.PostContent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Primary;
@@ -492,14 +492,14 @@ public static String fullDetailLock(Long postId) {
 ### 实现代码
 
 ```java
-package com.blog.post.infrastructure.service;
+package com.zhicore.post.infrastructure.service;
 
-import com.blog.common.cache.CacheConstants;
-import com.blog.common.config.CacheProperties;
-import com.blog.post.domain.service.DualStorageManager;
-import com.blog.post.domain.model.Post;
-import com.blog.post.infrastructure.cache.PostRedisKeys;
-import com.blog.post.infrastructure.mongodb.document.PostContent;
+import com.zhicore.common.cache.CacheConstants;
+import com.zhicore.common.config.CacheProperties;
+import com.zhicore.post.domain.service.DualStorageManager;
+import com.zhicore.post.domain.model.Post;
+import com.zhicore.post.infrastructure.cache.PostRedisKeys;
+import com.zhicore.post.infrastructure.mongodb.document.PostContent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -518,12 +518,12 @@ public class CachedDualStorageManagerWithSimpleLock implements DualStorageManage
 ### 实现代码
 
 ```java
-package com.blog.post.infrastructure.service;
+package com.zhicore.post.infrastructure.service;
 
-import com.blog.post.domain.service.DualStorageManager;
-import com.blog.post.domain.model.Post;
-import com.blog.post.infrastructure.cache.PostRedisKeys;
-import com.blog.post.infrastructure.mongodb.document.PostContent;
+import com.zhicore.post.domain.service.DualStorageManager;
+import com.zhicore.post.domain.model.Post;
+import com.zhicore.post.infrastructure.cache.PostRedisKeys;
+import com.zhicore.post.infrastructure.mongodb.document.PostContent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Primary;
@@ -619,7 +619,7 @@ public class CachedDualStorageManagerWithDelayedDelete implements DualStorageMan
 ### 配置异步执行器
 
 ```java
-package com.blog.common.config;
+package com.zhicore.common.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
@@ -815,4 +815,4 @@ cacheWriteCounter.increment();
 
 **文档版本**: 1.0  
 **最后更新**: 2025-01-26  
-**作者**: Blog Team
+**作者**: ZhiCore Team

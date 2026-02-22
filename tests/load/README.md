@@ -7,7 +7,7 @@
 ```
 load/
 ├── jmeter/
-│   └── blog-load-test.jmx      # JMeter 测试计划
+│   └── ZhiCore-load-test.jmx      # JMeter 测试计划
 ├── scripts/
 │   └── run-load-test.ps1       # PowerShell 运行脚本
 ├── results/                     # 测试结果目录（自动创建）
@@ -87,7 +87,7 @@ cd tests/load/scripts
 | 参数 | 说明 | 默认值 | 必填 |
 |------|------|--------|------|
 | `-JMeterPath` | JMeter 可执行文件路径 | `C:\apache-jmeter\bin\jmeter.bat` | 是 |
-| `-TestPlan` | 测试计划文件路径 | `../../jmeter/blog-load-test.jmx` | 否 |
+| `-TestPlan` | 测试计划文件路径 | `../../jmeter/ZhiCore-load-test.jmx` | 否 |
 | `-ResultsDir` | 结果输出目录 | `../../results/load` | 否 |
 | `-BaseUrl` | API 网关地址 | `http://localhost:8000` | 否 |
 | `-TestPostId` | 测试文章 ID | `1` | 否 |
@@ -104,10 +104,10 @@ cd tests/load/scripts
 
 ```bash
 # Windows
-C:\apache-jmeter-5.6.3\bin\jmeter.bat -t tests/load/jmeter/blog-load-test.jmx
+C:\apache-jmeter-5.6.3\bin\jmeter.bat -t tests/load/jmeter/ZhiCore-load-test.jmx
 
 # Linux/Mac
-/path/to/apache-jmeter/bin/jmeter.sh -t tests/load/jmeter/blog-load-test.jmx
+/path/to/apache-jmeter/bin/jmeter.sh -t tests/load/jmeter/ZhiCore-load-test.jmx
 ```
 
 #### 2. 命令行模式
@@ -115,7 +115,7 @@ C:\apache-jmeter-5.6.3\bin\jmeter.bat -t tests/load/jmeter/blog-load-test.jmx
 ```bash
 # Windows
 C:\apache-jmeter-5.6.3\bin\jmeter.bat -n ^
-    -t tests/load/jmeter/blog-load-test.jmx ^
+    -t tests/load/jmeter/ZhiCore-load-test.jmx ^
     -l tests/load/results/results.jtl ^
     -e -o tests/load/results/report ^
     -JBASE_URL=http://localhost:8000 ^
@@ -125,7 +125,7 @@ C:\apache-jmeter-5.6.3\bin\jmeter.bat -n ^
 
 # Linux/Mac
 /path/to/apache-jmeter/bin/jmeter.sh -n \
-    -t tests/load/jmeter/blog-load-test.jmx \
+    -t tests/load/jmeter/ZhiCore-load-test.jmx \
     -l tests/load/results/results.jtl \
     -e -o tests/load/results/report \
     -JBASE_URL=http://localhost:8000 \

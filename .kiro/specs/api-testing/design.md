@@ -58,7 +58,7 @@ tests/
 
 ## API测试设计
 
-### 1. 用户服务测试 (blog-user)
+### 1. 用户服务测试 (ZhiCore-user)
 
 | 测试ID | 接口 | 方法 | 预期状态码 | 说明 |
 |--------|------|------|-----------|------|
@@ -73,7 +73,7 @@ tests/
 | USER-009 | /api/v1/users/check-in | POST | 200 | 签到 |
 | USER-010 | /api/v1/users/check-in/status | GET | 200 | 获取签到状态 |
 
-### 2. 文章服务测试 (blog-post)
+### 2. 文章服务测试 (ZhiCore-post)
 
 | 测试ID | 接口 | 方法 | 预期状态码 | 说明 |
 |--------|------|------|-----------|------|
@@ -88,7 +88,7 @@ tests/
 | POST-009 | /api/v1/posts/{id}/favorite | POST | 200 | 收藏文章 |
 | POST-010 | /api/v1/posts/{id}/favorite | DELETE | 200 | 取消收藏 |
 
-### 3. 评论服务测试 (blog-comment)
+### 3. 评论服务测试 (ZhiCore-comment)
 
 | 测试ID | 接口 | 方法 | 预期状态码 | 说明 |
 |--------|------|------|-----------|------|
@@ -103,7 +103,7 @@ tests/
 | COMMENT-009 | /api/comments/post/{postId}?sort=time | GET | 200 | 按时间排序获取评论 |
 | COMMENT-010 | /api/comments/{id} | GET | 200 | 获取单条评论详情 |
 
-### 4. 消息服务测试 (blog-message)
+### 4. 消息服务测试 (ZhiCore-message)
 
 | 测试ID | 接口 | 方法 | 预期状态码 | 说明 |
 |--------|------|------|-----------|------|
@@ -112,7 +112,7 @@ tests/
 | MSG-003 | /api/conversations | GET | 200 | 获取会话列表 |
 | MSG-004 | /api/messages/{id}/read | POST | 200 | 标记已读 |
 
-### 5. 通知服务测试 (blog-notification)
+### 5. 通知服务测试 (ZhiCore-notification)
 
 | 测试ID | 接口 | 方法 | 预期状态码 | 说明 |
 |--------|------|------|-----------|------|
@@ -121,14 +121,14 @@ tests/
 | NOTIF-003 | /api/notifications/read-all | POST | 200 | 全部已读 |
 | NOTIF-004 | /api/notifications/unread-count | GET | 200 | 获取未读数 |
 
-### 6. 搜索服务测试 (blog-search)
+### 6. 搜索服务测试 (ZhiCore-search)
 
 | 测试ID | 接口 | 方法 | 预期状态码 | 说明 |
 |--------|------|------|-----------|------|
 | SEARCH-001 | /api/v1/search | GET | 200 | 搜索文章 |
 | SEARCH-002 | /api/v1/search/suggestions | GET | 200 | 搜索建议 |
 
-### 7. 排行榜服务测试 (blog-ranking)
+### 7. 排行榜服务测试 (ZhiCore-ranking)
 
 | 测试ID | 接口 | 方法 | 预期状态码 | 说明 |
 |--------|------|------|-----------|------|
@@ -136,14 +136,14 @@ tests/
 | RANK-002 | /api/v1/ranking/creators | GET | 200 | 创作者排行 |
 | RANK-003 | /api/v1/ranking/topics | GET | 200 | 热门话题 |
 
-### 8. 上传服务测试 (blog-upload)
+### 8. 上传服务测试 (ZhiCore-upload)
 
 | 测试ID | 接口 | 方法 | 预期状态码 | 说明 |
 |--------|------|------|-----------|------|
 | UPLOAD-001 | /api/upload/image | POST | 200 | 上传图片 |
 | UPLOAD-002 | /api/upload/file | POST | 200 | 上传文件 |
 
-### 9. 管理后台测试 (blog-admin)
+### 9. 管理后台测试 (ZhiCore-admin)
 
 | 测试ID | 接口 | 方法 | 预期状态码 | 说明 |
 |--------|------|------|-----------|------|
@@ -156,7 +156,7 @@ tests/
 | ADMIN-007 | /admin/reports | GET | 200 | 举报列表 |
 | ADMIN-008 | /admin/reports/{id}/handle | POST | 200 | 处理举报 |
 
-### 10. 网关服务测试 (blog-gateway)
+### 10. 网关服务测试 (ZhiCore-gateway)
 
 | 测试ID | 接口 | 方法 | 预期状态码 | 说明 |
 |--------|------|------|-----------|------|

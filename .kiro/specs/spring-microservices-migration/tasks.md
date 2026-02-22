@@ -15,7 +15,7 @@
     - 配置 Elasticsearch（9200）、Kibana（5601）
     - 配置 RustFS（9000/9001）S3 兼容对象存储
     - 配置 Prometheus（9090）、Grafana（3000）监控
-    - 创建共享网络 blog-network 连接现有容器
+    - 创建共享网络 ZhiCore-network 连接现有容器
     - 创建 .env 环境变量文件
     - 创建 RocketMQ Broker 配置（rocketmq/broker.conf）
     - 创建 Prometheus 配置（prometheus/prometheus.yml）
@@ -53,7 +53,7 @@
     - _Requirements: 1.4, 1.5, 13.1, 13.2_
 
   - [x] 1.6 配置 RocketMQ 消息队列
-    - 定义 Topic 规范（blog-post-events、blog-user-events、blog-comment-events、blog-message-events）
+    - 定义 Topic 规范（ZhiCore-post-events、ZhiCore-user-events、ZhiCore-comment-events、ZhiCore-message-events）
     - 定义 Tag 规范（published、liked、followed 等）
     - 创建 DomainEventPublisher（支持普通消息、顺序消息、事务消息、延迟消息）
     - 实现消费者幂等性处理（StatefulIdempotentHandler）

@@ -4,7 +4,7 @@
 
 ```
 user-service/
-├── src/main/java/com/blog/user/
+├── src/main/java/com/ZhiCore/user/
 │   ├── interfaces/                    # 接口层
 │   │   ├── controller/
 │   │   │   ├── UserController.java

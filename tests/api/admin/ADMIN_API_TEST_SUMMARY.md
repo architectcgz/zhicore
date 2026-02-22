@@ -63,11 +63,11 @@
 - Redis (6379)
 - Nacos (8848)
 - RocketMQ (9876)
-- blog-leaf (8010)
-- blog-user (8081)
-- blog-post (8082)
-- blog-comment (8083)
-- blog-admin (8090)
+- ZhiCore-leaf (8010)
+- ZhiCore-user (8081)
+- ZhiCore-post (8082)
+- ZhiCore-comment (8083)
+- ZhiCore-admin (8090)
 
 ### 方法1: 使用Docker Compose (推荐)
 
@@ -96,24 +96,24 @@ cd docker
 docker-compose up -d
 
 # 2. 在不同终端窗口启动各个服务
-# 终端1: blog-leaf
-cd blog-leaf
+# 终端1: ZhiCore-leaf
+cd ZhiCore-leaf
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
-# 终端2: blog-user
-cd blog-user
+# 终端2: ZhiCore-user
+cd ZhiCore-user
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
-# 终端3: blog-post
-cd blog-post
+# 终端3: ZhiCore-post
+cd ZhiCore-post
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
-# 终端4: blog-comment
-cd blog-comment
+# 终端4: ZhiCore-comment
+cd ZhiCore-comment
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
-# 终端5: blog-admin
-cd blog-admin
+# 终端5: ZhiCore-admin
+cd ZhiCore-admin
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
@@ -138,7 +138,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ### Docker Compose网络问题
 当前Docker Compose配置中存在网络依赖问题:
 - `docker-compose.services.yml` 中的服务依赖 `nacos` 网络
-- 需要确保 `blog-network` 已创建
+- 需要确保 `ZhiCore-network` 已创建
 
 **解决方案**: 使用手动启动方式,或修复Docker Compose配置
 

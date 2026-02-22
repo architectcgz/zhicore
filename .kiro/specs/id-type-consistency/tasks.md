@@ -9,15 +9,15 @@
 ## Tasks
 
 - [x] 1. 移除废弃的 Upload 服务
-  - 删除 `blog-upload` 模块目录
+  - 删除 `ZhiCore-upload` 模块目录
   - 从根 `pom.xml` 移除 upload 模块引用
   - 从 `docker/docker-compose.services.yml` 移除 upload 服务配置
-  - 删除 `blog-migration/src/main/resources/db/migration/upload/` 目录
+  - 删除 `ZhiCore-migration/src/main/resources/db/migration/upload/` 目录
   - _Requirements: 1.1, 1.2, 1.4_
 
 - [-] 2. 修改数据库 Schema（User 服务）
   - [x] 2.1 修改 User 服务迁移脚本
-    - 修改 `blog-migration/src/main/resources/db/migration/user/V1__create_user_tables.sql`
+    - 修改 `ZhiCore-migration/src/main/resources/db/migration/user/V1__create_user_tables.sql`
     - 将 `users.id` 从 VARCHAR(64) 改为 BIGINT
     - **移除 `user_follows.id` 字段**，使用复合主键 `(follower_id, following_id)`
     - **移除 `user_blocks.id` 字段**，使用复合主键 `(blocker_id, blocked_id)`
@@ -28,7 +28,7 @@
 
 - [x] 3. 修改数据库 Schema（Post 服务）
   - [x] 3.1 修改 Post 服务迁移脚本
-    - 修改 `blog-migration/src/main/resources/db/migration/post/V1__create_post_tables.sql`
+    - 修改 `ZhiCore-migration/src/main/resources/db/migration/post/V1__create_post_tables.sql`
     - 将 `posts` 表的 id, owner_id, topic_id 改为 BIGINT
     - **移除 `post_likes.id` 字段**，使用复合主键 `(post_id, user_id)`
     - **移除 `post_favorites.id` 字段**，使用复合主键 `(post_id, user_id)`
@@ -37,7 +37,7 @@
 
 - [x] 4. 修改数据库 Schema（Comment 服务）
   - [x] 4.1 修改 Comment 服务迁移脚本
-    - 修改 `blog-migration/src/main/resources/db/migration/comment/V1__create_comment_tables.sql`
+    - 修改 `ZhiCore-migration/src/main/resources/db/migration/comment/V1__create_comment_tables.sql`
     - 将 `comments` 表的所有 ID 字段改为 BIGINT（id, post_id, author_id, parent_id, root_id, reply_to_user_id）
     - **移除 `comment_likes.id` 字段**，使用复合主键 `(comment_id, user_id)`
     - 将 `comment_stats.comment_id` 改为 BIGINT
@@ -45,7 +45,7 @@
 
 - [x] 5. 修改数据库 Schema（Message 服务）
   - [x] 5.1 修改 Message 服务迁移脚本
-    - 修改 `blog-migration/src/main/resources/db/migration/message/V1__create_message_tables.sql`
+    - 修改 `ZhiCore-migration/src/main/resources/db/migration/message/V1__create_message_tables.sql`
     - 将 `conversations` 表的所有 ID 字段改为 BIGINT
     - 将 `messages` 表的所有 ID 字段改为 BIGINT
     - _Requirements: 2.1, 2.2, 6.1-6.2_
@@ -54,7 +54,7 @@
 
 - [x] 6. 修改数据库 Schema（Notification 服务）
   - [x] 6.1 修改 Notification 服务迁移脚本
-    - 修改 `blog-migration/src/main/resources/db/migration/notification/V1__create_notification_tables.sql`
+    - 修改 `ZhiCore-migration/src/main/resources/db/migration/notification/V1__create_notification_tables.sql`
     - 将 `notifications` 表的 id, recipient_id 改为 BIGINT
     - 将 `global_announcements.id` 改为 BIGINT
     - 将 `assistant_messages` 表的 id, user_id 改为 BIGINT
@@ -62,7 +62,7 @@
 
 - [x] 7. 修改数据库 Schema（Content 服务）
   - [x] 7.1 修改 Content 服务迁移脚本
-    - 修改 `blog-migration/src/main/resources/db/migration/content/V1__create_content_tables.sql`
+    - 修改 `ZhiCore-migration/src/main/resources/db/migration/content/V1__create_content_tables.sql`
     - 将 `topics.id` 改为 BIGINT
     - 将 `reports` 表的 id, target_id 改为 BIGINT
     - 将 `feedbacks.id` 改为 BIGINT
@@ -70,21 +70,21 @@
 
 - [x] 8. 修改数据库 Schema（Admin 服务）
   - [x] 8.1 修改 Admin 服务迁移脚本
-    - 修改 `blog-migration/src/main/resources/db/migration/admin/V1__create_admin_tables.sql`
+    - 修改 `ZhiCore-migration/src/main/resources/db/migration/admin/V1__create_admin_tables.sql`
     - 将 `audit_logs` 表的 id, operator_id 改为 BIGINT
     - 将 `reports` 表的所有 ID 字段改为 BIGINT
     - _Requirements: 2.1, 2.2, 9.1-9.2_
 
 - [x] 9. Checkpoint - 验证数据库 Schema 修改
   - 停止所有服务：`docker-compose down`
-  - 删除数据库卷：`docker volume rm blog-postgres-data`
+  - 删除数据库卷：`docker volume rm ZhiCore-postgres-data`
   - 重新启动数据库：`docker-compose up -d postgres`
   - 验证所有表的 ID 字段都是 BIGINT 类型
   - 确保所有索引和约束正确创建
 
 - [x] 10. 修改 User 服务 PO 层
   - [x] 10.1 修改 UserPO 类
-    - 将 `blog-user/src/main/java/com/blog/user/infrastructure/repository/po/UserPO.java` 的 id 字段从 String 改为 Long
+    - 将 `ZhiCore-user/src/main/java/com/ZhiCore/user/infrastructure/repository/po/UserPO.java` 的 id 字段从 String 改为 Long
     - _Requirements: 10.1_
   
   - [x] 10.2 修改 UserFollowPO 类
@@ -104,7 +104,7 @@
 
 - [x] 11. 修改 Post 服务 PO 层
   - [x] 11.1 修改 PostPO 类
-    - 将 `blog-post/src/main/java/com/blog/post/infrastructure/repository/po/PostPO.java` 的 id, ownerId, topicId 从 String 改为 Long
+    - 将 `ZhiCore-post/src/main/java/com/ZhiCore/post/infrastructure/repository/po/PostPO.java` 的 id, ownerId, topicId 从 String 改为 Long
     - _Requirements: 10.1, 10.2_
   
   - [x] 11.2 修改 PostLikePO 类
@@ -123,7 +123,7 @@
 
 - [x] 12. 修改 Comment 服务 PO 层
   - [x] 12.1 修改 CommentPO 类
-    - 将 `blog-comment/src/main/java/com/blog/comment/infrastructure/repository/po/CommentPO.java` 的所有 ID 字段从 String 改为 Long
+    - 将 `ZhiCore-comment/src/main/java/com/ZhiCore/comment/infrastructure/repository/po/CommentPO.java` 的所有 ID 字段从 String 改为 Long
     - 包括：id, postId, authorId, parentId, rootId, replyToUserId
     - _Requirements: 10.1, 10.2_
   
@@ -153,7 +153,7 @@
 
 - [x] 14. 修改 User 服务 Domain 层
   - [x] 14.1 修改 User 聚合根
-    - 将 `blog-user/src/main/java/com/blog/user/domain/model/User.java` 的 id 字段从 String 改为 Long
+    - 将 `ZhiCore-user/src/main/java/com/ZhiCore/user/domain/model/User.java` 的 id 字段从 String 改为 Long
     - 更新构造函数参数类型
     - 更新 @JsonCreator 构造函数参数类型
     - 更新 ID 验证逻辑（Assert.notNull + Assert.isTrue(id > 0)）
@@ -173,7 +173,7 @@
 
 - [x] 15. 修改 Post 服务 Domain 层
   - [x] 15.1 修改 Post 聚合根
-    - 将 `blog-post/src/main/java/com/blog/post/domain/model/Post.java` 的 id, ownerId, topicId 从 String 改为 Long
+    - 将 `ZhiCore-post/src/main/java/com/ZhiCore/post/domain/model/Post.java` 的 id, ownerId, topicId 从 String 改为 Long
     - 更新构造函数和 @JsonCreator
     - 更新 ID 验证逻辑
     - _Requirements: 11.1, 11.2, 11.4_
@@ -188,7 +188,7 @@
 
 - [x] 16. 修改 Comment 服务 Domain 层
   - [x] 16.1 修改 Comment 聚合根
-    - 将 `blog-comment/src/main/java/com/blog/comment/domain/model/Comment.java` 的所有 ID 字段从 String 改为 Long
+    - 将 `ZhiCore-comment/src/main/java/com/ZhiCore/comment/domain/model/Comment.java` 的所有 ID 字段从 String 改为 Long
     - 更新构造函数和 @JsonCreator
     - 更新 ID 验证逻辑
     - _Requirements: 11.1, 11.2, 11.4_
@@ -214,7 +214,7 @@
 
 - [x] 18. 修改 User 服务 Application 层
   - [x] 18.1 修改 UserVO 和 DTOs
-    - 将 `blog-user/src/main/java/com/blog/user/application/dto/UserVO.java` 的 id 字段从 String 改为 Long
+    - 将 `ZhiCore-user/src/main/java/com/ZhiCore/user/application/dto/UserVO.java` 的 id 字段从 String 改为 Long
     - 修改所有相关 DTO 类的 ID 字段
     - _Requirements: 12.1, 12.2_
   
@@ -324,9 +324,9 @@
     - 修改 AdminController 和相关对象
     - _Requirements: 13.1, 13.2, 13.3, 13.5_
 
-- [x] 26. 修改 blog-api 共享模块
+- [x] 26. 修改 ZhiCore-api 共享模块
   - [x] 26.1 修改共享 DTOs
-    - 修改 `blog-api/src/main/java/com/blog/api/dto/` 下的所有 DTO 类
+    - 修改 `ZhiCore-api/src/main/java/com/ZhiCore/api/dto/` 下的所有 DTO 类
     - 将 UserDTO, PostDTO, UserSimpleDTO 等的 ID 字段从 String 改为 Long
     - _Requirements: 12.1, 12.2_
 
@@ -352,12 +352,12 @@
   - [x] 28.4 修复其他服务单元测试
     - 修复 Message, Notification, Admin 服务的单元测试
     - 已修复文件：
-      - `blog-message/src/test/java/com/blog/message/domain/model/MessageTest.java`
-      - `blog-message/src/test/java/com/blog/message/domain/model/ConversationTest.java`
-      - `blog-notification/src/test/java/com/blog/notification/domain/model/NotificationTest.java`
-      - `blog-notification/src/test/java/com/blog/notification/application/service/NotificationAggregationServiceTest.java`
-      - `blog-admin/src/test/java/com/blog/admin/domain/model/ReportTest.java`
-      - `blog-admin/src/test/java/com/blog/admin/domain/model/AuditLogTest.java`
+      - `ZhiCore-message/src/test/java/com/ZhiCore/message/domain/model/MessageTest.java`
+      - `ZhiCore-message/src/test/java/com/ZhiCore/message/domain/model/ConversationTest.java`
+      - `ZhiCore-notification/src/test/java/com/ZhiCore/notification/domain/model/NotificationTest.java`
+      - `ZhiCore-notification/src/test/java/com/ZhiCore/notification/application/service/NotificationAggregationServiceTest.java`
+      - `ZhiCore-admin/src/test/java/com/ZhiCore/admin/domain/model/ReportTest.java`
+      - `ZhiCore-admin/src/test/java/com/ZhiCore/admin/domain/model/AuditLogTest.java`
     - _Requirements: 17.1_
 
 - [ ]* 29. 编写 PO 层集成测试
@@ -468,5 +468,5 @@
 - 每个属性测试应运行至少 100 次迭代
 - 建议使用 jqwik 框架进行属性测试
 - 所有代码修改前建议创建 Git 分支：`git checkout -b feature/id-type-migration`
-- 数据库重建命令：`docker-compose down && docker volume rm blog-postgres-data && docker-compose up -d postgres`
+- 数据库重建命令：`docker-compose down && docker volume rm ZhiCore-postgres-data && docker-compose up -d postgres`
 

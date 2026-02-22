@@ -47,7 +47,7 @@ public class CommentStats
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/ICommentStatsRepository.cs
+// ZhiCoreCore/Domain/Repositories/ICommentStatsRepository.cs
 public interface ICommentStatsRepository
 {
     /// <summary>
@@ -95,7 +95,7 @@ public interface ICommentStatsRepository
 ### Domain Service
 
 ```csharp
-// BlogCore/Domain/Services/ICommentStatsDomainService.cs
+// ZhiCoreCore/Domain/Services/ICommentStatsDomainService.cs
 public interface ICommentStatsDomainService
 {
     /// <summary>
@@ -114,7 +114,7 @@ public interface ICommentStatsDomainService
     decimal CalculateHotScore(int likeCount, int replyCount, DateTimeOffset createTime);
 }
 
-// BlogCore/Domain/Services/CommentStatsDomainService.cs
+// ZhiCoreCore/Domain/Services/CommentStatsDomainService.cs
 public class CommentStatsDomainService : ICommentStatsDomainService
 {
     private readonly ICommentStatsRepository _statsRepository;
@@ -157,7 +157,7 @@ public class CommentStatsDomainService : ICommentStatsDomainService
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Comment/ICommentStatsApplicationService.cs
+// ZhiCoreCore/Application/Comment/ICommentStatsApplicationService.cs
 public interface ICommentStatsApplicationService
 {
     Task IncrementLikeCountAsync(long commentId);
@@ -170,7 +170,7 @@ public interface ICommentStatsApplicationService
     Task<Dictionary<long, int>> GetReplyCountsBatchAsync(List<long> commentIds);
 }
 
-// BlogCore/Application/Comment/CommentStatsApplicationService.cs
+// ZhiCoreCore/Application/Comment/CommentStatsApplicationService.cs
 public class CommentStatsApplicationService : ICommentStatsApplicationService
 {
     private readonly ICommentStatsDomainService _domainService;

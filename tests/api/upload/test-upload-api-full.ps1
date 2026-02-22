@@ -687,7 +687,7 @@ if (Test-Path $StatusFullPath) {
     
     $ServiceSection = @"
 
-## Upload Service Tests (blog-upload)
+## Upload Service Tests (ZhiCore-upload)
 
 | Test ID | Test Name | Status | Response Time | Note |
 |---------|-----------|--------|---------------|------|

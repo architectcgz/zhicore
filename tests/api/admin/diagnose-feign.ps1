@@ -102,7 +102,7 @@ if ($Result.Success -and $Result.Body.code -eq 200) {
 $Headers = @{ "Authorization" = "Bearer $AccessToken" }
 
 Write-Host ""
-Write-Host "[STEP 3] Testing direct call to blog-user..." -ForegroundColor Yellow
+Write-Host "[STEP 3] Testing direct call to ZhiCore-user..." -ForegroundColor Yellow
 
 $Result = Invoke-ApiRequest -Method "GET" -Url "$UserServiceUrl/admin/users?page=1&size=10" -Headers $Headers
 

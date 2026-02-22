@@ -43,7 +43,7 @@
 ### IDomainEvent
 
 ```csharp
-// BlogShared/Messages/DomainEvents/IDomainEvent.cs
+// ZhiCoreShared/Messages/DomainEvents/IDomainEvent.cs
 public interface IDomainEvent
 {
     /// <summary>
@@ -66,7 +66,7 @@ public interface IDomainEvent
 ### DomainEventBase
 
 ```csharp
-// BlogShared/Messages/DomainEvents/DomainEventBase.cs
+// ZhiCoreShared/Messages/DomainEvents/DomainEventBase.cs
 public abstract record DomainEventBase : IDomainEvent
 {
     public string EventId { get; init; } = Guid.NewGuid().ToString();
@@ -78,7 +78,7 @@ public abstract record DomainEventBase : IDomainEvent
 ### IDomainEventDispatcher
 
 ```csharp
-// BlogCore/Domain/Events/IDomainEventDispatcher.cs
+// ZhiCoreCore/Domain/Events/IDomainEventDispatcher.cs
 public interface IDomainEventDispatcher
 {
     /// <summary>
@@ -97,7 +97,7 @@ public interface IDomainEventDispatcher
 ### IDomainEventHandler
 
 ```csharp
-// BlogCore/Domain/Events/IDomainEventHandler.cs
+// ZhiCoreCore/Domain/Events/IDomainEventHandler.cs
 public interface IDomainEventHandler<in TEvent> where TEvent : IDomainEvent
 {
     Task HandleAsync(TEvent domainEvent, CancellationToken ct = default);
@@ -107,7 +107,7 @@ public interface IDomainEventHandler<in TEvent> where TEvent : IDomainEvent
 ## 进程内分发器
 
 ```csharp
-// BlogCore/Infrastructure/Events/InProcessDomainEventDispatcher.cs
+// ZhiCoreCore/Infrastructure/Events/InProcessDomainEventDispatcher.cs
 /// <summary>
 /// 进程内领域事件分发器
 /// 使用 MediatR 模式，在同一进程内同步处理事件
@@ -168,7 +168,7 @@ public class InProcessDomainEventDispatcher : IDomainEventDispatcher
 ## RabbitMQ 分发器
 
 ```csharp
-// BlogCore/Infrastructure/Events/RabbitMqDomainEventDispatcher.cs
+// ZhiCoreCore/Infrastructure/Events/RabbitMqDomainEventDispatcher.cs
 /// <summary>
 /// RabbitMQ 领域事件分发器
 /// 用于需要跨进程通信的场景
@@ -218,7 +218,7 @@ public class RabbitMqDomainEventDispatcher : IDomainEventDispatcher
 ### Post Context 事件
 
 ```csharp
-// BlogShared/Messages/DomainEvents/PostEvents.cs
+// ZhiCoreShared/Messages/DomainEvents/PostEvents.cs
 public record PostPublishedEvent : DomainEventBase
 {
     public override string EventType => nameof(PostPublishedEvent);
@@ -255,7 +255,7 @@ public record PostViewedEvent : DomainEventBase
 ### Comment Context 事件
 
 ```csharp
-// BlogShared/Messages/DomainEvents/CommentEvents.cs
+// ZhiCoreShared/Messages/DomainEvents/CommentEvents.cs
 public record CommentCreatedEvent : DomainEventBase
 {
     public override string EventType => nameof(CommentCreatedEvent);
@@ -283,7 +283,7 @@ public record CommentDeletedEvent : DomainEventBase
 ### User Context 事件
 
 ```csharp
-// BlogShared/Messages/DomainEvents/UserEvents.cs
+// ZhiCoreShared/Messages/DomainEvents/UserEvents.cs
 public record UserFollowedEvent : DomainEventBase
 {
     public override string EventType => nameof(UserFollowedEvent);
@@ -308,7 +308,7 @@ public record UserProfileUpdatedEvent : DomainEventBase
 ### PostPublishedEventHandler
 
 ```csharp
-// BlogCore/Domain/EventHandlers/Post/PostPublishedEventHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Post/PostPublishedEventHandler.cs
 public class PostPublishedEventHandler : IDomainEventHandler<PostPublishedEvent>
 {
     private readonly IPostHotnessService _hotnessService;
@@ -355,7 +355,7 @@ public class PostPublishedEventHandler : IDomainEventHandler<PostPublishedEvent>
 ### CommentCreatedEventHandler
 
 ```csharp
-// BlogCore/Domain/EventHandlers/Comment/CommentCreatedEventHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Comment/CommentCreatedEventHandler.cs
 public class CommentCreatedEventHandler : IDomainEventHandler<CommentCreatedEvent>
 {
     private readonly IPostStatsRepository _postStatsRepository;
@@ -414,14 +414,14 @@ public class CommentCreatedEventHandler : IDomainEventHandler<CommentCreatedEven
 ### 已处理事件存储
 
 ```csharp
-// BlogCore/Domain/Events/IProcessedEventStore.cs
+// ZhiCoreCore/Domain/Events/IProcessedEventStore.cs
 public interface IProcessedEventStore
 {
     Task<bool> IsProcessedAsync(string eventId);
     Task MarkAsProcessedAsync(string eventId);
 }
 
-// BlogCore/Infrastructure/Events/RedisProcessedEventStore.cs
+// ZhiCoreCore/Infrastructure/Events/RedisProcessedEventStore.cs
 public class RedisProcessedEventStore : IProcessedEventStore
 {
     private readonly IDatabase _redis;
@@ -449,7 +449,7 @@ public class RedisProcessedEventStore : IProcessedEventStore
 ### 幂等装饰器
 
 ```csharp
-// BlogCore/Domain/EventHandlers/IdempotentEventHandlerDecorator.cs
+// ZhiCoreCore/Domain/EventHandlers/IdempotentEventHandlerDecorator.cs
 public class IdempotentEventHandlerDecorator<TEvent> : IDomainEventHandler<TEvent> 
     where TEvent : IDomainEvent
 {
@@ -488,7 +488,7 @@ public class IdempotentEventHandlerDecorator<TEvent> : IDomainEventHandler<TEven
 ## DI 注册
 
 ```csharp
-// BlogCore/Extensions/DomainEventServiceExtensions.cs
+// ZhiCoreCore/Extensions/DomainEventServiceExtensions.cs
 public static class DomainEventServiceExtensions
 {
     public static IServiceCollection AddDomainEvents(this IServiceCollection services, DomainEventConfig config)
@@ -521,7 +521,7 @@ public static class DomainEventServiceExtensions
 ## 配置
 
 ```csharp
-// BlogCore/Config/DomainEventConfig.cs
+// ZhiCoreCore/Config/DomainEventConfig.cs
 public class DomainEventConfig
 {
     /// <summary>

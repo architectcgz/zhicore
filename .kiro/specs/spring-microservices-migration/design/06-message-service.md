@@ -4,7 +4,7 @@
 
 ```
 message-service/
-├── src/main/java/com/blog/message/
+├── src/main/java/com/ZhiCore/message/
 │   ├── interfaces/
 │   │   ├── controller/
 │   │   │   ├── MessageController.java

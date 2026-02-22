@@ -142,8 +142,8 @@ if ($Result.Error) {
 }
 Write-Host ""
 
-# 5. Test disable user directly to blog-user
-Write-Host "[5] Testing disable user directly to blog-user..." -ForegroundColor Yellow
+# 5. Test disable user directly to ZhiCore-user
+Write-Host "[5] Testing disable user directly to ZhiCore-user..." -ForegroundColor Yellow
 $Result = Invoke-ApiRequest -Method "POST" -Url "$UserServiceUrl/admin/users/$Global:TestUserId/disable" -Headers (Get-AuthHeaders)
 Write-Host "  Status Code: $($Result.StatusCode)" -ForegroundColor Cyan
 Write-Host "  Response Time: $($Result.ResponseTime)ms" -ForegroundColor Cyan
@@ -181,9 +181,9 @@ if ($Result.Success -and $Result.Body.accessToken) {
     $NacosToken = $Result.Body.accessToken
     Write-Host "  Logged in to Nacos" -ForegroundColor Green
     
-    $Services = @("blog-user", "blog-admin", "blog-post", "blog-comment", "blog-leaf")
+    $Services = @("ZhiCore-user", "ZhiCore-admin", "ZhiCore-post", "ZhiCore-comment", "ZhiCore-leaf")
     foreach ($ServiceName in $Services) {
-        $Result = Invoke-ApiRequest -Method "GET" -Url "$NacosUrl/nacos/v1/ns/instance/list?serviceName=$ServiceName&groupName=BLOG_SERVICE&accessToken=$NacosToken"
+        $Result = Invoke-ApiRequest -Method "GET" -Url "$NacosUrl/nacos/v1/ns/instance/list?serviceName=$ServiceName&groupName=ZhiCore_SERVICE&accessToken=$NacosToken"
         if ($Result.Success -and $Result.Body.hosts -and $Result.Body.hosts.Count -gt 0) {
             Write-Host "  [PASS] $ServiceName is registered" -ForegroundColor Green
         } else {

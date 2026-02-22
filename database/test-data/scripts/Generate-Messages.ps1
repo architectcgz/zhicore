@@ -631,8 +631,8 @@ else {
 
 .NOTES
     前置条件：
-    1. blog-id-generator 服务已启动（端口 8088）
-    2. blog-gateway 服务已启动（端口 8000）
+    1. ZhiCore-id-generator 服务已启动（端口 8088）
+    2. ZhiCore-gateway 服务已启动（端口 8000）
     3. 已执行用户数据生成脚本
     4. 网络连接正常
 

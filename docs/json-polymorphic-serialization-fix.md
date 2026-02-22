@@ -66,7 +66,7 @@ MessageSerializationOptions.SafeSerialize(messageData)  // ❌ 这里序列化�
 ```csharp
 using System.Text.Json.Serialization;
 
-namespace BlogShared.SignalR.Notifications;
+namespace ZhiCoreShared.SignalR.Notifications;
 
 /// <summary>
 /// SignalR 通知基类

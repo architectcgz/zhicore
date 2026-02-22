@@ -1,6 +1,6 @@
 # 快速运行秒传功能测试
 
-> **注意**: 本测试文档针对旧的 blog-upload 服务。RustFS 对象存储已移至独立的 `file-service`。
+> **注意**: 本测试文档针对旧的 ZhiCore-upload 服务。RustFS 对象存储已移至独立的 `file-service`。
 > 新的文件服务测试请参考 `file-service/docker/README.md`。
 
 ## 一键启动测试
@@ -33,7 +33,7 @@ docker-compose ps
 cd ..
 
 # 运行 Flyway 迁移
-cd blog-migration
+cd ZhiCore-migration
 mvn flyway:migrate
 
 # 返回根目录
@@ -44,7 +44,7 @@ cd ..
 
 ```powershell
 # 新终端 1
-cd blog-user
+cd ZhiCore-user
 mvn spring-boot:run
 ```
 
@@ -52,7 +52,7 @@ mvn spring-boot:run
 
 ```powershell
 # 新终端 2
-cd blog-upload
+cd ZhiCore-upload
 $env:STORAGE_TYPE = 's3'
 mvn spring-boot:run
 ```
@@ -134,7 +134,7 @@ All tests passed successfully!
 
 ```powershell
 # 连接到 PostgreSQL
-docker exec -it blog-postgres psql -U postgres -d blog_upload
+docker exec -it ZhiCore-postgres psql -U postgres -d ZhiCore_upload
 
 # 查询存储对象
 SELECT id, file_hash, storage_path, reference_count, created_at
@@ -156,7 +156,7 @@ LIMIT 10;
 
 1. 打开浏览器访问: http://localhost:9101
 2. 登录: admin / admin123456
-3. 浏览 `blog-uploads` bucket
+3. 浏览 `ZhiCore-uploads` bucket
 4. 验证文件是否存在
 
 ## 故障排查
@@ -178,7 +178,7 @@ taskkill /PID <PID> /F
 docker ps | findstr rustfs
 
 # 检查 RustFS 日志
-docker logs blog-rustfs
+docker logs ZhiCore-rustfs
 
 # 重启 RustFS
 docker-compose restart rustfs

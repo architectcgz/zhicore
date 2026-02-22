@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: ZhiCore-id-generator
+  
+  cloud:
+    nacos:
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:ZhiCore_SERVICE}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        file-extension: yml
+        # 指定要加载的配置文件
+        name: ${spring.application.name}
+        # 启用配置刷新
+        refresh-enabled: true
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:ZhiCore_SERVICE}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}

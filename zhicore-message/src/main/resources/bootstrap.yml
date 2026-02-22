@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: ZhiCore-message
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ZhiCore_SERVICE
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        # 确保服务发现使用正确的 group
+        service: ${spring.application.name}
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ZhiCore_SERVICE
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        file-extension: yml
+        import-check:
+          enabled: false
+
+# 确保 Feign 客户端使用正确的服务发现 group
+spring.cloud.loadbalancer:
+  nacos:
+    enabled: true
+
+# RocketMQ 配置
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+  producer:
+    group: message-producer-group
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 2
+    retry-times-when-send-async-failed: 2
+
+# Sentinel 配置
+spring.cloud.sentinel:
+  transport:
+    dashboard: ${SENTINEL_DASHBOARD:localhost:8080}
+    port: 8719
+  eager: true

@@ -16,7 +16,7 @@
 在执行互动数据生成之前，请确保：
 
 1. ✅ PostgreSQL 服务已启动（端口 5432）
-2. ✅ blog-gateway 服务已启动（端口 8000）
+2. ✅ ZhiCore-gateway 服务已启动（端口 8000）
 3. ✅ 已执行用户数据生成脚本
 4. ✅ 已执行文章数据生成脚本
 5. ✅ 网络连接正常
@@ -32,7 +32,7 @@
 $env:PGPASSWORD="postgres123456"
 
 # 执行 SQL 脚本
-psql -h localhost -p 5432 -U postgres -d blog -f ..\sql\init-post-stats.sql
+psql -h localhost -p 5432 -U postgres -d ZhiCore -f ..\sql\init-post-stats.sql
 ```
 
 **预期结果**：
@@ -45,7 +45,7 @@ psql -h localhost -p 5432 -U postgres -d blog -f ..\sql\init-post-stats.sql
 
 ```powershell
 # 执行 SQL 脚本
-psql -h localhost -p 5432 -U postgres -d blog -f ..\sql\generate-post-views.sql
+psql -h localhost -p 5432 -U postgres -d ZhiCore -f ..\sql\generate-post-views.sql
 ```
 
 **预期结果**：
@@ -103,10 +103,10 @@ psql -h localhost -p 5432 -U postgres -d blog -f ..\sql\generate-post-views.sql
 $env:PGPASSWORD="postgres123456"
 
 Write-Host "步骤 1: 初始化文章统计..." -ForegroundColor Cyan
-psql -h localhost -p 5432 -U postgres -d blog -f ..\sql\init-post-stats.sql
+psql -h localhost -p 5432 -U postgres -d ZhiCore -f ..\sql\init-post-stats.sql
 
 Write-Host "`n步骤 2: 生成浏览记录..." -ForegroundColor Cyan
-psql -h localhost -p 5432 -U postgres -d blog -f ..\sql\generate-post-views.sql
+psql -h localhost -p 5432 -U postgres -d ZhiCore -f ..\sql\generate-post-views.sql
 
 Write-Host "`n步骤 3: 生成点赞记录..." -ForegroundColor Cyan
 .\Generate-PostLikes.ps1
@@ -269,7 +269,7 @@ C:\Program Files\PostgreSQL\16\bin
 ```
 
 **解决方案**：
-1. 确认 blog-gateway 服务已启动
+1. 确认 ZhiCore-gateway 服务已启动
 2. 检查端口 8000 是否被占用
 3. 验证服务健康状态：
    ```powershell

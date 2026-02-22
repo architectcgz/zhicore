@@ -1,20 +1,20 @@
 # Sentinel 规则配置
 
-本目录包含 Blog Post Service 的 Sentinel 规则配置文件。
+本目录包含 ZhiCore Post Service 的 Sentinel 规则配置文件。
 
 ## 文件说明
 
 ### 规则配置文件
 
-1. **blog-post-flow-rules.json** - 流控规则
+1. **ZhiCore-post-flow-rules.json** - 流控规则
    - 控制每个资源的 QPS（每秒查询率）
    - 防止系统过载
 
-2. **blog-post-degrade-rules.json** - 降级规则
+2. **ZhiCore-post-degrade-rules.json** - 降级规则
    - 配置熔断策略
    - 当服务不稳定时自动降级
 
-3. **blog-post-system-rules.json** - 系统规则
+3. **ZhiCore-post-system-rules.json** - 系统规则
    - 系统级别的保护规则
    - 基于系统负载、CPU 使用率等指标
 
@@ -51,7 +51,7 @@
 
 2. **Sentinel 控制台**
    - 访问 http://localhost:8858
-   - 查看 blog-post 服务的规则配置
+   - 查看 ZhiCore-post 服务的规则配置
 
 ## 规则详解
 
@@ -166,4 +166,4 @@
 - [Sentinel 官方文档](https://sentinelguard.io/zh-cn/docs/introduction.html)
 - [Spring Cloud Alibaba Sentinel](https://github.com/alibaba/spring-cloud-alibaba/wiki/Sentinel)
 - [Sentinel 规则配置](https://sentinelguard.io/zh-cn/docs/flow-control.html)
-- [项目迁移指南](../../../blog-post/SENTINEL_MIGRATION_GUIDE.md)
+- [项目迁移指南](../../../ZhiCore-post/SENTINEL_MIGRATION_GUIDE.md)

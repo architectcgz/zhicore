@@ -2,7 +2,7 @@
 
 ## 概述
 
-本文档描述了 File Service 在 blog-microservice 系统中的集成架构，包括服务定位、职责划分、交互关系和数据流。
+本文档描述了 File Service 在 ZhiCore-microservice 系统中的集成架构，包括服务定位、职责划分、交互关系和数据流。
 
 ## 服务定位
 
@@ -34,13 +34,13 @@ graph TB
     end
     
     subgraph "网关层"
-        Gateway[blog-gateway<br/>API 网关]
+        Gateway[ZhiCore-gateway<br/>API 网关]
     end
     
     subgraph "业务服务层"
-        UserService[blog-user<br/>用户服务]
-        PostService[blog-post<br/>文章服务]
-        CommentService[blog-comment<br/>评论服务]
+        UserService[ZhiCore-user<br/>用户服务]
+        PostService[ZhiCore-post<br/>文章服务]
+        CommentService[ZhiCore-comment<br/>评论服务]
     end
     
     subgraph "文件服务层"
@@ -88,7 +88,7 @@ graph TB
 
 ### 服务职责划分
 
-#### 业务服务（blog-user, blog-post, blog-comment）
+#### 业务服务（ZhiCore-user, ZhiCore-post, ZhiCore-comment）
 
 **职责**:
 - 处理业务逻辑
@@ -505,7 +505,7 @@ graph TB
 ### 业务服务集成
 
 1. **使用 Starter**: 通过 `file-service-spring-boot-starter` 简化集成
-2. **统一封装**: 在 `blog-common` 中创建 `FileUploadService` 统一接口
+2. **统一封装**: 在 `ZhiCore-common` 中创建 `FileUploadService` 统一接口
 3. **异常处理**: 捕获并转换 File Service 异常为业务异常
 4. **资源清理**: 业务实体删除时记得清理关联文件
 5. **URL 存储**: 只存储文件 URL，不存储文件 ID
@@ -528,4 +528,4 @@ graph TB
 
 ## 总结
 
-File Service 作为独立的文件管理微服务，为 blog-microservice 系统提供了统一、高效、安全的文件管理能力。通过清晰的服务边界划分、完善的认证授权机制、灵活的扩展性设计，File Service 能够很好地支撑博客系统的文件管理需求，并为未来的功能扩展提供了坚实的基础。
+File Service 作为独立的文件管理微服务，为 ZhiCore-microservice 系统提供了统一、高效、安全的文件管理能力。通过清晰的服务边界划分、完善的认证授权机制、灵活的扩展性设计，File Service 能够很好地支撑博客系统的文件管理需求，并为未来的功能扩展提供了坚实的基础。

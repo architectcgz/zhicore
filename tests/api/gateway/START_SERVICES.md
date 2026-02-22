@@ -2,37 +2,37 @@
 
 ## 基础设施服务状态
 
-✅ PostgreSQL (blog-postgres) - 运行中
-✅ Redis (blog-redis) - 运行中  
-✅ Nacos (blog-nacos) - 运行中
+✅ PostgreSQL (ZhiCore-postgres) - 运行中
+✅ Redis (ZhiCore-redis) - 运行中  
+✅ Nacos (ZhiCore-nacos) - 运行中
 
 ## 需要启动的微服务
 
 请在Maven控制台或IDE中启动以下服务：
 
-### 1. blog-user (端口 8081)
+### 1. ZhiCore-user (端口 8081)
 ```bash
-cd blog-user
+cd ZhiCore-user
 mvn spring-boot:run
 ```
 
-### 2. blog-post (端口 8082)
+### 2. ZhiCore-post (端口 8082)
 ```bash
-cd blog-post
+cd ZhiCore-post
 mvn spring-boot:run
 ```
 
-### 3. blog-gateway (端口 8000)
+### 3. ZhiCore-gateway (端口 8000)
 ```bash
-cd blog-gateway
+cd ZhiCore-gateway
 mvn spring-boot:run
 ```
 
 ## 启动顺序建议
 
-1. 先启动 blog-user (用户服务)
-2. 再启动 blog-post (文章服务)
-3. 最后启动 blog-gateway (网关服务)
+1. 先启动 ZhiCore-user (用户服务)
+2. 再启动 ZhiCore-post (文章服务)
+3. 最后启动 ZhiCore-gateway (网关服务)
 
 ## 验证服务启动
 

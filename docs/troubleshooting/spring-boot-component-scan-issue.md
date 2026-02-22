@@ -7,7 +7,7 @@
 ```
 Error creating bean with name 'xxxApplicationService': 
 Unsatisfied dependency expressed through constructor parameter X: 
-Error creating bean with name 'com.blog.api.client.LeafServiceClient': 
+Error creating bean with name 'com.zhicore.api.client.LeafServiceClient': 
 FactoryBean threw exception on object creation
 ```
 
@@ -24,7 +24,7 @@ Could not autowire. No beans of 'LeafServiceFallbackFactory' type found.
 ### 问题场景
 
 在多模块项目中，当：
-1. 服务模块（如 `blog-user`）依赖 API 模块（`blog-api`）
+1. 服务模块（如 `ZhiCore-user`）依赖 API 模块（`ZhiCore-api`）
 2. API 模块中有 `@Component` 类（如 `LeafServiceFallbackFactory`）
 3. 服务模块的 `@SpringBootApplication` 没有扫描 API 模块的包
 
@@ -47,8 +47,8 @@ Could not autowire. No beans of 'LeafServiceFallbackFactory' type found.
 ### 错误配置示例
 
 ```java
-@SpringBootApplication(scanBasePackages = {"com.blog.user", "com.blog.common"})
-@EnableFeignClients(basePackages = "com.blog.api.client")
+@SpringBootApplication(scanBasePackages = {"com.ZhiCore.user", "com.zhicore.common"})
+@EnableFeignClients(basePackages = "com.zhicore.api.client")
 public class UserApplication {
     public static void main(String[] args) {
         SpringApplication.run(UserApplication.class, args);
@@ -57,9 +57,9 @@ public class UserApplication {
 ```
 
 **问题**：
-- ✅ 扫描了 `com.blog.user` 和 `com.blog.common`
-- ❌ **没有扫描 `com.blog.api`**
-- 结果：`LeafServiceFallbackFactory` 在 `com.blog.api.client.fallback` 包中，Spring 看不到它
+- ✅ 扫描了 `com.ZhiCore.user` 和 `com.zhicore.common`
+- ❌ **没有扫描 `com.zhicore.api`**
+- 结果：`LeafServiceFallbackFactory` 在 `com.zhicore.api.client.fallback` 包中，Spring 看不到它
 
 ### 依赖链分析
 
@@ -73,7 +73,7 @@ LeafServiceFallbackFactory (@Component)
 @SpringBootApplication(scanBasePackages = ?)
 ```
 
-如果 `scanBasePackages` 不包含 `com.blog.api`，链条在最后一步断裂。
+如果 `scanBasePackages` 不包含 `com.zhicore.api`，链条在最后一步断裂。
 
 ## 解决方案
 
@@ -81,13 +81,13 @@ LeafServiceFallbackFactory (@Component)
 
 ```java
 @SpringBootApplication(scanBasePackages = {
-    "com.blog.user",      // 当前服务
-    "com.blog.common",    // 公共模块
-    "com.blog.api"        // API 模块 ← 添加这个！
+    "com.ZhiCore.user",      // 当前服务
+    "com.zhicore.common",    // 公共模块
+    "com.zhicore.api"        // API 模块 ← 添加这个！
 })
 @EnableFeignClients(basePackages = {
-    "com.blog.api.client",                    // API 模块的 Feign 客户端
-    "com.blog.user.infrastructure.feign"      // 当前服务的 Feign 客户端
+    "com.zhicore.api.client",                    // API 模块的 Feign 客户端
+    "com.ZhiCore.user.infrastructure.feign"      // 当前服务的 Feign 客户端
 })
 public class UserApplication {
     public static void main(String[] args) {
@@ -101,13 +101,13 @@ public class UserApplication {
 ```java
 @SpringBootApplication
 @ComponentScan(basePackages = {
-    "com.blog.user",
-    "com.blog.common",
-    "com.blog.api"
+    "com.ZhiCore.user",
+    "com.zhicore.common",
+    "com.zhicore.api"
 })
 @EnableFeignClients(basePackages = {
-    "com.blog.api.client",
-    "com.blog.user.infrastructure.feign"
+    "com.zhicore.api.client",
+    "com.ZhiCore.user.infrastructure.feign"
 })
 public class UserApplication { ... }
 ```
@@ -130,7 +130,7 @@ public class UserApplication { ... }
 
 ```java
 // 1. Feign 需要找到接口
-@FeignClient(name = "blog-leaf", fallbackFactory = LeafServiceFallbackFactory.class)
+@FeignClient(name = "ZhiCore-leaf", fallbackFactory = LeafServiceFallbackFactory.class)
 public interface LeafServiceClient { ... }
 
 // 2. Spring 需要找到 FallbackFactory
@@ -150,16 +150,16 @@ Unsatisfied dependency... LeafServiceFallbackFactory
 
 **修复后**：
 ```
-INFO  o.s.c.o.FeignClientFactoryBean - For 'blog-leaf' URL not provided
+INFO  o.s.c.o.FeignClientFactoryBean - For 'ZhiCore-leaf' URL not provided
 INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081
-INFO  c.a.c.n.r.NacosServiceRegistry - nacos registry, BLOG_SERVICE blog-user 192.168.7.1:8081 register finished
-INFO  com.blog.user.UserApplication - Started UserApplication in 18.535 seconds
+INFO  c.a.c.n.r.NacosServiceRegistry - nacos registry, ZhiCore_SERVICE ZhiCore-user 192.168.7.1:8081 register finished
+INFO  com.ZhiCore.user.UserApplication - Started UserApplication in 18.535 seconds
 ```
 
 ### 2. 检查 Bean 是否创建
 
 ```java
-@SpringBootApplication(scanBasePackages = {"com.blog.user", "com.blog.common", "com.blog.api"})
+@SpringBootApplication(scanBasePackages = {"com.ZhiCore.user", "com.zhicore.common", "com.zhicore.api"})
 public class UserApplication {
     public static void main(String[] args) {
         ConfigurableApplicationContext context = SpringApplication.run(UserApplication.class, args);
@@ -177,8 +177,8 @@ public class UserApplication {
 
 ```java
 // ❌ 错误
-@SpringBootApplication  // 默认只扫描 com.blog.user
-@EnableFeignClients(basePackages = "com.blog.api.client")  // 只扫描 @FeignClient
+@SpringBootApplication  // 默认只扫描 com.ZhiCore.user
+@EnableFeignClients(basePackages = "com.zhicore.api.client")  // 只扫描 @FeignClient
 ```
 
 **问题**：Feign 客户端能创建，但 FallbackFactory 找不到。
@@ -187,8 +187,8 @@ public class UserApplication {
 
 ```java
 // ❌ 错误 - 以为 @EnableFeignClients 会扫描所有类
-@SpringBootApplication(scanBasePackages = "com.blog.user")
-@EnableFeignClients(basePackages = "com.blog.api")  // 这只扫描 @FeignClient！
+@SpringBootApplication(scanBasePackages = "com.ZhiCore.user")
+@EnableFeignClients(basePackages = "com.zhicore.api")  // 这只扫描 @FeignClient！
 ```
 
 **问题**：`@EnableFeignClients` 不会扫描 `@Component` 类。
@@ -196,9 +196,9 @@ public class UserApplication {
 ### 错误 3：忘记添加依赖模块的包
 
 ```java
-// ❌ 错误 - 忘记扫描 com.blog.api
-@SpringBootApplication(scanBasePackages = {"com.blog.user", "com.blog.common"})
-@EnableFeignClients(basePackages = "com.blog.api.client")
+// ❌ 错误 - 忘记扫描 com.zhicore.api
+@SpringBootApplication(scanBasePackages = {"com.ZhiCore.user", "com.zhicore.common"})
+@EnableFeignClients(basePackages = "com.zhicore.api.client")
 ```
 
 **问题**：API 模块的 `@Component` 类不会被扫描。
@@ -209,27 +209,27 @@ public class UserApplication {
 
 | 服务 | 端口 | 修复内容 |
 |------|------|----------|
-| blog-user | 8081 | 添加 `"com.blog.api"` 到 scanBasePackages |
-| blog-comment | 8083 | 添加 `"com.blog.api"` 到 scanBasePackages |
-| blog-message | 8086 | 添加 `"com.blog.api"` 到 scanBasePackages |
-| blog-notification | 8086 | 添加 `"com.blog.api"` 到 scanBasePackages |
-| blog-admin | 8090 | 添加 `"com.blog.api"` 到 scanBasePackages |
-| blog-post | 8082 | 已包含 `"com.blog.api"` |
+| ZhiCore-user | 8081 | 添加 `"com.zhicore.api"` 到 scanBasePackages |
+| ZhiCore-comment | 8083 | 添加 `"com.zhicore.api"` 到 scanBasePackages |
+| ZhiCore-message | 8086 | 添加 `"com.zhicore.api"` 到 scanBasePackages |
+| ZhiCore-notification | 8086 | 添加 `"com.zhicore.api"` 到 scanBasePackages |
+| ZhiCore-admin | 8090 | 添加 `"com.zhicore.api"` 到 scanBasePackages |
+| ZhiCore-post | 8082 | 已包含 `"com.zhicore.api"` |
 
 ### 标准配置模板
 
 ```java
 @SpringBootApplication(scanBasePackages = {
-    "com.blog.{service}",              // 当前服务包
-    "com.blog.common",                 // 公共模块
-    "com.blog.api"                     // API 模块（包含共享的 FallbackFactory）
+    "com.ZhiCore.{service}",              // 当前服务包
+    "com.zhicore.common",                 // 公共模块
+    "com.zhicore.api"                     // API 模块（包含共享的 FallbackFactory）
 })
 @EnableDiscoveryClient
 @EnableFeignClients(basePackages = {
-    "com.blog.api.client",                          // API 模块的 Feign 客户端
-    "com.blog.{service}.infrastructure.feign"       // 当前服务的 Feign 客户端
+    "com.zhicore.api.client",                          // API 模块的 Feign 客户端
+    "com.ZhiCore.{service}.infrastructure.feign"       // 当前服务的 Feign 客户端
 })
-@MapperScan("com.blog.{service}.infrastructure.repository.mapper")
+@MapperScan("com.ZhiCore.{service}.infrastructure.repository.mapper")
 public class {Service}Application {
     public static void main(String[] args) {
         SpringApplication.run({Service}Application.class, args);
@@ -249,8 +249,8 @@ public class {Service}Application {
 ### 2. 代码审查要点
 
 审查 `*Application.java` 时检查：
-- [ ] 是否使用了 `blog-api` 模块？
-- [ ] 如果使用了，`scanBasePackages` 是否包含 `"com.blog.api"`？
+- [ ] 是否使用了 `ZhiCore-api` 模块？
+- [ ] 如果使用了，`scanBasePackages` 是否包含 `"com.zhicore.api"`？
 - [ ] `@EnableFeignClients` 是否包含所有需要的包？
 
 ### 3. 依赖分析
@@ -276,4 +276,4 @@ public class {Service}Application {
 - Spring 是图书管理员
 - `scanBasePackages` 告诉管理员在哪些区域找书
 - 如果你要的书在 C 区，但管理员只在 A 区和 B 区找，永远找不到
-- 解决方法：告诉管理员也去 C 区找（添加 `"com.blog.api"` 到扫描列表）
+- 解决方法：告诉管理员也去 C 区找（添加 `"com.zhicore.api"` 到扫描列表）

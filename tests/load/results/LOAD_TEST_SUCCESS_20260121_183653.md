@@ -244,10 +244,10 @@ Add tests for:
 
 ### Services
 
-- **Gateway**: blog-gateway-1.0.0-SNAPSHOT.jar
-- **User**: blog-user-1.0.0-SNAPSHOT.jar
-- **Post**: blog-post-1.0.0-SNAPSHOT.jar
-- **Comment**: blog-comment-1.0.0-SNAPSHOT.jar
+- **Gateway**: ZhiCore-gateway-1.0.0-SNAPSHOT.jar
+- **User**: ZhiCore-user-1.0.0-SNAPSHOT.jar
+- **Post**: ZhiCore-post-1.0.0-SNAPSHOT.jar
+- **Comment**: ZhiCore-comment-1.0.0-SNAPSHOT.jar
 
 ### Infrastructure
 

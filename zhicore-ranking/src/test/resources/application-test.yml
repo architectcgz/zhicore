@@ -1,0 +1,30 @@
+server:
+  port: 0  # Random port for testing
+
+spring:
+  application:
+    name: ZhiCore-ranking-test
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+    sentinel:
+      enabled: false
+
+# Disable RocketMQ for testing
+rocketmq:
+  name-server: localhost:9876
+  producer:
+    group: ranking-producer-group-test
+  consumer:
+    group: ranking-consumer-group-test
+
+# Disable scheduling for testing
+spring.task.scheduling.enabled: false
+
+# Test logging
+logging:
+  level:
+    com.ZhiCore.ranking: DEBUG

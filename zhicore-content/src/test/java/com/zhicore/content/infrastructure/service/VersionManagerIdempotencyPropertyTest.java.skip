@@ -1,0 +1,565 @@
+package com.zhicore.post.infrastructure.service;
+
+import service.domain.com.zhicore.content.VersionManager;
+import document.mongodb.infrastructure.com.zhicore.content.PostContent;
+import document.mongodb.infrastructure.com.zhicore.content.PostVersion;
+import repository.mongodb.infrastructure.com.zhicore.content.PostContentRepository;
+import repository.mongodb.infrastructure.com.zhicore.content.PostVersionRepository;
+import net.jqwik.api.*;
+import net.jqwik.api.constraints.IntRange;
+import net.jqwik.api.constraints.StringLength;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Version Manager Idempotency Property Test
+ * 
+ * Uses property-based testing to validate that version restore operations
+ * are idempotent - restoring to the same version multiple times produces
+ * consistent results.
+ * 
+ * **Feature: post-mongodb-hybrid, Property 9: 版本恢复幂等性**
+ * 
+ * **Validates: Requirements 3.4**
+ * 
+ * Property 9: 版本恢复幂等性
+ * 对于任意文章和版本号，恢复到该版本后，当前内容应该与该版本的内容一致，且应该创建一个新的版本记录。
+ */
+@SpringBootTest
+@Testcontainers
+class VersionManagerIdempotencyPropertyTest {
+
+    @Container
+    static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:8.0")
+            .withExposedPorts(27017);
+
+    @DynamicPropertySource
+    static void setProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
+    }
+
+    @Autowired
+    private VersionManager versionManager;
+
+    @Autowired
+    private PostVersionRepository versionRepository;
+
+    @Autowired
+    private PostContentRepository contentRepository;
+
+    @BeforeEach
+    void setUp() {
+        versionRepository.deleteAll();
+        contentRepository.deleteAll();
+    }
+
+    /**
+     * Property 9: Restoring to a version makes current content match that version
+     * 
+     * For any post and version number, after restoring to that version,
+     * the current content should be identical to the target version's content.
+     * 
+     * **Validates: Requirements 3.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 9: Restoring to a version makes current content match that version")
+    void restoringToVersionMatchesTargetContent(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll("contentList") java.util.List<String> contents) {
+
+        // Given: A post with multiple versions
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(contents.get(0))
+                .html("<p>" + contents.get(0) + "</p>")
+                .text(contents.get(0))
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // Create multiple versions
+        for (int i = 0; i < contents.size(); i++) {
+            versionManager.createVersion(
+                    postIdStr,
+                    contents.get(i),
+                    ownerIdStr,
+                    "Version " + (i + 1)
+            );
+        }
+
+        // Pick a random version to restore (not the last one)
+        int targetVersionNumber = contents.size() > 1 
+                ? 1 + (int)(Math.random() * (contents.size() - 1))
+                : 1;
+
+        // Get the target version's content
+        PostVersion targetVersion = versionRepository.findByPostIdAndVersion(postIdStr, targetVersionNumber)
+                .orElseThrow(() -> new AssertionError("Target version should exist"));
+        String expectedContent = targetVersion.getContent();
+
+        // When: Restore to the target version
+        Integer newVersionNumber = versionManager.restoreVersion(postIdStr, targetVersionNumber);
+
+        // Then: Current content should match the target version's content
+        PostContent currentContent = contentRepository.findByPostId(postIdStr)
+                .orElseThrow(() -> new AssertionError("Current content should exist"));
+
+        assertThat(currentContent.getRaw())
+                .as("Current content should match target version %d content", targetVersionNumber)
+                .isEqualTo(expectedContent);
+
+        // And: A new version record should be created
+        assertThat(newVersionNumber)
+                .as("New version number should be greater than existing versions")
+                .isGreaterThan(contents.size());
+
+        // Verify the new version exists
+        PostVersion newVersion = versionRepository.findByPostIdAndVersion(postIdStr, newVersionNumber)
+                .orElseThrow(() -> new AssertionError("New version should be created"));
+
+        assertThat(newVersion.getContent()).isEqualTo(expectedContent);
+        assertThat(newVersion.getChangeNote()).contains("Restored from version " + targetVersionNumber);
+    }
+
+    /**
+     * Property 9: Restoring creates a new version record
+     * 
+     * For any post and version, restoring to that version should always
+     * create a new version record documenting the restore operation.
+     * 
+     * **Validates: Requirements 3.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 9: Restoring creates a new version record")
+    void restoringCreatesNewVersionRecord(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 2, max = 10) int versionCount,
+            @ForAll @StringLength(min = 10, max = 500) String baseContent) {
+
+        // Given: A post with multiple versions
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(baseContent)
+                .html("<p>" + baseContent + "</p>")
+                .text(baseContent)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // Create versions
+        for (int i = 0; i < versionCount; i++) {
+            versionManager.createVersion(
+                    postIdStr,
+                    baseContent + " v" + (i + 1),
+                    ownerIdStr,
+                    "Version " + (i + 1)
+            );
+        }
+
+        long versionCountBefore = versionRepository.countByPostId(postIdStr);
+
+        // When: Restore to version 1
+        Integer newVersionNumber = versionManager.restoreVersion(postIdStr, 1);
+
+        // Then: Version count should increase by 1
+        long versionCountAfter = versionRepository.countByPostId(postIdStr);
+        assertThat(versionCountAfter)
+                .as("Version count should increase by 1 after restore")
+                .isEqualTo(versionCountBefore + 1);
+
+        // And: The new version should exist
+        Optional<PostVersion> newVersion = versionRepository.findByPostIdAndVersion(postIdStr, newVersionNumber);
+        assertThat(newVersion)
+                .as("New version should be created")
+                .isPresent();
+
+        // And: The new version should document the restore operation
+        assertThat(newVersion.get().getChangeNote())
+                .as("Change note should indicate restore operation")
+                .contains("Restored from version 1");
+    }
+
+    /**
+     * Property 9: Multiple restores to same version are idempotent
+     * 
+     * For any post and version, restoring to that version multiple times
+     * should produce the same content result each time (though creating
+     * new version records each time).
+     * 
+     * **Validates: Requirements 3.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 9: Multiple restores to same version are idempotent")
+    void multipleRestoresToSameVersionAreIdempotent(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll("contentList") java.util.List<String> contents,
+            @ForAll @IntRange(min = 2, max = 5) int restoreCount) {
+
+        // Given: A post with multiple versions
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(contents.get(0))
+                .html("<p>" + contents.get(0) + "</p>")
+                .text(contents.get(0))
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // Create versions
+        for (int i = 0; i < contents.size(); i++) {
+            versionManager.createVersion(
+                    postIdStr,
+                    contents.get(i),
+                    ownerIdStr,
+                    "Version " + (i + 1)
+            );
+        }
+
+        // Pick a target version to restore
+        int targetVersion = 1;
+        String expectedContent = versionRepository.findByPostIdAndVersion(postIdStr, targetVersion)
+                .orElseThrow(() -> new AssertionError("Target version should exist"))
+                .getContent();
+
+        // When: Restore to the same version multiple times
+        for (int i = 0; i < restoreCount; i++) {
+            versionManager.restoreVersion(postIdStr, targetVersion);
+
+            // Then: Current content should always match the target version
+            PostContent currentContent = contentRepository.findByPostId(postIdStr)
+                    .orElseThrow(() -> new AssertionError("Current content should exist"));
+
+            assertThat(currentContent.getRaw())
+                    .as("Content after restore %d should match target version", i + 1)
+                    .isEqualTo(expectedContent);
+        }
+
+        // And: Each restore should create a new version record
+        long finalVersionCount = versionRepository.countByPostId(postIdStr);
+        assertThat(finalVersionCount)
+                .as("Should have original versions plus restore versions")
+                .isEqualTo(contents.size() + restoreCount);
+    }
+
+    /**
+     * Property 9: Restore then restore again produces same content
+     * 
+     * For any post, restoring to version A, then to version B, then back to A
+     * should result in the same content as the original version A.
+     * 
+     * **Validates: Requirements 3.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 9: Restore then restore again produces same content")
+    void restoreThenRestoreAgainProducesSameContent(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll("contentList") java.util.List<String> contents) {
+
+        // Require at least 2 versions
+        Assume.that(contents.size() >= 2);
+
+        // Given: A post with multiple versions
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(contents.get(0))
+                .html("<p>" + contents.get(0) + "</p>")
+                .text(contents.get(0))
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // Create versions
+        for (int i = 0; i < contents.size(); i++) {
+            versionManager.createVersion(
+                    postIdStr,
+                    contents.get(i),
+                    ownerIdStr,
+                    "Version " + (i + 1)
+            );
+        }
+
+        // Get content of version 1 and version 2
+        String version1Content = versionRepository.findByPostIdAndVersion(postIdStr, 1)
+                .orElseThrow(() -> new AssertionError("Version 1 should exist"))
+                .getContent();
+        String version2Content = versionRepository.findByPostIdAndVersion(postIdStr, 2)
+                .orElseThrow(() -> new AssertionError("Version 2 should exist"))
+                .getContent();
+
+        // When: Restore to version 1
+        versionManager.restoreVersion(postIdStr, 1);
+        PostContent afterFirstRestore = contentRepository.findByPostId(postIdStr)
+                .orElseThrow(() -> new AssertionError("Content should exist"));
+        assertThat(afterFirstRestore.getRaw()).isEqualTo(version1Content);
+
+        // Then: Restore to version 2
+        versionManager.restoreVersion(postIdStr, 2);
+        PostContent afterSecondRestore = contentRepository.findByPostId(postIdStr)
+                .orElseThrow(() -> new AssertionError("Content should exist"));
+        assertThat(afterSecondRestore.getRaw()).isEqualTo(version2Content);
+
+        // And: Restore back to version 1
+        versionManager.restoreVersion(postIdStr, 1);
+        PostContent afterThirdRestore = contentRepository.findByPostId(postIdStr)
+                .orElseThrow(() -> new AssertionError("Content should exist"));
+
+        // Then: Content should match version 1 again
+        assertThat(afterThirdRestore.getRaw())
+                .as("Content after restoring back to version 1 should match original version 1")
+                .isEqualTo(version1Content);
+    }
+
+    /**
+     * Property 9: Restore preserves version metadata
+     * 
+     * For any post and version, after restoring to that version,
+     * the new version record should preserve the editor information
+     * from the target version.
+     * 
+     * **Validates: Requirements 3.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 9: Restore preserves version metadata")
+    void restorePreservesVersionMetadata(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 2, max = 10) int versionCount,
+            @ForAll @StringLength(min = 10, max = 500) String baseContent) {
+
+        // Given: A post with multiple versions
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(baseContent)
+                .html("<p>" + baseContent + "</p>")
+                .text(baseContent)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // Create versions
+        for (int i = 0; i < versionCount; i++) {
+            versionManager.createVersion(
+                    postIdStr,
+                    baseContent + " v" + (i + 1),
+                    ownerIdStr,
+                    "Change note " + (i + 1)
+            );
+        }
+
+        // Get target version metadata
+        int targetVersionNumber = 1;
+        PostVersion targetVersion = versionRepository.findByPostIdAndVersion(postIdStr, targetVersionNumber)
+                .orElseThrow(() -> new AssertionError("Target version should exist"));
+
+        // When: Restore to the target version
+        Integer newVersionNumber = versionManager.restoreVersion(postIdStr, targetVersionNumber);
+
+        // Then: The new version should preserve the editor from target version
+        PostVersion newVersion = versionRepository.findByPostIdAndVersion(postIdStr, newVersionNumber)
+                .orElseThrow(() -> new AssertionError("New version should exist"));
+
+        assertThat(newVersion.getEditedBy())
+                .as("New version should preserve editor from target version")
+                .isEqualTo(targetVersion.getEditedBy());
+
+        assertThat(newVersion.getContent())
+                .as("New version content should match target version")
+                .isEqualTo(targetVersion.getContent());
+
+        assertThat(newVersion.getContentType())
+                .as("New version content type should match target version")
+                .isEqualTo(targetVersion.getContentType());
+    }
+
+    /**
+     * Property 9: Restore to latest version is idempotent
+     * 
+     * For any post, restoring to the latest version should result in
+     * the content remaining unchanged (but a new version record is created).
+     * 
+     * **Validates: Requirements 3.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 9: Restore to latest version is idempotent")
+    void restoreToLatestVersionIsIdempotent(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 1, max = 10) int versionCount,
+            @ForAll @StringLength(min = 10, max = 500) String baseContent) {
+
+        // Given: A post with multiple versions
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(baseContent)
+                .html("<p>" + baseContent + "</p>")
+                .text(baseContent)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // Create versions
+        String latestContent = baseContent;
+        for (int i = 0; i < versionCount; i++) {
+            latestContent = baseContent + " v" + (i + 1);
+            versionManager.createVersion(
+                    postIdStr,
+                    latestContent,
+                    ownerIdStr,
+                    "Version " + (i + 1)
+            );
+        }
+
+        // Update current content to match latest version
+        PostContent currentContent = contentRepository.findByPostId(postIdStr)
+                .orElseThrow(() -> new AssertionError("Current content should exist"));
+        currentContent.setRaw(latestContent);
+        contentRepository.save(currentContent);
+
+        // Get current content before restore
+        String contentBeforeRestore = currentContent.getRaw();
+
+        // When: Restore to the latest version
+        versionManager.restoreVersion(postIdStr, versionCount);
+
+        // Then: Content should remain the same
+        PostContent contentAfterRestore = contentRepository.findByPostId(postIdStr)
+                .orElseThrow(() -> new AssertionError("Current content should exist"));
+
+        assertThat(contentAfterRestore.getRaw())
+                .as("Content should remain unchanged when restoring to latest version")
+                .isEqualTo(contentBeforeRestore);
+
+        // And: A new version record should still be created
+        long finalVersionCount = versionRepository.countByPostId(postIdStr);
+        assertThat(finalVersionCount)
+                .as("A new version should be created even when restoring to latest")
+                .isEqualTo(versionCount + 1);
+    }
+
+    /**
+     * Property 9: Restore updates content timestamp
+     * 
+     * For any post and version, after restoring to that version,
+     * the current content's updatedAt timestamp should be updated.
+     * 
+     * **Validates: Requirements 3.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 9: Restore updates content timestamp")
+    void restoreUpdatesContentTimestamp(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 2, max = 10) int versionCount,
+            @ForAll @StringLength(min = 10, max = 500) String baseContent) throws InterruptedException {
+
+        // Given: A post with multiple versions
+        String postIdStr = String.valueOf(postId);
+        String ownerIdStr = String.valueOf(ownerId);
+
+        // Create initial content
+        PostContent initialContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(baseContent)
+                .html("<p>" + baseContent + "</p>")
+                .text(baseContent)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        contentRepository.save(initialContent);
+
+        // Create versions
+        for (int i = 0; i < versionCount; i++) {
+            versionManager.createVersion(
+                    postIdStr,
+                    baseContent + " v" + (i + 1),
+                    ownerIdStr,
+                    "Version " + (i + 1)
+            );
+        }
+
+        // Get timestamp before restore
+        PostContent contentBefore = contentRepository.findByPostId(postIdStr)
+                .orElseThrow(() -> new AssertionError("Current content should exist"));
+        LocalDateTime timestampBefore = contentBefore.getUpdatedAt();
+
+        // Wait a bit to ensure timestamp difference
+        Thread.sleep(10);
+
+        // When: Restore to version 1
+        versionManager.restoreVersion(postIdStr, 1);
+
+        // Then: Updated timestamp should be after the previous timestamp
+        PostContent contentAfter = contentRepository.findByPostId(postIdStr)
+                .orElseThrow(() -> new AssertionError("Current content should exist"));
+        LocalDateTime timestampAfter = contentAfter.getUpdatedAt();
+
+        assertThat(timestampAfter)
+                .as("Updated timestamp should be after restore operation")
+                .isAfter(timestampBefore);
+    }
+
+    // Data generators
+
+    @Provide
+    Arbitrary<java.util.List<String>> contentList() {
+        return Arbitraries.strings()
+                .alpha()
+                .ofMinLength(10)
+                .ofMaxLength(500)
+                .list()
+                .ofMinSize(2)
+                .ofMaxSize(10);
+    }
+}

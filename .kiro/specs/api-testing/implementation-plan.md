@@ -38,12 +38,12 @@
   - Report Management (6 tests): List, filter by status, handle, reject, batch handle
 - Prerequisites:
   - Admin user credentials configured in test-env.json
-  - blog-admin service running
-  - blog-user, blog-post, blog-comment services running (for Feign calls)
+  - ZhiCore-admin service running
+  - ZhiCore-user, ZhiCore-post, ZhiCore-comment services running (for Feign calls)
 - References: Requirements 9.1-9.25, Design Section 9
 
 **Task 1.2: Execute Admin Service Tests**
-- Start required services: blog-admin, blog-user, blog-post, blog-comment
+- Start required services: ZhiCore-admin, ZhiCore-user, ZhiCore-post, ZhiCore-comment
 - Run test script: `.\tests\api\admin\test-admin-api-full.ps1`
 - Fix any discovered issues
 - Update test-status.md with results
@@ -58,13 +58,13 @@
   - Authentication Tests (5 tests): Valid token, invalid token, expired token, public endpoints, private endpoints
   - Rate Limiting Tests (5 tests): Normal rate, exceed limit, recovery, IP-based, user-based
 - Prerequisites:
-  - blog-gateway service running
-  - At least one backend service running (e.g., blog-post)
+  - ZhiCore-gateway service running
+  - At least one backend service running (e.g., ZhiCore-post)
   - Redis running (for rate limiting)
 - References: Requirements 10.1-10.15, Design Section 10
 
 **Task 2.2: Execute Gateway Service Tests**
-- Start required services: blog-gateway, blog-post, Redis
+- Start required services: ZhiCore-gateway, ZhiCore-post, Redis
 - Run test script: `.\tests\api\gateway\test-gateway-api-full.ps1`
 - Fix any discovered issues
 - Update test-status.md with results
@@ -236,17 +236,17 @@
 - Elasticsearch (port 9200) - For search service
 
 ### Application Services
-- blog-gateway (port 8000)
-- blog-user (port 8081)
-- blog-post (port 8082)
-- blog-comment (port 8083)
-- blog-message (port 8086)
-- blog-notification (port 8086)
-- blog-search (port 8086)
-- blog-ranking (port 8088)
-- blog-upload (port 8089)
-- blog-admin (port 8090)
-- blog-leaf (port 8010)
+- ZhiCore-gateway (port 8000)
+- ZhiCore-user (port 8081)
+- ZhiCore-post (port 8082)
+- ZhiCore-comment (port 8083)
+- ZhiCore-message (port 8086)
+- ZhiCore-notification (port 8086)
+- ZhiCore-search (port 8086)
+- ZhiCore-ranking (port 8088)
+- ZhiCore-upload (port 8089)
+- ZhiCore-admin (port 8090)
+- ZhiCore-leaf (port 8010)
 
 ### Test Environment
 - PowerShell 5.1 or higher

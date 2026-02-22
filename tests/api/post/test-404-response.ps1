@@ -44,4 +44,4 @@ try {
 }
 
 Write-Host "`n=== 测试完成 ===" -ForegroundColor Cyan
-Write-Host "注意：如果测试失败，需要重新编译并重启 blog-post 服务" -ForegroundColor Yellow
+Write-Host "注意：如果测试失败，需要重新编译并重启 ZhiCore-post 服务" -ForegroundColor Yellow

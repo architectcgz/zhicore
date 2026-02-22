@@ -1,6 +1,6 @@
 # Multipart Upload Integration Test Guide
 
-> **Note**: This test documentation is for the legacy blog-upload service. RustFS object storage has been moved to the independent `file-service`.
+> **Note**: This test documentation is for the legacy ZhiCore-upload service. RustFS object storage has been moved to the independent `file-service`.
 > For new file service tests, please refer to `file-service/docker/README.md`.
 
 ## Overview
@@ -81,7 +81,7 @@ Ensure database migrations have been applied:
 
 ```powershell
 # Run migrations
-mvn flyway:migrate -pl blog-migration
+mvn flyway:migrate -pl ZhiCore-migration
 ```
 
 ### 3. Upload Service Configuration
@@ -93,7 +93,7 @@ The upload service must be configured to use S3 storage:
 $env:STORAGE_TYPE = 's3'
 
 # Start the upload service
-mvn spring-boot:run -pl blog-upload
+mvn spring-boot:run -pl ZhiCore-upload
 ```
 
 Or configure in `application.yml`:
@@ -105,7 +105,7 @@ storage:
     endpoint: http://localhost:9100
     access-key: admin
     secret-key: admin123456
-    bucket: blog-uploads
+    bucket: ZhiCore-uploads
     region: us-east-1
   multipart:
     enabled: true
@@ -120,7 +120,7 @@ storage:
 The user service must be running for authentication:
 
 ```powershell
-mvn spring-boot:run -pl blog-user
+mvn spring-boot:run -pl ZhiCore-user
 ```
 
 ## Running the Test
@@ -183,7 +183,7 @@ Multipart Upload Integration Test
 === Test 5: Complete Multipart Upload ===
 [PASS] Multipart upload completed successfully
   File ID: 01912345-6789-7abc-def0-123456789abc
-  URL: http://localhost:9100/blog-uploads/files/2026/01/18/123/01912345.bin
+  URL: http://localhost:9100/ZhiCore-uploads/files/2026/01/18/123/01912345.bin
   Response Time: 300ms
 
 === Test 6: Verify File in RustFS ===
@@ -258,7 +258,7 @@ curl http://localhost:8089/actuator/health
 
 # Start the service
 $env:STORAGE_TYPE = 's3'
-mvn spring-boot:run -pl blog-upload
+mvn spring-boot:run -pl ZhiCore-upload
 ```
 
 ### Database Connection Error
@@ -271,10 +271,10 @@ mvn spring-boot:run -pl blog-upload
 docker-compose ps postgres
 
 # Run migrations
-mvn flyway:migrate -pl blog-migration
+mvn flyway:migrate -pl ZhiCore-migration
 
 # Verify tables exist
-docker-compose exec postgres psql -U blog_user -d blog_db -c "\dt upload_*"
+docker-compose exec postgres psql -U ZhiCore_user -d ZhiCore_db -c "\dt upload_*"
 ```
 
 ### Authentication Failed
@@ -284,7 +284,7 @@ docker-compose exec postgres psql -U blog_user -d blog_db -c "\dt upload_*"
 **Solution**:
 ```powershell
 # Ensure user service is running
-mvn spring-boot:run -pl blog-user
+mvn spring-boot:run -pl ZhiCore-user
 
 # Check user service health
 curl http://localhost:8081/actuator/health
@@ -306,17 +306,17 @@ To remove test files from RustFS:
 
 1. Open RustFS Console: http://localhost:9100/rustfs/console/browser
 2. Login with: admin / admin123456
-3. Navigate to bucket: blog-uploads
+3. Navigate to bucket: ZhiCore-uploads
 4. Delete test files manually
 
 Or use AWS CLI:
 
 ```powershell
 # List files
-aws --endpoint-url http://localhost:9100 s3 ls s3://blog-uploads/files/ --recursive
+aws --endpoint-url http://localhost:9100 s3 ls s3://ZhiCore-uploads/files/ --recursive
 
 # Delete specific file
-aws --endpoint-url http://localhost:9100 s3 rm s3://blog-uploads/files/2026/01/18/123/01912345.bin
+aws --endpoint-url http://localhost:9100 s3 rm s3://ZhiCore-uploads/files/2026/01/18/123/01912345.bin
 ```
 
 ## Performance Benchmarks
@@ -348,6 +348,6 @@ After successful integration test:
 ## Support
 
 For issues or questions:
-1. Check service logs: `docker-compose logs -f blog-upload`
+1. Check service logs: `docker-compose logs -f ZhiCore-upload`
 2. Verify RustFS logs: `docker-compose logs -f rustfs`
-3. Check database state: `docker-compose exec postgres psql -U blog_user -d blog_db`
+3. Check database state: `docker-compose exec postgres psql -U ZhiCore_user -d ZhiCore_db`

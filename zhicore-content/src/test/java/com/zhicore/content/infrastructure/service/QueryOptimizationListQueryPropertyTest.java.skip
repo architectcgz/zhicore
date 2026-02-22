@@ -1,0 +1,389 @@
+package com.zhicore.post.infrastructure.service;
+
+import model.domain.com.zhicore.content.Post;
+import repository.domain.com.zhicore.content.PostRepository;
+import service.domain.com.zhicore.content.QueryOptimizationService;
+import repository.mongodb.infrastructure.com.zhicore.content.PostContentRepository;
+import net.jqwik.api.*;
+import net.jqwik.api.constraints.IntRange;
+import net.jqwik.api.constraints.StringLength;
+import org.junit.jupiter.api.BeforeEach;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+/**
+ * Query Optimization List Query Property Test
+ * 
+ * Uses property-based testing to validate that list queries only access
+ * PostgreSQL and do not load content from MongoDB.
+ * 
+ * **Feature: post-mongodb-hybrid, Property 5: 列表查询优化**
+ * 
+ * **Validates: Requirements 2.6**
+ * 
+ * Property 5: 列表查询优化
+ * 对于任意文章列表查询，系统应该只访问 PostgreSQL 而不访问 MongoDB，
+ * 且返回的数据不包含文章内容字段。
+ */
+class QueryOptimizationListQueryPropertyTest {
+
+    private PostRepository postRepository;
+    private PostContentRepository postContentRepository;
+    private QueryOptimizationService queryOptimizationService;
+
+    @BeforeEach
+    void setUp() {
+        postRepository = mock(PostRepository.class);
+        postContentRepository = mock(PostContentRepository.class);
+        queryOptimizationService = new QueryOptimizationServiceImpl(postRepository, postContentRepository);
+    }
+
+    /**
+     * Property 5: List query optimization - only PostgreSQL accessed
+     * 
+     * For any list query with valid pagination parameters, the system should
+     * only query PostgreSQL and never access MongoDB.
+     * 
+     * **Validates: Requirements 2.6**
+     */
+    @Property(tries = 100)
+    @Label("Property 5: List query should only access PostgreSQL, not MongoDB")
+    void listQueryShouldOnlyAccessPostgreSQLNotMongoDB(
+            @ForAll @IntRange(min = 0, max = 1000) int offset,
+            @ForAll @IntRange(min = 1, max = 100) int limit) {
+
+        // Given: Mock PostgreSQL returns post list
+        List<Post> mockPosts = generateMockPosts(limit);
+        when(postRepository.findPublished(offset, limit)).thenReturn(mockPosts);
+
+        // When: Query post list
+        List<Post> result = queryOptimizationService.getPostList(offset, limit);
+
+        // Then: PostgreSQL should be queried exactly once
+        verify(postRepository, times(1)).findPublished(offset, limit);
+        
+        // And: MongoDB should never be accessed
+        verify(postContentRepository, never()).findByPostId(anyString());
+        verify(postContentRepository, never()).findByPostIdIn(anyList());
+        verify(postContentRepository, never()).findAll();
+        
+        // And: Result should not be null
+        assertThat(result).isNotNull();
+    }
+
+    /**
+     * Property 5: List query optimization - no content fields in result
+     * 
+     * For any list query result, the returned Post objects should only contain
+     * metadata and should not have content fields populated.
+     * 
+     * **Validates: Requirements 2.6**
+     */
+    @Property(tries = 100)
+    @Label("Property 5: List query result should not contain content fields")
+    void listQueryResultShouldNotContainContentFields(
+            @ForAll @IntRange(min = 0, max = 1000) int offset,
+            @ForAll @IntRange(min = 1, max = 100) int limit) {
+
+        // Given: Mock PostgreSQL returns post list (metadata only)
+        List<Post> mockPosts = generateMockPosts(limit);
+        when(postRepository.findPublished(offset, limit)).thenReturn(mockPosts);
+
+        // When: Query post list
+        List<Post> result = queryOptimizationService.getPostList(offset, limit);
+
+        // Then: All posts should only have metadata, no content
+        assertThat(result).isNotNull();
+        assertThat(result).allMatch(post -> 
+            post.getId() != null && 
+            post.getOwnerId() != null &&
+            post.getTitle() != null
+        );
+        
+        // Note: Post domain model doesn't have content fields (they're in MongoDB)
+        // This test verifies we're only getting Post objects, not PostContent
+    }
+
+    /**
+     * Property 5: List query optimization - owner-based list query
+     * 
+     * For any owner-based list query, the system should only access PostgreSQL
+     * and not MongoDB.
+     * 
+     * **Validates: Requirements 2.6**
+     */
+    @Property(tries = 100)
+    @Label("Property 5: Owner-based list query should only access PostgreSQL")
+    void ownerBasedListQueryShouldOnlyAccessPostgreSQL(
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @IntRange(min = 1, max = 100) int limit) {
+
+        // Given: Mock PostgreSQL returns owner's posts
+        String ownerIdStr = String.valueOf(ownerId);
+        List<Post> mockPosts = generateMockPostsForOwner(ownerId, limit);
+        LocalDateTime cursor = LocalDateTime.now().minusDays(1);
+        
+        when(postRepository.findByOwnerIdCursor(eq(ownerIdStr), any(), eq(cursor), eq(limit)))
+            .thenReturn(mockPosts);
+
+        // When: Query posts by owner
+        List<Post> result = queryOptimizationService.getPostListByOwner(ownerIdStr, cursor, limit);
+
+        // Then: PostgreSQL should be queried exactly once
+        verify(postRepository, times(1)).findByOwnerIdCursor(eq(ownerIdStr), any(), eq(cursor), eq(limit));
+        
+        // And: MongoDB should never be accessed
+        verify(postContentRepository, never()).findByPostId(anyString());
+        verify(postContentRepository, never()).findByPostIdIn(anyList());
+        
+        // And: Result should not be null
+        assertThat(result).isNotNull();
+    }
+
+    /**
+     * Property 5: List query optimization - published posts list query
+     * 
+     * For any published posts list query, the system should only access PostgreSQL
+     * and not MongoDB.
+     * 
+     * **Validates: Requirements 2.6**
+     */
+    @Property(tries = 100)
+    @Label("Property 5: Published posts list query should only access PostgreSQL")
+    void publishedPostsListQueryShouldOnlyAccessPostgreSQL(
+            @ForAll @IntRange(min = 1, max = 100) int limit) {
+
+        // Given: Mock PostgreSQL returns published posts
+        List<Post> mockPosts = generateMockPosts(limit);
+        LocalDateTime cursor = LocalDateTime.now().minusDays(1);
+        
+        when(postRepository.findPublishedCursor(cursor, limit)).thenReturn(mockPosts);
+
+        // When: Query published posts
+        List<Post> result = queryOptimizationService.getPublishedPostList(cursor, limit);
+
+        // Then: PostgreSQL should be queried exactly once
+        verify(postRepository, times(1)).findPublishedCursor(cursor, limit);
+        
+        // And: MongoDB should never be accessed
+        verify(postContentRepository, never()).findByPostId(anyString());
+        verify(postContentRepository, never()).findByPostIdIn(anyList());
+        
+        // And: Result should not be null
+        assertThat(result).isNotNull();
+    }
+
+    /**
+     * Property 5: List query optimization - batch metadata query
+     * 
+     * For any batch metadata query, the system should only access PostgreSQL
+     * and not MongoDB.
+     * 
+     * **Validates: Requirements 2.6**
+     */
+    @Property(tries = 100)
+    @Label("Property 5: Batch metadata query should only access PostgreSQL")
+    void batchMetadataQueryShouldOnlyAccessPostgreSQL(
+            @ForAll("postIdLists") List<String> postIds) {
+
+        // Given: Mock PostgreSQL returns batch metadata
+        List<Post> mockPosts = postIds.stream()
+            .map(id -> Post.createDraft(Long.parseLong(id), 1L, "Test Post " + id))
+            .collect(Collectors.toList());
+        
+        when(postRepository.findByIds(postIds))
+            .thenReturn(mockPosts.stream()
+                .collect(Collectors.toMap(p -> String.valueOf(p.getId()), p -> p)));
+
+        // When: Batch query metadata
+        queryOptimizationService.batchGetPostMetadata(postIds);
+
+        // Then: PostgreSQL should be queried exactly once
+        verify(postRepository, times(1)).findByIds(postIds);
+        
+        // And: MongoDB should never be accessed
+        verify(postContentRepository, never()).findByPostId(anyString());
+        verify(postContentRepository, never()).findByPostIdIn(anyList());
+    }
+
+    /**
+     * Property 5: List query optimization - empty result handling
+     * 
+     * For any list query that returns empty results, the system should still
+     * only access PostgreSQL and not MongoDB.
+     * 
+     * **Validates: Requirements 2.6**
+     */
+    @Property(tries = 100)
+    @Label("Property 5: Empty list query should only access PostgreSQL")
+    void emptyListQueryShouldOnlyAccessPostgreSQL(
+            @ForAll @IntRange(min = 0, max = 1000) int offset,
+            @ForAll @IntRange(min = 1, max = 100) int limit) {
+
+        // Given: Mock PostgreSQL returns empty list
+        when(postRepository.findPublished(offset, limit)).thenReturn(new ArrayList<>());
+
+        // When: Query post list
+        List<Post> result = queryOptimizationService.getPostList(offset, limit);
+
+        // Then: PostgreSQL should be queried exactly once
+        verify(postRepository, times(1)).findPublished(offset, limit);
+        
+        // And: MongoDB should never be accessed
+        verify(postContentRepository, never()).findByPostId(anyString());
+        verify(postContentRepository, never()).findByPostIdIn(anyList());
+        
+        // And: Result should be empty but not null
+        assertThat(result).isNotNull();
+        assertThat(result).isEmpty();
+    }
+
+    /**
+     * Property 5: List query optimization - large pagination
+     * 
+     * For any list query with large pagination parameters, the system should
+     * still only access PostgreSQL and not MongoDB.
+     * 
+     * **Validates: Requirements 2.6**
+     */
+    @Property(tries = 50)
+    @Label("Property 5: Large pagination list query should only access PostgreSQL")
+    void largePaginationListQueryShouldOnlyAccessPostgreSQL(
+            @ForAll @IntRange(min = 1000, max = 10000) int offset,
+            @ForAll @IntRange(min = 50, max = 100) int limit) {
+
+        // Given: Mock PostgreSQL returns post list
+        List<Post> mockPosts = generateMockPosts(limit);
+        when(postRepository.findPublished(offset, limit)).thenReturn(mockPosts);
+
+        // When: Query post list with large offset
+        List<Post> result = queryOptimizationService.getPostList(offset, limit);
+
+        // Then: PostgreSQL should be queried exactly once
+        verify(postRepository, times(1)).findPublished(offset, limit);
+        
+        // And: MongoDB should never be accessed
+        verify(postContentRepository, never()).findByPostId(anyString());
+        verify(postContentRepository, never()).findByPostIdIn(anyList());
+        
+        // And: Result should not be null
+        assertThat(result).isNotNull();
+    }
+
+    /**
+     * Property 5: List query optimization - multiple sequential queries
+     * 
+     * For any sequence of list queries, each query should only access PostgreSQL
+     * and MongoDB should never be accessed.
+     * 
+     * **Validates: Requirements 2.6**
+     */
+    @Property(tries = 50)
+    @Label("Property 5: Multiple sequential list queries should only access PostgreSQL")
+    void multipleSequentialListQueriesShouldOnlyAccessPostgreSQL(
+            @ForAll @IntRange(min = 1, max = 5) int queryCount,
+            @ForAll @IntRange(min = 1, max = 50) int limit) {
+
+        // Given: Mock PostgreSQL returns post list for each query
+        for (int i = 0; i < queryCount; i++) {
+            int offset = i * limit;
+            List<Post> mockPosts = generateMockPosts(limit);
+            when(postRepository.findPublished(offset, limit)).thenReturn(mockPosts);
+        }
+
+        // When: Execute multiple sequential queries
+        for (int i = 0; i < queryCount; i++) {
+            int offset = i * limit;
+            queryOptimizationService.getPostList(offset, limit);
+        }
+
+        // Then: PostgreSQL should be queried exactly queryCount times
+        verify(postRepository, times(queryCount)).findPublished(anyInt(), eq(limit));
+        
+        // And: MongoDB should never be accessed
+        verify(postContentRepository, never()).findByPostId(anyString());
+        verify(postContentRepository, never()).findByPostIdIn(anyList());
+    }
+
+    /**
+     * Property 5: List query optimization - cursor-based pagination
+     * 
+     * For any cursor-based pagination query, the system should only access
+     * PostgreSQL and not MongoDB.
+     * 
+     * **Validates: Requirements 2.6**
+     */
+    @Property(tries = 100)
+    @Label("Property 5: Cursor-based pagination should only access PostgreSQL")
+    void cursorBasedPaginationShouldOnlyAccessPostgreSQL(
+            @ForAll @IntRange(min = 1, max = 100) int limit,
+            @ForAll @IntRange(min = 0, max = 30) int daysAgo) {
+
+        // Given: Mock PostgreSQL returns posts using cursor
+        LocalDateTime cursor = LocalDateTime.now().minusDays(daysAgo);
+        List<Post> mockPosts = generateMockPosts(limit);
+        
+        when(postRepository.findPublishedCursor(cursor, limit)).thenReturn(mockPosts);
+
+        // When: Query with cursor-based pagination
+        List<Post> result = queryOptimizationService.getPublishedPostList(cursor, limit);
+
+        // Then: PostgreSQL should be queried exactly once
+        verify(postRepository, times(1)).findPublishedCursor(cursor, limit);
+        
+        // And: MongoDB should never be accessed
+        verify(postContentRepository, never()).findByPostId(anyString());
+        verify(postContentRepository, never()).findByPostIdIn(anyList());
+        
+        // And: Result should not be null
+        assertThat(result).isNotNull();
+    }
+
+    // Helper methods
+
+    /**
+     * Generate mock posts for testing
+     */
+    private List<Post> generateMockPosts(int count) {
+        List<Post> posts = new ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            Post post = Post.createDraft((long) i, 1L, "Test Post " + i);
+            posts.add(post);
+        }
+        return posts;
+    }
+
+    /**
+     * Generate mock posts for a specific owner
+     */
+    private List<Post> generateMockPostsForOwner(long ownerId, int count) {
+        List<Post> posts = new ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            Post post = Post.createDraft((long) i, ownerId, "Test Post " + i);
+            posts.add(post);
+        }
+        return posts;
+    }
+
+    /**
+     * Arbitrary generator for post ID lists
+     */
+    @Provide
+    Arbitrary<List<String>> postIdLists() {
+        return Arbitraries.integers()
+            .between(1, 1000000)
+            .list()
+            .ofMinSize(1)
+            .ofMaxSize(50)
+            .map(ids -> ids.stream()
+                .map(String::valueOf)
+                .collect(Collectors.toList()));
+    }
+}

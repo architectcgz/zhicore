@@ -31,7 +31,7 @@ public class PostViewCountService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IViewCountRepository.cs
+// ZhiCoreCore/Domain/Repositories/IViewCountRepository.cs
 public interface IViewCountRepository
 {
     /// <summary>
@@ -73,7 +73,7 @@ public interface IViewCountRepository
 ### Repository 实现
 
 ```csharp
-// BlogCore/Infrastructure/Repositories/ViewCountRepository.cs
+// ZhiCoreCore/Infrastructure/Repositories/ViewCountRepository.cs
 public class ViewCountRepository : IViewCountRepository
 {
     private readonly IDatabase _redis;
@@ -271,14 +271,14 @@ public class ViewCountRepository : IViewCountRepository
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Post/IPostViewApplicationService.cs
+// ZhiCoreCore/Application/Post/IPostViewApplicationService.cs
 public interface IPostViewApplicationService
 {
     Task RecordViewAsync(long postId, string? userId, string? clientIp);
     Task<long> GetViewCountAsync(long postId);
 }
 
-// BlogCore/Application/Post/PostViewApplicationService.cs
+// ZhiCoreCore/Application/Post/PostViewApplicationService.cs
 public class PostViewApplicationService : IPostViewApplicationService
 {
     private readonly IPostRepository _postRepository;
@@ -363,7 +363,7 @@ public class PostViewedEventHandler : IDomainEventHandler<PostViewedEvent>
 ### 同步策略
 
 ```csharp
-// BlogCore/Services/Background/ViewCountSyncService.cs
+// ZhiCoreCore/Services/Background/ViewCountSyncService.cs
 public class ViewCountSyncService : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -414,7 +414,7 @@ fallbackAction: _ =>
 ## Cached Decorator
 
 ```csharp
-// BlogCore/Infrastructure/Caching/CachedViewCountService.cs
+// ZhiCoreCore/Infrastructure/Caching/CachedViewCountService.cs
 public class CachedViewCountService : IViewCountService
 {
     private readonly IViewCountService _inner;

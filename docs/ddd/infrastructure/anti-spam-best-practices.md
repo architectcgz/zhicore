@@ -22,7 +22,7 @@
               │                              │                              │
               ▼                              ▼                              ▼
      ┌─────────────────┐            ┌─────────────────┐            ┌─────────────────┐
-     │   blog-api-1    │            │   blog-api-2    │            │   blog-api-3    │
+     │   ZhiCore-api-1    │            │   ZhiCore-api-2    │            │   ZhiCore-api-3    │
      │   (实例 1)      │            │   (实例 2)      │            │   (实例 3)      │
      └────────┬────────┘            └────────┬────────┘            └────────┬────────┘
               │                              │                              │
@@ -273,7 +273,7 @@ return {0, count + 1, 0}  -- allowed, newCount, retryAfter
 #### C# 实现
 
 ```csharp
-// BlogCore/Infrastructure/RateLimiting/RedisRateLimiter.cs
+// ZhiCoreCore/Infrastructure/RateLimiting/RedisRateLimiter.cs
 public class RedisRateLimiter : IRateLimiter
 {
     private readonly IDatabase _redis;
@@ -422,7 +422,7 @@ public class RedisRateLimiter : IRateLimiter
 ### 3. 业务防刷服务
 
 ```csharp
-// BlogCore/Application/Auth/IBusinessRateLimitService.cs
+// ZhiCoreCore/Application/Auth/IBusinessRateLimitService.cs
 public interface IBusinessRateLimitService
 {
     Task<RateLimitResult> CheckAsync(RateLimitContext context);
@@ -438,7 +438,7 @@ public class RateLimitContext
     public UserTier UserTier { get; set; } = UserTier.Regular;
 }
 
-// BlogCore/Application/Auth/BusinessRateLimitService.cs
+// ZhiCoreCore/Application/Auth/BusinessRateLimitService.cs
 public class BusinessRateLimitService : IBusinessRateLimitService
 {
     private readonly IRateLimiter _rateLimiter;
@@ -558,7 +558,7 @@ public class BusinessRateLimitService : IBusinessRateLimitService
 ### 4. 中间件集成（解耦业务代码）
 
 ```csharp
-// BlogApi/Middlewares/BusinessRateLimitMiddleware.cs
+// ZhiCoreApi/Middlewares/BusinessRateLimitMiddleware.cs
 public class BusinessRateLimitMiddleware
 {
     private readonly RequestDelegate _next;

@@ -29,7 +29,7 @@ docker-compose up -d redis
 
 # ❌ 错误 - 直接使用 docker 命令
 docker start redis
-docker start blog-redis
+docker start ZhiCore-redis
 ```
 
 ### 停止服务
@@ -41,7 +41,7 @@ docker-compose stop redis
 
 # ❌ 错误
 docker stop redis
-docker stop blog-redis
+docker stop ZhiCore-redis
 ```
 
 ### 重启服务
@@ -63,13 +63,13 @@ cd docker
 docker-compose logs -f redis
 
 # ✅ 也可以 - 查看日志可以直接用 docker
-docker logs -f blog-redis
+docker logs -f ZhiCore-redis
 ```
 
 ## 项目结构
 
 ```
-blog-microservice/
+ZhiCore-microservice/
 ├── docker/
 │   ├── docker-compose.yml          # 基础设施服务
 │   ├── docker-compose.services.yml # 微服务
@@ -121,7 +121,7 @@ docker-compose -f docker-compose.services.yml down
 ### 场景示例
 
 假设系统中有两个项目：
-- `blog-microservice` 使用 `blog-redis` (端口 6800)
+- `ZhiCore-microservice` 使用 `ZhiCore-redis` (端口 6800)
 - `im-service` 使用 `im-redis` (端口 16379)
 
 如果使用 `docker start redis`，可能会：
@@ -149,7 +149,7 @@ docker-compose -f docker-compose.services.yml down
 
 ```powershell
 # ❌ 错误
-docker start blog-redis
+docker start ZhiCore-redis
 
 # ✅ 修正
 cd docker
@@ -172,7 +172,7 @@ docker-compose up -d redis
 ```powershell
 # ❌ 错误
 cd docker
-docker-compose up -d blog-redis
+docker-compose up -d ZhiCore-redis
 
 # ✅ 修正
 cd docker
@@ -183,13 +183,13 @@ docker-compose up -d redis
 
 | 服务名称 (docker-compose) | 容器名称 | 端口 |
 |---------------------------|---------|------|
-| postgres | blog-postgres | 5432 |
-| redis | blog-redis | 6800 |
-| mysql-nacos | blog-mysql-nacos | 3307 |
-| nacos | blog-nacos | 8848 |
-| rocketmq-namesrv | blog-rocketmq-namesrv | 9876 |
-| rocketmq-broker | blog-rocketmq-broker | 10911 |
-| elasticsearch | blog-elasticsearch | 9200 |
+| postgres | ZhiCore-postgres | 5432 |
+| redis | ZhiCore-redis | 6800 |
+| mysql-nacos | ZhiCore-mysql-nacos | 3307 |
+| nacos | ZhiCore-nacos | 8848 |
+| rocketmq-namesrv | ZhiCore-rocketmq-namesrv | 9876 |
+| rocketmq-broker | ZhiCore-rocketmq-broker | 10911 |
+| elasticsearch | ZhiCore-elasticsearch | 9200 |
 
 ## 总结
 

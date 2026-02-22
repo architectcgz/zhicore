@@ -4,7 +4,7 @@
 
 ```
 post-service/
-├── src/main/java/com/blog/post/
+├── src/main/java/com/ZhiCore/post/
 │   ├── interfaces/
 │   │   ├── controller/
 │   │   │   ├── PostController.java

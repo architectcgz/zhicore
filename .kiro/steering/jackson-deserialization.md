@@ -9,7 +9,7 @@ inclusion: always
 在使用 Redis 缓存领域模型对象时，如果领域模型使用了**私有构造函数 + 工厂方法**模式（充血模型/DDD），会导致 Jackson 无法反序列化 JSON，出现以下错误：
 
 ```
-Could not read JSON: Cannot construct instance of `com.blog.post.domain.model.Post` 
+Could not read JSON: Cannot construct instance of `com.zhicore.post.domain.model.Post` 
 (no Creators, like default constructor, exist): cannot deserialize from Object value 
 (no delegate- or property-based Creator)
 ```
@@ -216,7 +216,7 @@ void testJsonSerialization() {
 **问题**：压测时发现 99% 请求失败，日志显示：
 ```
 Cache lookup failed, falling back to database: Could not read JSON: 
-Cannot construct instance of `com.blog.post.domain.model.Post`
+Cannot construct instance of `com.zhicore.post.domain.model.Post`
 ```
 
 **原因**：`Post` 和 `PostStats` 类使用私有构造函数，缺少 `@JsonCreator` 注解。

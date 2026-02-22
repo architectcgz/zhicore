@@ -17,7 +17,7 @@ $TestUser = $Config.test_user
 # RustFS/S3 Configuration
 $RustFSEndpoint = "http://localhost:9100"
 $RustFSConsole = "http://localhost:9100/rustfs/console/browser"
-$RustFSBucket = "blog-uploads"
+$RustFSBucket = "ZhiCore-uploads"
 $RustFSAccessKey = "admin"
 $RustFSSecretKey = "admin123456"
 
@@ -265,9 +265,9 @@ try {
 catch {
     Write-TestStep "Upload Service is not running at $UploadServiceUrl" "FAIL"
     Write-Host ""
-    Write-Host "Please ensure blog-upload service is running with STORAGE_TYPE=s3:" -ForegroundColor Yellow
+    Write-Host "Please ensure ZhiCore-upload service is running with STORAGE_TYPE=s3:" -ForegroundColor Yellow
     Write-Host "  Set environment variable: STORAGE_TYPE=s3" -ForegroundColor Gray
-    Write-Host "  Start the service: mvn spring-boot:run -pl blog-upload" -ForegroundColor Gray
+    Write-Host "  Start the service: mvn spring-boot:run -pl ZhiCore-upload" -ForegroundColor Gray
     Write-Host ""
     $TestsFailed++
     
@@ -347,8 +347,8 @@ if ($UploadResult.Success -and $UploadResult.Body.code -eq 200 -and $UploadResul
     $TestsPassed++
     
     # Extract the path from URL for S3 verification
-    # URL format: http://localhost:9100/blog-uploads/images/xxx.webp
-    if ($UploadedUrl -match "/blog-uploads/(.+)$") {
+    # URL format: http://localhost:9100/ZhiCore-uploads/images/xxx.webp
+    if ($UploadedUrl -match "/ZhiCore-uploads/(.+)$") {
         $UploadedPath = $Matches[1]
         Write-Host "  Storage Path: $UploadedPath" -ForegroundColor Gray
     } elseif ($UploadedUrl -match "images/(.+)$") {
@@ -458,7 +458,7 @@ Write-Host ""
 
 if ($UploadedUrl) {
     # Check if URL contains S3/RustFS endpoint pattern
-    if ($UploadedUrl -match "localhost:9100" -or $UploadedUrl -match "rustfs" -or $UploadedUrl -match "minio" -or $UploadedUrl -match "blog-uploads") {
+    if ($UploadedUrl -match "localhost:9100" -or $UploadedUrl -match "rustfs" -or $UploadedUrl -match "minio" -or $UploadedUrl -match "ZhiCore-uploads") {
         Write-TestStep "URL indicates S3 storage is being used" "PASS"
         Write-Host "  URL pattern matches S3/RustFS endpoint" -ForegroundColor Gray
         $TestsPassed++
@@ -485,11 +485,11 @@ if ($UploadedUrl) {
         Write-Host "" -ForegroundColor Yellow
         Write-Host "  To enable S3 storage, restart the upload service with:" -ForegroundColor Yellow
         Write-Host "    set STORAGE_TYPE=s3" -ForegroundColor Cyan
-        Write-Host "    mvn spring-boot:run -pl blog-upload" -ForegroundColor Cyan
+        Write-Host "    mvn spring-boot:run -pl ZhiCore-upload" -ForegroundColor Cyan
         Write-Host "" -ForegroundColor Yellow
         Write-Host "  Or in PowerShell:" -ForegroundColor Yellow
         Write-Host "    `$env:STORAGE_TYPE='s3'" -ForegroundColor Cyan
-        Write-Host "    mvn spring-boot:run -pl blog-upload" -ForegroundColor Cyan
+        Write-Host "    mvn spring-boot:run -pl ZhiCore-upload" -ForegroundColor Cyan
         Write-Host "" -ForegroundColor Yellow
         # Mark as informational, not failure - the test infrastructure works
         $TestsSkipped++

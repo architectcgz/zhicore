@@ -2,7 +2,7 @@
 
 ## Introduction
 
-在 500 并发压测场景下，blog-gateway 出现大量 JWT 签名验证失败错误："JWT signature does not match locally computed signature"。这个问题导致大量请求被拒绝，严重影响系统在高并发场景下的可用性。
+在 500 并发压测场景下，ZhiCore-gateway 出现大量 JWT 签名验证失败错误："JWT signature does not match locally computed signature"。这个问题导致大量请求被拒绝，严重影响系统在高并发场景下的可用性。
 
 ## Glossary
 

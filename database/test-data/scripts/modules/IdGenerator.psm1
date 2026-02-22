@@ -17,7 +17,7 @@ $script:IdCache = @{}
     从 ID Generator 服务获取单个 ID
 
 .DESCRIPTION
-    调用 blog-id-generator 服务生成单个雪花算法 ID
+    调用 ZhiCore-id-generator 服务生成单个雪花算法 ID
 
 .PARAMETER IdGeneratorUrl
     ID Generator 服务地址
@@ -74,7 +74,7 @@ function Get-NextId {
     从 ID Generator 服务批量获取 ID
 
 .DESCRIPTION
-    调用 blog-id-generator 服务批量生成雪花算法 ID
+    调用 ZhiCore-id-generator 服务批量生成雪花算法 ID
 
 .PARAMETER IdGeneratorUrl
     ID Generator 服务地址

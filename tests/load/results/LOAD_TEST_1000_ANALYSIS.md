@@ -256,11 +256,11 @@ server:
 
 ## Test Environment
 
-- **Gateway**: blog-gateway (with JWT concurrent validation fix)
-- **User**: blog-user (with JWT concurrent validation fix)
-- **Post**: blog-post
-- **Comment**: blog-comment
-- **Leaf**: blog-leaf
+- **Gateway**: ZhiCore-gateway (with JWT concurrent validation fix)
+- **User**: ZhiCore-user (with JWT concurrent validation fix)
+- **Post**: ZhiCore-post
+- **Comment**: ZhiCore-comment
+- **Leaf**: ZhiCore-leaf
 - **Redis**: 7.2-alpine (Port 6800)
 - **PostgreSQL**: 16-alpine (Port 5432)
 - **JWT Cache**: Enabled (max-size: 10000, ttl: 5 minutes)

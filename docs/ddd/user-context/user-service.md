@@ -35,7 +35,7 @@ public class UserService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IUserRepository.cs
+// ZhiCoreCore/Domain/Repositories/IUserRepository.cs
 public interface IUserRepository
 {
     /// <summary>
@@ -108,7 +108,7 @@ public interface IUserRepository
 ### Application Service
 
 ```csharp
-// BlogCore/Application/User/IUserApplicationService.cs
+// ZhiCoreCore/Application/User/IUserApplicationService.cs
 public interface IUserApplicationService
 {
     Task<UserProfileVo?> GetUserProfileAsync(string userId, string? currentUserId = null);
@@ -119,7 +119,7 @@ public interface IUserApplicationService
     Task<UserStatsDto?> GetUserStatsAsync(string userId);
 }
 
-// BlogCore/Application/User/UserApplicationService.cs
+// ZhiCoreCore/Application/User/UserApplicationService.cs
 public class UserApplicationService : IUserApplicationService
 {
     private readonly IUserRepository _userRepository;
@@ -218,7 +218,7 @@ public record UserProfileUpdatedEvent : DomainEventBase
 ### 事件处理器
 
 ```csharp
-// BlogCore/Domain/EventHandlers/User/UserProfileUpdatedEventHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/User/UserProfileUpdatedEventHandler.cs
 public class UserProfileUpdatedEventHandler : IDomainEventHandler<UserProfileUpdatedEvent>
 {
     private readonly IDatabase _redis;

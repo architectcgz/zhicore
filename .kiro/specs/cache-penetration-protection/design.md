@@ -840,7 +840,7 @@ public PostContent getPostContent(Long postId) {
 
 根据项目的常量管理规范，缓存相关的配置参数应该通过配置文件管理（因为需要在不同环境使用不同值）。
 
-**配置文件位置**：`blog-common/src/main/resources/application.yml`
+**配置文件位置**：`ZhiCore-common/src/main/resources/application.yml`
 
 ```yaml
 cache:
@@ -857,7 +857,7 @@ cache:
   null-value-ttl: 60
 ```
 
-**配置类**：`blog-common/src/main/java/com/blog/common/config/CacheProperties.java`
+**配置类**：`ZhiCore-common/src/main/java/com/ZhiCore/common/config/CacheProperties.java`
 
 ```java
 @Data
@@ -895,7 +895,7 @@ public class CacheProperties {
 
 根据项目的常量管理规范，Redis Key 应该在各服务的 `*RedisKeys.java` 类中管理。
 
-**文章服务**：`blog-post/src/main/java/com/blog/post/infrastructure/cache/PostRedisKeys.java`
+**文章服务**：`ZhiCore-post/src/main/java/com/ZhiCore/post/infrastructure/cache/PostRedisKeys.java`
 
 ```java
 /**
@@ -915,7 +915,7 @@ public static String lockFullDetail(Long postId) {
 }
 ```
 
-**用户服务**：`blog-user/src/main/java/com/blog/user/infrastructure/cache/UserRedisKeys.java`
+**用户服务**：`ZhiCore-user/src/main/java/com/ZhiCore/user/infrastructure/cache/UserRedisKeys.java`
 
 ```java
 /**
@@ -927,7 +927,7 @@ public static String lockDetail(Long userId) {
 }
 ```
 
-**评论服务**：`blog-comment/src/main/java/com/blog/comment/infrastructure/cache/CommentRedisKeys.java`
+**评论服务**：`ZhiCore-comment/src/main/java/com/ZhiCore/comment/infrastructure/cache/CommentRedisKeys.java`
 
 ```java
 /**

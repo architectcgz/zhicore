@@ -1,6 +1,6 @@
 # 如何运行分片上传集成测试
 
-> **注意**: 本测试文档针对旧的 blog-upload 服务。RustFS 对象存储已移至独立的 `file-service`。
+> **注意**: 本测试文档针对旧的 ZhiCore-upload 服务。RustFS 对象存储已移至独立的 `file-service`。
 > 新的文件服务测试请参考 `file-service/docker/README.md`。
 
 ## 当前状态
@@ -34,10 +34,10 @@ docker-compose up -d rustfs postgres redis
 
 ```powershell
 # 运行迁移
-mvn flyway:migrate -pl blog-migration
+mvn flyway:migrate -pl ZhiCore-migration
 
 # 验证表是否存在
-docker-compose exec postgres psql -U blog_user -d blog_db -c "\dt upload_*"
+docker-compose exec postgres psql -U ZhiCore_user -d ZhiCore_db -c "\dt upload_*"
 ```
 
 应该看到以下表：
@@ -50,7 +50,7 @@ docker-compose exec postgres psql -U blog_user -d blog_db -c "\dt upload_*"
 
 ```powershell
 # 在新的终端窗口中
-mvn spring-boot:run -pl blog-user
+mvn spring-boot:run -pl ZhiCore-user
 ```
 
 等待服务启动完成，然后验证：
@@ -64,7 +64,7 @@ curl http://localhost:8081/actuator/health
 ```powershell
 # 在新的终端窗口中
 $env:STORAGE_TYPE = 's3'
-mvn spring-boot:run -pl blog-upload
+mvn spring-boot:run -pl ZhiCore-upload
 ```
 
 等待服务启动完成，然后验证：
@@ -119,18 +119,18 @@ Start-Sleep -Seconds 10
 
 # 3. Run migrations
 Write-Host "3. Running database migrations..." -ForegroundColor Yellow
-mvn flyway:migrate -pl blog-migration
+mvn flyway:migrate -pl ZhiCore-migration
 
 # 4. Start user service in background
 Write-Host "4. Starting user service..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "mvn spring-boot:run -pl blog-user"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "mvn spring-boot:run -pl ZhiCore-user"
 
 # 5. Wait a bit
 Start-Sleep -Seconds 15
 
 # 6. Start upload service in background with S3 mode
 Write-Host "5. Starting upload service (S3 mode)..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "`$env:STORAGE_TYPE='s3'; mvn spring-boot:run -pl blog-upload"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "`$env:STORAGE_TYPE='s3'; mvn spring-boot:run -pl ZhiCore-upload"
 
 # 7. Wait for services to start
 Write-Host "6. Waiting for services to start..." -ForegroundColor Yellow
@@ -153,11 +153,11 @@ Write-Host "Run tests with: cd tests/api/upload; .\test-multipart-upload-integra
 
 ```powershell
 # User service logs
-mvn spring-boot:run -pl blog-user
+mvn spring-boot:run -pl ZhiCore-user
 
 # Upload service logs  
 $env:STORAGE_TYPE = 's3'
-mvn spring-boot:run -pl blog-upload
+mvn spring-boot:run -pl ZhiCore-upload
 ```
 
 ### 数据库连接错误
@@ -166,7 +166,7 @@ mvn spring-boot:run -pl blog-upload
 
 ```powershell
 docker-compose ps postgres
-mvn flyway:migrate -pl blog-migration
+mvn flyway:migrate -pl ZhiCore-migration
 ```
 
 ### 测试失败

@@ -37,7 +37,7 @@ public class TopicService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/ITopicRepository.cs
+// ZhiCoreCore/Domain/Repositories/ITopicRepository.cs
 public interface ITopicRepository
 {
     /// <summary>
@@ -101,7 +101,7 @@ public interface ITopicRepository
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Content/ITopicApplicationService.cs
+// ZhiCoreCore/Application/Content/ITopicApplicationService.cs
 public interface ITopicApplicationService
 {
     Task<TopicVo> CreateTopicAsync(string userId, CreateTopicReq req);
@@ -114,7 +114,7 @@ public interface ITopicApplicationService
     Task UnfollowTopicAsync(string userId, long topicId);
 }
 
-// BlogCore/Application/Content/TopicApplicationService.cs
+// ZhiCoreCore/Application/Content/TopicApplicationService.cs
 public class TopicApplicationService : ITopicApplicationService
 {
     private readonly ITopicRepository _topicRepository;
@@ -191,7 +191,7 @@ public record TopicStatsUpdatedEvent : DomainEventBase
 ### 事件处理器
 
 ```csharp
-// BlogCore/Domain/EventHandlers/Content/PostPublishedTopicHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Content/PostPublishedTopicHandler.cs
 public class PostPublishedTopicHandler : IDomainEventHandler<PostPublishedEvent>
 {
     private readonly ITopicRepository _topicRepository;
@@ -213,7 +213,7 @@ public class PostPublishedTopicHandler : IDomainEventHandler<PostPublishedEvent>
     }
 }
 
-// BlogCore/Domain/EventHandlers/Content/PostDeletedTopicHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Content/PostDeletedTopicHandler.cs
 public class PostDeletedTopicHandler : IDomainEventHandler<PostDeletedEvent>
 {
     private readonly ITopicRepository _topicRepository;

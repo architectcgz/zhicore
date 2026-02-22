@@ -1,0 +1,56 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: ZhiCore-id-generator
+  
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:ZhiCore_SERVICE}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:ZhiCore_SERVICE}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        file-extension: yml
+
+# ID Generator Client Configuration
+id-generator:
+  client:
+    server-url: ${ID_GENERATOR_SERVER_URL:http://localhost:8011}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 10000
+    buffer-size: 100
+    refill-threshold: 20
+    batch-fetch-size: 50
+    async-refill: true
+    buffer-enabled: true
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Knife4j Configuration
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+knife4j:
+  enable: true
+  setting:
+    language: zh_CN

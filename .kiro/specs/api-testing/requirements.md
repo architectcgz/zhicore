@@ -18,7 +18,7 @@
 
 ## Requirements
 
-### Requirement 1: 用户服务全面测试 (blog-user) - 35个测试用例
+### Requirement 1: 用户服务全面测试 (ZhiCore-user) - 35个测试用例
 
 **User Story:** As a 测试人员, I want 全面测试用户服务所有接口的正常和异常场景, so that 确保用户服务功能完整且健壮。
 
@@ -78,7 +78,7 @@
 1.34. WHEN 测试无效页码时, THE Test_Suite SHALL 验证优雅处理
 1.35. WHEN 测试超大页面大小时, THE Test_Suite SHALL 验证优雅处理
 
-### Requirement 2: 文章服务全面测试 (blog-post) - 41个测试用例
+### Requirement 2: 文章服务全面测试 (ZhiCore-post) - 41个测试用例
 
 **User Story:** As a 测试人员, I want 全面测试文章服务所有接口的正常和异常场景, so that 确保文章服务功能完整且健壮。
 
@@ -141,7 +141,7 @@
 2.40. WHEN 测试特殊字符文章标题时, THE Test_Suite SHALL 验证特殊字符被正确处理
 2.41. WHEN 测试XSS注入文章ID参数时, THE Test_Suite SHALL 验证脚本标签被正确拒绝
 
-### Requirement 3: 评论服务全面测试 (blog-comment) - 36个测试用例
+### Requirement 3: 评论服务全面测试 (ZhiCore-comment) - 36个测试用例
 
 **User Story:** As a 测试人员, I want 全面测试评论服务所有接口的正常和异常场景, so that 确保评论服务功能完整且健壮。
 
@@ -199,7 +199,7 @@
 3.35. WHEN 测试XSS注入评论ID参数时, THE Test_Suite SHALL 验证脚本标签被正确拒绝
 3.36. WHEN 测试SQL注入文章ID参数时, THE Test_Suite SHALL 验证SQL注入被正确拒绝
 
-### Requirement 4: 消息服务全面测试 (blog-message) - 20个测试用例
+### Requirement 4: 消息服务全面测试 (ZhiCore-message) - 20个测试用例
 
 **User Story:** As a 测试人员, I want 全面测试消息服务所有接口的正常和异常场景, so that 确保私信功能完整且健壮。
 
@@ -235,7 +235,7 @@
 4.19. WHEN 测试获取未读消息数时, THE Test_Suite SHALL 验证返回正确数量
 4.20. WHEN 测试批量标记已读时, THE Test_Suite SHALL 验证批量标记成功
 
-### Requirement 5: 通知服务全面测试 (blog-notification) - 15个测试用例
+### Requirement 5: 通知服务全面测试 (ZhiCore-notification) - 15个测试用例
 
 **User Story:** As a 测试人员, I want 全面测试通知服务所有接口的正常和异常场景, so that 确保通知功能完整且健壮。
 
@@ -263,7 +263,7 @@
 5.14. WHEN 测试删除通知时, THE Test_Suite SHALL 验证删除成功
 5.15. WHEN 测试删除不存在通知时, THE Test_Suite SHALL 验证返回404错误
 
-### Requirement 6: 搜索服务全面测试 (blog-search) - 12个测试用例
+### Requirement 6: 搜索服务全面测试 (ZhiCore-search) - 12个测试用例
 
 **User Story:** As a 测试人员, I want 全面测试搜索服务所有接口的正常和异常场景, so that 确保搜索功能完整且健壮。
 
@@ -285,7 +285,7 @@
 6.11. WHEN 测试建议数量限制时, THE Test_Suite SHALL 验证返回限制数量
 6.12. WHEN 测试特殊字符建议时, THE Test_Suite SHALL 验证优雅处理
 
-### Requirement 7: 排行榜服务全面测试 (blog-ranking) - 12个测试用例
+### Requirement 7: 排行榜服务全面测试 (ZhiCore-ranking) - 12个测试用例
 
 **User Story:** As a 测试人员, I want 全面测试排行榜服务所有接口的正常和异常场景, so that 确保排行榜功能完整且健壮。
 
@@ -310,7 +310,7 @@
 7.11. WHEN 测试话题趋势数据时, THE Test_Suite SHALL 验证返回趋势信息
 7.12. WHEN 测试无效分页参数时, THE Test_Suite SHALL 验证优雅处理
 
-### Requirement 8: 上传服务全面测试 (blog-upload) - 15个测试用例
+### Requirement 8: 上传服务全面测试 (ZhiCore-upload) - 15个测试用例
 
 **User Story:** As a 测试人员, I want 全面测试上传服务所有接口的正常和异常场景, so that 确保文件上传功能完整且健壮。
 
@@ -335,7 +335,7 @@
 8.14. WHEN 测试取消上传时, THE Test_Suite SHALL 验证取消成功
 8.15. WHEN 测试断点续传时, THE Test_Suite SHALL 验证续传成功
 
-### Requirement 9: 管理后台服务全面测试 (blog-admin) - 25个测试用例
+### Requirement 9: 管理后台服务全面测试 (ZhiCore-admin) - 25个测试用例
 
 **User Story:** As a 测试人员, I want 全面测试管理后台服务所有接口的正常和异常场景, so that 确保后台管理功能完整且健壮。
 
@@ -376,7 +376,7 @@
 9.24. WHEN 测试驳回举报时, THE Test_Suite SHALL 验证驳回成功
 9.25. WHEN 测试批量处理举报时, THE Test_Suite SHALL 验证批量处理成功
 
-### Requirement 10: 网关服务全面测试 (blog-gateway) - 15个测试用例
+### Requirement 10: 网关服务全面测试 (ZhiCore-gateway) - 15个测试用例
 
 **User Story:** As a 测试人员, I want 全面测试网关服务所有功能的正常和异常场景, so that 确保网关功能完整且健壮。
 

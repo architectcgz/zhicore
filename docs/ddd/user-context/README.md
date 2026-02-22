@@ -61,7 +61,7 @@ UserAggregate
 ## 目录结构
 
 ```
-BlogCore/
+ZhiCoreCore/
 ├── Application/User/
 │   ├── IUserApplicationService.cs
 │   ├── UserApplicationService.cs

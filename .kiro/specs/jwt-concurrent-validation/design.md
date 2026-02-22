@@ -2,7 +2,7 @@
 
 ## Overview
 
-本设计文档针对 blog-gateway 在高并发场景下出现的 JWT 签名验证失败问题提供解决方案。问题的核心在于 `JwtAuthenticationFilter` 在处理并发请求时存在性能问题，每次请求都重复创建 `SecretKey` 和 `JwtParser` 实例。
+本设计文档针对 ZhiCore-gateway 在高并发场景下出现的 JWT 签名验证失败问题提供解决方案。问题的核心在于 `JwtAuthenticationFilter` 在处理并发请求时存在性能问题，每次请求都重复创建 `SecretKey` 和 `JwtParser` 实例。
 
 ### 问题分析
 
@@ -145,7 +145,7 @@ Request with JWT Token
 **最佳实践实现**:
 
 ```java
-package com.blog.gateway.security;
+package com.ZhiCore.gateway.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -271,7 +271,7 @@ public class JwtTokenValidator {
 **优化点**: 使用 `ThreadLocal<MessageDigest>` 避免 synchronized 瓶颈
 
 ```java
-package com.blog.gateway.security;
+package com.ZhiCore.gateway.security;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -402,7 +402,7 @@ public class TokenValidationCache {
 **职责**: 封装验证结果
 
 ```java
-package com.blog.gateway.security;
+package com.ZhiCore.gateway.security;
 
 import lombok.Builder;
 import lombok.Data;
@@ -425,7 +425,7 @@ public class ValidationResult implements Serializable {
 **职责**: 收集 JWT 验证的指标
 
 ```java
-package com.blog.gateway.security;
+package com.ZhiCore.gateway.security;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -505,12 +505,12 @@ public class JwtMetricsCollector {
 **职责**: 使用新的验证器重构过滤器
 
 ```java
-package com.blog.gateway.filter;
+package com.ZhiCore.gateway.filter;
 
-import com.blog.gateway.config.JwtProperties;
-import com.blog.gateway.security.JwtTokenValidator;
-import com.blog.gateway.security.ValidationResult;
-import com.blog.gateway.service.TokenBlacklistService;
+import com.ZhiCore.gateway.config.JwtProperties;
+import com.ZhiCore.gateway.security.JwtTokenValidator;
+import com.ZhiCore.gateway.security.ValidationResult;
+import com.ZhiCore.gateway.service.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -628,7 +628,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 ### CacheStats
 
 ```java
-package com.blog.gateway.security;
+package com.ZhiCore.gateway.security;
 
 import lombok.Builder;
 import lombok.Data;
@@ -647,7 +647,7 @@ public class CacheStats {
 ### JwtProperties.CacheConfig
 
 ```java
-package com.blog.gateway.config;
+package com.ZhiCore.gateway.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -914,7 +914,7 @@ management:
         include: health,info,metrics,prometheus
   metrics:
     tags:
-      application: blog-gateway
+      application: ZhiCore-gateway
 ```
 
 ## Performance Considerations
@@ -988,8 +988,8 @@ management:
 3. Update error handling
 
 ### Phase 3: Update Other JWT Implementations (Day 1)
-1. Update `JwtTokenProvider` in blog-user to pre-build JwtParser
-2. Update `UserContextFilter` in blog-common to pre-build JwtParser
+1. Update `JwtTokenProvider` in ZhiCore-user to pre-build JwtParser
+2. Update `UserContextFilter` in ZhiCore-common to pre-build JwtParser
 
 ### Phase 4: Testing (Day 2)
 1. Write unit tests

@@ -2,7 +2,7 @@
 
 ## Overview
 
-本设计文档描述了如何将 blog-user 和 blog-post 服务中的管理功能从简化实现（内存过滤分页）改造为生产环境可用的实现（数据库层过滤分页）。
+本设计文档描述了如何将 ZhiCore-user 和 ZhiCore-post 服务中的管理功能从简化实现（内存过滤分页）改造为生产环境可用的实现（数据库层过滤分页）。
 
 核心改进点：
 1. 在 Repository 层添加支持动态条件查询的方法
@@ -280,7 +280,7 @@ public class PostQueryCondition {
 
 ```xml
 <!-- 根据条件查询用户列表 -->
-<select id="selectByConditions" resultType="com.blog.user.infrastructure.repository.po.UserPO">
+<select id="selectByConditions" resultType="com.ZhiCore.user.infrastructure.repository.po.UserPO">
     SELECT * FROM users
     <where>
         <if test="keyword != null and keyword != ''">
@@ -314,7 +314,7 @@ public class PostQueryCondition {
 
 ```xml
 <!-- 根据条件查询文章列表 -->
-<select id="selectByConditions" resultType="com.blog.post.infrastructure.repository.po.PostPO">
+<select id="selectByConditions" resultType="com.zhicore.post.infrastructure.repository.po.PostPO">
     SELECT * FROM posts
     <where>
         <if test="keyword != null and keyword != ''">
@@ -725,7 +725,7 @@ spring:
 ```yaml
 logging:
   level:
-    com.blog.user.infrastructure.repository.mapper: DEBUG
+    com.ZhiCore.user.infrastructure.repository.mapper: DEBUG
     
 mybatis:
   configuration:

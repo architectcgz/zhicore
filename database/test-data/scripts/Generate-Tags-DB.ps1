@@ -13,9 +13,9 @@ param(
     [string]$ConfigPath = "",
     [string]$IdGeneratorUrl = "http://localhost:8088",
     [int]$TagCount = 30,
-    [string]$PostgresContainer = "blog-postgres",
+    [string]$PostgresContainer = "ZhiCore-postgres",
     [string]$PostgresUser = "postgres",
-    [string]$PostgresDatabase = "blog_post",
+    [string]$PostgresDatabase = "ZhiCore_post",
     [switch]$DryRun
 )
 

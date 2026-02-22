@@ -57,7 +57,7 @@
 ```yaml
 # application.yml
 leaf:
-  name: blog-leaf
+  name: ZhiCore-leaf
   snowflake:
     enable: true
     # 使用 Nacos 自动分配 WorkerId
@@ -118,7 +118,7 @@ public class LeafIdGenerator implements IdGenerator {
     
     @Override
     public long nextId() {
-        Result result = snowflakeService.getId("blog");
+        Result result = snowflakeService.getId("ZhiCore");
         if (result.getStatus() != Status.SUCCESS) {
             throw new IdGenerationException("ID 生成失败: " + result.getStatus());
         }
@@ -766,10 +766,10 @@ public class CacheConfig {
 > **设计说明：按业务域拆分 Topic**
 > 
 > 为避免单一 Topic 成为性能瓶颈，按业务域拆分为多个 Topic：
-> - `blog-post-events`：文章相关事件（发布、更新、删除、点赞等）
-> - `blog-user-events`：用户相关事件（关注、资料更新等）
-> - `blog-comment-events`：评论相关事件（创建、点赞等）
-> - `blog-message-events`：私信相关事件（需要顺序消息）
+> - `ZhiCore-post-events`：文章相关事件（发布、更新、删除、点赞等）
+> - `ZhiCore-user-events`：用户相关事件（关注、资料更新等）
+> - `ZhiCore-comment-events`：评论相关事件（创建、点赞等）
+> - `ZhiCore-message-events`：私信相关事件（需要顺序消息）
 > 
 > 拆分优势：
 > 1. 避免单 Topic 成为瓶颈
@@ -782,22 +782,22 @@ public class CacheConfig {
 │                              RocketMQ Topology                                   │
 │                                                                                  │
 │   ┌─────────────────────────────────────────────────────────────────────────┐   │
-│   │                    blog-post-events (Topic)                              │   │
+│   │                    ZhiCore-post-events (Topic)                              │   │
 │   │   Tags: published, updated, deleted, liked, unliked, favorited           │   │
 │   └─────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                  │
 │   ┌─────────────────────────────────────────────────────────────────────────┐   │
-│   │                    blog-user-events (Topic)                              │   │
+│   │                    ZhiCore-user-events (Topic)                              │   │
 │   │   Tags: followed, unfollowed, profile-updated, registered                │   │
 │   └─────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                  │
 │   ┌─────────────────────────────────────────────────────────────────────────┐   │
-│   │                    blog-comment-events (Topic)                           │   │
+│   │                    ZhiCore-comment-events (Topic)                           │   │
 │   │   Tags: created, liked, unliked, deleted                                 │   │
 │   └─────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                  │
 │   ┌─────────────────────────────────────────────────────────────────────────┐   │
-│   │                    blog-message-events (Topic) - 顺序消息                 │   │
+│   │                    ZhiCore-message-events (Topic) - 顺序消息                 │   │
 │   │   Tags: sent, read                                                       │   │
 │   └─────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                  │
@@ -835,10 +835,10 @@ public class CacheConfig {
 
 | Consumer Group | 订阅 Topic | ConsumeMode | 并发度 | 最大重试 | 说明 |
 |----------------|-----------|-------------|--------|---------|------|
-| search-consumer-group | blog-post-events | CONCURRENTLY | 20 | 3 | 搜索索引更新 |
-| notification-consumer-group | blog-post-events, blog-comment-events, blog-user-events | CONCURRENTLY | 10 | 3 | 通知创建 |
-| ranking-consumer-group | blog-post-events, blog-user-events | CONCURRENTLY | 5 | 3 | 排行榜更新 |
-| message-consumer-group | blog-message-events | **ORDERLY** | 1 | 5 | 私信消息（顺序） |
+| search-consumer-group | ZhiCore-post-events | CONCURRENTLY | 20 | 3 | 搜索索引更新 |
+| notification-consumer-group | ZhiCore-post-events, ZhiCore-comment-events, ZhiCore-user-events | CONCURRENTLY | 10 | 3 | 通知创建 |
+| ranking-consumer-group | ZhiCore-post-events, ZhiCore-user-events | CONCURRENTLY | 5 | 3 | 排行榜更新 |
+| message-consumer-group | ZhiCore-message-events | **ORDERLY** | 1 | 5 | 私信消息（顺序） |
 
 #### 顺序消费者示例（私信消息）
 
@@ -902,10 +902,10 @@ public class PostLikeNotificationConsumer implements RocketMQListener<String> {
 public class RocketMQConfig {
     
     // ========== Topics（按业务域拆分）==========
-    public static final String TOPIC_POST = "blog-post-events";
-    public static final String TOPIC_USER = "blog-user-events";
-    public static final String TOPIC_COMMENT = "blog-comment-events";
-    public static final String TOPIC_MESSAGE = "blog-message-events";  // 顺序消息
+    public static final String TOPIC_POST = "ZhiCore-post-events";
+    public static final String TOPIC_USER = "ZhiCore-user-events";
+    public static final String TOPIC_COMMENT = "ZhiCore-comment-events";
+    public static final String TOPIC_MESSAGE = "ZhiCore-message-events";  // 顺序消息
     
     // ========== Post Tags ==========
     public static final String TAG_POST_PUBLISHED = "published";
@@ -961,7 +961,7 @@ public class RocketMQConfig {
 rocketmq:
   name-server: ${ROCKETMQ_NAMESRV:localhost:9876}
   producer:
-    group: blog-producer-group
+    group: ZhiCore-producer-group
     send-message-timeout: 3000
     retry-times-when-send-failed: 2
     retry-times-when-send-async-failed: 2
@@ -1072,7 +1072,7 @@ public class DomainEventPublisher {
  * 用于处理需要本地事务+消息原子性的场景
  */
 @RocketMQTransactionListener
-public class BlogTransactionListener implements RocketMQLocalTransactionListener {
+public class ZhiCoreTransactionListener implements RocketMQLocalTransactionListener {
     
     private final PostRepository postRepository;
     
@@ -1444,7 +1444,7 @@ ALTER SYSTEM SET max_wal_senders = 4;
 SELECT pg_create_logical_replication_slot('debezium_slot', 'pgoutput');
 
 -- 创建发布（指定需要监听的表）
-CREATE PUBLICATION blog_cdc FOR TABLE 
+CREATE PUBLICATION ZhiCore_cdc FOR TABLE 
     post_likes, 
     post_favorites, 
     post_stats,
@@ -1458,21 +1458,21 @@ CREATE PUBLICATION blog_cdc FOR TABLE
 
 ```json
 {
-  "name": "blog-postgres-source",
+  "name": "ZhiCore-postgres-source",
   "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
   "database.hostname": "postgres",
   "database.port": "5432",
   "database.user": "debezium",
   "database.password": "${DB_PASSWORD}",
-  "database.dbname": "blog",
-  "database.server.name": "blog",
+  "database.dbname": "ZhiCore",
+  "database.server.name": "ZhiCore",
   "plugin.name": "pgoutput",
-  "publication.name": "blog_cdc",
+  "publication.name": "ZhiCore_cdc",
   "slot.name": "debezium_slot",
   "table.include.list": "public.post_likes,public.post_stats,public.comment_likes,public.user_follow_stats",
   "transforms": "route",
   "transforms.route.type": "org.apache.rocketmq.connect.transforms.PatternRename",
-  "transforms.route.pattern": "blog\\.public\\.(.*)",
+  "transforms.route.pattern": "ZhiCore\\.public\\.(.*)",
   "transforms.route.replacement": "cdc-$1"
 }
 ```
@@ -1721,12 +1721,12 @@ spring:
   application:
     name: user-service
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:5432/blog_user
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/ZhiCore_user
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD}  # 敏感配置从环境变量读取
 
 # Nacos 动态配置 (user-service.yml)
-blog:
+ZhiCore:
   user:
     follow:
       max-following: 1000        # 最大关注数
@@ -1774,7 +1774,7 @@ nacos-config/
  */
 @Data
 @Configuration
-@ConfigurationProperties(prefix = "blog.user.rate-limit")
+@ConfigurationProperties(prefix = "ZhiCore.user.rate-limit")
 @RefreshScope  // 支持动态刷新
 public class RateLimitConfig {
     
@@ -2089,7 +2089,7 @@ public class MigrationValidator {
  */
 @Data
 @Configuration
-@ConfigurationProperties(prefix = "blog.gray")
+@ConfigurationProperties(prefix = "ZhiCore.gray")
 @RefreshScope
 public class GrayReleaseConfig {
     
@@ -2337,7 +2337,7 @@ public class GrayRollbackService {
         nacosConfigService.publishConfig(
             "gray-release.yml", 
             "DEFAULT_GROUP",
-            "blog.gray.enabled: false\nblog.gray.percentage: 0"
+            "ZhiCore.gray.enabled: false\nZhiCore.gray.percentage: 0"
         );
         
         // 3. 发送告警通知
@@ -2367,14 +2367,14 @@ public class GrayRollbackService {
 
 > **说明：复用现有基础设施**
 > 
-> 当前环境已有 blog-postgres（5432）、blog-redis（6500）运行中，新增服务需避免端口冲突。
+> 当前环境已有 ZhiCore-postgres（5432）、ZhiCore-redis（6500）运行中，新增服务需避免端口冲突。
 
 ### 基础设施服务清单
 
 | 服务 | 镜像 | 端口 | 用途 | 备注 |
 |------|------|------|------|------|
-| PostgreSQL | - | 5432 | 主数据库 | 复用现有 blog-postgres |
-| Redis | - | 6500 | 缓存、分布式锁、会话 | 复用现有 blog-redis |
+| PostgreSQL | - | 5432 | 主数据库 | 复用现有 ZhiCore-postgres |
+| Redis | - | 6500 | 缓存、分布式锁、会话 | 复用现有 ZhiCore-redis |
 | RocketMQ NameServer | apache/rocketmq:5.1.4 | 9876 | 消息队列名称服务 | 新增 |
 | RocketMQ Broker | apache/rocketmq:5.1.4 | 10911 | 消息队列代理 | 新增 |
 | RocketMQ Dashboard | apacherocketmq/rocketmq-dashboard:latest | 8180 | 消息队列管理界面 | 新增 |
@@ -2394,7 +2394,7 @@ services:
   # ==================== 消息队列 ====================
   rocketmq-namesrv:
     image: apache/rocketmq:5.1.4
-    container_name: blog-rocketmq-namesrv
+    container_name: ZhiCore-rocketmq-namesrv
     command: sh mqnamesrv
     ports:
       - "9876:9876"
@@ -2403,11 +2403,11 @@ services:
     volumes:
       - rocketmq_namesrv_logs:/home/rocketmq/logs
     networks:
-      - blog-network
+      - ZhiCore-network
 
   rocketmq-broker:
     image: apache/rocketmq:5.1.4
-    container_name: blog-rocketmq-broker
+    container_name: ZhiCore-rocketmq-broker
     command: sh mqbroker -n rocketmq-namesrv:9876 -c /home/rocketmq/conf/broker.conf
     ports:
       - "10911:10911"
@@ -2421,11 +2421,11 @@ services:
     depends_on:
       - rocketmq-namesrv
     networks:
-      - blog-network
+      - ZhiCore-network
 
   rocketmq-dashboard:
     image: apacherocketmq/rocketmq-dashboard:latest
-    container_name: blog-rocketmq-dashboard
+    container_name: ZhiCore-rocketmq-dashboard
     ports:
       - "8180:8080"
     environment:
@@ -2434,12 +2434,12 @@ services:
       - rocketmq-namesrv
       - rocketmq-broker
     networks:
-      - blog-network
+      - ZhiCore-network
 
   # ==================== 服务注册与配置中心 ====================
   nacos:
     image: nacos/nacos-server:v2.3.0
-    container_name: blog-nacos
+    container_name: ZhiCore-nacos
     environment:
       MODE: standalone
       SPRING_DATASOURCE_PLATFORM: ""
@@ -2459,12 +2459,12 @@ services:
       timeout: 5s
       retries: 10
     networks:
-      - blog-network
+      - ZhiCore-network
 
   # ==================== 搜索引擎 ====================
   elasticsearch:
     image: elasticsearch:8.11.0
-    container_name: blog-elasticsearch
+    container_name: ZhiCore-elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -2480,11 +2480,11 @@ services:
       timeout: 10s
       retries: 5
     networks:
-      - blog-network
+      - ZhiCore-network
 
   kibana:
     image: kibana:8.11.0
-    container_name: blog-kibana
+    container_name: ZhiCore-kibana
     environment:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
     ports:
@@ -2492,12 +2492,12 @@ services:
     depends_on:
       - elasticsearch
     networks:
-      - blog-network
+      - ZhiCore-network
 
   # ==================== 对象存储（RustFS - S3 兼容）====================
   rustfs:
     image: ghcr.io/rustfs/rustfs:latest
-    container_name: blog-rustfs
+    container_name: ZhiCore-rustfs
     command: server /data --console-address ":9001"
     environment:
       RUSTFS_ROOT_USER: ${RUSTFS_USER:-rustfsadmin}
@@ -2513,12 +2513,12 @@ services:
       timeout: 20s
       retries: 3
     networks:
-      - blog-network
+      - ZhiCore-network
 
   # ==================== 监控 ====================
   prometheus:
     image: prom/prometheus:latest
-    container_name: blog-prometheus
+    container_name: ZhiCore-prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -2530,11 +2530,11 @@ services:
       - ./prometheus/rules:/etc/prometheus/rules
       - prometheus_data:/prometheus
     networks:
-      - blog-network
+      - ZhiCore-network
 
   grafana:
     image: grafana/grafana:latest
-    container_name: blog-grafana
+    container_name: ZhiCore-grafana
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
@@ -2546,7 +2546,7 @@ services:
     depends_on:
       - prometheus
     networks:
-      - blog-network
+      - ZhiCore-network
 
 # ==================== 数据卷 ====================
 volumes:
@@ -2561,21 +2561,21 @@ volumes:
 
 # ==================== 网络 ====================
 networks:
-  blog-network:
-    external: true  # 使用现有网络，与 blog-postgres、blog-redis 互通
+  ZhiCore-network:
+    external: true  # 使用现有网络，与 ZhiCore-postgres、ZhiCore-redis 互通
 ```
 
 ### 网络配置说明
 
-由于需要与现有的 `blog-postgres`（5432）和 `blog-redis`（6500）互通，需要先创建外部网络：
+由于需要与现有的 `ZhiCore-postgres`（5432）和 `ZhiCore-redis`（6500）互通，需要先创建外部网络：
 
 ```bash
 # 创建共享网络（如果不存在）
-docker network create blog-network
+docker network create ZhiCore-network
 
 # 将现有容器连接到网络
-docker network connect blog-network blog-postgres
-docker network connect blog-network blog-redis
+docker network connect ZhiCore-network ZhiCore-postgres
+docker network connect ZhiCore-network ZhiCore-redis
 ```
     driver: bridge
 ```
@@ -2643,10 +2643,10 @@ scrape_configs:
           - 'host.docker.internal:8088'  # admin-service
           - 'host.docker.internal:8080'  # gateway
 
-  # Redis（复用现有 blog-redis，端口 6500）
+  # Redis（复用现有 ZhiCore-redis，端口 6500）
   - job_name: 'redis'
     static_configs:
-      - targets: ['blog-redis:6379']  # 容器内部端口
+      - targets: ['ZhiCore-redis:6379']  # 容器内部端口
 
   # PostgreSQL (需要 postgres_exporter)
   - job_name: 'postgres'
@@ -2661,53 +2661,53 @@ scrape_configs:
 
 #### 数据库初始化脚本 (init-db/01-init.sql)
 
-> **注意：** 由于复用现有 blog-postgres，此脚本需要手动在现有数据库中执行。
+> **注意：** 由于复用现有 ZhiCore-postgres，此脚本需要手动在现有数据库中执行。
 
 ```sql
 -- 创建各服务数据库
-CREATE DATABASE blog_user;
-CREATE DATABASE blog_post;
-CREATE DATABASE blog_comment;
-CREATE DATABASE blog_message;
-CREATE DATABASE blog_notification;
+CREATE DATABASE ZhiCore_user;
+CREATE DATABASE ZhiCore_post;
+CREATE DATABASE ZhiCore_comment;
+CREATE DATABASE ZhiCore_message;
+CREATE DATABASE ZhiCore_notification;
 
--- 授权（假设用户为 blog）
-GRANT ALL PRIVILEGES ON DATABASE blog_user TO blog;
-GRANT ALL PRIVILEGES ON DATABASE blog_post TO blog;
-GRANT ALL PRIVILEGES ON DATABASE blog_comment TO blog;
-GRANT ALL PRIVILEGES ON DATABASE blog_message TO blog;
-GRANT ALL PRIVILEGES ON DATABASE blog_notification TO blog;
+-- 授权（假设用户为 ZhiCore）
+GRANT ALL PRIVILEGES ON DATABASE ZhiCore_user TO ZhiCore;
+GRANT ALL PRIVILEGES ON DATABASE ZhiCore_post TO ZhiCore;
+GRANT ALL PRIVILEGES ON DATABASE ZhiCore_comment TO ZhiCore;
+GRANT ALL PRIVILEGES ON DATABASE ZhiCore_message TO ZhiCore;
+GRANT ALL PRIVILEGES ON DATABASE ZhiCore_notification TO ZhiCore;
 
 -- 启用扩展
-\c blog_user
+\c ZhiCore_user
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
-\c blog_post
+\c ZhiCore_post
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
-\c blog_comment
+\c ZhiCore_comment
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-\c blog_message
+\c ZhiCore_message
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-\c blog_notification
+\c ZhiCore_notification
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 ```
 
 ### 环境变量文件 (.env)
 
 ```bash
-# 数据库（复用现有 blog-postgres）
-DB_HOST=blog-postgres
+# 数据库（复用现有 ZhiCore-postgres）
+DB_HOST=ZhiCore-postgres
 DB_PORT=5432
-DB_USER=blog
-DB_PASSWORD=blog123
+DB_USER=ZhiCore
+DB_PASSWORD=ZhiCore123
 
-# Redis（复用现有 blog-redis，宿主机端口 6500）
-REDIS_HOST=blog-redis
+# Redis（复用现有 ZhiCore-redis，宿主机端口 6500）
+REDIS_HOST=ZhiCore-redis
 REDIS_PORT=6379  # 容器内部端口
 REDIS_PASSWORD=redis123
 
@@ -2734,11 +2734,11 @@ ROCKETMQ_NAMESRV=rocketmq-namesrv:9876
 
 ```bash
 # 创建共享网络（首次运行）
-docker network create blog-network
+docker network create ZhiCore-network
 
 # 将现有容器连接到网络
-docker network connect blog-network blog-postgres
-docker network connect blog-network blog-redis
+docker network connect ZhiCore-network ZhiCore-postgres
+docker network connect ZhiCore-network ZhiCore-redis
 
 # 启动所有新增服务
 docker-compose up -d
@@ -2766,7 +2766,7 @@ docker-compose restart [service_name]
 
 | 服务 | 地址 | 默认账号 | 备注 |
 |------|------|---------|------|
-| PostgreSQL | localhost:5432 | blog/blog123 | 复用现有 |
+| PostgreSQL | localhost:5432 | ZhiCore/ZhiCore123 | 复用现有 |
 | Redis | localhost:6500 | password: redis123 | 复用现有 |
 | Nacos Console | http://localhost:8848/nacos | nacos/nacos | 新增 |
 | RocketMQ Dashboard | http://localhost:8180 | - | 新增 |
@@ -2781,10 +2781,10 @@ docker-compose restart [service_name]
 
 ```bash
 # 检查 PostgreSQL（复用现有）
-docker exec blog-postgres pg_isready -U blog
+docker exec ZhiCore-postgres pg_isready -U ZhiCore
 
 # 检查 Redis（复用现有）
-docker exec blog-redis redis-cli -a redis123 ping
+docker exec ZhiCore-redis redis-cli -a redis123 ping
 
 # 检查 Nacos
 curl http://localhost:8848/nacos/v1/console/health/readiness
@@ -2805,13 +2805,13 @@ curl http://localhost:9000/minio/health/live
 # application.yml - 连接复用的基础设施
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST:blog-postgres}:${DB_PORT:5432}/blog_user
-    username: ${DB_USER:blog}
-    password: ${DB_PASSWORD:blog123}
+    url: jdbc:postgresql://${DB_HOST:ZhiCore-postgres}:${DB_PORT:5432}/ZhiCore_user
+    username: ${DB_USER:ZhiCore}
+    password: ${DB_PASSWORD:ZhiCore123}
   
   data:
     redis:
-      host: ${REDIS_HOST:blog-redis}
+      host: ${REDIS_HOST:ZhiCore-redis}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:redis123}
 
@@ -2824,5 +2824,5 @@ rustfs:
   endpoint: ${RUSTFS_ENDPOINT:http://rustfs:9000}
   access-key: ${RUSTFS_USER:rustfsadmin}
   secret-key: ${RUSTFS_PASSWORD:rustfsadmin123}
-  bucket: blog-uploads
+  bucket: ZhiCore-uploads
 ```

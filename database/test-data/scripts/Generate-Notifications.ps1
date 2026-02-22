@@ -105,7 +105,7 @@ function Get-TestUsers {
     
     try {
         $query = "SELECT id, username FROM users WHERE username LIKE 'test_%' ORDER BY id"
-        $output = docker exec -i blog-postgres psql -U postgres -d blog_user -t -A -F "," -c $query 2>&1
+        $output = docker exec -i ZhiCore-postgres psql -U postgres -d ZhiCore_user -t -A -F "," -c $query 2>&1
         
         if ($LASTEXITCODE -ne 0) {
             throw "SQL 查询失败: $output"
@@ -152,7 +152,7 @@ function Get-PublishedPosts {
     
     try {
         $query = "SELECT id, owner_id FROM posts WHERE status = 1 ORDER BY id"
-        $output = docker exec -i blog-postgres psql -U postgres -d blog_post -t -A -F "," -c $query 2>&1
+        $output = docker exec -i ZhiCore-postgres psql -U postgres -d ZhiCore_post -t -A -F "," -c $query 2>&1
         
         if ($LASTEXITCODE -ne 0) {
             throw "SQL 查询失败: $output"
@@ -199,7 +199,7 @@ function Get-Comments {
     
     try {
         $query = "SELECT id, post_id, author_id FROM comments WHERE status = 0 ORDER BY id"
-        $output = docker exec -i blog-postgres psql -U postgres -d blog_comment -t -A -F "," -c $query 2>&1
+        $output = docker exec -i ZhiCore-postgres psql -U postgres -d ZhiCore_comment -t -A -F "," -c $query 2>&1
         
         if ($LASTEXITCODE -ne 0) {
             Write-ColorOutput "⚠ 查询评论失败，将跳过评论相关通知" "Yellow"
@@ -250,7 +250,7 @@ function Get-UserFollows {
     
     try {
         $query = "SELECT follower_id, following_id FROM user_follows ORDER BY created_at"
-        $output = docker exec -i blog-postgres psql -U postgres -d blog_user -t -A -F "," -c $query 2>&1
+        $output = docker exec -i ZhiCore-postgres psql -U postgres -d ZhiCore_user -t -A -F "," -c $query 2>&1
         
         if ($LASTEXITCODE -ne 0) {
             Write-ColorOutput "⚠ 查询关注关系失败，将跳过关注通知" "Yellow"
@@ -607,7 +607,7 @@ try {
 -- 总通知数: $totalNotifications
 -- =====================================================
 
-\c blog_notification;
+\c ZhiCore_notification;
 
 BEGIN;
 
@@ -719,7 +719,7 @@ Write-ColorOutput "  psql -h localhost -p 5432 -U postgres -f `"$sqlOutputPath`"
 
 .NOTES
     前置条件：
-    1. blog-id-generator 服务已启动（端口 8088）
+    1. ZhiCore-id-generator 服务已启动（端口 8088）
     2. PostgreSQL 数据库已启动（端口 5432）
     3. 已执行用户数据生成脚本
     4. 已执行文章数据生成脚本

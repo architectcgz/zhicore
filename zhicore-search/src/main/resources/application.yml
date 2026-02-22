@@ -1,0 +1,99 @@
+server:
+  port: ${SERVER_PORT:8107}
+
+spring:
+  config:
+    import:
+      - optional:nacos:common.yml?group=ZHICORE_SERVICE&refreshEnabled=true
+      - optional:nacos:zhicore-search.yml?group=ZHICORE_SERVICE&refreshEnabled=true
+  cloud:
+    nacos:
+      discovery:
+        group: ZHICORE_SERVICE
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+
+# Knife4j API 文档配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true  # 必须启用，Knife4j 依赖此配置
+    path: /swagger-ui.html
+
+knife4j:
+  enable: true
+  title: 搜索服务 API 文档
+  version: 1.0.0
+  description: 博客系统搜索服务接口文档，提供全文搜索、搜索建议、热门搜索等功能
+  setting:
+    language: zh_cn
+    enable-swagger-models: true
+    enable-document-manage: true
+    swagger-model-name: 实体类列表
+  production: false
+
+# Elasticsearch 配置
+elasticsearch:
+  host: ${ELASTICSEARCH_HOST:localhost}
+  port: ${ELASTICSEARCH_PORT:9200}
+  scheme: ${ELASTICSEARCH_SCHEME:http}
+  username: ${ELASTICSEARCH_USERNAME:}
+  password: ${ELASTICSEARCH_PASSWORD:}
+  connection-timeout: 5000
+  socket-timeout: 30000
+
+# RocketMQ 配置
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+  producer:
+    group: search-producer-group
+    send-message-timeout: 3000
+  consumer:
+    group: search-consumer-group
+
+# Feign 配置
+spring.cloud.openfeign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 5000
+  sentinel:
+    enabled: true
+
+# Sentinel 配置
+spring.cloud.sentinel:
+  transport:
+    dashboard: ${SENTINEL_DASHBOARD:localhost:8080}
+  eager: true
+
+# 搜索配置
+search:
+  page-size:
+    default: 20
+    max: 100
+  suggestion:
+    limit: 10
+  highlight:
+    pre-tag: "<em>"
+    post-tag: "</em>"
+    fragment-size: 150
+
+# 日志配置
+logging:
+  level:
+    com.zhicore.search: DEBUG
+    co.elastic.clients: INFO
+    org.elasticsearch.client: INFO
+
+# Actuator 配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always

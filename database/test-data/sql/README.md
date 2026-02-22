@@ -24,13 +24,13 @@
 
 方式 1：使用 PowerShell 脚本（推荐）
 ```powershell
-cd blog-microservice/database/test-data/scripts
+cd ZhiCore-microservice/database/test-data/scripts
 .\Execute-UserGeneration.ps1
 ```
 
 方式 2：手动执行
 ```powershell
-# 1. 获取 58 个用户 ID（使用 blog-id-generator 服务）
+# 1. 获取 58 个用户 ID（使用 ZhiCore-id-generator 服务）
 $response = Invoke-RestMethod -Uri "http://localhost:8088/api/v1/id/snowflake/batch?count=58" -Method Get
 $ids = $response.data
 
@@ -38,7 +38,7 @@ $ids = $response.data
 # 使用文本编辑器或脚本进行替换
 
 # 3. 执行 SQL 脚本
-psql -h localhost -p 5432 -U postgres -d blog_user -f generate-users.sql
+psql -h localhost -p 5432 -U postgres -d ZhiCore_user -f generate-users.sql
 ```
 
 **验证结果**：
@@ -76,7 +76,7 @@ DELETE FROM users WHERE username LIKE 'test_%';
 
 ## 注意事项
 
-1. **ID 生成**：用户 ID 必须从 blog-id-generator 服务获取（端口 8088），不能使用自增 ID
+1. **ID 生成**：用户 ID 必须从 ZhiCore-id-generator 服务获取（端口 8088），不能使用自增 ID
 2. **密码安全**：所有测试用户使用相同的密码（Test@123456），仅用于测试环境
 3. **数据隔离**：所有测试用户名以 `test_` 开头，便于识别和清理
 4. **重复执行**：脚本支持重复执行，会自动清理旧的测试数据
@@ -84,22 +84,22 @@ DELETE FROM users WHERE username LIKE 'test_%';
 
 ## 前置条件
 
-1. PostgreSQL 数据库已创建并初始化（blog_user）
-2. blog-id-generator 服务正常运行（http://localhost:8088）
+1. PostgreSQL 数据库已创建并初始化（ZhiCore_user）
+2. ZhiCore-id-generator 服务正常运行（http://localhost:8088）
 3. 数据库表结构已创建（users, roles, user_roles 等）
 4. PostgreSQL 客户端工具已安装（psql）
 
 ## 故障排查
 
-### 问题 1: 无法连接到 blog-id-generator 服务
+### 问题 1: 无法连接到 ZhiCore-id-generator 服务
 
 **错误信息**：`无法连接到服务: http://localhost:8088`
 
 **解决方案**：
-1. 检查 blog-id-generator 服务是否启动
+1. 检查 ZhiCore-id-generator 服务是否启动
 2. 验证端口配置是否正确（默认 8088）
 3. 检查防火墙设置
-4. 查看服务日志：`docker logs blog-id-generator`
+4. 查看服务日志：`docker logs ZhiCore-id-generator`
 
 ### 问题 2: 数据库连接失败
 
@@ -118,7 +118,7 @@ DELETE FROM users WHERE username LIKE 'test_%';
 1. 确保数据库已初始化
 2. 执行数据库初始化脚本：
    ```powershell
-   cd blog-microservice/database
+   cd ZhiCore-microservice/database
    .\init-databases.ps1
    ```
 
@@ -133,7 +133,7 @@ DELETE FROM users WHERE username LIKE 'test_%';
 ## 相关文档
 
 - [测试数据生成总览](../README.md)
-- [需求文档](../../../.kiro/specs/blog-test-data-generation/requirements.md)
-- [设计文档](../../../.kiro/specs/blog-test-data-generation/design.md)
-- [任务列表](../../../.kiro/specs/blog-test-data-generation/tasks.md)
+- [需求文档](../../../.kiro/specs/ZhiCore-test-data-generation/requirements.md)
+- [设计文档](../../../.kiro/specs/ZhiCore-test-data-generation/design.md)
+- [任务列表](../../../.kiro/specs/ZhiCore-test-data-generation/tasks.md)
 

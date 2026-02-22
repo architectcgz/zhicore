@@ -1,0 +1,466 @@
+package com.zhicore.post.infrastructure.service;
+
+import service.domain.com.zhicore.content.DraftManager;
+import document.mongodb.infrastructure.com.zhicore.content.PostDraft;
+import repository.mongodb.infrastructure.com.zhicore.content.PostDraftRepository;
+import com.mongodb.MongoException;
+import net.jqwik.api.*;
+import net.jqwik.api.constraints.IntRange;
+import net.jqwik.api.constraints.StringLength;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+/**
+ * Draft Manager Fault Tolerance Property Test
+ * 
+ * Uses property-based testing to validate that draft save failures
+ * do not interrupt the user's editing workflow.
+ * 
+ * **Feature: post-mongodb-hybrid, Property 14: 草稿保存容错性**
+ * 
+ * **Validates: Requirements 4.5**
+ * 
+ * Property 14: 草稿保存容错性
+ * 对于任意草稿保存操作，即使保存失败，也不应该中断用户的编辑流程，只需要在前端显示警告。
+ */
+@SpringBootTest
+@Testcontainers
+class DraftManagerFaultTolerancePropertyTest {
+
+    @Container
+    static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:8.0")
+            .withExposedPorts(27017);
+
+    @DynamicPropertySource
+    static void setProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
+    }
+
+    @Autowired
+    private DraftManager draftManager;
+
+    @SpyBean
+    private PostDraftRepository draftRepository;
+
+    /**
+     * Property 14: Draft save failure does not throw exception
+     * 
+     * For any draft save operation, even if the save fails due to database
+     * errors, the operation should not throw an exception that would interrupt
+     * the user's editing workflow.
+     * 
+     * **Validates: Requirements 4.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 14: Draft save failure does not throw exception")
+    void draftSaveFailureDoesNotThrowException(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long userId,
+            @ForAll @StringLength(min = 10, max = 2000) String content) {
+
+        // Given: Repository is configured to throw exception on save
+        String postIdStr = String.valueOf(postId);
+        String userIdStr = String.valueOf(userId);
+
+        doThrow(new MongoException("Simulated database failure"))
+                .when(draftRepository).save(any(PostDraft.class));
+
+        // When: Attempting to save draft
+        // Then: Should not throw exception (fault tolerance)
+        assertThatCode(() -> draftManager.saveDraft(postIdStr, userIdStr, content, false))
+                .as("Draft save failure should not throw exception")
+                .doesNotThrowAnyException();
+
+        // Cleanup: Reset mock behavior
+        reset(draftRepository);
+    }
+
+    /**
+     * Property 14: Draft save failure is logged but does not propagate
+     * 
+     * For any draft save operation that fails, the error should be logged
+     * but should not propagate to the caller, allowing the editing workflow
+     * to continue.
+     * 
+     * **Validates: Requirements 4.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 14: Draft save failure is logged but does not propagate")
+    void draftSaveFailureIsLoggedButDoesNotPropagate(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long userId,
+            @ForAll @StringLength(min = 10, max = 1000) String content,
+            @ForAll boolean isAutoSave) {
+
+        // Given: Repository is configured to throw exception
+        String postIdStr = String.valueOf(postId);
+        String userIdStr = String.valueOf(userId);
+
+        doThrow(new RuntimeException("Database connection lost"))
+                .when(draftRepository).save(any(PostDraft.class));
+
+        // When: Attempting to save draft (auto-save or manual)
+        // Then: Should complete without throwing exception
+        assertThatCode(() -> draftManager.saveDraft(postIdStr, userIdStr, content, isAutoSave))
+                .as("Draft save should not throw exception regardless of auto-save flag")
+                .doesNotThrowAnyException();
+
+        // Cleanup
+        reset(draftRepository);
+    }
+
+    /**
+     * Property 14: Multiple consecutive save failures are tolerated
+     * 
+     * For any sequence of draft save operations, even if all of them fail,
+     * none should throw exceptions that would interrupt the editing workflow.
+     * 
+     * **Validates: Requirements 4.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 14: Multiple consecutive save failures are tolerated")
+    void multipleConsecutiveSaveFailuresAreTolerated(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long userId,
+            @ForAll("contentUpdateList") java.util.List<String> contentUpdates) {
+
+        // Given: Repository is configured to always fail
+        String postIdStr = String.valueOf(postId);
+        String userIdStr = String.valueOf(userId);
+
+        doThrow(new MongoException("Persistent database failure"))
+                .when(draftRepository).save(any(PostDraft.class));
+
+        // When: Attempting to save draft multiple times (simulating auto-save)
+        // Then: All attempts should complete without throwing exceptions
+        for (String content : contentUpdates) {
+            assertThatCode(() -> draftManager.saveDraft(postIdStr, userIdStr, content, true))
+                    .as("Each draft save attempt should not throw exception")
+                    .doesNotThrowAnyException();
+        }
+
+        // Cleanup
+        reset(draftRepository);
+    }
+
+    /**
+     * Property 14: Draft retrieval after save failure returns empty
+     * 
+     * For any draft save operation that fails, subsequent retrieval attempts
+     * should gracefully return empty rather than throwing exceptions.
+     * 
+     * **Validates: Requirements 4.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 14: Draft retrieval after save failure returns empty")
+    void draftRetrievalAfterSaveFailureReturnsEmpty(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long userId,
+            @ForAll @StringLength(min = 10, max = 1000) String content) {
+
+        // Given: Repository save fails but find works
+        String postIdStr = String.valueOf(postId);
+        String userIdStr = String.valueOf(userId);
+
+        doThrow(new MongoException("Save operation failed"))
+                .when(draftRepository).save(any(PostDraft.class));
+
+        // When: Save fails
+        draftManager.saveDraft(postIdStr, userIdStr, content, false);
+
+        // Then: Retrieval should not throw exception and return empty
+        assertThatCode(() -> {
+            Optional<PostDraft> draft = draftManager.getLatestDraft(postIdStr, userIdStr);
+            assertThat(draft)
+                    .as("Draft should not exist after failed save")
+                    .isEmpty();
+        }).doesNotThrowAnyException();
+
+        // Cleanup
+        reset(draftRepository);
+    }
+
+    /**
+     * Property 14: Draft deletion failure does not throw exception
+     * 
+     * For any draft deletion operation, even if it fails, it should not
+     * throw an exception that would interrupt the publish workflow.
+     * 
+     * **Validates: Requirements 4.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 14: Draft deletion failure does not throw exception")
+    void draftDeletionFailureDoesNotThrowException(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long userId) {
+
+        // Given: Repository is configured to throw exception on delete
+        String postIdStr = String.valueOf(postId);
+        String userIdStr = String.valueOf(userId);
+
+        doThrow(new MongoException("Delete operation failed"))
+                .when(draftRepository).deleteByPostIdAndUserId(anyString(), anyString());
+
+        // When: Attempting to delete draft
+        // Then: Should not throw exception
+        assertThatCode(() -> draftManager.deleteDraft(postIdStr, userIdStr))
+                .as("Draft deletion failure should not throw exception")
+                .doesNotThrowAnyException();
+
+        // Cleanup
+        reset(draftRepository);
+    }
+
+    /**
+     * Property 14: Get user drafts failure returns empty list
+     * 
+     * For any operation to retrieve user drafts, if it fails, it should
+     * return an empty list rather than throwing an exception.
+     * 
+     * **Validates: Requirements 4.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 14: Get user drafts failure returns empty list")
+    void getUserDraftsFailureReturnsEmptyList(
+            @ForAll @IntRange(min = 1, max = 100000) long userId) {
+
+        // Given: Repository is configured to throw exception on find
+        String userIdStr = String.valueOf(userId);
+
+        doThrow(new MongoException("Query operation failed"))
+                .when(draftRepository).findByUserIdOrderBySavedAtDesc(anyString());
+
+        // When: Attempting to get user drafts
+        // Then: Should return empty list without throwing exception
+        assertThatCode(() -> {
+            java.util.List<PostDraft> drafts = draftManager.getUserDrafts(userIdStr);
+            assertThat(drafts)
+                    .as("Should return empty list on failure")
+                    .isEmpty();
+        }).doesNotThrowAnyException();
+
+        // Cleanup
+        reset(draftRepository);
+    }
+
+    /**
+     * Property 14: Clean expired drafts failure returns zero
+     * 
+     * For any operation to clean expired drafts, if it fails, it should
+     * return zero rather than throwing an exception.
+     * 
+     * **Validates: Requirements 4.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 14: Clean expired drafts failure returns zero")
+    void cleanExpiredDraftsFailureReturnsZero(
+            @ForAll @IntRange(min = 1, max = 365) int expireDays) {
+
+        // Given: Repository is configured to throw exception on delete
+        doThrow(new MongoException("Bulk delete operation failed"))
+                .when(draftRepository).deleteBySavedAtBefore(any());
+
+        // When: Attempting to clean expired drafts
+        // Then: Should return zero without throwing exception
+        assertThatCode(() -> {
+            long deletedCount = draftManager.cleanExpiredDrafts(expireDays);
+            assertThat(deletedCount)
+                    .as("Should return zero on failure")
+                    .isZero();
+        }).doesNotThrowAnyException();
+
+        // Cleanup
+        reset(draftRepository);
+    }
+
+    /**
+     * Property 14: Partial save failure does not affect other operations
+     * 
+     * For any draft save operation that fails, it should not affect
+     * subsequent successful save operations for different posts.
+     * 
+     * **Validates: Requirements 4.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 14: Partial save failure does not affect other operations")
+    void partialSaveFailureDoesNotAffectOtherOperations(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId1,
+            @ForAll @IntRange(min = 1, max = 1000000) long postId2,
+            @ForAll @IntRange(min = 1, max = 100000) long userId,
+            @ForAll @StringLength(min = 10, max = 500) String content1,
+            @ForAll @StringLength(min = 10, max = 500) String content2) {
+
+        Assume.that(postId1 != postId2);
+
+        String postId1Str = String.valueOf(postId1);
+        String postId2Str = String.valueOf(postId2);
+        String userIdStr = String.valueOf(userId);
+
+        // Given: First save will fail, second will succeed
+        doThrow(new MongoException("First save failed"))
+                .doCallRealMethod()
+                .when(draftRepository).save(any(PostDraft.class));
+
+        // When: First save fails
+        assertThatCode(() -> draftManager.saveDraft(postId1Str, userIdStr, content1, false))
+                .doesNotThrowAnyException();
+
+        // And: Second save succeeds
+        assertThatCode(() -> draftManager.saveDraft(postId2Str, userIdStr, content2, false))
+                .doesNotThrowAnyException();
+
+        // Then: Second draft should exist
+        Optional<PostDraft> draft2 = draftManager.getLatestDraft(postId2Str, userIdStr);
+        assertThat(draft2)
+                .as("Second draft should exist after first save failed")
+                .isPresent();
+        assertThat(draft2.get().getContent()).isEqualTo(content2);
+
+        // Cleanup
+        reset(draftRepository);
+    }
+
+    /**
+     * Property 14: Save failure with existing draft does not corrupt data
+     * 
+     * For any draft update operation that fails, the existing draft data
+     * should remain intact and not be corrupted.
+     * 
+     * **Validates: Requirements 4.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 14: Save failure with existing draft does not corrupt data")
+    void saveFailureWithExistingDraftDoesNotCorruptData(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long userId,
+            @ForAll @StringLength(min = 10, max = 500) String originalContent,
+            @ForAll @StringLength(min = 10, max = 500) String updatedContent) {
+
+        Assume.that(!originalContent.equals(updatedContent));
+
+        String postIdStr = String.valueOf(postId);
+        String userIdStr = String.valueOf(userId);
+
+        // Given: An existing draft
+        draftManager.saveDraft(postIdStr, userIdStr, originalContent, false);
+
+        Optional<PostDraft> originalDraft = draftManager.getLatestDraft(postIdStr, userIdStr);
+        assertThat(originalDraft).isPresent();
+        assertThat(originalDraft.get().getContent()).isEqualTo(originalContent);
+
+        // And: Update will fail
+        doAnswer(invocation -> {
+            // First call (findByPostIdAndUserId) succeeds
+            if (invocation.getMethod().getName().equals("findByPostIdAndUserId")) {
+                return invocation.callRealMethod();
+            }
+            // Second call (save) fails
+            throw new MongoException("Update failed");
+        }).when(draftRepository).save(any(PostDraft.class));
+
+        // When: Attempting to update the draft
+        assertThatCode(() -> draftManager.saveDraft(postIdStr, userIdStr, updatedContent, false))
+                .doesNotThrowAnyException();
+
+        // Then: Original draft should still exist with original content
+        reset(draftRepository);
+        Optional<PostDraft> draftAfterFailedUpdate = draftManager.getLatestDraft(postIdStr, userIdStr);
+        assertThat(draftAfterFailedUpdate)
+                .as("Original draft should still exist after failed update")
+                .isPresent();
+        assertThat(draftAfterFailedUpdate.get().getContent())
+                .as("Original content should be preserved")
+                .isEqualTo(originalContent);
+    }
+
+    /**
+     * Property 14: Concurrent save failures are isolated
+     * 
+     * For any concurrent draft save operations, failures in one operation
+     * should not affect other concurrent operations.
+     * 
+     * **Validates: Requirements 4.5**
+     */
+    @Property(tries = 50)
+    @Label("Property 14: Concurrent save failures are isolated")
+    void concurrentSaveFailuresAreIsolated(
+            @ForAll("postIdList") java.util.List<Long> postIds,
+            @ForAll @IntRange(min = 1, max = 100000) long userId,
+            @ForAll @StringLength(min = 10, max = 200) String baseContent) {
+
+        String userIdStr = String.valueOf(userId);
+
+        // Given: Some saves will fail, others will succeed
+        doAnswer(invocation -> {
+            PostDraft draft = invocation.getArgument(0);
+            // Fail for even postIds, succeed for odd postIds
+            if (Long.parseLong(draft.getPostId()) % 2 == 0) {
+                throw new MongoException("Simulated failure for even postId");
+            }
+            return invocation.callRealMethod();
+        }).when(draftRepository).save(any(PostDraft.class));
+
+        // When: Saving drafts for multiple posts
+        for (Long postId : postIds) {
+            String postIdStr = String.valueOf(postId);
+            String content = baseContent + " for post " + postId;
+            
+            assertThatCode(() -> draftManager.saveDraft(postIdStr, userIdStr, content, false))
+                    .as("Save should not throw exception regardless of success/failure")
+                    .doesNotThrowAnyException();
+        }
+
+        // Then: Odd postIds should have drafts, even postIds should not
+        reset(draftRepository);
+        for (Long postId : postIds) {
+            String postIdStr = String.valueOf(postId);
+            Optional<PostDraft> draft = draftManager.getLatestDraft(postIdStr, userIdStr);
+            
+            if (postId % 2 == 1) {
+                assertThat(draft)
+                        .as("Draft for odd postId %d should exist", postId)
+                        .isPresent();
+            } else {
+                assertThat(draft)
+                        .as("Draft for even postId %d should not exist", postId)
+                        .isEmpty();
+            }
+        }
+    }
+
+    // Data generators
+
+    @Provide
+    Arbitrary<java.util.List<String>> contentUpdateList() {
+        return Arbitraries.strings()
+                .alpha()
+                .ofMinLength(10)
+                .ofMaxLength(500)
+                .list()
+                .ofMinSize(2)
+                .ofMaxSize(5);
+    }
+
+    @Provide
+    Arbitrary<java.util.List<Long>> postIdList() {
+        return Arbitraries.longs()
+                .between(1, 1000000)
+                .list()
+                .ofMinSize(3)
+                .ofMaxSize(6)
+                .uniqueElements();
+    }
+}

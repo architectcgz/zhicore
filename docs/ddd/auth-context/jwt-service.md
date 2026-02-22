@@ -53,7 +53,7 @@ public class JwtService(
 JwtService 本身就是一个纯粹的领域服务，不依赖外部基础设施（除了配置），重构主要是接口规范化：
 
 ```csharp
-// BlogCore/Domain/Services/IJwtDomainService.cs
+// ZhiCoreCore/Domain/Services/IJwtDomainService.cs
 public interface IJwtDomainService
 {
     /// <summary>
@@ -94,7 +94,7 @@ public interface IJwtDomainService
     DateTimeOffset? GetTokenExpiration(string token);
 }
 
-// BlogCore/Domain/Services/JwtDomainService.cs
+// ZhiCoreCore/Domain/Services/JwtDomainService.cs
 public class JwtDomainService : IJwtDomainService
 {
     private readonly JwtConfig _config;
@@ -185,9 +185,9 @@ public class JwtDomainService : IJwtDomainService
 {
   "JwtConfig": {
     "Key": "your-secret-key-at-least-32-characters-long",
-    "KeyId": "blog-api-key-v1",
-    "Issuer": "blog-api",
-    "Audience": "blog-frontend",
+    "KeyId": "ZhiCore-api-key-v1",
+    "Issuer": "ZhiCore-api",
+    "Audience": "ZhiCore-frontend",
     "AccessTokenExpiryMinutes": 30,
     "RefreshTokenExpiryMinutes": 10080
   }

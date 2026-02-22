@@ -1,4 +1,4 @@
-# Blog 微服务系统概述
+# ZhiCore 微服务系统概述
 
 ## 文档版本
 
@@ -10,7 +10,7 @@
 
 ## 系统定位
 
-Blog 微服务系统是一个基于 Spring Cloud Alibaba 的现代化博客平台，采用领域驱动设计（DDD）和微服务架构，提供完整的博客内容创作、社交互动、消息通知和内容搜索功能。
+ZhiCore 微服务系统是一个基于 Spring Cloud Alibaba 的现代化博客平台，采用领域驱动设计（DDD）和微服务架构，提供完整的博客内容创作、社交互动、消息通知和内容搜索功能。
 
 ### 核心价值
 
@@ -149,28 +149,28 @@ graph TB
     end
 
     subgraph "网关层"
-        Gateway[API Gateway<br/>blog-gateway:8000]
+        Gateway[API Gateway<br/>ZhiCore-gateway:8000]
     end
 
     subgraph "业务服务层"
-        User[用户服务<br/>blog-user:8081]
-        Post[文章服务<br/>blog-post:8082]
-        Comment[评论服务<br/>blog-comment:8083]
-        Message[消息服务<br/>blog-message:8084]
-        Notification[通知服务<br/>blog-notification:8085]
-        Search[搜索服务<br/>blog-search:8086]
-        Ranking[排行服务<br/>blog-ranking:8087]
-        Upload[上传服务<br/>blog-upload]
+        User[用户服务<br/>ZhiCore-user:8081]
+        Post[文章服务<br/>ZhiCore-post:8082]
+        Comment[评论服务<br/>ZhiCore-comment:8083]
+        Message[消息服务<br/>ZhiCore-message:8084]
+        Notification[通知服务<br/>ZhiCore-notification:8085]
+        Search[搜索服务<br/>ZhiCore-search:8086]
+        Ranking[排行服务<br/>ZhiCore-ranking:8087]
+        Upload[上传服务<br/>ZhiCore-upload]
     end
 
     subgraph "管理服务层"
-        Admin[管理服务<br/>blog-admin:8090]
-        Ops[运维服务<br/>blog-ops]
+        Admin[管理服务<br/>ZhiCore-admin:8090]
+        Ops[运维服务<br/>ZhiCore-ops]
     end
 
     subgraph "共享模块"
-        API[blog-api<br/>共享接口]
-        Common[blog-common<br/>公共组件]
+        API[ZhiCore-api<br/>共享接口]
+        Common[ZhiCore-common<br/>公共组件]
     end
 
     subgraph "基础设施层"
@@ -334,8 +334,8 @@ graph TB
 - **运维服务**: 系统监控、运维工具
 
 #### 5. 共享模块
-- **blog-api**: Feign Client 接口、DTO、事件定义
-- **blog-common**: 公共工具类、常量、异常、配置
+- **ZhiCore-api**: Feign Client 接口、DTO、事件定义
+- **ZhiCore-common**: 公共工具类、常量、异常、配置
 
 #### 6. 基础设施层
 - **服务注册**: Nacos 服务发现
@@ -367,15 +367,15 @@ graph TB
 
 | 服务 | 端口 | 说明 |
 |------|------|------|
-| blog-gateway | 8000 | API 网关 |
-| blog-user | 8081 | 用户服务 |
-| blog-post | 8082 | 文章服务 |
-| blog-comment | 8083 | 评论服务 |
-| blog-message | 8084 | 消息服务 |
-| blog-notification | 8085 | 通知服务 |
-| blog-search | 8086 | 搜索服务 |
-| blog-ranking | 8087 | 排行服务 |
-| blog-admin | 8090 | 管理服务 |
+| ZhiCore-gateway | 8000 | API 网关 |
+| ZhiCore-user | 8081 | 用户服务 |
+| ZhiCore-post | 8082 | 文章服务 |
+| ZhiCore-comment | 8083 | 评论服务 |
+| ZhiCore-message | 8084 | 消息服务 |
+| ZhiCore-notification | 8085 | 通知服务 |
+| ZhiCore-search | 8086 | 搜索服务 |
+| ZhiCore-ranking | 8087 | 排行服务 |
+| ZhiCore-admin | 8090 | 管理服务 |
 
 详细端口分配请参考 [端口分配文档](../../../.kiro/steering/port-allocation.md)。
 
@@ -493,13 +493,13 @@ graph TB
 ### 6. 文件管理
 
 **统一文件上传**
-- blog-upload 服务统一处理文件上传
+- ZhiCore-upload 服务统一处理文件上传
 - 支持图片、音频等多媒体文件
 - 文件类型验证、大小限制
 - 文件存储到 File Service（S3 兼容）
 
 **文件删除**
-- 后端服务通过 BlogUploadClient 删除文件
+- 后端服务通过 ZhiCoreUploadClient 删除文件
 - 级联删除（删除文章/评论时自动删除关联文件）
 - 文件引用计数
 
@@ -610,7 +610,7 @@ graph TB
 
 1. **文件上传架构重构**（2026-02）
    - 移除 FileUploadService 接口
-   - 统一使用 blog-upload 服务
+   - 统一使用 ZhiCore-upload 服务
    - 前端直接上传，后端通过 Client 删除
    - 详见 [文件上传架构文档](./03-file-upload-architecture.md)
 
@@ -656,13 +656,13 @@ graph TB
 
 1. **启动基础设施**
    ```powershell
-   cd blog-microservice/docker
+   cd ZhiCore-microservice/docker
    docker-compose up -d
    ```
 
 2. **启动所有服务**
    ```powershell
-   cd blog-microservice/scripts
+   cd ZhiCore-microservice/scripts
    .\start-all-services.ps1
    ```
 

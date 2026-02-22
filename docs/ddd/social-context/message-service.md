@@ -78,7 +78,7 @@ M1 ─► M2 ─► M3 ─► M4 ─► M5 ─► M6
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IMessageRepository.cs
+// ZhiCoreCore/Domain/Repositories/IMessageRepository.cs
 public interface IMessageRepository
 {
     /// <summary>
@@ -108,7 +108,7 @@ public interface IMessageRepository
     Task DeleteAsync(long messageId);
 }
 
-// BlogCore/Domain/Repositories/IConversationRepository.cs
+// ZhiCoreCore/Domain/Repositories/IConversationRepository.cs
 public interface IConversationRepository
 {
     /// <summary>
@@ -142,7 +142,7 @@ public interface IConversationRepository
 ### Domain Service
 
 ```csharp
-// BlogCore/Domain/Services/IMessageDomainService.cs
+// ZhiCoreCore/Domain/Services/IMessageDomainService.cs
 public interface IMessageDomainService
 {
     /// <summary>
@@ -161,7 +161,7 @@ public interface IMessageDomainService
     Message CreateMessage(string senderId, string receiverId, string content, MessageType type);
 }
 
-// BlogCore/Domain/Services/MessageDomainService.cs
+// ZhiCoreCore/Domain/Services/MessageDomainService.cs
 public class MessageDomainService : IMessageDomainService
 {
     private readonly IUserBlockService _userBlockService;
@@ -243,7 +243,7 @@ public class MessageDomainService : IMessageDomainService
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Social/IMessageApplicationService.cs
+// ZhiCoreCore/Application/Social/IMessageApplicationService.cs
 public interface IMessageApplicationService
 {
     Task<MessageDto> SendMessageAsync(string senderId, SendMessageReq req);
@@ -255,7 +255,7 @@ public interface IMessageApplicationService
     Task<List<MessageDto>> GetOfflineMessagesAsync(string userId, int limit);
 }
 
-// BlogCore/Application/Social/MessageApplicationService.cs
+// ZhiCoreCore/Application/Social/MessageApplicationService.cs
 public class MessageApplicationService : IMessageApplicationService
 {
     private readonly IMessageDomainService _domainService;

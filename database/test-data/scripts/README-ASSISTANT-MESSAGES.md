@@ -18,7 +18,7 @@
 ## 前置条件
 
 1. **服务运行**：
-   - blog-id-generator 服务已启动（端口 8088）
+   - ZhiCore-id-generator 服务已启动（端口 8088）
    - PostgreSQL 数据库已启动（端口 5432）
 
 2. **数据依赖**：
@@ -144,7 +144,7 @@
 
 ### SQL 文件
 
-生成的 SQL 文件位于：`blog-microservice/database/test-data/sql/generated-assistant-messages.sql`
+生成的 SQL 文件位于：`ZhiCore-microservice/database/test-data/sql/generated-assistant-messages.sql`
 
 文件内容包括：
 - 生成时间和统计信息
@@ -156,7 +156,7 @@
 
 ```powershell
 # 执行生成的 SQL 文件
-psql -h localhost -p 5432 -U postgres -f "blog-microservice/database/test-data/sql/generated-assistant-messages.sql"
+psql -h localhost -p 5432 -U postgres -f "ZhiCore-microservice/database/test-data/sql/generated-assistant-messages.sql"
 ```
 
 ## 执行流程
@@ -205,7 +205,7 @@ psql -h localhost -p 5432 -U postgres -f "blog-microservice/database/test-data/s
 
 === 步骤 4: 生成 SQL 文件 ===
 ✓ SQL 文件生成成功
-  文件路径: blog-microservice/database/test-data/sql/generated-assistant-messages.sql
+  文件路径: ZhiCore-microservice/database/test-data/sql/generated-assistant-messages.sql
 
 === 步骤 5: 生成结果 ===
 ✓ 小助手消息数据生成完成
@@ -231,7 +231,7 @@ psql -h localhost -p 5432 -U postgres -f "blog-microservice/database/test-data/s
 ╚════════════════════════════════════════════════════╝
 
 下一步：执行 SQL 文件插入数据
-  psql -h localhost -p 5432 -U postgres -f "blog-microservice/database/test-data/sql/generated-assistant-messages.sql"
+  psql -h localhost -p 5432 -U postgres -f "ZhiCore-microservice/database/test-data/sql/generated-assistant-messages.sql"
 ```
 
 ## 数据验证
@@ -240,7 +240,7 @@ psql -h localhost -p 5432 -U postgres -f "blog-microservice/database/test-data/s
 
 ```sql
 -- 连接到数据库
-\c blog_notification;
+\c ZhiCore_notification;
 
 -- 查询消息总数
 SELECT COUNT(*) FROM assistant_messages;
@@ -329,7 +329,7 @@ ERROR: duplicate key value violates unique constraint
 **解决方案**：
 1. 清理旧数据：
    ```sql
-   \c blog_notification;
+   \c ZhiCore_notification;
    DELETE FROM assistant_messages;
    ```
 2. 重新执行 SQL 文件

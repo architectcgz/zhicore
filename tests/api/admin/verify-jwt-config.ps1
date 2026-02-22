@@ -7,7 +7,7 @@ Write-Host ""
 # Check Nacos configuration
 Write-Host "[1/2] Checking Nacos configuration..." -ForegroundColor Yellow
 try {
-    $nacosUrl = "http://localhost:8848/nacos/v1/cs/configs?dataId=common.yml&group=BLOG_SERVICE&tenant="
+    $nacosUrl = "http://localhost:8848/nacos/v1/cs/configs?dataId=common.yml&group=ZhiCore_SERVICE&tenant="
     $response = Invoke-WebRequest -Uri $nacosUrl -UseBasicParsing
     $config = $response.Content
     
@@ -26,8 +26,8 @@ try {
 Write-Host ""
 Write-Host "[2/2] Checking service health..." -ForegroundColor Yellow
 $services = @(
-    @{Name="blog-user"; Port=8081},
-    @{Name="blog-post"; Port=8082}
+    @{Name="ZhiCore-user"; Port=8081},
+    @{Name="ZhiCore-post"; Port=8082}
 )
 
 foreach ($service in $services) {

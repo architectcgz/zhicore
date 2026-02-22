@@ -219,7 +219,7 @@ if ($FailCount -eq 0) {
     Write-Host "Next steps:" -ForegroundColor Yellow
     Write-Host "1. Ensure file-service is running (mvn spring-boot:run)" -ForegroundColor Gray
     Write-Host "2. Test with authentication using test-file-service-api.ps1" -ForegroundColor Gray
-    Write-Host "3. Test integration with blog services" -ForegroundColor Gray
+    Write-Host "3. Test integration with ZhiCore services" -ForegroundColor Gray
     exit 0
 } else {
     Write-Host "[FAILED] Some tests failed. Check if file-service is running." -ForegroundColor Red

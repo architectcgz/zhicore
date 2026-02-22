@@ -25,11 +25,11 @@ if (-not (Test-Path $SqlFilePath)) {
 
 # 数据库列表
 $Databases = @(
-    @{ Name = "blog_user"; Description = "User Service" },
-    @{ Name = "blog_post"; Description = "Post Service" },
-    @{ Name = "blog_comment"; Description = "Comment Service" },
-    @{ Name = "blog_message"; Description = "Message Service" },
-    @{ Name = "blog_notification"; Description = "Notification Service" }
+    @{ Name = "ZhiCore_user"; Description = "User Service" },
+    @{ Name = "ZhiCore_post"; Description = "Post Service" },
+    @{ Name = "ZhiCore_comment"; Description = "Comment Service" },
+    @{ Name = "ZhiCore_message"; Description = "Message Service" },
+    @{ Name = "ZhiCore_notification"; Description = "Notification Service" }
 )
 
 # 设置环境变量以避免密码提示

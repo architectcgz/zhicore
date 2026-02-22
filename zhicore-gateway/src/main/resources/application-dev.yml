@@ -1,0 +1,79 @@
+# Development Environment Configuration
+# This configuration is automatically loaded when spring.profiles.active=dev
+
+spring:
+  cloud:
+    gateway:
+      # Development-specific gateway settings
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            # Allow any localhost port for development flexibility
+            allowedOriginPatterns:
+              - "http://localhost:[*]"
+              - "http://127.0.0.1:[*]"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - PATCH
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+            maxAge: 3600
+    # Development Nacos configuration
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+    # Development Sentinel configuration
+    sentinel:
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:localhost:8080}
+      eager: true
+  # Development Redis configuration (can be overridden by environment variables)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis123456}
+      database: 0
+
+# CORS configuration properties (used by CorsConfig.java)
+cors:
+  # Development: Use origin patterns to allow any localhost port
+  allowed-origin-patterns:
+    - "http://localhost:[*]"
+    - "http://127.0.0.1:[*]"
+  # No specific origins needed in development
+  allowed-origins: []
+
+# Development-specific logging
+logging:
+  level:
+    com.zhicore.gateway: DEBUG
+    com.zhicore.gateway.config.CorsConfig: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.web.cors: DEBUG
+
+# JWT cache configuration for development
+jwt:
+  cache:
+    enabled: true
+    max-size: 1000
+    ttl-minutes: 5
+
+# Development actuator configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always

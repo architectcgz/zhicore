@@ -1,4 +1,4 @@
-# Blog Microservices 部署指南
+# ZhiCore Microservices 部署指南
 
 ## 目录
 
@@ -30,7 +30,7 @@
 
 ### 0. 启动 ID Generator Service (外部依赖)
 
-**重要**: Blog 微服务依赖独立部署的 ID Generator Service。
+**重要**: ZhiCore 微服务依赖独立部署的 ID Generator Service。
 
 ```bash
 # 确保 ID Generator Service 已启动并运行在端口 8011
@@ -97,8 +97,8 @@ cp .env.example .env
 |------|------|--------|
 | `POSTGRES_HOST` | PostgreSQL 主机 | postgres |
 | `POSTGRES_PORT` | PostgreSQL 端口 | 5432 |
-| `POSTGRES_USER` | 数据库用户 | blog |
-| `POSTGRES_PASSWORD` | 数据库密码 | blog123456 |
+| `POSTGRES_USER` | 数据库用户 | ZhiCore |
+| `POSTGRES_PASSWORD` | 数据库密码 | ZhiCore123456 |
 | `REDIS_HOST` | Redis 主机 | redis |
 | `REDIS_PORT` | Redis 端口 | 6379 |
 | `NACOS_ADDR` | Nacos 地址 | nacos:8848 |
@@ -115,12 +115,12 @@ cp .env.example .env
 
 确保 PostgreSQL 中已创建以下数据库：
 
-- `blog_user` - 用户服务数据库
-- `blog_post` - 文章服务数据库
-- `blog_comment` - 评论服务数据库
-- `blog_message` - 消息服务数据库
-- `blog_notification` - 通知服务数据库
-- `blog_admin` - 管理服务数据库
+- `ZhiCore_user` - 用户服务数据库
+- `ZhiCore_post` - 文章服务数据库
+- `ZhiCore_comment` - 评论服务数据库
+- `ZhiCore_message` - 消息服务数据库
+- `ZhiCore_notification` - 通知服务数据库
+- `ZhiCore_admin` - 管理服务数据库
 - `nacos_config` - Nacos 配置数据库
 
 ### 步骤 3: 配置 Nacos
@@ -149,34 +149,34 @@ cp .env.example .env
 
 2. **网关服务**
    ```bash
-   docker-compose -f docker-compose.services.yml up -d blog-gateway
+   docker-compose -f docker-compose.services.yml up -d ZhiCore-gateway
    ```
 
 3. **业务服务**
    ```bash
-   docker-compose -f docker-compose.services.yml up -d blog-user blog-post blog-comment
-   docker-compose -f docker-compose.services.yml up -d blog-message blog-notification
-   docker-compose -f docker-compose.services.yml up -d blog-search blog-ranking blog-upload blog-admin
+   docker-compose -f docker-compose.services.yml up -d ZhiCore-user ZhiCore-post ZhiCore-comment
+   docker-compose -f docker-compose.services.yml up -d ZhiCore-message ZhiCore-notification
+   docker-compose -f docker-compose.services.yml up -d ZhiCore-search ZhiCore-ranking ZhiCore-upload ZhiCore-admin
    ```
 
 **注意**: 
-- blog-leaf 服务已被移除，现在使用独立的 ID Generator Service
+- ZhiCore-leaf 服务已被移除，现在使用独立的 ID Generator Service
 - 确保 ID Generator Service 在启动业务服务前已经运行
 
 ## 服务端口映射
 
 | 服务 | 端口 | 说明 |
 |------|------|------|
-| blog-gateway | 8000 | API 网关 |
-| blog-user | 8081 | 用户服务 |
-| blog-post | 8082 | 文章服务 |
-| blog-comment | 8083 | 评论服务 |
-| blog-message | 8084 | 消息服务 |
-| blog-notification | 8085 | 通知服务 |
-| blog-search | 8086 | 搜索服务 |
-| blog-ranking | 8087 | 排行榜服务 |
-| blog-upload | 8089 | 上传服务 |
-| blog-admin | 8090 | 管理服务 |
+| ZhiCore-gateway | 8000 | API 网关 |
+| ZhiCore-user | 8081 | 用户服务 |
+| ZhiCore-post | 8082 | 文章服务 |
+| ZhiCore-comment | 8083 | 评论服务 |
+| ZhiCore-message | 8084 | 消息服务 |
+| ZhiCore-notification | 8085 | 通知服务 |
+| ZhiCore-search | 8086 | 搜索服务 |
+| ZhiCore-ranking | 8087 | 排行榜服务 |
+| ZhiCore-upload | 8089 | 上传服务 |
+| ZhiCore-admin | 8090 | 管理服务 |
 
 ### 外部依赖服务
 
@@ -236,8 +236,8 @@ http://localhost:9090/targets
 - 默认账号: admin / admin123456
 
 预置仪表板：
-- **Blog Microservices Overview** - 服务概览
-- **Blog Services - SLA Dashboard** - SLA 指标监控
+- **ZhiCore Microservices Overview** - 服务概览
+- **ZhiCore Services - SLA Dashboard** - SLA 指标监控
 
 ### 告警规则
 
@@ -263,7 +263,7 @@ http://localhost:9090/targets
 
 1. 检查日志：
    ```bash
-   docker logs blog-user
+   docker logs ZhiCore-user
    ```
 
 2. 检查依赖服务：
@@ -273,7 +273,7 @@ http://localhost:9090/targets
 
 3. 检查网络连接：
    ```bash
-   docker network inspect blog-network
+   docker network inspect ZhiCore-network
    ```
 
 ### 服务注册失败
@@ -308,7 +308,7 @@ http://localhost:9090/targets
 3. **检查环境变量配置**
    ```bash
    # 查看服务配置
-   docker exec blog-notification env | grep ID_GENERATOR
+   docker exec ZhiCore-notification env | grep ID_GENERATOR
    ```
 
 4. **常见错误**
@@ -319,7 +319,7 @@ http://localhost:9090/targets
 5. **解决方案**
    - 确保 ID Generator Service 已启动: `docker ps | grep id-generator`
    - 检查端口映射: `netstat -an | grep 8011`
-   - 查看服务日志: `docker logs blog-notification | grep "ID Generator"`
+   - 查看服务日志: `docker logs ZhiCore-notification | grep "ID Generator"`
 
 ## 生产环境建议
 

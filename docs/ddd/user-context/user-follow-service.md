@@ -42,7 +42,7 @@ public class UserFollowService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IUserFollowRepository.cs
+// ZhiCoreCore/Domain/Repositories/IUserFollowRepository.cs
 public interface IUserFollowRepository
 {
     /// <summary>
@@ -108,7 +108,7 @@ public interface IUserFollowRepository
 ### Domain Service
 
 ```csharp
-// BlogCore/Domain/Services/IUserFollowDomainService.cs
+// ZhiCoreCore/Domain/Services/IUserFollowDomainService.cs
 public interface IUserFollowDomainService
 {
     /// <summary>
@@ -122,7 +122,7 @@ public interface IUserFollowDomainService
     Task ValidateFollowAsync(string followerId, string followingId);
 }
 
-// BlogCore/Domain/Services/UserFollowDomainService.cs
+// ZhiCoreCore/Domain/Services/UserFollowDomainService.cs
 public class UserFollowDomainService : IUserFollowDomainService
 {
     private readonly ISnowflakeIdService _snowflakeIdService;
@@ -170,7 +170,7 @@ public class UserFollowDomainService : IUserFollowDomainService
 ### Application Service
 
 ```csharp
-// BlogCore/Application/User/IUserFollowApplicationService.cs
+// ZhiCoreCore/Application/User/IUserFollowApplicationService.cs
 public interface IUserFollowApplicationService
 {
     Task<bool> FollowUserAsync(string followerId, string followingId, bool enableNotification = true);
@@ -182,7 +182,7 @@ public interface IUserFollowApplicationService
     Task<UserFollowStatsDto> GetUserFollowStatsAsync(string userId);
 }
 
-// BlogCore/Application/User/UserFollowApplicationService.cs
+// ZhiCoreCore/Application/User/UserFollowApplicationService.cs
 public class UserFollowApplicationService : IUserFollowApplicationService
 {
     private readonly IUserRepository _userRepository;
@@ -303,7 +303,7 @@ public record UserUnfollowedEvent : DomainEventBase
 ### 事件处理器
 
 ```csharp
-// BlogCore/Domain/EventHandlers/User/UserFollowedEventHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/User/UserFollowedEventHandler.cs
 public class UserFollowedEventHandler : IDomainEventHandler<UserFollowedEvent>
 {
     private readonly INotificationService _notificationService;
@@ -353,7 +353,7 @@ public class UserFollowedEventHandler : IDomainEventHandler<UserFollowedEvent>
 ### Cached Decorator
 
 ```csharp
-// BlogCore/Infrastructure/Caching/CachedUserFollowService.cs
+// ZhiCoreCore/Infrastructure/Caching/CachedUserFollowService.cs
 public class CachedUserFollowService : IUserFollowService
 {
     private readonly IUserFollowService _inner;

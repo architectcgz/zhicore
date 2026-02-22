@@ -2,7 +2,7 @@
 
 ## 问题描述
 
-blog-user 服务启动时报错：
+ZhiCore-user 服务启动时报错：
 ```
 java.nio.charset.MalformedInputException: Input length = 1
 parse data from Nacos error, dataId:common.yml
@@ -26,14 +26,14 @@ cd config/nacos
 1. 打开 Nacos 控制台: http://localhost:8848/nacos
 2. 登录 (用户名/密码: nacos/nacos)
 3. 进入 "配置管理" -> "配置列表"
-4. 找到 `common.yml` (Group: BLOG_SERVICE)
+4. 找到 `common.yml` (Group: ZhiCore_SERVICE)
 5. 点击 "编辑"
 6. 复制 `config/nacos/common.yml` 的内容
 7. 粘贴并保存
 
-### 2. 重启 blog-user 服务
+### 2. 重启 ZhiCore-user 服务
 
-在 IDEA 中停止并重新启动 blog-user 服务。
+在 IDEA 中停止并重新启动 ZhiCore-user 服务。
 
 ### 3. 验证修复
 
@@ -45,7 +45,7 @@ cd tests/api/admin
 
 ## 预期结果
 
-- blog-user 服务正常启动，无编码错误
+- ZhiCore-user 服务正常启动，无编码错误
 - ADMIN-003 (Disable User) 测试通过
 - ADMIN-004 (Enable User) 测试通过
 - ADMIN-013 (Filter Posts by Status) 测试通过

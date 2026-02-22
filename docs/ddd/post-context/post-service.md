@@ -91,7 +91,7 @@ public class PostService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IPostRepository.cs
+// ZhiCoreCore/Domain/Repositories/IPostRepository.cs
 public interface IPostRepository
 {
     // 查询
@@ -123,7 +123,7 @@ public interface IPostRepository
 ### Repository 实现
 
 ```csharp
-// BlogCore/Infrastructure/Repositories/PostRepository.cs
+// ZhiCoreCore/Infrastructure/Repositories/PostRepository.cs
 public class PostRepository : IPostRepository
 {
     private readonly AppDbContext _dbContext;
@@ -185,7 +185,7 @@ public class PostRepository : IPostRepository
 ### Domain Service
 
 ```csharp
-// BlogCore/Domain/Services/IPostDomainService.cs
+// ZhiCoreCore/Domain/Services/IPostDomainService.cs
 public interface IPostDomainService
 {
     /// <summary>
@@ -204,7 +204,7 @@ public interface IPostDomainService
     bool IsScheduledPublish(DateTimeOffset? publishAt);
 }
 
-// BlogCore/Domain/Services/PostDomainService.cs
+// ZhiCoreCore/Domain/Services/PostDomainService.cs
 public class PostDomainService : IPostDomainService
 {
     private readonly ISnowflakeIdService _snowflakeIdService;
@@ -261,7 +261,7 @@ public class PostDomainService : IPostDomainService
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Post/IPostApplicationService.cs
+// ZhiCoreCore/Application/Post/IPostApplicationService.cs
 public interface IPostApplicationService
 {
     Task<long> PublishPostAsync(string userId, PublishPostReq req);
@@ -276,7 +276,7 @@ public interface IPostApplicationService
     Task<PaginatedResult<DraftPreviewVo>> GetDraftsAsync(string userId, PaginationRequest pagination);
 }
 
-// BlogCore/Application/Post/PostApplicationService.cs
+// ZhiCoreCore/Application/Post/PostApplicationService.cs
 public class PostApplicationService : IPostApplicationService
 {
     private readonly IPostRepository _postRepository;
@@ -429,7 +429,7 @@ public record PostPublishedEvent : DomainEventBase
 ### 事件处理器
 
 ```csharp
-// BlogCore/Domain/EventHandlers/Post/PostPublishedEventHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Post/PostPublishedEventHandler.cs
 public class PostPublishedEventHandler : IDomainEventHandler<PostPublishedEvent>
 {
     private readonly IPostHotnessService _hotnessService;
@@ -468,7 +468,7 @@ public class PostPublishedEventHandler : IDomainEventHandler<PostPublishedEvent>
 ### Cached Repository
 
 ```csharp
-// BlogCore/Infrastructure/Repositories/CachedPostRepository.cs
+// ZhiCoreCore/Infrastructure/Repositories/CachedPostRepository.cs
 public class CachedPostRepository : IPostRepository
 {
     private readonly IPostRepository _inner;

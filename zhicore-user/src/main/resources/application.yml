@@ -1,0 +1,150 @@
+server:
+  port: 8101
+
+spring:
+  application:
+    name: zhicore-user
+  config:
+    import:
+      - optional:nacos:common.yml?group=ZHICORE_SERVICE&refreshEnabled=true
+      - optional:nacos:zhicore-user.yml?group=ZHICORE_SERVICE&refreshEnabled=true
+
+# JWT 配置完全从 Nacos common.yml 加载，不再提供本地默认值
+# 如果 Nacos 不可用，使用以下后备配置
+jwt:
+  secret: ${JWT_SECRET:dev-jwt-secret-key-for-development-only-change-in-production-ZhiCore-microservice-2024}
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:7200}
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800}
+
+spring.datasource:
+  url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:zhicore_user}
+  username: ${DB_USERNAME:postgres}
+  password: ${DB_PASSWORD:postgres123456}
+  driver-class-name: org.postgresql.Driver
+  hikari:
+    minimum-idle: 5
+    maximum-pool-size: 20
+    idle-timeout: 30000
+    pool-name: UserServiceHikariCP
+    max-lifetime: 1800000
+    connection-timeout: 30000
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6800}
+      password: ${REDIS_PASSWORD:redis123456}
+      database: 0
+
+  cloud:
+    nacos:
+      discovery:
+        group: ZHICORE_SERVICE
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.zhicore.user.infrastructure.repository.po
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: input
+      logic-delete-field: deleted
+      logic-delete-value: true
+      logic-not-delete-value: false
+
+# RocketMQ 配置
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+  producer:
+    group: user-producer-group
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 2
+
+# Sentinel 配置
+spring.cloud.sentinel:
+  transport:
+    dashboard: ${SENTINEL_DASHBOARD:localhost:8080}
+  eager: true
+
+# Feign 配置
+spring.cloud.openfeign:
+  client:
+    config:
+      default:
+        connect-timeout: 2000
+        read-timeout: 3000
+        logger-level: BASIC
+  sentinel:
+    enabled: true
+
+# File Service 配置
+file-service:
+  client:
+    server-url: ${FILE_SERVICE_URL:http://localhost:8089}
+    tenant-id: ${FILE_SERVICE_TENANT_ID:ZhiCore}
+    # token 可选，会自动从 Spring Security Context 获取
+    # token: ${FILE_SERVICE_TOKEN}
+    
+    # 连接设置
+    connect-timeout: 10000
+    read-timeout: 30000
+    max-connections: 50
+    
+    # 域名设置
+    custom-domain: ${FILE_SERVICE_CUSTOM_DOMAIN:}
+    cdn-domain: ${FILE_SERVICE_CDN_DOMAIN:}
+    
+    # 重试设置
+    max-retries: 3
+    retry-delay-ms: 1000
+
+# 缓存配置
+cache:
+  ttl:
+    entity-detail: 600
+    list: 300
+    stats: -1
+    session: 604800
+
+# 日志配置
+logging:
+  level:
+    com.zhicore.user: DEBUG
+    com.zhicore.user.infrastructure.repository.mapper: DEBUG
+
+# Actuator 配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+# Knife4j API 文档配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true  # 必须启用，Knife4j 依赖此配置
+    path: /swagger-ui.html
+
+knife4j:
+  enable: true
+  title: 用户服务 API 文档
+  version: 1.0.0
+  description: 用户服务微服务接口文档，包含用户注册、登录、认证、关注、签到等功能
+  setting:
+    language: zh_cn  # 中文界面
+    enable-swagger-models: true
+    enable-document-manage: true
+    swagger-model-name: 实体类列表
+  production: false
+

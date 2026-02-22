@@ -37,7 +37,7 @@ public class SessionService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/ISessionRepository.cs
+// ZhiCoreCore/Domain/Repositories/ISessionRepository.cs
 public interface ISessionRepository
 {
     /// <summary>
@@ -85,7 +85,7 @@ public interface ISessionRepository
 ### Application Service
 
 ```csharp
-// BlogCore/Application/User/ISessionApplicationService.cs
+// ZhiCoreCore/Application/User/ISessionApplicationService.cs
 public interface ISessionApplicationService
 {
     Task<UserSession> CreateSessionAsync(string userId, CreateSessionReq req);
@@ -95,7 +95,7 @@ public interface ISessionApplicationService
     Task<IReadOnlyList<SessionVo>> GetActiveSessionsAsync(string userId);
 }
 
-// BlogCore/Application/User/SessionApplicationService.cs
+// ZhiCoreCore/Application/User/SessionApplicationService.cs
 public class SessionApplicationService : ISessionApplicationService
 {
     private readonly ISessionRepository _sessionRepository;

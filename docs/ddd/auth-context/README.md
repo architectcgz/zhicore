@@ -105,8 +105,8 @@ public class AntiSpamService : IAntiSpamService
 {
   "JwtConfig": {
     "Key": "your-secret-key-at-least-32-characters",
-    "Issuer": "blog-api",
-    "Audience": "blog-frontend",
+    "Issuer": "ZhiCore-api",
+    "Audience": "ZhiCore-frontend",
     "AccessTokenExpireMinutes": 30,
     "RefreshTokenExpireDays": 7
   }

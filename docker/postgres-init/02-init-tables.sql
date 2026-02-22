@@ -1,16 +1,16 @@
 -- =====================================================
--- Blog Microservices Table Structure Initialization
--- 博客微服务系统表结构初始化脚本
+-- ZhiCore Microservices Table Structure Initialization
+-- 知构微服务系统表结构初始化脚本
 -- 
 -- 说明：此脚本在数据库创建后自动执行，创建所有表结构
 -- 执行顺序：在 01-init-all-databases.sql 之后执行
 -- =====================================================
 
 -- =====================================================
--- 1. User Service (blog_user 数据库)
+-- 1. User Service (zhicore_user 数据库)
 -- =====================================================
 
-\c blog_user;
+\c zhicore_user;
 
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
@@ -115,10 +115,10 @@ ON CONFLICT (id) DO NOTHING;
 SELECT setval('roles_id_seq', 10, false);
 
 -- =====================================================
--- 2. Post Service (blog_post 数据库)
+-- 2. Post Service (zhicore_content 数据库)
 -- =====================================================
 
-\c blog_post;
+\c zhicore_content;
 
 -- 文章表
 CREATE TABLE IF NOT EXISTS posts (
@@ -283,10 +283,10 @@ COMMENT ON COLUMN categories.parent_id IS '父分类ID';
 COMMENT ON COLUMN categories.sort_order IS '排序顺序';
 
 -- =====================================================
--- 3. Comment Service (blog_comment 数据库)
+-- 3. Comment Service (zhicore_comment 数据库)
 -- =====================================================
 
-\c blog_comment;
+\c zhicore_comment;
 
 -- 评论表
 CREATE TABLE IF NOT EXISTS comments (
@@ -328,10 +328,10 @@ CREATE INDEX IF NOT EXISTS idx_comment_likes_user ON comment_likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_comment_likes_comment ON comment_likes(comment_id);
 
 -- =====================================================
--- 4. Message Service (blog_message 数据库)
+-- 4. Message Service (zhicore_message 数据库)
 -- =====================================================
 
-\c blog_message;
+\c zhicore_message;
 
 -- 会话表
 CREATE TABLE IF NOT EXISTS conversations (
@@ -387,10 +387,10 @@ BEGIN
 END $$;
 
 -- =====================================================
--- 5. Notification Service (blog_notification 数据库)
+-- 5. Notification Service (zhicore_notification 数据库)
 -- =====================================================
 
-\c blog_notification;
+\c zhicore_notification;
 
 -- 通知表
 CREATE TABLE IF NOT EXISTS notifications (

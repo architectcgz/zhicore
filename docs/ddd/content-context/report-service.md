@@ -55,7 +55,7 @@ Processing（处理中）
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IReportRepository.cs
+// ZhiCoreCore/Domain/Repositories/IReportRepository.cs
 public interface IReportRepository
 {
     /// <summary>
@@ -89,7 +89,7 @@ public interface IReportRepository
 ### Domain Service
 
 ```csharp
-// BlogCore/Domain/Services/IReportDomainService.cs
+// ZhiCoreCore/Domain/Services/IReportDomainService.cs
 public interface IReportDomainService
 {
     /// <summary>
@@ -103,7 +103,7 @@ public interface IReportDomainService
     Report CreateReport(CreateReportReq request, string reporterId, string? ipAddress, string? userAgent);
 }
 
-// BlogCore/Domain/Services/ReportDomainService.cs
+// ZhiCoreCore/Domain/Services/ReportDomainService.cs
 public class ReportDomainService : IReportDomainService
 {
     private readonly IReportRepository _reportRepository;
@@ -152,7 +152,7 @@ public class ReportDomainService : IReportDomainService
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Content/IReportApplicationService.cs
+// ZhiCoreCore/Application/Content/IReportApplicationService.cs
 public interface IReportApplicationService
 {
     Task<long> CreateReportAsync(CreateReportReq request, string reporterId, string? ipAddress = null, string? userAgent = null);
@@ -161,7 +161,7 @@ public interface IReportApplicationService
     Task<ReportListResp> GetUserReportsAsync(string reporterId, ReportSearchReq request);
 }
 
-// BlogCore/Application/Content/ReportApplicationService.cs
+// ZhiCoreCore/Application/Content/ReportApplicationService.cs
 public class ReportApplicationService : IReportApplicationService
 {
     private readonly IReportDomainService _domainService;

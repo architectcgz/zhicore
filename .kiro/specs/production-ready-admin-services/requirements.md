@@ -2,13 +2,13 @@
 
 ## Introduction
 
-当前 blog-user 和 blog-post 服务中的管理功能（AdminUserApplicationService 和 AdminPostApplicationService）使用了简化实现，即先从数据库查询所有数据到内存，然后在应用层进行过滤和分页。这种实现方式在数据量较大时会导致严重的性能问题和内存溢出风险。
+当前 ZhiCore-user 和 ZhiCore-post 服务中的管理功能（AdminUserApplicationService 和 AdminPostApplicationService）使用了简化实现，即先从数据库查询所有数据到内存，然后在应用层进行过滤和分页。这种实现方式在数据量较大时会导致严重的性能问题和内存溢出风险。
 
 本需求旨在将这些简化实现改造为生产环境可用的实现，将过滤和分页逻辑下推到数据库层，提升系统性能和可扩展性。
 
 ## Glossary
 
-- **System**: blog-user 和 blog-post 微服务
+- **System**: ZhiCore-user 和 ZhiCore-post 微服务
 - **Admin_Service**: 管理员服务层（AdminUserApplicationService 和 AdminPostApplicationService）
 - **Repository**: 数据访问层（UserRepository 和 PostRepository）
 - **Mapper**: MyBatis 数据库映射层（UserMapper 和 PostMapper）

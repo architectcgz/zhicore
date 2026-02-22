@@ -6,7 +6,7 @@
 
 ```
 search-service/
-├── src/main/java/com/blog/search/
+├── src/main/java/com/ZhiCore/search/
 │   ├── interfaces/
 │   │   ├── controller/
 │   │   │   └── SearchController.java
@@ -274,7 +274,7 @@ public class PostDeletedSearchConsumer implements RocketMQListener<PostDeletedEv
 
 ```
 ranking-service/
-├── src/main/java/com/blog/ranking/
+├── src/main/java/com/ZhiCore/ranking/
 │   ├── interfaces/
 │   │   ├── controller/
 │   │   │   └── RankingController.java

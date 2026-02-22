@@ -44,7 +44,7 @@
 
 ```powershell
 # 进入脚本目录
-cd blog-microservice/database/test-data/scripts
+cd ZhiCore-microservice/database/test-data/scripts
 
 # 生成关注关系
 .\Generate-UserFollows.ps1
@@ -322,7 +322,7 @@ WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'test_%');
 ### Q5: 脚本执行失败怎么办？
 
 **A**: 按以下步骤排查：
-1. 检查服务是否启动（blog-gateway 端口 8000）
+1. 检查服务是否启动（ZhiCore-gateway 端口 8000）
 2. 验证测试用户是否存在
 3. 查看详细错误信息
 4. 使用 -DryRun 参数预览数据

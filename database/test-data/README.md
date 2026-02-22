@@ -1,6 +1,6 @@
-# Blog 测试数据生成工具
+# ZhiCore 测试数据生成工具
 
-本目录包含用于生成 blog-microservice 测试数据的脚本和配置文件。
+本目录包含用于生成 ZhiCore-microservice 测试数据的脚本和配置文件。
 
 ## 目录结构
 
@@ -38,13 +38,13 @@ test-data/
 - **Redis**: `localhost:6379`
 - **Nacos**: `localhost:8848`
 - **ID Generator**: `localhost:8088`
-- **Blog Gateway**: `localhost:8100`
-- **所有 Blog 微服务**: User(8101), Post(8102), Comment(8103), Message(8105), Notification(8106)
+- **ZhiCore Gateway**: `localhost:8100`
+- **所有 ZhiCore 微服务**: User(8101), Post(8102), Comment(8103), Message(8105), Notification(8106)
 
 可以使用以下命令启动所有服务：
 
 ```powershell
-cd blog-microservice/docker
+cd ZhiCore-microservice/docker
 docker-compose up -d
 ```
 
@@ -53,7 +53,7 @@ docker-compose up -d
 确保数据库已初始化并创建了所有必需的表：
 
 ```powershell
-cd blog-microservice/database
+cd ZhiCore-microservice/database
 .\init-databases.ps1
 ```
 
@@ -69,7 +69,7 @@ cd blog-microservice/database
 
 ```json
 {
-  "apiBaseUrl": "http://localhost:8100",      // Blog Gateway 地址
+  "apiBaseUrl": "http://localhost:8100",      // ZhiCore Gateway 地址
   "idGeneratorUrl": "http://localhost:8088",  // ID Generator 服务地址
   "appId": "test-app"                         // 应用 ID
 }
@@ -112,7 +112,7 @@ cd blog-microservice/database
 2. 运行主脚本生成所有测试数据：
 
 ```powershell
-cd blog-microservice/database/test-data/scripts
+cd ZhiCore-microservice/database/test-data/scripts
 .\Generate-TestData.ps1
 ```
 
@@ -142,7 +142,7 @@ cd blog-microservice/database/test-data/scripts
 生成数据后，可以单独运行验证脚本：
 
 ```powershell
-cd blog-microservice/database/test-data/scripts/modules
+cd ZhiCore-microservice/database/test-data/scripts/modules
 .\DataValidator.ps1
 ```
 
@@ -244,7 +244,7 @@ cd blog-microservice/database/test-data/scripts/modules
 1. 检查服务是否启动: `docker ps`
 2. 检查端口是否被占用: `netstat -ano | findstr :8100`
 3. 检查防火墙设置
-4. 查看服务日志: `docker logs blog-gateway`
+4. 查看服务日志: `docker logs ZhiCore-gateway`
 
 ### 问题 2: ID 生成失败
 
@@ -279,7 +279,7 @@ cd blog-microservice/database/test-data/scripts/modules
 
 ```powershell
 # 清理所有测试数据
-cd blog-microservice/database/test-data/scripts
+cd ZhiCore-microservice/database/test-data/scripts
 .\Clean-TestData.ps1
 
 # 只清理特定类型的数据
@@ -305,9 +305,9 @@ cd blog-microservice/database/test-data/scripts
 
 ## 相关文档
 
-- [需求文档](../../.kiro/specs/blog-test-data-generation/requirements.md)
-- [设计文档](../../.kiro/specs/blog-test-data-generation/design.md)
-- [任务列表](../../.kiro/specs/blog-test-data-generation/tasks.md)
+- [需求文档](../../.kiro/specs/ZhiCore-test-data-generation/requirements.md)
+- [设计文档](../../.kiro/specs/ZhiCore-test-data-generation/design.md)
+- [任务列表](../../.kiro/specs/ZhiCore-test-data-generation/tasks.md)
 - [数据库初始化文档](../README.md)
 - [端口分配文档](../../../.kiro/steering/port-allocation.md)
 

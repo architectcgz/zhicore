@@ -158,7 +158,7 @@ JOIN roles r ON ur.role_id = r.id
 WHERE r.name = 'ADMIN' AND u.username LIKE 'test_%'
 ORDER BY u.id
 "@
-        $output = docker exec -i blog-postgres psql -U postgres -d blog_user -t -A -F "," -c $query 2>&1
+        $output = docker exec -i ZhiCore-postgres psql -U postgres -d ZhiCore_user -t -A -F "," -c $query 2>&1
         
         if ($LASTEXITCODE -ne 0) {
             throw "SQL 查询失败: $output"
@@ -393,7 +393,7 @@ try {
 -- 总公告数: $($announcements.Count)
 -- =====================================================
 
-\c blog_notification;
+\c ZhiCore_notification;
 
 BEGIN;
 
@@ -508,7 +508,7 @@ Write-ColorOutput "  psql -h localhost -p 5432 -U postgres -f `"$sqlOutputPath`"
 
 .NOTES
     前置条件：
-    1. blog-id-generator 服务已启动（端口 8088）
+    1. ZhiCore-id-generator 服务已启动（端口 8088）
     2. PostgreSQL 数据库已启动（端口 5432）
     3. 已执行用户数据生成脚本
 

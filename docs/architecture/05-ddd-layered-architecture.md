@@ -4,13 +4,13 @@
 
 | 版本 | 日期 | 作者 | 说明 |
 |------|------|------|------|
-| 1.0 | 2026-02-11 | Blog Team | 初始版本 - DDD 分层架构设计说明 |
+| 1.0 | 2026-02-11 | ZhiCore Team | 初始版本 - DDD 分层架构设计说明 |
 
 ---
 
 ## 概述
 
-Blog 微服务系统采用 **领域驱动设计（Domain-Driven Design, DDD）** 的分层架构模式，将业务逻辑与技术实现解耦，提高代码的可维护性和可测试性。
+ZhiCore 微服务系统采用 **领域驱动设计（Domain-Driven Design, DDD）** 的分层架构模式，将业务逻辑与技术实现解耦，提高代码的可维护性和可测试性。
 
 ### 核心理念
 
@@ -31,7 +31,7 @@ Blog 微服务系统采用 **领域驱动设计（Domain-Driven Design, DDD）**
 
 ## 四层架构
 
-Blog 微服务采用经典的 DDD 四层架构：
+ZhiCore 微服务采用经典的 DDD 四层架构：
 
 ```mermaid
 graph TB
@@ -851,7 +851,7 @@ infrastructure/
 ├── cache/            # 缓存实现
 │   └── PostCacheService.java
 ├── feign/            # Feign 客户端
-│   └── BlogUploadClient.java
+│   └── ZhiCoreUploadClient.java
 ├── mq/              # 消息队列
 │   ├── PostEventPublisher.java
 │   └── PostEventListener.java
@@ -1499,4 +1499,4 @@ DDD 分层架构的核心价值在于：
 ---
 
 **最后更新**: 2026-02-11  
-**维护者**: Blog Team
+**维护者**: ZhiCore Team

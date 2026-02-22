@@ -1,7 +1,7 @@
 # ===========================================
 # User Service 配置
 # Nacos DataId: user-service.yml
-# Group: BLOG_SERVICE
+# Group: ZhiCore_SERVICE
 # ===========================================
 
 server:
@@ -9,7 +9,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:blog_user}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ZhiCore_user}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
@@ -24,7 +24,7 @@ spring:
 # MyBatis-Plus 配置
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
-  type-aliases-package: com.blog.user.infrastructure.repository.po
+  type-aliases-package: com.ZhiCore.user.infrastructure.repository.po
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
@@ -55,5 +55,5 @@ cache:
 # 日志配置
 logging:
   level:
-    com.blog.user: DEBUG
-    com.blog.user.infrastructure.repository.mapper: DEBUG
+    com.ZhiCore.user: DEBUG
+    com.ZhiCore.user.infrastructure.repository.mapper: DEBUG

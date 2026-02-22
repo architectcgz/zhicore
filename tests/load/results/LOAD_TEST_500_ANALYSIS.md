@@ -126,7 +126,7 @@
 ### 立即行动
 
 1. **分析错误日志**
-   - 检查 Gateway 日志: `blog-gateway/logs/`
+   - 检查 Gateway 日志: `ZhiCore-gateway/logs/`
    - 查找 JWT 验证失败模式
    - 识别最常见的错误类型
 
@@ -205,11 +205,11 @@
 
 ## Test Environment
 
-- **Gateway**: blog-gateway-1.0.0-SNAPSHOT.jar (包含 JWT 修复)
-- **User**: blog-user-1.0.0-SNAPSHOT.jar (包含 JWT 修复)
-- **Post**: blog-post-1.0.0-SNAPSHOT.jar
-- **Comment**: blog-comment-1.0.0-SNAPSHOT.jar
-- **Leaf**: blog-leaf-1.0.0-SNAPSHOT.jar
+- **Gateway**: ZhiCore-gateway-1.0.0-SNAPSHOT.jar (包含 JWT 修复)
+- **User**: ZhiCore-user-1.0.0-SNAPSHOT.jar (包含 JWT 修复)
+- **Post**: ZhiCore-post-1.0.0-SNAPSHOT.jar
+- **Comment**: ZhiCore-comment-1.0.0-SNAPSHOT.jar
+- **Leaf**: ZhiCore-leaf-1.0.0-SNAPSHOT.jar
 - **Redis**: 7.2-alpine (Port 6800)
 - **PostgreSQL**: 16-alpine (Port 5432)
 

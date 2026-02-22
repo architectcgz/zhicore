@@ -4,28 +4,28 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.blog</groupId>
-    <artifactId>blog-microservices</artifactId>
+    <groupId>com.zhicore</groupId>
+    <artifactId>zhicore-microservices</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>Blog Microservices</name>
+    <name>zhicore Microservices</name>
     <description>Spring Cloud Alibaba 微服务博客系统</description>
 
     <modules>
-        <module>blog-common</module>
-        <module>blog-client</module>
-        <module>blog-gateway</module>
-        <module>blog-user</module>
-        <module>blog-post</module>
-        <module>blog-comment</module>
-        <module>blog-message</module>
-        <module>blog-notification</module>
-        <module>blog-search</module>
-        <module>blog-ranking</module>
-        <module>blog-admin</module>
-        <module>blog-ops</module>
-        <module>blog-upload</module>
-        <module>blog-id-generator</module>
+        <module>zhicore-common</module>
+        <module>zhicore-client</module>
+        <module>zhicore-gateway</module>
+        <module>zhicore-user</module>
+        <module>zhicore-content</module>
+        <module>zhicore-comment</module>
+        <module>zhicore-message</module>
+        <module>zhicore-notification</module>
+        <module>zhicore-search</module>
+        <module>zhicore-ranking</module>
+        <module>zhicore-admin</module>
+        <module>zhicore-ops</module>
+        <module>zhicore-upload</module>
+        <module>zhicore-id-generator</module>
     </modules>
 
     <properties>
@@ -113,13 +113,13 @@
 
             <!-- Internal Modules -->
             <dependency>
-                <groupId>com.blog</groupId>
-                <artifactId>blog-common</artifactId>
+                <groupId>com.zhicore</groupId>
+                <artifactId>zhicore-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.blog</groupId>
-                <artifactId>blog-client</artifactId>
+                <groupId>com.zhicore</groupId>
+                <artifactId>zhicore-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

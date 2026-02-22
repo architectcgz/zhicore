@@ -2,7 +2,7 @@
 
 ## Overview
 
-本设计文档描述了如何将独立的 file-service 集成到 blog-microservice 系统中，实现统一的文件管理、多种上传方式支持、CDN 加速和更好的服务解耦。
+本设计文档描述了如何将独立的 file-service 集成到 ZhiCore-microservice 系统中，实现统一的文件管理、多种上传方式支持、CDN 加速和更好的服务解耦。
 
 ### 集成策略
 
@@ -10,10 +10,10 @@
 2. **依赖集成**: 在父 pom.xml 中添加 file-service-spring-boot-starter 依赖
 3. **配置管理**: 配置 File Service 连接信息和认证方式
 4. **功能实现**: 实现用户头像、文章封面图、文章内容图片的上传功能
-5. **连接配置**: 配置 Blog 服务连接到独立部署的 File Service
+5. **连接配置**: 配置 ZhiCore 服务连接到独立部署的 File Service
 6. **测试验证**: 确保所有文件操作功能正常工作
 
-**重要说明:** File Service 作为独立的共享服务部署，可被多个系统（Blog、IM 等）共同使用。Blog 系统通过 HTTP 调用 File Service API，不需要在自己的 docker-compose 中部署对象存储或 File Service。
+**重要说明:** File Service 作为独立的共享服务部署，可被多个系统（ZhiCore、IM 等）共同使用。ZhiCore 系统通过 HTTP 调用 File Service API，不需要在自己的 docker-compose 中部署对象存储或 File Service。
 
 ### 参考实现
 
@@ -28,11 +28,11 @@
 
 ```mermaid
 graph TB
-    subgraph "Blog Microservices"
-        A[blog-user<br/>用户服务]
-        B[blog-post<br/>文章服务]
-        C[blog-comment<br/>评论服务]
-        D[blog-gateway<br/>网关]
+    subgraph "ZhiCore Microservices"
+        A[ZhiCore-user<br/>用户服务]
+        B[ZhiCore-post<br/>文章服务]
+        C[ZhiCore-comment<br/>评论服务]
+        D[ZhiCore-gateway<br/>网关]
     end
     
     subgraph "Shared File Service (独立部署)"
@@ -75,11 +75,11 @@ graph TB
         D --> H
     end
     
-    subgraph "独立部署: Blog Microservices"
-        subgraph "Blog Services"
-            A[blog-user:8081]
-            B[blog-post:8082]
-            C[blog-gateway:8080]
+    subgraph "独立部署: ZhiCore Microservices"
+        subgraph "ZhiCore Services"
+            A[ZhiCore-user:8081]
+            B[ZhiCore-post:8082]
+            C[ZhiCore-gateway:8080]
         end
         
         subgraph "Infrastructure"
@@ -107,9 +107,9 @@ graph TB
 
 **说明:**
 - File Service 作为独立服务部署,可被多个系统共享使用
-- Blog 服务通过 HTTP 调用 File Service API
+- ZhiCore 服务通过 HTTP 调用 File Service API
 - File Service 自带 RustFS/MinIO 作为存储后端
-- Blog 不需要部署自己的对象存储
+- ZhiCore 不需要部署自己的对象存储
 
 ### 数据流图
 
@@ -117,7 +117,7 @@ graph TB
 sequenceDiagram
     participant U as User
     participant G as Gateway
-    participant BS as Blog Service
+    participant BS as ZhiCore Service
     participant FS as File Service
     participant M as MinIO
     participant CDN as CDN
@@ -151,7 +151,7 @@ sequenceDiagram
 
 #### 父 POM 配置
 
-在 `blog-microservice/pom.xml` 的 `<properties>` 中添加版本号：
+在 `ZhiCore-microservice/pom.xml` 的 `<properties>` 中添加版本号：
 
 ```xml
 <properties>
@@ -173,7 +173,7 @@ sequenceDiagram
 
 #### 服务模块 POM 配置
 
-在需要文件上传功能的服务模块（blog-user、blog-post）的 pom.xml 中添加：
+在需要文件上传功能的服务模块（ZhiCore-user、ZhiCore-post）的 pom.xml 中添加：
 
 ```xml
 <dependencies>
@@ -196,7 +196,7 @@ sequenceDiagram
 file-service:
   client:
     server-url: ${FILE_SERVICE_URL:http://localhost:8089}
-    tenant-id: ${FILE_SERVICE_TENANT_ID:blog}
+    tenant-id: ${FILE_SERVICE_TENANT_ID:ZhiCore}
     # token 可选，会自动从 Spring Security Context 获取
     # token: ${FILE_SERVICE_TOKEN}
     
@@ -222,7 +222,7 @@ file-service:
 file-service:
   client:
     server-url: http://file-service:8089
-    tenant-id: blog
+    tenant-id: ZhiCore
     connect-timeout: 15000
     read-timeout: 60000
     max-connections: 100
@@ -235,10 +235,10 @@ file-service:
 
 #### FileUploadService 接口
 
-在 `blog-common` 模块中创建统一的文件上传服务接口：
+在 `ZhiCore-common` 模块中创建统一的文件上传服务接口：
 
 ```java
-package com.blog.common.service;
+package com.zhicore.common.service;
 
 import org.springframework.web.multipart.MultipartFile;
 
@@ -289,10 +289,10 @@ public interface FileUploadService {
 #### FileUploadServiceImpl 实现
 
 ```java
-package com.blog.common.service.impl;
+package com.zhicore.common.service.impl;
 
-import com.blog.common.exception.FileUploadException;
-import com.blog.common.service.FileUploadService;
+import com.zhicore.common.exception.FileUploadException;
+import com.zhicore.common.service.FileUploadService;
 import com.platform.fileservice.client.FileServiceClient;
 import com.platform.fileservice.client.exception.FileServiceException;
 import com.platform.fileservice.client.model.AccessLevel;
@@ -418,14 +418,14 @@ public class FileUploadServiceImpl implements FileUploadService {
 
 ### 4. Controller 实现
 
-#### 用户头像上传 (blog-user)
+#### 用户头像上传 (ZhiCore-user)
 
 ```java
-package com.blog.user.controller;
+package com.ZhiCore.user.controller;
 
-import com.blog.common.response.ApiResponse;
-import com.blog.common.service.FileUploadService;
-import com.blog.user.service.UserService;
+import com.zhicore.common.response.ApiResponse;
+import com.zhicore.common.service.FileUploadService;
+import com.ZhiCore.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -470,13 +470,13 @@ public class UserAvatarController {
 }
 ```
 
-#### 文章封面图上传 (blog-post)
+#### 文章封面图上传 (ZhiCore-post)
 
 ```java
-package com.blog.post.controller;
+package com.zhicore.post.controller;
 
-import com.blog.common.response.ApiResponse;
-import com.blog.common.service.FileUploadService;
+import com.zhicore.common.response.ApiResponse;
+import com.zhicore.common.service.FileUploadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -527,7 +527,7 @@ public class PostImageController {
 File Service Starter 会自动从 Spring Security Context 获取 JWT 令牌。如果需要自定义令牌提供者：
 
 ```java
-package com.blog.common.config;
+package com.zhicore.common.config;
 
 import com.platform.fileservice.client.config.TokenProvider;
 import org.springframework.context.annotation.Bean;
@@ -615,7 +615,7 @@ public class FileServiceProperties {
     /**
      * 租户ID
      */
-    private String tenantId = "blog";
+    private String tenantId = "ZhiCore";
     
     /**
      * 静态令牌（可选）
@@ -729,7 +729,7 @@ public class FileServiceProperties {
 ### 异常类型
 
 ```java
-package com.blog.common.exception;
+package com.zhicore.common.exception;
 
 /**
  * 文件上传异常
@@ -766,12 +766,12 @@ public class FileAccessDeniedException extends RuntimeException {
 ### 全局异常处理
 
 ```java
-package com.blog.common.handler;
+package com.zhicore.common.handler;
 
-import com.blog.common.exception.FileUploadException;
-import com.blog.common.exception.FileNotFoundException;
-import com.blog.common.exception.FileAccessDeniedException;
-import com.blog.common.response.ApiResponse;
+import com.zhicore.common.exception.FileUploadException;
+import com.zhicore.common.exception.FileNotFoundException;
+import com.zhicore.common.exception.FileAccessDeniedException;
+import com.zhicore.common.response.ApiResponse;
 import com.platform.fileservice.client.exception.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -849,9 +849,9 @@ public class FileServiceExceptionHandler {
 当 File Service 不可用时的降级方案：
 
 ```java
-package com.blog.common.service.impl;
+package com.zhicore.common.service.impl;
 
-import com.blog.common.service.FileUploadService;
+import com.zhicore.common.service.FileUploadService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -980,7 +980,7 @@ class FileUploadServiceImplTest {
 @SpringBootTest
 @TestPropertySource(properties = {
     "file-service.client.server-url=http://localhost:8089",
-    "file-service.client.tenant-id=blog-test"
+    "file-service.client.tenant-id=ZhiCore-test"
 })
 class FileUploadIntegrationTest {
     
@@ -1116,7 +1116,7 @@ class FileUploadE2ETest {
 
 ### 架构说明
 
-File Service 作为独立的共享服务部署,可以被多个系统（Blog、IM 等）共同使用。Blog 系统通过 HTTP 调用 File Service API,不需要在自己的 docker-compose 中部署对象存储。
+File Service 作为独立的共享服务部署,可以被多个系统（ZhiCore、IM 等）共同使用。ZhiCore 系统通过 HTTP 调用 File Service API,不需要在自己的 docker-compose 中部署对象存储。
 
 ### 部署步骤
 
@@ -1139,7 +1139,7 @@ curl http://localhost:8089/actuator/health
 - rustfs/minio (9000, 9001)
 - postgres (5434)
 
-#### 2. 配置 Blog 连接到 File Service
+#### 2. 配置 ZhiCore 连接到 File Service
 
 在 Nacos 配置中心创建/更新 `file-service-config.yml`:
 
@@ -1149,7 +1149,7 @@ file-service:
     # 指向独立部署的 File Service
     server-url: http://host.docker.internal:8089  # Docker Desktop
     # 或使用宿主机 IP: http://192.168.1.100:8089
-    tenant-id: blog
+    tenant-id: ZhiCore
     connect-timeout: 15000
     read-timeout: 60000
     max-connections: 100
@@ -1158,14 +1158,14 @@ file-service:
     retry-delay-ms: 2000
 ```
 
-#### 3. 配置 Blog Docker 网络访问
+#### 3. 配置 ZhiCore Docker 网络访问
 
 **方案 A: 使用 host.docker.internal (推荐用于开发)**
 
 ```yaml
-# blog-microservice/docker/docker-compose.yml
+# ZhiCore-microservice/docker/docker-compose.yml
 services:
-  blog-user:
+  ZhiCore-user:
     environment:
       FILE_SERVICE_URL: http://host.docker.internal:8089
     extra_hosts:
@@ -1175,9 +1175,9 @@ services:
 **方案 B: 使用宿主机 IP (推荐用于生产)**
 
 ```yaml
-# blog-microservice/docker/docker-compose.yml
+# ZhiCore-microservice/docker/docker-compose.yml
 services:
-  blog-user:
+  ZhiCore-user:
     environment:
       FILE_SERVICE_URL: http://192.168.1.100:8089  # 替换为实际 IP
 ```
@@ -1193,8 +1193,8 @@ cd file-service/docker
 docker-compose up -d
 docker network connect shared-services-network file-service
 
-# 3. Blog 服务使用共享网络
-cd blog-microservice/docker
+# 3. ZhiCore 服务使用共享网络
+cd ZhiCore-microservice/docker
 # 在 docker-compose.yml 中添加:
 networks:
   default:
@@ -1203,24 +1203,24 @@ networks:
 
 # 然后在服务配置中使用 file-service 作为主机名
 services:
-  blog-user:
+  ZhiCore-user:
     environment:
       FILE_SERVICE_URL: http://file-service:8089
 ```
 
-#### 4. 启动 Blog 服务
+#### 4. 启动 ZhiCore 服务
 
 ```bash
-cd blog-microservice/docker
+cd ZhiCore-microservice/docker
 docker-compose up -d
 
 # 验证服务连接
-docker-compose exec blog-user curl http://host.docker.internal:8089/actuator/health
+docker-compose exec ZhiCore-user curl http://host.docker.internal:8089/actuator/health
 ```
 
 ### 重要说明
 
-**Blog 的 docker-compose.yml 不需要包含 MinIO 或 File Service 容器**。这些服务已经在 file-service 项目中独立部署。Blog 只需要配置连接参数即可。
+**ZhiCore 的 docker-compose.yml 不需要包含 MinIO 或 File Service 容器**。这些服务已经在 file-service 项目中独立部署。ZhiCore 只需要配置连接参数即可。
 
 ### 网络连接验证
 
@@ -1228,8 +1228,8 @@ docker-compose exec blog-user curl http://host.docker.internal:8089/actuator/hea
 # 验证 File Service 可访问性
 curl http://localhost:8089/actuator/health
 
-# 从 Blog 容器内部测试连接
-docker-compose exec blog-user curl http://host.docker.internal:8089/actuator/health
+# 从 ZhiCore 容器内部测试连接
+docker-compose exec ZhiCore-user curl http://host.docker.internal:8089/actuator/health
 ```
 
 ## Monitoring and Logging
@@ -1242,7 +1242,7 @@ docker-compose exec blog-user curl http://host.docker.internal:8089/actuator/hea
 <!-- File Service Client 日志 -->
 <logger name="com.platform.fileservice.client" level="DEBUG"/>
 <logger name="com.platform.fileservice.starter" level="DEBUG"/>
-<logger name="com.blog.common.service.impl.FileUploadServiceImpl" level="INFO"/>
+<logger name="com.zhicore.common.service.impl.FileUploadServiceImpl" level="INFO"/>
 ```
 
 ### 监控指标
@@ -1426,7 +1426,7 @@ echo "开始文件迁移..."
 
 # 1. 备份数据库
 echo "备份数据库..."
-pg_dump -h localhost -U postgres blog > backup_$(date +%Y%m%d_%H%M%S).sql
+pg_dump -h localhost -U postgres ZhiCore > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # 2. 启动 File Service
 echo "启动 File Service..."
@@ -1470,8 +1470,8 @@ echo "文件迁移完成！"
    # 等待服务就绪
    sleep 10
    
-   # 启动 Blog 服务
-   docker-compose up -d blog-user blog-post
+   # 启动 ZhiCore 服务
+   docker-compose up -d ZhiCore-user ZhiCore-post
    ```
 
 4. **验证功能**
@@ -1502,7 +1502,7 @@ echo "文件迁移完成！"
 
 3. **重启服务**
    ```bash
-   docker-compose restart blog-user blog-post
+   docker-compose restart ZhiCore-user ZhiCore-post
    ```
 
 ### 监控指标

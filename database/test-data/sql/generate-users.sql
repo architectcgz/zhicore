@@ -1,9 +1,9 @@
 -- =====================================================
--- Blog Test Data Generation - User Data
+-- ZhiCore Test Data Generation - User Data
 -- 博客测试数据生成 - 用户数据
 -- 
 -- 说明：此脚本用于生成测试用户数据
--- 执行方式：在 blog_user 数据库中执行
+-- 执行方式：在 ZhiCore_user 数据库中执行
 -- 
 -- 生成数据：
 -- - 3 个管理员用户
@@ -48,8 +48,8 @@ DELETE FROM users WHERE username LIKE 'test_%';
 -- 2. 生成用户数据
 -- =====================================================
 
--- 注意：用户 ID 需要从 blog-id-generator 服务获取
--- 在实际执行时，需要先调用 blog-id-generator API 获取 58 个 ID
+-- 注意：用户 ID 需要从 ZhiCore-id-generator 服务获取
+-- 在实际执行时，需要先调用 ZhiCore-id-generator API 获取 58 个 ID
 -- 然后替换下面的占位符 {ID_1}, {ID_2}, ... {ID_58}
 --
 -- API 端点：GET http://localhost:8088/api/v1/id/snowflake/batch?count=58
@@ -508,8 +508,8 @@ WHERE username LIKE 'test_%';
 -- =====================================================
 
 -- 1. 执行前准备：
---    - 确保 blog_user 数据库已创建并初始化
---    - 确保 blog-id-generator 服务正常运行（http://localhost:8088）
+--    - 确保 ZhiCore_user 数据库已创建并初始化
+--    - 确保 ZhiCore-id-generator 服务正常运行（http://localhost:8088）
 --    - 使用 PowerShell 脚本获取 58 个用户 ID
 --
 -- 2. 获取 ID 示例（PowerShell）：
@@ -521,7 +521,7 @@ WHERE username LIKE 'test_%';
 --    - 可以使用文本编辑器的查找替换功能
 --
 -- 4. 执行脚本：
---    psql -U postgres -d blog_user -f generate-users.sql
+--    psql -U postgres -d ZhiCore_user -f generate-users.sql
 --
 -- 5. 验证结果：
 --    SELECT * FROM users WHERE username LIKE 'test_%' ORDER BY username;

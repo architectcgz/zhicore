@@ -2,7 +2,7 @@
 
 ## 问题描述
 ```
-fail: SelfBlog.Services.Impl.AntiSpamService[0]
+fail: SelfZhiCore.Services.Impl.AntiSpamService[0]
       检查 Like 操作限制时发生错误: UserId=a2d8c2e8-33a5-4675-9f99-b284f5f0c67e
       System.InvalidOperationException: An exception has been raised that is likely due to a transient failure.
        ---> Npgsql.PostgresException (0x80004005): 53300: sorry, too many clients already
@@ -125,8 +125,8 @@ grep "数据库连接告警" logs/application.log
 
 ## 相关文件
 
-- 配置文件：`blog-api/appsettings.json`
-- 防刷服务：`blog-core/Services/Impl/AntiSpamService.cs`
-- 数据库配置：`blog-shared/Config/DatabaseConfig.cs`
-- Redis键定义：`blog-shared/Constants/RedisKeys.cs`
-- 监控服务：`blog-core/Services/Background/DatabaseConnectionMonitorService.cs`
+- 配置文件：`ZhiCore-api/appsettings.json`
+- 防刷服务：`ZhiCore-core/Services/Impl/AntiSpamService.cs`
+- 数据库配置：`ZhiCore-shared/Config/DatabaseConfig.cs`
+- Redis键定义：`ZhiCore-shared/Constants/RedisKeys.cs`
+- 监控服务：`ZhiCore-core/Services/Background/DatabaseConnectionMonitorService.cs`

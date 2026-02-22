@@ -24,10 +24,10 @@
     SQL 查询语句
 
 .PARAMETER Container
-    Docker 容器名称，默认为 blog-postgres
+    Docker 容器名称，默认为 ZhiCore-postgres
 
 .EXAMPLE
-    Invoke-PostgresQuery -Database "blog_user" -Query "SELECT id, username FROM users"
+    Invoke-PostgresQuery -Database "ZhiCore_user" -Query "SELECT id, username FROM users"
 #>
 function Invoke-PostgresQuery {
     param(
@@ -37,7 +37,7 @@ function Invoke-PostgresQuery {
         [Parameter(Mandatory = $true)]
         [string]$Query,
         
-        [string]$Container = "blog-postgres"
+        [string]$Container = "ZhiCore-postgres"
     )
     
     try {
@@ -69,7 +69,7 @@ function Get-TestUsersFromDB {
     
     try {
         $query = "SELECT id, username FROM users WHERE username LIKE 'test_%' ORDER BY id"
-        $output = Invoke-PostgresQuery -Database "blog_user" -Query $query
+        $output = Invoke-PostgresQuery -Database "ZhiCore_user" -Query $query
         
         $results = @()
         $lines = $output -split "`n" | Where-Object { $_ -ne "" }
@@ -112,7 +112,7 @@ function Get-PublishedPostsFromDB {
     
     try {
         $query = "SELECT id, owner_id FROM posts WHERE status = 1 ORDER BY id"
-        $output = Invoke-PostgresQuery -Database "blog_post" -Query $query
+        $output = Invoke-PostgresQuery -Database "ZhiCore_post" -Query $query
         
         $results = @()
         $lines = $output -split "`n" | Where-Object { $_ -ne "" }
@@ -162,7 +162,7 @@ JOIN roles r ON ur.role_id = r.id
 WHERE r.name = 'ADMIN' AND u.username LIKE 'test_%'
 ORDER BY u.id
 "@
-        $output = Invoke-PostgresQuery -Database "blog_user" -Query $query
+        $output = Invoke-PostgresQuery -Database "ZhiCore_user" -Query $query
         
         $results = @()
         $lines = $output -split "`n" | Where-Object { $_ -ne "" }

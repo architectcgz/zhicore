@@ -31,7 +31,7 @@
 ## 目录结构
 
 ```
-BlogCore/
+ZhiCoreCore/
 ├── Application/Content/
 │   ├── ITopicApplicationService.cs
 │   ├── TopicApplicationService.cs

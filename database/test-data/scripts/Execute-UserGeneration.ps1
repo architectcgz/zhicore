@@ -13,13 +13,13 @@ param(
     [string]$IdGeneratorUrl = "http://localhost:8088",
     [string]$PostgresHost = "localhost",
     [int]$PostgresPort = 5432,
-    [string]$PostgresDatabase = "blog_user",
+    [string]$PostgresDatabase = "ZhiCore_user",
     [string]$PostgresUser = "postgres",
     [string]$PostgresPassword = "postgres123456",
     [switch]$DryRun
 )
 
-# 注意：IdGeneratorUrl 指向 blog-id-generator 服务（端口 8088）
+# 注意：IdGeneratorUrl 指向 ZhiCore-id-generator 服务（端口 8088）
 # 该服务是 id-generator-server 的代理层，提供统一的 ID 生成接口
 
 # 设置错误处理
@@ -40,7 +40,7 @@ try {
     # 尝试生成一个测试 ID 来验证服务可用性
     $testResponse = Invoke-RestMethod -Uri "$IdGeneratorUrl/api/v1/id/snowflake" -Method Get -TimeoutSec 5
     if ($testResponse.code -eq 200) {
-        Write-ColorOutput "✓ blog-id-generator 服务正常运行" "Green"
+        Write-ColorOutput "✓ ZhiCore-id-generator 服务正常运行" "Green"
         Write-ColorOutput "  测试 ID: $($testResponse.data)" "Gray"
     }
     else {
@@ -48,7 +48,7 @@ try {
     }
 }
 catch {
-    Write-ColorOutput "✗ 无法连接到 blog-id-generator 服务: $IdGeneratorUrl" "Red"
+    Write-ColorOutput "✗ 无法连接到 ZhiCore-id-generator 服务: $IdGeneratorUrl" "Red"
     Write-ColorOutput "  错误: $_" "Red"
     Write-ColorOutput "  请确保服务已启动（端口 8088）" "Yellow"
     exit 1
@@ -57,7 +57,7 @@ catch {
 # 步骤 2: 获取 58 个用户 ID
 Write-ColorOutput "`n=== 步骤 2: 获取用户 ID ===" "Cyan"
 try {
-    # 使用 blog-id-generator 服务的批量生成 Snowflake ID 接口
+    # 使用 ZhiCore-id-generator 服务的批量生成 Snowflake ID 接口
     $response = Invoke-RestMethod -Uri "$IdGeneratorUrl/api/v1/id/snowflake/batch?count=58" `
         -Method Get `
         -TimeoutSec 10
@@ -134,7 +134,7 @@ try {
     Write-ColorOutput "  使用 Docker: $dockerVersion" "Gray"
 
     # 检查 PostgreSQL 容器是否运行
-    $containerName = "blog-postgres"
+    $containerName = "ZhiCore-postgres"
     $containerStatus = docker ps --filter "name=$containerName" --format "{{.Names}}" 2>&1
     if ($containerStatus -ne $containerName) {
         throw "PostgreSQL 容器 '$containerName' 未运行，请先启动容器"
@@ -203,7 +203,7 @@ FROM users
 WHERE username LIKE 'test_%';
 "@
 
-    $result = $query | docker exec -i blog-postgres psql -U $PostgresUser -d $PostgresDatabase -t 2>&1
+    $result = $query | docker exec -i ZhiCore-postgres psql -U $PostgresUser -d $PostgresDatabase -t 2>&1
     
     if ($LASTEXITCODE -eq 0) {
         Write-ColorOutput "✓ 数据验证完成" "Green"
@@ -230,13 +230,13 @@ Write-ColorOutput "用户名前缀: test_" "Yellow"
     执行用户数据生成 SQL 脚本
 
 .DESCRIPTION
-    此脚本自动从 blog-id-generator 服务获取用户 ID，替换 SQL 模板中的占位符，
+    此脚本自动从 ZhiCore-id-generator 服务获取用户 ID，替换 SQL 模板中的占位符，
     并执行 SQL 脚本生成测试用户数据。
     
-    blog-id-generator 服务是 id-generator-server 的代理层，提供统一的分布式 ID 生成接口。
+    ZhiCore-id-generator 服务是 id-generator-server 的代理层，提供统一的分布式 ID 生成接口。
 
 .PARAMETER IdGeneratorUrl
-    blog-id-generator 服务地址，默认为 http://localhost:8088
+    ZhiCore-id-generator 服务地址，默认为 http://localhost:8088
 
 .PARAMETER PostgresHost
     PostgreSQL 主机地址，默认为 localhost
@@ -245,7 +245,7 @@ Write-ColorOutput "用户名前缀: test_" "Yellow"
     PostgreSQL 端口，默认为 5432
 
 .PARAMETER PostgresDatabase
-    PostgreSQL 数据库名称，默认为 blog_user
+    PostgreSQL 数据库名称，默认为 ZhiCore_user
 
 .PARAMETER PostgresUser
     PostgreSQL 用户名，默认为 postgres
@@ -266,7 +266,7 @@ Write-ColorOutput "用户名前缀: test_" "Yellow"
 
 .EXAMPLE
     .\Execute-UserGeneration.ps1 -IdGeneratorUrl "http://192.168.1.100:8088"
-    使用自定义 blog-id-generator 服务地址
+    使用自定义 ZhiCore-id-generator 服务地址
 
 .EXAMPLE
     .\Execute-UserGeneration.ps1 -PostgresPassword "mypassword"
@@ -274,8 +274,8 @@ Write-ColorOutput "用户名前缀: test_" "Yellow"
 
 .NOTES
     前置条件：
-    1. blog-id-generator 服务已启动（端口 8088）
-    2. PostgreSQL 容器已运行（blog-postgres）
+    1. ZhiCore-id-generator 服务已启动（端口 8088）
+    2. PostgreSQL 容器已运行（ZhiCore-postgres）
     3. Docker 已安装并正在运行
     4. 网络连接正常
 
@@ -287,10 +287,10 @@ Write-ColorOutput "用户名前缀: test_" "Yellow"
     默认密码：Test@123456
     
     服务说明：
-    blog-id-generator 是 blog-microservice 的 ID 生成服务，
+    ZhiCore-id-generator 是 ZhiCore-microservice 的 ID 生成服务，
     它是 id-generator-server 的轻量级代理层，提供统一的分布式 ID 生成接口。
     
     数据库访问：
-    使用 Docker exec 命令通过 blog-postgres 容器执行 SQL 脚本，
+    使用 Docker exec 命令通过 ZhiCore-postgres 容器执行 SQL 脚本，
     无需在主机上安装 PostgreSQL 客户端工具。
 #>

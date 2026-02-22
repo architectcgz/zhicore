@@ -260,8 +260,8 @@ docker stats
 
 # 输出示例：
 CONTAINER ID   NAME              CPU %     MEM USAGE / LIMIT     MEM %     NET I/O
-a1b2c3d4e5f6   blog-backend      85.23%    512MiB / 2GiB        25.6%     1.2MB / 850kB
-f6e5d4c3b2a1   blog-frontend     2.15%     128MiB / 1GiB        12.5%     500kB / 300kB
+a1b2c3d4e5f6   ZhiCore-backend      85.23%    512MiB / 2GiB        25.6%     1.2MB / 850kB
+f6e5d4c3b2a1   ZhiCore-frontend     2.15%     128MiB / 1GiB        12.5%     500kB / 300kB
 9a8b7c6d5e4f   redis             0.50%     32MiB / 512MiB       6.25%     100kB / 50kB
 ```
 
@@ -313,18 +313,18 @@ pstree -p 12345
 
 ```bash
 # 进入容器
-docker exec -it blog-backend bash
+docker exec -it ZhiCore-backend bash
 
 # 查看进程
 ps aux
 # 发现 dotnet 进程 CPU 很高
 
 # 如果容器内没有调试工具，从宿主机安装
-docker exec -it blog-backend apt-get update
-docker exec -it blog-backend apt-get install -y procps htop
+docker exec -it ZhiCore-backend apt-get update
+docker exec -it ZhiCore-backend apt-get install -y procps htop
 
 # 使用 dotnet-dump（如果容器中有 SDK）
-docker exec -it blog-backend dotnet-dump collect -p 1
+docker exec -it ZhiCore-backend dotnet-dump collect -p 1
 ```
 
 **解决方案**：
@@ -352,8 +352,8 @@ docker inspect -f '{{.HostConfig.CpuPeriod}}' <container_id>
 version: '3.8'
 
 services:
-  blog-backend:
-    image: blog-backend:latest
+  ZhiCore-backend:
+    image: ZhiCore-backend:latest
     deploy:
       resources:
         limits:
@@ -369,12 +369,12 @@ services:
 
 ```bash
 docker run -d \
-  --name blog-backend \
+  --name ZhiCore-backend \
   --cpus="1.0" \              # 限制 CPU
   --memory="1g" \             # 限制内存
   --memory-swap="2g" \        # 限制 swap
   --pids-limit=100 \          # 限制进程数
-  blog-backend:latest
+  ZhiCore-backend:latest
 ```
 
 #### 问题 3：容器日志过多导致磁盘 IO 高
@@ -393,8 +393,8 @@ truncate -s 0 /var/lib/docker/containers/<container_id>/<container_id>-json.log
 
 ```yaml
 services:
-  blog-backend:
-    image: blog-backend:latest
+  ZhiCore-backend:
+    image: ZhiCore-backend:latest
     logging:
       driver: "json-file"
       options:
@@ -435,43 +435,43 @@ docker stats --no-stream
 
 # 输出：
 # CONTAINER ID   NAME           CPU %     MEM USAGE
-# a1b2c3d4e5f6   blog-backend   156.23%   800MiB
+# a1b2c3d4e5f6   ZhiCore-backend   156.23%   800MiB
 
-# 2. 发现 blog-backend 容器 CPU 156%，查看容器详情
-docker inspect blog-backend
+# 2. 发现 ZhiCore-backend 容器 CPU 156%，查看容器详情
+docker inspect ZhiCore-backend
 
 # 3. 查看容器日志，寻找线索
-docker logs blog-backend --tail 100 | grep -i error
+docker logs ZhiCore-backend --tail 100 | grep -i error
 
 # 4. 获取容器主进程在宿主机上的 PID
-CONTAINER_PID=$(docker inspect -f '{{.State.Pid}}' blog-backend)
+CONTAINER_PID=$(docker inspect -f '{{.State.Pid}}' ZhiCore-backend)
 echo "Container PID: $CONTAINER_PID"
 
 # 5. 在宿主机上查看该进程
 top -p $CONTAINER_PID
 
 # 6. 进入容器内部排查
-docker exec -it blog-backend bash
+docker exec -it ZhiCore-backend bash
 
 # 7. 容器内部查看进程
 ps aux
 top
 
 # 8. 如果是 .NET 应用，查看诊断信息
-docker exec blog-backend dotnet-counters ps
-docker exec blog-backend dotnet-counters monitor -p 1
+docker exec ZhiCore-backend dotnet-counters ps
+docker exec ZhiCore-backend dotnet-counters monitor -p 1
 
 # 9. 查看应用日志（容器内部）
 cd /app
 tail -f logs/application.log
 
 # 10. 如果需要重启容器
-docker restart blog-backend
+docker restart ZhiCore-backend
 
 # 11. 如果问题持续，停止容器并重新创建
-docker stop blog-backend
-docker rm blog-backend
-docker-compose up -d blog-backend
+docker stop ZhiCore-backend
+docker rm ZhiCore-backend
+docker-compose up -d ZhiCore-backend
 ```
 
 ### 6.4 预防措施：Docker 最佳实践
@@ -493,7 +493,7 @@ services:
 
 ```yaml
 services:
-  blog-backend:
+  ZhiCore-backend:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s

@@ -28,7 +28,7 @@
 ## 目录结构
 
 ```
-BlogCore/
+ZhiCoreCore/
 ├── Application/Admin/
 │   ├── IAdminPostApplicationService.cs
 │   ├── AdminPostApplicationService.cs

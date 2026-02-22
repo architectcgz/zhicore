@@ -1,4 +1,4 @@
-# Blog 微服务列表和职责
+# ZhiCore 微服务列表和职责
 
 ## 文档版本
 
@@ -10,15 +10,15 @@
 
 ## 概述
 
-Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13 个模块**（9 个业务服务 + 2 个支持服务 + 2 个共享模块）。每个服务职责单一，通过 Nacos 进行服务注册与发现，通过 Feign Client 和 RocketMQ 进行服务间通信。
+ZhiCore 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13 个模块**（9 个业务服务 + 2 个支持服务 + 2 个共享模块）。每个服务职责单一，通过 Nacos 进行服务注册与发现，通过 Feign Client 和 RocketMQ 进行服务间通信。
 
 ### 系统特点
 
 - **服务自治**: 每个服务独立部署、独立数据库、独立扩展
 - **领域驱动**: 基于 DDD 分层架构设计
 - **事件驱动**: 使用 RocketMQ 实现异步解耦
-- **统一网关**: 通过 blog-gateway 统一对外提供服务
-- **共享模块**: blog-api 和 blog-common 提供共享接口和工具
+- **统一网关**: 通过 ZhiCore-gateway 统一对外提供服务
+- **共享模块**: ZhiCore-api 和 ZhiCore-common 提供共享接口和工具
 
 ---
 
@@ -28,35 +28,35 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 
 | 服务名称 | 端口 | 职责 | 数据库 | 依赖服务 |
 |---------|------|------|--------|---------|
-| blog-gateway | 8000 | API 网关 | - | Nacos, Redis |
-| blog-user | 8081 | 用户服务 | PostgreSQL | Nacos, Redis, RocketMQ, blog-upload |
-| blog-post | 8082 | 文章服务 | PostgreSQL | Nacos, Redis, RocketMQ, blog-upload |
-| blog-comment | 8083 | 评论服务 | PostgreSQL | Nacos, Redis, RocketMQ, blog-upload |
-| blog-message | 8084 | 消息服务 | PostgreSQL | Nacos, Redis, RocketMQ, ID Generator |
-| blog-notification | 8085 | 通知服务 | PostgreSQL | Nacos, Redis, RocketMQ, ID Generator |
-| blog-search | 8086 | 搜索服务 | Elasticsearch | Nacos, Redis, RocketMQ |
-| blog-ranking | 8087 | 排行服务 | Redis | Nacos, Redis, RocketMQ |
-| blog-admin | 8090 | 管理服务 | PostgreSQL | Nacos |
+| ZhiCore-gateway | 8000 | API 网关 | - | Nacos, Redis |
+| ZhiCore-user | 8081 | 用户服务 | PostgreSQL | Nacos, Redis, RocketMQ, ZhiCore-upload |
+| ZhiCore-post | 8082 | 文章服务 | PostgreSQL | Nacos, Redis, RocketMQ, ZhiCore-upload |
+| ZhiCore-comment | 8083 | 评论服务 | PostgreSQL | Nacos, Redis, RocketMQ, ZhiCore-upload |
+| ZhiCore-message | 8084 | 消息服务 | PostgreSQL | Nacos, Redis, RocketMQ, ID Generator |
+| ZhiCore-notification | 8085 | 通知服务 | PostgreSQL | Nacos, Redis, RocketMQ, ID Generator |
+| ZhiCore-search | 8086 | 搜索服务 | Elasticsearch | Nacos, Redis, RocketMQ |
+| ZhiCore-ranking | 8087 | 排行服务 | Redis | Nacos, Redis, RocketMQ |
+| ZhiCore-admin | 8090 | 管理服务 | PostgreSQL | Nacos |
 
 ### 支持服务（2 个）
 
 | 服务名称 | 端口 | 职责 | 数据库 | 依赖服务 |
 |---------|------|------|--------|---------|
-| blog-ops | - | 运维服务 | - | Nacos |
-| blog-upload | - | 文件上传服务 | - | File Service |
+| ZhiCore-ops | - | 运维服务 | - | Nacos |
+| ZhiCore-upload | - | 文件上传服务 | - | File Service |
 
 ### 共享模块（2 个）
 
 | 模块名称 | 类型 | 职责 |
 |---------|------|------|
-| blog-api | Maven 模块 | 提供 Feign Client 接口、DTO、事件定义 |
-| blog-common | Maven 模块 | 提供公共工具类、常量、异常定义 |
+| ZhiCore-api | Maven 模块 | 提供 Feign Client 接口、DTO、事件定义 |
+| ZhiCore-common | Maven 模块 | 提供公共工具类、常量、异常定义 |
 
 ---
 
 ## 服务详细说明
 
-### 1. blog-gateway (API 网关)
+### 1. ZhiCore-gateway (API 网关)
 
 **端口**: 8000
 
@@ -82,7 +82,7 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 
 ---
 
-### 2. blog-user (用户服务)
+### 2. ZhiCore-user (用户服务)
 
 **端口**: 8081
 
@@ -107,7 +107,7 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 - PostgreSQL（数据存储）
 - Redis（缓存）
 - RocketMQ（事件发布）
-- blog-upload（头像上传）
+- ZhiCore-upload（头像上传）
 
 **领域事件**:
 - UserRegisteredEvent（用户注册事件）
@@ -118,7 +118,7 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 
 ---
 
-### 3. blog-post (文章服务)
+### 3. ZhiCore-post (文章服务)
 
 **端口**: 8082
 
@@ -147,7 +147,7 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 - MongoDB（内容存储）
 - Redis（缓存）
 - RocketMQ（事件发布）
-- blog-upload（文章图片上传）
+- ZhiCore-upload（文章图片上传）
 
 **领域事件**:
 - PostPublishedEvent（文章发布事件）
@@ -159,7 +159,7 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 
 ---
 
-### 4. blog-comment (评论服务)
+### 4. ZhiCore-comment (评论服务)
 
 **端口**: 8083
 
@@ -184,7 +184,7 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 - PostgreSQL（数据存储）
 - Redis（缓存）
 - RocketMQ（事件发布）
-- blog-upload（评论图片、音频上传）
+- ZhiCore-upload（评论图片、音频上传）
 
 **领域事件**:
 - CommentCreatedEvent（评论创建事件）
@@ -195,7 +195,7 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 
 ---
 
-### 5. blog-message (消息服务)
+### 5. ZhiCore-message (消息服务)
 
 **端口**: 8084
 
@@ -225,13 +225,13 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 
 **集成说明**:
 - 与 im-system 集成，实现实时消息推送
-- 参考文档：[blog-message 与 im-system 集成](./blog-message-im-integration.md)
+- 参考文档：[ZhiCore-message 与 im-system 集成](./ZhiCore-message-im-integration.md)
 
 **API 文档**: `http://localhost:8084/doc.html`
 
 ---
 
-### 6. blog-notification (通知服务)
+### 6. ZhiCore-notification (通知服务)
 
 **端口**: 8085
 
@@ -268,7 +268,7 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 
 ---
 
-### 7. blog-search (搜索服务)
+### 7. ZhiCore-search (搜索服务)
 
 **端口**: 8086
 
@@ -303,7 +303,7 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 
 ---
 
-### 8. blog-ranking (排行服务)
+### 8. ZhiCore-ranking (排行服务)
 
 **端口**: 8087
 
@@ -336,7 +336,7 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 
 ---
 
-### 9. blog-admin (管理服务)
+### 9. ZhiCore-admin (管理服务)
 
 **端口**: 8090
 
@@ -362,7 +362,7 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 
 ---
 
-### 10. blog-ops (运维服务)
+### 10. ZhiCore-ops (运维服务)
 
 **端口**: 无（内部服务）
 
@@ -385,7 +385,7 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 
 ---
 
-### 11. blog-upload (文件上传服务)
+### 11. ZhiCore-upload (文件上传服务)
 
 **端口**: 无（内部服务，通过 Feign Client 调用）
 
@@ -393,7 +393,7 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 - 图片上传：支持 JPEG、PNG、GIF、WebP 格式
 - 音频上传：支持 MP3、WAV、OGG 格式
 - 批量上传：支持批量文件上传
-- 文件删除：通过 BlogUploadClient 删除文件
+- 文件删除：通过 ZhiCoreUploadClient 删除文件
 - 文件管理：与 File Service 集成，统一文件管理
 
 **技术栈**:
@@ -405,15 +405,15 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 - File Service（外部文件服务，端口 8089）
 
 **重要说明**:
-- ⚠️ 前端直接调用 blog-upload 服务上传文件
-- ⚠️ 后端通过 BlogUploadClient 删除文件
-- ⚠️ 已移除 FileUploadService 接口，统一使用 blog-upload 服务
+- ⚠️ 前端直接调用 ZhiCore-upload 服务上传文件
+- ⚠️ 后端通过 ZhiCoreUploadClient 删除文件
+- ⚠️ 已移除 FileUploadService 接口，统一使用 ZhiCore-upload 服务
 
 **详细文档**: [文件上传架构](./03-file-upload-architecture.md)
 
 ---
 
-### 12. blog-api (API 模块)
+### 12. ZhiCore-api (API 模块)
 
 **类型**: Maven 共享模块
 
@@ -425,7 +425,7 @@ Blog 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13
 
 **模块结构**:
 ```
-blog-api/
+ZhiCore-api/
 ├── client/          # Feign Client 接口
 ├── dto/             # 数据传输对象
 ├── event/           # 领域事件
@@ -435,17 +435,17 @@ blog-api/
 **使用方式**:
 ```xml
 <dependency>
-    <groupId>com.blog</groupId>
-    <artifactId>blog-api</artifactId>
+    <groupId>com.ZhiCore</groupId>
+    <artifactId>ZhiCore-api</artifactId>
     <version>${project.version}</version>
 </dependency>
 ```
 
-**详细文档**: [blog-api 模块说明](./blog-api-module-purpose.md)
+**详细文档**: [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md)
 
 ---
 
-### 13. blog-common (公共模块)
+### 13. ZhiCore-common (公共模块)
 
 **类型**: Maven 共享模块
 
@@ -458,7 +458,7 @@ blog-api/
 
 **模块结构**:
 ```
-blog-common/
+ZhiCore-common/
 ├── constant/        # 常量定义
 ├── exception/       # 异常定义
 ├── util/            # 工具类
@@ -469,8 +469,8 @@ blog-common/
 **使用方式**:
 ```xml
 <dependency>
-    <groupId>com.blog</groupId>
-    <artifactId>blog-common</artifactId>
+    <groupId>com.ZhiCore</groupId>
+    <artifactId>ZhiCore-common</artifactId>
     <version>${project.version}</version>
 </dependency>
 ```
@@ -485,25 +485,25 @@ graph TB
     Client[前端客户端]
     
     %% API 网关
-    Gateway[blog-gateway<br/>8000]
+    Gateway[ZhiCore-gateway<br/>8000]
     
     %% 业务服务
-    User[blog-user<br/>8081]
-    Post[blog-post<br/>8082]
-    Comment[blog-comment<br/>8083]
-    Message[blog-message<br/>8084]
-    Notification[blog-notification<br/>8085]
-    Search[blog-search<br/>8086]
-    Ranking[blog-ranking<br/>8087]
-    Admin[blog-admin<br/>8090]
+    User[ZhiCore-user<br/>8081]
+    Post[ZhiCore-post<br/>8082]
+    Comment[ZhiCore-comment<br/>8083]
+    Message[ZhiCore-message<br/>8084]
+    Notification[ZhiCore-notification<br/>8085]
+    Search[ZhiCore-search<br/>8086]
+    Ranking[ZhiCore-ranking<br/>8087]
+    Admin[ZhiCore-admin<br/>8090]
     
     %% 支持服务
-    Upload[blog-upload<br/>内部服务]
-    Ops[blog-ops<br/>内部服务]
+    Upload[ZhiCore-upload<br/>内部服务]
+    Ops[ZhiCore-ops<br/>内部服务]
     
     %% 共享模块
-    API[blog-api<br/>共享模块]
-    Common[blog-common<br/>共享模块]
+    API[ZhiCore-api<br/>共享模块]
+    Common[ZhiCore-common<br/>共享模块]
     
     %% 基础设施
     Nacos[Nacos<br/>8848]
@@ -652,7 +652,7 @@ graph TB
 
 **启动命令**:
 ```powershell
-cd blog-microservice/docker
+cd ZhiCore-microservice/docker
 docker-compose up -d
 ```
 
@@ -703,12 +703,12 @@ curl http://localhost:8089/actuator/health
 启动支持服务，包括文件上传服务和运维服务。
 
 ```
-1. blog-upload               # 文件上传服务（内部服务）
-2. blog-ops                  # 运维服务（内部服务）
+1. ZhiCore-upload               # 文件上传服务（内部服务）
+2. ZhiCore-ops                  # 运维服务（内部服务）
 ```
 
 **说明**:
-- blog-upload 和 blog-ops 是内部服务，不对外暴露端口
+- ZhiCore-upload 和 ZhiCore-ops 是内部服务，不对外暴露端口
 - 通过 Nacos 服务发现进行调用
 
 ---
@@ -718,25 +718,25 @@ curl http://localhost:8089/actuator/health
 启动核心业务服务，按照依赖关系顺序启动。
 
 ```
-1. blog-gateway (8000)       # API 网关（最先启动）
-2. blog-user (8081)          # 用户服务
-3. blog-post (8082)          # 文章服务
-4. blog-comment (8083)       # 评论服务
-5. blog-message (8084)       # 消息服务
-6. blog-notification (8085)  # 通知服务
-7. blog-search (8086)        # 搜索服务
-8. blog-ranking (8087)       # 排行服务
-9. blog-admin (8090)         # 管理服务
+1. ZhiCore-gateway (8000)       # API 网关（最先启动）
+2. ZhiCore-user (8081)          # 用户服务
+3. ZhiCore-post (8082)          # 文章服务
+4. ZhiCore-comment (8083)       # 评论服务
+5. ZhiCore-message (8084)       # 消息服务
+6. ZhiCore-notification (8085)  # 通知服务
+7. ZhiCore-search (8086)        # 搜索服务
+8. ZhiCore-ranking (8087)       # 排行服务
+9. ZhiCore-admin (8090)         # 管理服务
 ```
 
 **启动命令**:
 ```powershell
 # 方式一：使用 Docker Compose 启动所有服务
-cd blog-microservice/docker
+cd ZhiCore-microservice/docker
 docker-compose -f docker-compose.services.yml up -d
 
 # 方式二：使用 PowerShell 脚本启动所有服务
-cd blog-microservice/scripts
+cd ZhiCore-microservice/scripts
 .\start-all-services.ps1
 ```
 
@@ -764,8 +764,8 @@ graph LR
     
     A1[Nacos<br/>PostgreSQL<br/>Redis<br/>MongoDB<br/>Elasticsearch<br/>RocketMQ] --> A
     B1[ID Generator<br/>File Service] --> B
-    C1[blog-upload<br/>blog-ops] --> C
-    D1[blog-gateway<br/>blog-user<br/>blog-post<br/>...] --> D
+    C1[ZhiCore-upload<br/>ZhiCore-ops] --> C
+    D1[ZhiCore-gateway<br/>ZhiCore-user<br/>ZhiCore-post<br/>...] --> D
 ```
 
 **启动时间估算**:
@@ -792,15 +792,15 @@ graph LR
 
 | 端口 | 服务 | 说明 |
 |------|------|------|
-| 8000 | blog-gateway | API 网关 |
-| 8081 | blog-user | 用户服务 |
-| 8082 | blog-post | 文章服务 |
-| 8083 | blog-comment | 评论服务 |
-| 8084 | blog-message | 消息服务 |
-| 8085 | blog-notification | 通知服务 |
-| 8086 | blog-search | 搜索服务 |
-| 8087 | blog-ranking | 排行服务 |
-| 8090 | blog-admin | 管理服务 |
+| 8000 | ZhiCore-gateway | API 网关 |
+| 8081 | ZhiCore-user | 用户服务 |
+| 8082 | ZhiCore-post | 文章服务 |
+| 8083 | ZhiCore-comment | 评论服务 |
+| 8084 | ZhiCore-message | 消息服务 |
+| 8085 | ZhiCore-notification | 通知服务 |
+| 8086 | ZhiCore-search | 搜索服务 |
+| 8087 | ZhiCore-ranking | 排行服务 |
+| 8090 | ZhiCore-admin | 管理服务 |
 
 ### 基础设施端口
 
@@ -819,9 +819,9 @@ graph LR
 
 **示例**:
 ```java
-// blog-post 调用 blog-upload 删除文件
-@FeignClient(name = "blog-upload", fallbackFactory = BlogUploadClientFallback.class)
-public interface BlogUploadClient {
+// ZhiCore-post 调用 ZhiCore-upload 删除文件
+@FeignClient(name = "ZhiCore-upload", fallbackFactory = ZhiCoreUploadClientFallback.class)
+public interface ZhiCoreUploadClient {
     @DeleteMapping("/api/v1/upload/file/{fileId}")
     ApiResponse<Void> deleteFile(@PathVariable("fileId") String fileId);
 }
@@ -848,9 +848,9 @@ public interface BlogUploadClient {
 
 **示例**:
 ```java
-// blog-post 发布文章事件
+// ZhiCore-post 发布文章事件
 PostPublishedEvent event = new PostPublishedEvent(postId, userId, title);
-rocketMQTemplate.asyncSend("blog-post-topic:published", event, new SendCallback() {
+rocketMQTemplate.asyncSend("ZhiCore-post-topic:published", event, new SendCallback() {
     @Override
     public void onSuccess(SendResult sendResult) {
         log.info("文章发布事件发送成功: postId={}", postId);
@@ -862,11 +862,11 @@ rocketMQTemplate.asyncSend("blog-post-topic:published", event, new SendCallback(
     }
 });
 
-// blog-search 订阅文章事件
+// ZhiCore-search 订阅文章事件
 @RocketMQMessageListener(
-    topic = "blog-post-topic",
+    topic = "ZhiCore-post-topic",
     selectorExpression = "published",
-    consumerGroup = "blog-search-consumer"
+    consumerGroup = "ZhiCore-search-consumer"
 )
 public class PostPublishedListener implements RocketMQListener<PostPublishedEvent> {
     @Override
@@ -903,7 +903,7 @@ spring:
     nacos:
       discovery:
         server-addr: localhost:8848
-        namespace: blog
+        namespace: ZhiCore
         group: DEFAULT_GROUP
 ```
 
@@ -961,8 +961,8 @@ spring:
 - [部署架构](./08-deployment-architecture.md) - 部署架构设计
 
 ### 专题文档
-- [blog-api 模块说明](./blog-api-module-purpose.md) - blog-api 模块详解
-- [blog-message 与 im-system 集成](./blog-message-im-integration.md) - 消息服务集成
+- [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md) - ZhiCore-api 模块详解
+- [ZhiCore-message 与 im-system 集成](./ZhiCore-message-im-integration.md) - 消息服务集成
 - [File Service 集成架构](./file-service-integration.md) - 文件服务集成
 
 ### 开发规范
@@ -978,9 +978,9 @@ spring:
 
 ## 常见问题
 
-### Q1: 为什么需要 blog-api 模块？
+### Q1: 为什么需要 ZhiCore-api 模块？
 
-blog-api 模块提供了服务间调用的统一接口定义，避免了服务间的直接依赖。详细说明请参考：[blog-api 模块说明](./blog-api-module-purpose.md)
+ZhiCore-api 模块提供了服务间调用的统一接口定义，避免了服务间的直接依赖。详细说明请参考：[ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md)
 
 ### Q2: 如何添加新的微服务？
 

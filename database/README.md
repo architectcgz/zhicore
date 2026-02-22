@@ -9,20 +9,20 @@
 使用 `init-all-databases.sql` 快速初始化所有数据库表结构：
 
 ```bash
-# 1. 连接到 blog_user 数据库
-psql -h localhost -U postgres -d blog_user -f init-all-databases.sql
+# 1. 连接到 ZhiCore_user 数据库
+psql -h localhost -U postgres -d ZhiCore_user -f init-all-databases.sql
 
-# 2. 连接到 blog_post 数据库
-psql -h localhost -U postgres -d blog_post -f init-all-databases.sql
+# 2. 连接到 ZhiCore_post 数据库
+psql -h localhost -U postgres -d ZhiCore_post -f init-all-databases.sql
 
-# 3. 连接到 blog_comment 数据库
-psql -h localhost -U postgres -d blog_comment -f init-all-databases.sql
+# 3. 连接到 ZhiCore_comment 数据库
+psql -h localhost -U postgres -d ZhiCore_comment -f init-all-databases.sql
 
-# 4. 连接到 blog_message 数据库
-psql -h localhost -U postgres -d blog_message -f init-all-databases.sql
+# 4. 连接到 ZhiCore_message 数据库
+psql -h localhost -U postgres -d ZhiCore_message -f init-all-databases.sql
 
-# 5. 连接到 blog_notification 数据库
-psql -h localhost -U postgres -d blog_notification -f init-all-databases.sql
+# 5. 连接到 ZhiCore_notification 数据库
+psql -h localhost -U postgres -d ZhiCore_notification -f init-all-databases.sql
 ```
 
 ### 方式二：使用 PowerShell 脚本
@@ -35,15 +35,15 @@ psql -h localhost -U postgres -d blog_notification -f init-all-databases.sql
 
 | 数据库名称 | 服务 | 说明 |
 |-----------|------|------|
-| blog_user | User Service | 用户、角色、关注、签到 |
-| blog_post | Post Service | 文章、点赞、收藏、统计 |
-| blog_comment | Comment Service | 评论、回复、点赞 |
-| blog_message | Message Service | 私信、会话 |
-| blog_notification | Notification Service | 通知、公告、小助手消息 |
+| ZhiCore_user | User Service | 用户、角色、关注、签到 |
+| ZhiCore_post | Post Service | 文章、点赞、收藏、统计 |
+| ZhiCore_comment | Comment Service | 评论、回复、点赞 |
+| ZhiCore_message | Message Service | 私信、会话 |
+| ZhiCore_notification | Notification Service | 通知、公告、小助手消息 |
 
 ## 表结构说明
 
-### User Service (blog_user)
+### User Service (ZhiCore_user)
 
 - `users` - 用户基本信息
 - `roles` - 角色定义
@@ -54,25 +54,25 @@ psql -h localhost -U postgres -d blog_notification -f init-all-databases.sql
 - `user_check_ins` - 签到记录
 - `user_check_in_stats` - 签到统计
 
-### Post Service (blog_post)
+### Post Service (ZhiCore_post)
 
 - `posts` - 文章内容
 - `post_stats` - 文章统计（浏览、点赞、收藏、评论数）
 - `post_likes` - 文章点赞
 - `post_favorites` - 文章收藏
 
-### Comment Service (blog_comment)
+### Comment Service (ZhiCore_comment)
 
 - `comments` - 评论内容
 - `comment_stats` - 评论统计（点赞、回复数）
 - `comment_likes` - 评论点赞
 
-### Message Service (blog_message)
+### Message Service (ZhiCore_message)
 
 - `conversations` - 会话
 - `messages` - 私信消息
 
-### Notification Service (blog_notification)
+### Notification Service (ZhiCore_notification)
 
 - `notifications` - 用户通知
 - `global_announcements` - 全局公告
@@ -112,18 +112,18 @@ psql -h localhost -U postgres -c "SELECT version();"
 
 ```bash
 # 创建数据库
-psql -h localhost -U postgres -c "CREATE DATABASE blog_user;"
-psql -h localhost -U postgres -c "CREATE DATABASE blog_post;"
-psql -h localhost -U postgres -c "CREATE DATABASE blog_comment;"
-psql -h localhost -U postgres -c "CREATE DATABASE blog_message;"
-psql -h localhost -U postgres -c "CREATE DATABASE blog_notification;"
+psql -h localhost -U postgres -c "CREATE DATABASE ZhiCore_user;"
+psql -h localhost -U postgres -c "CREATE DATABASE ZhiCore_post;"
+psql -h localhost -U postgres -c "CREATE DATABASE ZhiCore_comment;"
+psql -h localhost -U postgres -c "CREATE DATABASE ZhiCore_message;"
+psql -h localhost -U postgres -c "CREATE DATABASE ZhiCore_notification;"
 ```
 
 ### 查看已创建的表
 
 ```bash
 # 连接到数据库
-psql -h localhost -U postgres -d blog_user
+psql -h localhost -U postgres -d ZhiCore_user
 
 # 列出所有表
 \dt

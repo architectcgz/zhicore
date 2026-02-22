@@ -4,7 +4,7 @@ param(
     [string]$NacosUrl = "http://localhost:8848",
     [string]$Username = "nacos",
     [string]$Password = "nacos",
-    [string]$Group = "BLOG_SERVICE"
+    [string]$Group = "ZhiCore_SERVICE"
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,13 +12,13 @@ $ErrorActionPreference = "Stop"
 # 配置文件列表
 $configs = @(
     "common.yml",
-    "blog-user.yml",
-    "blog-message.yml",
-    "blog-notification.yml",
-    "blog-search.yml",
-    "blog-ranking.yml",
-    "blog-admin.yml",
-    "blog-id-generator.yml"
+    "ZhiCore-user.yml",
+    "ZhiCore-message.yml",
+    "ZhiCore-notification.yml",
+    "ZhiCore-search.yml",
+    "ZhiCore-ranking.yml",
+    "ZhiCore-admin.yml",
+    "ZhiCore-id-generator.yml"
 )
 
 Write-Host "========================================" -ForegroundColor Cyan

@@ -4,7 +4,7 @@
 
 社交上下文负责用户间的社交互动功能，包括通知、私信等。
 
-> **重要变更**：私信功能已迁移到独立的 **im-system** 服务。blog-message 模块现在作为"博客消息业务编排层"，负责系统通知管理和私信业务编排。详见 [blog-message 与 im-system 集成架构](../../architecture/blog-message-im-integration.md)。
+> **重要变更**：私信功能已迁移到独立的 **im-system** 服务。ZhiCore-message 模块现在作为"博客消息业务编排层"，负责系统通知管理和私信业务编排。详见 [ZhiCore-message 与 im-system 集成架构](../../architecture/ZhiCore-message-im-integration.md)。
 
 ## 服务清单
 
@@ -37,7 +37,7 @@
 ## 目录结构
 
 ```
-BlogCore/
+ZhiCoreCore/
 ├── Application/Social/
 │   ├── IChatApplicationService.cs
 │   ├── ChatApplicationService.cs
@@ -59,15 +59,15 @@ BlogCore/
 
 | 类型 | 触发事件 | 通知内容 | 存储位置 |
 |------|---------|---------|---------|
-| PostLiked | PostLikedEvent | "xxx 赞了你的文章《xxx》" | blog-message |
-| PostFavorited | PostFavoritedEvent | "xxx 收藏了你的文章《xxx》" | blog-message |
-| PostCommented | CommentCreatedEvent | "xxx 评论了你的文章《xxx》" | blog-message |
-| CommentReplied | CommentCreatedEvent | "xxx 回复了你的评论" | blog-message |
-| CommentLiked | CommentLikedEvent | "xxx 赞了你的评论" | blog-message |
-| Followed | UserFollowedEvent | "xxx 关注了你" | blog-message |
+| PostLiked | PostLikedEvent | "xxx 赞了你的文章《xxx》" | ZhiCore-message |
+| PostFavorited | PostFavoritedEvent | "xxx 收藏了你的文章《xxx》" | ZhiCore-message |
+| PostCommented | CommentCreatedEvent | "xxx 评论了你的文章《xxx》" | ZhiCore-message |
+| CommentReplied | CommentCreatedEvent | "xxx 回复了你的评论" | ZhiCore-message |
+| CommentLiked | CommentLikedEvent | "xxx 赞了你的评论" | ZhiCore-message |
+| Followed | UserFollowedEvent | "xxx 关注了你" | ZhiCore-message |
 | MessageReceived | - | "xxx 给你发送了私信" | im-system |
 
-> **注意**：私信通知（MessageReceived）现在由 im-system 管理，不再存储在 blog-message 的系统通知表中。
+> **注意**：私信通知（MessageReceived）现在由 im-system 管理，不再存储在 ZhiCore-message 的系统通知表中。
 
 ## 实时推送
 
@@ -102,11 +102,11 @@ public class NotificationCreatedEventHandler : IDomainEventHandler<NotificationC
 
 ### im-system 集成
 
-私信功能已从 blog-message 迁移到独立的 im-system 服务：
+私信功能已从 ZhiCore-message 迁移到独立的 im-system 服务：
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      blog-message                            │
+│                      ZhiCore-message                            │
 │              (博客消息业务编排层)                             │
 │                                                              │
 │  ✓ 系统通知管理 (点赞、评论、关注)                           │
@@ -125,4 +125,4 @@ public class NotificationCreatedEventHandler : IDomainEventHandler<NotificationC
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**详细文档**：[blog-message 与 im-system 集成架构](../../architecture/blog-message-im-integration.md)
+**详细文档**：[ZhiCore-message 与 im-system 集成架构](../../architecture/ZhiCore-message-im-integration.md)

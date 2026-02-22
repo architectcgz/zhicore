@@ -143,15 +143,15 @@ public static String userLiked(String userId, Long postId) {
 **问题位置**: `10-infrastructure.md`
 
 **问题描述**:
-- 所有事件都使用同一个Topic `blog-events`，通过Tag区分
+- 所有事件都使用同一个Topic `ZhiCore-events`，通过Tag区分
 - 在高并发场景下，单个Topic可能成为瓶颈
 
 **建议**:
 ```java
 // 按业务域拆分Topic
-public static final String TOPIC_POST = "blog-post-events";
-public static final String TOPIC_USER = "blog-user-events";
-public static final String TOPIC_COMMENT = "blog-comment-events";
+public static final String TOPIC_POST = "ZhiCore-post-events";
+public static final String TOPIC_USER = "ZhiCore-user-events";
+public static final String TOPIC_COMMENT = "ZhiCore-comment-events";
 ```
 
 ### 4.2 消息幂等性处理不完善
@@ -557,11 +557,11 @@ AI Assistant
 ### 2026-01-13 修复（低优先级）
 
 **1. 拆分 RocketMQ Topic (10-infrastructure.md)**
-- 将单一 `blog-events` Topic 拆分为按业务域划分的多个 Topic
-- `blog-post-events`：文章相关事件
-- `blog-user-events`：用户相关事件
-- `blog-comment-events`：评论相关事件
-- `blog-message-events`：私信相关事件（顺序消息）
+- 将单一 `ZhiCore-events` Topic 拆分为按业务域划分的多个 Topic
+- `ZhiCore-post-events`：文章相关事件
+- `ZhiCore-user-events`：用户相关事件
+- `ZhiCore-comment-events`：评论相关事件
+- `ZhiCore-message-events`：私信相关事件（顺序消息）
 - 添加 `getTopicForEvent` 方法自动路由事件到对应 Topic
 - 更新 Topic 拓扑图
 

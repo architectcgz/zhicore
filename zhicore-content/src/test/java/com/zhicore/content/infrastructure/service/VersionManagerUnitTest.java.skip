@@ -1,0 +1,719 @@
+package com.zhicore.post.infrastructure.service;
+
+import document.mongodb.infrastructure.com.zhicore.content.PostContent;
+import document.mongodb.infrastructure.com.zhicore.content.PostVersion;
+import repository.mongodb.infrastructure.com.zhicore.content.PostContentRepository;
+import repository.mongodb.infrastructure.com.zhicore.content.PostVersionRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
+/**
+ * Version Manager Unit Tests
+ * 
+ * Tests specific scenarios for version management including:
+ * - Version number generation
+ * - Version list pagination
+ * - Version restore boundary conditions
+ * 
+ * **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5**
+ */
+@ExtendWith(MockitoExtension.class)
+@DisplayName("Version Manager Unit Tests")
+class VersionManagerUnitTest {
+
+    @Mock
+    private PostVersionRepository versionRepository;
+
+    @Mock
+    private PostContentRepository contentRepository;
+
+    @InjectMocks
+    private VersionManagerImpl versionManager;
+
+    private String testPostId;
+    private PostVersion testVersion;
+    private PostContent testContent;
+
+    @BeforeEach
+    void setUp() {
+        testPostId = "post-123";
+        
+        testVersion = PostVersion.builder()
+                .id("version-1")
+                .postId(testPostId)
+                .version(1)
+                .content("Test content v1")
+                .contentType("markdown")
+                .editedBy("user-100")
+                .editedAt(LocalDateTime.now())
+                .changeNote("Initial version")
+                .build();
+        
+        testContent = PostContent.builder()
+                .postId(testPostId)
+                .contentType("markdown")
+                .raw("Current content")
+                .html("<p>Current content</p>")
+                .text("Current content")
+                .build();
+    }
+
+    // ========================================
+    // Section 1: Version Number Generation Tests
+    // ========================================
+
+    @Test
+    @DisplayName("Should generate version 1 for first version")
+    void shouldGenerateVersion1ForFirstVersion() {
+        // Given: No existing versions
+        when(versionRepository.findTopByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(Optional.empty());
+        when(versionRepository.save(any(PostVersion.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Create first version
+        Integer versionNumber = versionManager.createVersion(
+                testPostId, "First content", "user-100", "Initial version");
+
+        // Then: Should return version 1
+        assertThat(versionNumber).isEqualTo(1);
+
+        // Verify: Version was saved with version number 1
+        verify(versionRepository, times(1)).save(argThat(version ->
+                version.getPostId().equals(testPostId) &&
+                version.getVersion().equals(1) &&
+                version.getContent().equals("First content") &&
+                version.getEditedBy().equals("user-100") &&
+                version.getChangeNote().equals("Initial version")
+        ));
+    }
+
+    @Test
+    @DisplayName("Should generate incremental version numbers")
+    void shouldGenerateIncrementalVersionNumbers() {
+        // Given: Existing version 3
+        PostVersion existingVersion = PostVersion.builder()
+                .version(3)
+                .build();
+        when(versionRepository.findTopByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(Optional.of(existingVersion));
+        when(versionRepository.save(any(PostVersion.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Create new version
+        Integer versionNumber = versionManager.createVersion(
+                testPostId, "New content", "user-100", "Update");
+
+        // Then: Should return version 4
+        assertThat(versionNumber).isEqualTo(4);
+
+        // Verify: Version was saved with version number 4
+        verify(versionRepository, times(1)).save(argThat(version ->
+                version.getVersion().equals(4)
+        ));
+    }
+
+    @Test
+    @DisplayName("Should handle large version numbers")
+    void shouldHandleLargeVersionNumbers() {
+        // Given: Existing version 999
+        PostVersion existingVersion = PostVersion.builder()
+                .version(999)
+                .build();
+        when(versionRepository.findTopByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(Optional.of(existingVersion));
+        when(versionRepository.save(any(PostVersion.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Create new version
+        Integer versionNumber = versionManager.createVersion(
+                testPostId, "Content", "user-100", "Update");
+
+        // Then: Should return version 1000
+        assertThat(versionNumber).isEqualTo(1000);
+    }
+
+    @Test
+    @DisplayName("Should set correct metadata when creating version")
+    void shouldSetCorrectMetadataWhenCreatingVersion() {
+        // Given: No existing versions
+        when(versionRepository.findTopByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(Optional.empty());
+        when(versionRepository.save(any(PostVersion.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Create version
+        LocalDateTime beforeCreate = LocalDateTime.now().minusSeconds(1);
+        versionManager.createVersion(testPostId, "Content", "user-100", "Note");
+        LocalDateTime afterCreate = LocalDateTime.now().plusSeconds(1);
+
+        // Then: Verify all fields are set correctly
+        verify(versionRepository, times(1)).save(argThat(version ->
+                version.getPostId().equals(testPostId) &&
+                version.getVersion().equals(1) &&
+                version.getContent().equals("Content") &&
+                version.getContentType().equals("markdown") &&
+                version.getEditedBy().equals("user-100") &&
+                version.getChangeNote().equals("Note") &&
+                version.getEditedAt().isAfter(beforeCreate) &&
+                version.getEditedAt().isBefore(afterCreate)
+        ));
+    }
+
+    @Test
+    @DisplayName("Should handle empty change note")
+    void shouldHandleEmptyChangeNote() {
+        // Given: No existing versions
+        when(versionRepository.findTopByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(Optional.empty());
+        when(versionRepository.save(any(PostVersion.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Create version with empty change note
+        Integer versionNumber = versionManager.createVersion(
+                testPostId, "Content", "user-100", "");
+
+        // Then: Should succeed
+        assertThat(versionNumber).isEqualTo(1);
+        verify(versionRepository, times(1)).save(argThat(version ->
+                version.getChangeNote().equals("")
+        ));
+    }
+
+    @Test
+    @DisplayName("Should handle null change note")
+    void shouldHandleNullChangeNote() {
+        // Given: No existing versions
+        when(versionRepository.findTopByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(Optional.empty());
+        when(versionRepository.save(any(PostVersion.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Create version with null change note
+        Integer versionNumber = versionManager.createVersion(
+                testPostId, "Content", "user-100", null);
+
+        // Then: Should succeed
+        assertThat(versionNumber).isEqualTo(1);
+        verify(versionRepository, times(1)).save(argThat(version ->
+                version.getChangeNote() == null
+        ));
+    }
+
+    // ========================================
+    // Section 2: Version List Pagination Tests
+    // ========================================
+
+    @Test
+    @DisplayName("Should return paginated version list")
+    void shouldReturnPaginatedVersionList() {
+        // Given: Multiple versions exist
+        List<PostVersion> versions = createVersionList(5);
+        Page<PostVersion> versionPage = new PageImpl<>(versions.subList(0, 3), 
+                PageRequest.of(0, 3), 5);
+        
+        when(versionRepository.findByPostIdOrderByEditedAtDesc(
+                eq(testPostId), any(Pageable.class)))
+                .thenReturn(versionPage);
+
+        // When: Get first page with size 3
+        Page<PostVersion> result = versionManager.getVersions(testPostId, 0, 3);
+
+        // Then: Should return correct page
+        assertThat(result.getContent()).hasSize(3);
+        assertThat(result.getTotalElements()).isEqualTo(5);
+        assertThat(result.getTotalPages()).isEqualTo(2);
+        assertThat(result.getNumber()).isEqualTo(0);
+        assertThat(result.getSize()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("Should return second page correctly")
+    void shouldReturnSecondPageCorrectly() {
+        // Given: Multiple versions exist
+        List<PostVersion> versions = createVersionList(5);
+        Page<PostVersion> versionPage = new PageImpl<>(versions.subList(3, 5), 
+                PageRequest.of(1, 3), 5);
+        
+        when(versionRepository.findByPostIdOrderByEditedAtDesc(
+                eq(testPostId), any(Pageable.class)))
+                .thenReturn(versionPage);
+
+        // When: Get second page
+        Page<PostVersion> result = versionManager.getVersions(testPostId, 1, 3);
+
+        // Then: Should return remaining items
+        assertThat(result.getContent()).hasSize(2);
+        assertThat(result.getNumber()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Should return empty page when no versions exist")
+    void shouldReturnEmptyPageWhenNoVersionsExist() {
+        // Given: No versions exist
+        Page<PostVersion> emptyPage = new PageImpl<>(new ArrayList<>(), 
+                PageRequest.of(0, 10), 0);
+        
+        when(versionRepository.findByPostIdOrderByEditedAtDesc(
+                eq(testPostId), any(Pageable.class)))
+                .thenReturn(emptyPage);
+
+        // When: Get versions
+        Page<PostVersion> result = versionManager.getVersions(testPostId, 0, 10);
+
+        // Then: Should return empty page
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getTotalElements()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("Should handle page size of 1")
+    void shouldHandlePageSizeOf1() {
+        // Given: Multiple versions exist
+        List<PostVersion> versions = createVersionList(3);
+        Page<PostVersion> versionPage = new PageImpl<>(versions.subList(0, 1), 
+                PageRequest.of(0, 1), 3);
+        
+        when(versionRepository.findByPostIdOrderByEditedAtDesc(
+                eq(testPostId), any(Pageable.class)))
+                .thenReturn(versionPage);
+
+        // When: Get page with size 1
+        Page<PostVersion> result = versionManager.getVersions(testPostId, 0, 1);
+
+        // Then: Should return single item
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getTotalPages()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("Should handle large page size")
+    void shouldHandleLargePageSize() {
+        // Given: Few versions exist
+        List<PostVersion> versions = createVersionList(5);
+        Page<PostVersion> versionPage = new PageImpl<>(versions, 
+                PageRequest.of(0, 100), 5);
+        
+        when(versionRepository.findByPostIdOrderByEditedAtDesc(
+                eq(testPostId), any(Pageable.class)))
+                .thenReturn(versionPage);
+
+        // When: Get page with large size
+        Page<PostVersion> result = versionManager.getVersions(testPostId, 0, 100);
+
+        // Then: Should return all items
+        assertThat(result.getContent()).hasSize(5);
+        assertThat(result.getTotalPages()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Should verify correct sort order in pagination")
+    void shouldVerifyCorrectSortOrderInPagination() {
+        // Given: Versions exist
+        when(versionRepository.findByPostIdOrderByEditedAtDesc(
+                eq(testPostId), any(Pageable.class)))
+                .thenReturn(Page.empty());
+
+        // When: Get versions
+        versionManager.getVersions(testPostId, 0, 10);
+
+        // Then: Should request with correct sort
+        verify(versionRepository, times(1)).findByPostIdOrderByEditedAtDesc(
+                eq(testPostId),
+                argThat(pageable ->
+                        pageable.getSort().getOrderFor("editedAt") != null &&
+                        pageable.getSort().getOrderFor("editedAt").isDescending()
+                )
+        );
+    }
+
+    // ========================================
+    // Section 3: Get Specific Version Tests
+    // ========================================
+
+    @Test
+    @DisplayName("Should get specific version successfully")
+    void shouldGetSpecificVersionSuccessfully() {
+        // Given: Version exists
+        when(versionRepository.findByPostIdAndVersion(testPostId, 1))
+                .thenReturn(Optional.of(testVersion));
+
+        // When: Get version
+        Optional<PostVersion> result = versionManager.getVersion(testPostId, 1);
+
+        // Then: Should return version
+        assertThat(result).isPresent();
+        assertThat(result.get()).isEqualTo(testVersion);
+    }
+
+    @Test
+    @DisplayName("Should return empty when version not found")
+    void shouldReturnEmptyWhenVersionNotFound() {
+        // Given: Version does not exist
+        when(versionRepository.findByPostIdAndVersion(testPostId, 999))
+                .thenReturn(Optional.empty());
+
+        // When: Get non-existent version
+        Optional<PostVersion> result = versionManager.getVersion(testPostId, 999);
+
+        // Then: Should return empty
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should handle version 0 query")
+    void shouldHandleVersion0Query() {
+        // Given: Version 0 does not exist (versions start from 1)
+        when(versionRepository.findByPostIdAndVersion(testPostId, 0))
+                .thenReturn(Optional.empty());
+
+        // When: Get version 0
+        Optional<PostVersion> result = versionManager.getVersion(testPostId, 0);
+
+        // Then: Should return empty
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should handle negative version number query")
+    void shouldHandleNegativeVersionNumberQuery() {
+        // Given: Negative version does not exist
+        when(versionRepository.findByPostIdAndVersion(testPostId, -1))
+                .thenReturn(Optional.empty());
+
+        // When: Get negative version
+        Optional<PostVersion> result = versionManager.getVersion(testPostId, -1);
+
+        // Then: Should return empty
+        assertThat(result).isEmpty();
+    }
+
+    // ========================================
+    // Section 4: Version Restore Boundary Conditions
+    // ========================================
+
+    @Test
+    @DisplayName("Should restore version successfully")
+    void shouldRestoreVersionSuccessfully() {
+        // Given: Version and content exist
+        when(versionRepository.findByPostIdAndVersion(testPostId, 1))
+                .thenReturn(Optional.of(testVersion));
+        when(contentRepository.findByPostId(testPostId))
+                .thenReturn(Optional.of(testContent));
+        when(contentRepository.save(any(PostContent.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(versionRepository.findTopByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(Optional.of(testVersion));
+        when(versionRepository.save(any(PostVersion.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Restore version
+        Integer newVersion = versionManager.restoreVersion(testPostId, 1);
+
+        // Then: Should create new version
+        assertThat(newVersion).isEqualTo(2);
+
+        // Verify: Content was updated
+        verify(contentRepository, times(1)).save(argThat(content ->
+                content.getRaw().equals(testVersion.getContent()) &&
+                content.getContentType().equals(testVersion.getContentType())
+        ));
+
+        // Verify: New version was created
+        verify(versionRepository, times(1)).save(argThat(version ->
+                version.getVersion().equals(2) &&
+                version.getChangeNote().contains("Restored from version 1")
+        ));
+    }
+
+    @Test
+    @DisplayName("Should throw exception when restoring non-existent version")
+    void shouldThrowExceptionWhenRestoringNonExistentVersion() {
+        // Given: Version does not exist
+        when(versionRepository.findByPostIdAndVersion(testPostId, 999))
+                .thenReturn(Optional.empty());
+
+        // When & Then: Should throw exception
+        assertThatThrownBy(() -> versionManager.restoreVersion(testPostId, 999))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Version not found")
+                .hasMessageContaining("postId=" + testPostId)
+                .hasMessageContaining("version=999");
+
+        // Verify: No content update
+        verify(contentRepository, never()).save(any(PostContent.class));
+    }
+
+    @Test
+    @DisplayName("Should throw exception when content not found during restore")
+    void shouldThrowExceptionWhenContentNotFoundDuringRestore() {
+        // Given: Version exists but content does not
+        when(versionRepository.findByPostIdAndVersion(testPostId, 1))
+                .thenReturn(Optional.of(testVersion));
+        when(contentRepository.findByPostId(testPostId))
+                .thenReturn(Optional.empty());
+
+        // When & Then: Should throw exception
+        assertThatThrownBy(() -> versionManager.restoreVersion(testPostId, 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Post content not found")
+                .hasMessageContaining("postId=" + testPostId);
+
+        // Verify: No new version created
+        verify(versionRepository, never()).save(any(PostVersion.class));
+    }
+
+    @Test
+    @DisplayName("Should restore to version 1")
+    void shouldRestoreToVersion1() {
+        // Given: Version 1 exists
+        when(versionRepository.findByPostIdAndVersion(testPostId, 1))
+                .thenReturn(Optional.of(testVersion));
+        when(contentRepository.findByPostId(testPostId))
+                .thenReturn(Optional.of(testContent));
+        when(contentRepository.save(any(PostContent.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(versionRepository.findTopByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(Optional.of(testVersion));
+        when(versionRepository.save(any(PostVersion.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Restore to version 1
+        Integer newVersion = versionManager.restoreVersion(testPostId, 1);
+
+        // Then: Should succeed
+        assertThat(newVersion).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("Should restore to latest version")
+    void shouldRestoreToLatestVersion() {
+        // Given: Latest version is 10
+        PostVersion latestVersion = PostVersion.builder()
+                .postId(testPostId)
+                .version(10)
+                .content("Latest content")
+                .contentType("markdown")
+                .editedBy("user-100")
+                .editedAt(LocalDateTime.now())
+                .changeNote("Latest")
+                .build();
+        
+        when(versionRepository.findByPostIdAndVersion(testPostId, 10))
+                .thenReturn(Optional.of(latestVersion));
+        when(contentRepository.findByPostId(testPostId))
+                .thenReturn(Optional.of(testContent));
+        when(contentRepository.save(any(PostContent.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(versionRepository.findTopByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(Optional.of(latestVersion));
+        when(versionRepository.save(any(PostVersion.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Restore to latest version
+        Integer newVersion = versionManager.restoreVersion(testPostId, 10);
+
+        // Then: Should create version 11
+        assertThat(newVersion).isEqualTo(11);
+    }
+
+    @Test
+    @DisplayName("Should update content timestamp during restore")
+    void shouldUpdateContentTimestampDuringRestore() {
+        // Given: Version and content exist
+        when(versionRepository.findByPostIdAndVersion(testPostId, 1))
+                .thenReturn(Optional.of(testVersion));
+        when(contentRepository.findByPostId(testPostId))
+                .thenReturn(Optional.of(testContent));
+        when(contentRepository.save(any(PostContent.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(versionRepository.findTopByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(Optional.of(testVersion));
+        when(versionRepository.save(any(PostVersion.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Restore version
+        LocalDateTime beforeRestore = LocalDateTime.now().minusSeconds(1);
+        versionManager.restoreVersion(testPostId, 1);
+        LocalDateTime afterRestore = LocalDateTime.now().plusSeconds(1);
+
+        // Then: Verify timestamp was updated
+        verify(contentRepository, times(1)).save(argThat(content ->
+                content.getUpdatedAt() != null &&
+                content.getUpdatedAt().isAfter(beforeRestore) &&
+                content.getUpdatedAt().isBefore(afterRestore)
+        ));
+    }
+
+    @Test
+    @DisplayName("Should preserve editor information in restore note")
+    void shouldPreserveEditorInformationInRestoreNote() {
+        // Given: Version exists
+        when(versionRepository.findByPostIdAndVersion(testPostId, 1))
+                .thenReturn(Optional.of(testVersion));
+        when(contentRepository.findByPostId(testPostId))
+                .thenReturn(Optional.of(testContent));
+        when(contentRepository.save(any(PostContent.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(versionRepository.findTopByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(Optional.of(testVersion));
+        when(versionRepository.save(any(PostVersion.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When: Restore version
+        versionManager.restoreVersion(testPostId, 1);
+
+        // Then: Verify restore note contains version number
+        verify(versionRepository, times(1)).save(argThat(version ->
+                version.getChangeNote().equals("Restored from version 1")
+        ));
+    }
+
+    // ========================================
+    // Section 5: Clean Old Versions Tests
+    // ========================================
+
+    @Test
+    @DisplayName("Should clean old versions when count exceeds limit")
+    void shouldCleanOldVersionsWhenCountExceedsLimit() {
+        // Given: 10 versions exist, keep 5
+        List<PostVersion> versions = createVersionList(10);
+        when(versionRepository.findByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(versions);
+
+        // When: Clean old versions
+        versionManager.cleanOldVersions(testPostId, 5);
+
+        // Then: Should delete 5 oldest versions
+        verify(versionRepository, times(1)).deleteAll(argThat(list ->
+                list.size() == 5 &&
+                list.get(0).getVersion().equals(5) &&
+                list.get(4).getVersion().equals(1)
+        ));
+    }
+
+    @Test
+    @DisplayName("Should not clean when version count is within limit")
+    void shouldNotCleanWhenVersionCountIsWithinLimit() {
+        // Given: 5 versions exist, keep 10
+        List<PostVersion> versions = createVersionList(5);
+        when(versionRepository.findByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(versions);
+
+        // When: Clean old versions
+        versionManager.cleanOldVersions(testPostId, 10);
+
+        // Then: Should not delete any versions
+        verify(versionRepository, never()).deleteAll(anyList());
+    }
+
+    @Test
+    @DisplayName("Should not clean when version count equals limit")
+    void shouldNotCleanWhenVersionCountEqualsLimit() {
+        // Given: 5 versions exist, keep 5
+        List<PostVersion> versions = createVersionList(5);
+        when(versionRepository.findByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(versions);
+
+        // When: Clean old versions
+        versionManager.cleanOldVersions(testPostId, 5);
+
+        // Then: Should not delete any versions
+        verify(versionRepository, never()).deleteAll(anyList());
+    }
+
+    @Test
+    @DisplayName("Should keep only 1 version when keepCount is 1")
+    void shouldKeepOnly1VersionWhenKeepCountIs1() {
+        // Given: 5 versions exist, keep 1
+        List<PostVersion> versions = createVersionList(5);
+        when(versionRepository.findByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(versions);
+
+        // When: Clean old versions
+        versionManager.cleanOldVersions(testPostId, 1);
+
+        // Then: Should delete 4 oldest versions
+        verify(versionRepository, times(1)).deleteAll(argThat(list ->
+                list.size() == 4
+        ));
+    }
+
+    @Test
+    @DisplayName("Should handle empty version list")
+    void shouldHandleEmptyVersionList() {
+        // Given: No versions exist
+        when(versionRepository.findByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(new ArrayList<>());
+
+        // When: Clean old versions
+        versionManager.cleanOldVersions(testPostId, 5);
+
+        // Then: Should not attempt to delete
+        verify(versionRepository, never()).deleteAll(anyList());
+    }
+
+    @Test
+    @DisplayName("Should delete correct versions in order")
+    void shouldDeleteCorrectVersionsInOrder() {
+        // Given: Versions 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 (desc order)
+        List<PostVersion> versions = createVersionList(10);
+        when(versionRepository.findByPostIdOrderByVersionDesc(testPostId))
+                .thenReturn(versions);
+
+        // When: Keep 7 versions
+        versionManager.cleanOldVersions(testPostId, 7);
+
+        // Then: Should delete versions 3, 2, 1 (oldest 3)
+        verify(versionRepository, times(1)).deleteAll(argThat(list ->
+                list.size() == 3 &&
+                list.get(0).getVersion().equals(3) &&
+                list.get(1).getVersion().equals(2) &&
+                list.get(2).getVersion().equals(1)
+        ));
+    }
+
+    // ========================================
+    // Helper Methods
+    // ========================================
+
+    /**
+     * Create a list of versions in descending order (newest first)
+     */
+    private List<PostVersion> createVersionList(int count) {
+        List<PostVersion> versions = new ArrayList<>();
+        for (int i = count; i >= 1; i--) {
+            versions.add(PostVersion.builder()
+                    .id("version-" + i)
+                    .postId(testPostId)
+                    .version(i)
+                    .content("Content v" + i)
+                    .contentType("markdown")
+                    .editedBy("user-100")
+                    .editedAt(LocalDateTime.now().minusDays(count - i))
+                    .changeNote("Version " + i)
+                    .build());
+        }
+        return versions;
+    }
+}

@@ -64,7 +64,7 @@ function Test-ServiceAvailability {
 }
 
 # 开始执行
-Show-Title "Blog 测试数据生成工具"
+Show-Title "ZhiCore 测试数据生成工具"
 Write-ColorOutput "开始时间: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" "Gray"
 
 # 步骤 1: 加载配置
@@ -96,7 +96,7 @@ if (-not (Test-ServiceAvailability "ID Generator" "$($config.idGeneratorUrl)/act
 }
 
 # 检查 Gateway
-if (-not (Test-ServiceAvailability "Blog Gateway" "$($config.apiBaseUrl)/actuator/health")) {
+if (-not (Test-ServiceAvailability "ZhiCore Gateway" "$($config.apiBaseUrl)/actuator/health")) {
     $servicesOk = $false
 }
 
@@ -375,7 +375,7 @@ Write-ColorOutput "`n✓ 所有测试数据已成功生成" "Green"
 Write-ColorOutput "`n提示:" "Yellow"
 Write-ColorOutput "  - 默认用户密码: Test@123456" "Yellow"
 Write-ColorOutput "  - 用户名前缀: test_" "Yellow"
-Write-ColorOutput "  - 可以通过 Blog Gateway (http://localhost:8100) 访问 API" "Yellow"
+Write-ColorOutput "  - 可以通过 ZhiCore Gateway (http://localhost:8100) 访问 API" "Yellow"
 
 # =====================================================
 # 使用示例
@@ -383,7 +383,7 @@ Write-ColorOutput "  - 可以通过 Blog Gateway (http://localhost:8100) 访问 
 
 <#
 .SYNOPSIS
-    生成 Blog 微服务测试数据
+    生成 ZhiCore 微服务测试数据
 
 .DESCRIPTION
     按正确顺序执行所有测试数据生成脚本，创建完整的测试数据集。
@@ -425,7 +425,7 @@ Write-ColorOutput "  - 可以通过 Blog Gateway (http://localhost:8100) 访问 
 
 .NOTES
     前置条件：
-    1. 所有 Blog 微服务已启动
+    1. 所有 ZhiCore 微服务已启动
     2. PostgreSQL、MongoDB、Redis 已启动
     3. ID Generator 服务已启动
     4. 数据库已初始化

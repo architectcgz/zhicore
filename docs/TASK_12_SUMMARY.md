@@ -2,14 +2,14 @@
 
 ## 任务概述
 
-将文件上传功能从后端服务迁移到独立的 `blog-upload` 微服务，实现前后端分离的文件上传架构。
+将文件上传功能从后端服务迁移到独立的 `ZhiCore-upload` 微服务，实现前后端分离的文件上传架构。
 
 ## 已完成的工作
 
 ### 12.1 更新前端上传逻辑 ✅
 
 #### 1. 创建新的上传 API 服务
-- **文件**: `blog-frontend-vue/src/api/upload.ts`
+- **文件**: `ZhiCore-frontend-vue/src/api/upload.ts`
 - **功能**: 
   - `uploadImage()` - 上传图片（公开访问）
   - `uploadImageWithAccess()` - 上传图片（指定访问级别）
@@ -17,13 +17,13 @@
   - `deleteFile()` - 删除文件
 
 #### 2. 更新 useImageUpload Composable
-- **文件**: `blog-frontend-vue/src/composables/useImageUpload.ts`
+- **文件**: `ZhiCore-frontend-vue/src/composables/useImageUpload.ts`
 - **变更**: 
   - 使用 `uploadApi` 替代 `postApi`
   - 返回 `fileId` 和 `url`
 
 #### 3. 更新 useUser Composable
-- **文件**: `blog-frontend-vue/src/composables/useUser.ts`
+- **文件**: `ZhiCore-frontend-vue/src/composables/useUser.ts`
 - **新增功能**:
   - `uploadAvatar()` - 上传头像
   - `updateUserProfile()` - 更新用户资料
@@ -49,7 +49,7 @@
 ### 12.2 更新后端服务接口 ✅
 
 #### 1. 更新 Post 实体
-- **文件**: `blog-microservice/blog-post/src/main/java/com/blog/post/domain/model/Post.java`
+- **文件**: `ZhiCore-microservice/ZhiCore-post/src/main/java/com/ZhiCore/post/domain/model/Post.java`
 - **变更**:
   - 添加 `coverImageId` 字段（存储 fileId）
   - 保留 `coverImage` 字段（存储 URL，用于显示）
@@ -74,7 +74,7 @@
 
 ### 旧架构
 ```
-前端 → 后端服务 (blog-post/blog-user) → 处理文件上传
+前端 → 后端服务 (ZhiCore-post/ZhiCore-user) → 处理文件上传
 ```
 
 ### 新架构
@@ -87,9 +87,9 @@
      │                     │
      ↓                     ↓
 ┌──────────┐         ┌──────────┐
-│blog-upload│         │后端服务  │
-│  服务    │         │(blog-post│
-└────┬─────┘         │blog-user)│
+│ZhiCore-upload│         │后端服务  │
+│  服务    │         │(ZhiCore-post│
+└────┬─────┘         │ZhiCore-user)│
      │               └────┬─────┘
      ↓                    │
 ┌──────────┐              │
@@ -98,7 +98,7 @@
   (通过 file-service-client)
 
 流程：
-1. 前端 → blog-upload → 返回 fileId + URL
+1. 前端 → ZhiCore-upload → 返回 fileId + URL
 2. 前端显示 URL，存储 fileId
 3. 前端 → 后端服务 → 传递 fileId
 4. 后端存储 fileId
@@ -110,7 +110,7 @@
 ### 上传流程
 1. 用户选择文件
 2. 前端调用 `uploadApi.uploadImage(file)`
-3. blog-upload 服务验证并上传到 file-service
+3. ZhiCore-upload 服务验证并上传到 file-service
 4. 返回 `{ fileId: "abc123", url: "https://..." }`
 5. 前端显示 URL，存储 fileId
 6. 提交表单时传递 fileId 给后端
@@ -138,8 +138,8 @@
    - 为 `users` 表添加 `avatar_id` 字段
 
 2. **Service 层完整实现**:
-   - blog-post 服务集成 file-service-client
-   - blog-user 服务集成 file-service-client
+   - ZhiCore-post 服务集成 file-service-client
+   - ZhiCore-user 服务集成 file-service-client
    - 实现查询时动态获取 URL 的逻辑
 
 3. **DTO 更新**:
@@ -158,34 +158,34 @@
 ## 文件清单
 
 ### 前端文件
-- ✅ `blog-frontend-vue/src/api/upload.ts` (新建)
-- ✅ `blog-frontend-vue/src/api/post.ts` (更新)
-- ✅ `blog-frontend-vue/src/api/user.ts` (更新)
-- ✅ `blog-frontend-vue/src/composables/useImageUpload.ts` (更新)
-- ✅ `blog-frontend-vue/src/composables/useUser.ts` (更新)
-- ✅ `blog-frontend-vue/src/composables/usePost.ts` (更新)
-- ✅ `blog-frontend-vue/src/pages/post/PostCreate.vue` (更新)
-- ✅ `blog-frontend-vue/src/pages/post/PostEdit.vue` (更新)
-- ✅ `blog-frontend-vue/src/pages/user/Settings.vue` (更新)
-- ✅ `blog-frontend-vue/.env.development` (更新)
-- ✅ `blog-frontend-vue/.env.production` (更新)
-- ✅ `blog-frontend-vue/docs/UPLOAD_SERVICE_MIGRATION.md` (新建)
+- ✅ `ZhiCore-frontend-vue/src/api/upload.ts` (新建)
+- ✅ `ZhiCore-frontend-vue/src/api/post.ts` (更新)
+- ✅ `ZhiCore-frontend-vue/src/api/user.ts` (更新)
+- ✅ `ZhiCore-frontend-vue/src/composables/useImageUpload.ts` (更新)
+- ✅ `ZhiCore-frontend-vue/src/composables/useUser.ts` (更新)
+- ✅ `ZhiCore-frontend-vue/src/composables/usePost.ts` (更新)
+- ✅ `ZhiCore-frontend-vue/src/pages/post/PostCreate.vue` (更新)
+- ✅ `ZhiCore-frontend-vue/src/pages/post/PostEdit.vue` (更新)
+- ✅ `ZhiCore-frontend-vue/src/pages/user/Settings.vue` (更新)
+- ✅ `ZhiCore-frontend-vue/.env.development` (更新)
+- ✅ `ZhiCore-frontend-vue/.env.production` (更新)
+- ✅ `ZhiCore-frontend-vue/docs/UPLOAD_SERVICE_MIGRATION.md` (新建)
 
 ### 后端文件
-- ✅ `blog-microservice/blog-post/src/main/java/com/blog/post/domain/model/Post.java` (更新)
-- ✅ `blog-microservice/docs/UPLOAD_SERVICE_BACKEND_MIGRATION.md` (新建)
+- ✅ `ZhiCore-microservice/ZhiCore-post/src/main/java/com/ZhiCore/post/domain/model/Post.java` (更新)
+- ✅ `ZhiCore-microservice/docs/UPLOAD_SERVICE_BACKEND_MIGRATION.md` (新建)
 - ⏳ 其他 Service、Repository、Controller 文件（待完成）
 
 ## 测试建议
 
 ### 前端测试
 ```bash
-# 1. 启动 blog-upload 服务
-cd blog-microservice/blog-upload
+# 1. 启动 ZhiCore-upload 服务
+cd ZhiCore-microservice/ZhiCore-upload
 mvn spring-boot:run
 
 # 2. 启动前端
-cd blog-frontend-vue
+cd ZhiCore-frontend-vue
 npm run dev
 
 # 3. 测试场景
@@ -216,6 +216,6 @@ npm run dev
 
 ## 总结
 
-Task 12 已成功完成前端的完整迁移和后端的核心实体更新。前端现在使用 blog-upload 服务进行文件上传，并传递 fileId 给后端。后端实体已更新以支持存储 fileId。
+Task 12 已成功完成前端的完整迁移和后端的核心实体更新。前端现在使用 ZhiCore-upload 服务进行文件上传，并传递 fileId 给后端。后端实体已更新以支持存储 fileId。
 
 剩余工作主要是完成后端 Service 层、Repository 层和 Controller 层的完整实现，以及数据库迁移脚本的编写。这些工作可以在后续的任务中逐步完成。

@@ -1,0 +1,491 @@
+package com.zhicore.comment.application.service;
+
+import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.api.dto.post.PostDTO;
+import com.zhicore.api.dto.user.UserSimpleDTO;
+import com.zhicore.api.event.comment.CommentCreatedEvent;
+import com.zhicore.comment.application.dto.CommentSortType;
+import com.zhicore.comment.application.dto.CommentVO;
+import com.zhicore.comment.application.dto.CursorPage;
+import com.zhicore.comment.domain.model.Comment;
+import com.zhicore.comment.domain.model.CommentStats;
+import com.zhicore.comment.domain.repository.CommentRepository;
+import com.zhicore.comment.infrastructure.cache.CommentRedisKeys;
+import com.zhicore.comment.infrastructure.cursor.HotCursorCodec;
+import com.zhicore.comment.infrastructure.cursor.HotCursorCodec.HotCursor;
+import com.zhicore.comment.infrastructure.cursor.TimeCursorCodec;
+import com.zhicore.comment.infrastructure.cursor.TimeCursorCodec.TimeCursor;
+import com.zhicore.comment.infrastructure.feign.PostServiceClient;
+import com.zhicore.comment.infrastructure.feign.UserServiceClient;
+import com.zhicore.comment.infrastructure.mq.CommentEventPublisher;
+import com.zhicore.comment.infrastructure.repository.mapper.CommentStatsMapper;
+import com.zhicore.comment.interfaces.dto.request.CreateCommentRequest;
+import com.zhicore.comment.interfaces.dto.request.UpdateCommentRequest;
+import com.zhicore.common.context.UserContext;
+import com.zhicore.common.exception.BusinessException;
+import com.zhicore.common.result.ApiResponse;
+import com.zhicore.common.result.PageResult;
+import com.zhicore.common.result.ResultCode;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * 评论应用服务
+ *
+ * @author ZhiCore Team
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class CommentApplicationService {
+
+    private final CommentRepository commentRepository;
+    private final CommentStatsMapper statsMapper;
+    private final CommentEventPublisher eventPublisher;
+    private final PostServiceClient postServiceClient;
+    private final UserServiceClient userServiceClient;
+    private final IdGeneratorFeignClient idGeneratorFeignClient;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final HotCursorCodec hotCursorCodec;
+    private final TimeCursorCodec timeCursorCodec;
+    private final TransactionTemplate transactionTemplate;
+
+    // ==================== 创建评论 ====================
+
+    /**
+     * 创建评论
+     *
+     * @param authorId 作者ID
+     * @param request 创建请求
+     * @return 评论ID
+     */
+    public Long createComment(Long authorId, CreateCommentRequest request) {
+        // 验证文章存在并获取文章信息
+        ApiResponse<PostDTO> postResponse = postServiceClient.getPost(request.getPostId());
+        if (!postResponse.isSuccess() || postResponse.getData() == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "文章不存在");
+        }
+        PostDTO post = postResponse.getData();
+
+        // 生成评论ID
+        ApiResponse<Long> idResponse = idGeneratorFeignClient.generateSnowflakeId();
+        if (!idResponse.isSuccess() || idResponse.getData() == null) {
+            log.error("生成评论ID失败: {}", idResponse.getMessage());
+            throw new BusinessException("评论ID生成失败");
+        }
+        Long commentId = idResponse.getData();
+        
+        final Comment[] commentHolder = new Comment[1];
+        final Long rootId = request.getRootId();
+
+        // 数据库操作在事务中执行
+        transactionTemplate.executeWithoutResult(status -> {
+            Comment comment;
+
+            if (rootId == null) {
+                // 创建顶级评论
+                comment = Comment.createTopLevel(
+                        commentId, request.getPostId(), authorId, request.getContent(),
+                        request.getImageIds(), request.getVoiceId(), request.getVoiceDuration()
+                );
+            } else {
+                // 创建回复评论
+                Comment rootComment = commentRepository.findById(rootId)
+                        .orElseThrow(() -> new BusinessException("根评论不存在"));
+                
+                if (!rootComment.isTopLevel()) {
+                    throw new BusinessException("只能回复顶级评论");
+                }
+                
+                if (rootComment.isDeleted()) {
+                    throw new BusinessException("不能回复已删除的评论");
+                }
+
+                // 确定被回复用户
+                Long replyToUserId;
+                Long replyToCommentId = request.getReplyToCommentId();
+                if (replyToCommentId != null) {
+                    Comment replyToComment = commentRepository.findById(replyToCommentId)
+                            .orElseThrow(() -> new BusinessException("被回复的评论不存在"));
+                    if (replyToComment.isDeleted()) {
+                        throw new BusinessException("不能回复已删除的评论");
+                    }
+                    replyToUserId = replyToComment.getAuthorId();
+                } else {
+                    // 直接回复顶级评论
+                    replyToUserId = rootComment.getAuthorId();
+                }
+
+                comment = Comment.createReply(
+                        commentId, request.getPostId(), authorId, request.getContent(),
+                        request.getImageIds(), request.getVoiceId(), request.getVoiceDuration(),
+                        rootId, replyToUserId
+                );
+
+                // 更新顶级评论的回复数（数据库）
+                statsMapper.incrementReplyCount(rootId);
+            }
+
+            commentRepository.save(comment);
+            commentHolder[0] = comment;
+        });
+
+        Comment comment = commentHolder[0];
+
+        // 事务提交成功后，更新 Redis 缓存
+        try {
+            if (rootId != null) {
+                // 更新顶级评论的回复计数
+                redisTemplate.opsForValue().increment(CommentRedisKeys.replyCount(rootId));
+            }
+
+            // 更新文章评论计数
+            redisTemplate.opsForValue().increment(CommentRedisKeys.postCommentCount(request.getPostId()));
+        } catch (Exception e) {
+            log.warn("Redis 更新失败，将由 CDC 或定时任务修复: {}", e.getMessage());
+        }
+
+        // 发布事件
+        eventPublisher.publish(new CommentCreatedEvent(
+                commentId, request.getPostId(), post.getOwnerId(),
+                authorId, rootId, comment.getReplyToUserId(),
+                truncateContent(request.getContent(), 100)
+        ));
+
+        log.info("Comment created: commentId={}, postId={}, authorId={}, rootId={}",
+                commentId, request.getPostId(), authorId, rootId);
+
+        return commentId;
+    }
+
+    // ==================== 更新评论 ====================
+
+    /**
+     * 更新评论
+     *
+     * @param commentId 评论ID
+     * @param request 更新请求
+     */
+    @Transactional
+    public void updateComment(Long commentId, UpdateCommentRequest request) {
+        Long currentUserId = UserContext.getUserId();
+        
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_FOUND, "评论不存在"));
+
+        comment.edit(request.getContent(), currentUserId);
+        commentRepository.update(comment);
+
+        // 清除缓存
+        redisTemplate.delete(CommentRedisKeys.detail(commentId));
+
+        log.info("Comment updated: commentId={}, userId={}", commentId, currentUserId);
+    }
+
+    // ==================== 删除评论 ====================
+
+    /**
+     * 删除评论
+     *
+     * @param commentId 评论ID
+     */
+    @Transactional
+    public void deleteComment(Long commentId) {
+        Long currentUserId = UserContext.getUserId();
+        // TODO: 从 UserContext 获取管理员角色信息
+        boolean isAdmin = false;
+
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_FOUND, "评论不存在"));
+
+        comment.delete(currentUserId, isAdmin);
+        commentRepository.update(comment);
+
+        // 如果是回复，更新顶级评论的回复数
+        if (comment.isReply()) {
+            statsMapper.decrementReplyCount(comment.getRootId());
+            try {
+                redisTemplate.opsForValue().decrement(CommentRedisKeys.replyCount(comment.getRootId()));
+            } catch (Exception e) {
+                log.warn("Redis 更新失败: {}", e.getMessage());
+            }
+        }
+
+        // 更新文章评论计数
+        try {
+            redisTemplate.opsForValue().decrement(CommentRedisKeys.postCommentCount(comment.getPostId()));
+        } catch (Exception e) {
+            log.warn("Redis 更新失败: {}", e.getMessage());
+        }
+
+        // 清除缓存
+        redisTemplate.delete(CommentRedisKeys.detail(commentId));
+
+        log.info("Comment deleted: commentId={}, userId={}, isAdmin={}", commentId, currentUserId, isAdmin);
+    }
+
+    // ==================== 获取评论详情 ====================
+
+    /**
+     * 获取评论详情
+     *
+     * @param commentId 评论ID
+     * @return 评论VO
+     */
+    @Transactional(readOnly = true)
+    public CommentVO getComment(Long commentId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_FOUND, "评论不存在"));
+
+        return assembleCommentVO(comment);
+    }
+
+    // ==================== 顶级评论查询 ====================
+
+    /**
+     * 【Web端】获取文章的顶级评论 - 传统分页
+     */
+    @Transactional(readOnly = true)
+    public PageResult<CommentVO> getTopLevelCommentsByPage(Long postId, int page, int size,
+                                                           CommentSortType sortType) {
+        PageResult<Comment> commentPage;
+
+        if (sortType == CommentSortType.HOT) {
+            commentPage = commentRepository.findTopLevelByPostIdOrderByLikesPage(postId, page, size);
+        } else {
+            commentPage = commentRepository.findTopLevelByPostIdOrderByTimePage(postId, page, size);
+        }
+
+        List<CommentVO> voList = assembleCommentVOList(commentPage.getRecords());
+        return PageResult.of(page, size, commentPage.getTotal(), voList);
+    }
+
+    /**
+     * 【移动端】获取文章的顶级评论 - 游标分页
+     */
+    @Transactional(readOnly = true)
+    public CursorPage<CommentVO> getTopLevelCommentsByCursor(Long postId, String cursor, int size,
+                                                              CommentSortType sortType) {
+        List<Comment> comments;
+        String nextCursor = null;
+
+        if (sortType == CommentSortType.HOT) {
+            HotCursor hotCursor = hotCursorCodec.decode(cursor);
+            comments = commentRepository.findTopLevelByPostIdOrderByLikesCursor(
+                    postId, hotCursor, size + 1  // 多查一条判断是否有下一页
+            );
+
+            boolean hasMore = comments.size() > size;
+            if (hasMore) {
+                comments = comments.subList(0, size);
+                Comment lastComment = comments.get(comments.size() - 1);
+                nextCursor = hotCursorCodec.encode(lastComment);
+            }
+        } else {
+            TimeCursor timeCursor = timeCursorCodec.decode(cursor);
+            comments = commentRepository.findTopLevelByPostIdOrderByTimeCursor(
+                    postId, timeCursor, size + 1
+            );
+
+            boolean hasMore = comments.size() > size;
+            if (hasMore) {
+                comments = comments.subList(0, size);
+                Comment lastComment = comments.get(comments.size() - 1);
+                nextCursor = timeCursorCodec.encode(lastComment);
+            }
+        }
+
+        List<CommentVO> voList = assembleCommentVOList(comments);
+        return CursorPage.of(voList, nextCursor, nextCursor != null);
+    }
+
+    // ==================== 回复列表查询 ====================
+
+    /**
+     * 【Web端】获取评论的回复列表 - 传统分页
+     */
+    @Transactional(readOnly = true)
+    public PageResult<CommentVO> getRepliesByPage(Long rootId, int page, int size) {
+        PageResult<Comment> replyPage = commentRepository.findRepliesByRootIdPage(rootId, page, size);
+
+        List<CommentVO> voList = assembleReplyVOList(replyPage.getRecords());
+        return PageResult.of(page, size, replyPage.getTotal(), voList);
+    }
+
+    /**
+     * 【移动端】获取评论的回复列表 - 游标分页
+     */
+    @Transactional(readOnly = true)
+    public CursorPage<CommentVO> getRepliesByCursor(Long rootId, String cursor, int size) {
+        TimeCursor timeCursor = timeCursorCodec.decode(cursor);
+
+        List<Comment> replies = commentRepository.findRepliesByRootIdCursor(
+                rootId, timeCursor, size + 1
+        );
+
+        boolean hasMore = replies.size() > size;
+        String nextCursor = null;
+        if (hasMore) {
+            replies = replies.subList(0, size);
+            Comment lastReply = replies.get(replies.size() - 1);
+            nextCursor = timeCursorCodec.encode(lastReply);
+        }
+
+        List<CommentVO> voList = assembleReplyVOList(replies);
+        return CursorPage.of(voList, nextCursor, hasMore);
+    }
+
+    // ==================== 辅助方法 ====================
+
+    private CommentVO assembleCommentVO(Comment comment) {
+        // 获取用户信息
+        ApiResponse<UserSimpleDTO> userResponse = userServiceClient.getUserSimple(comment.getAuthorId());
+        UserSimpleDTO author = userResponse.isSuccess() ? userResponse.getData() : createDefaultUser(comment.getAuthorId());
+
+        UserSimpleDTO replyToUser = null;
+        if (comment.getReplyToUserId() != null) {
+            ApiResponse<UserSimpleDTO> replyUserResponse = userServiceClient.getUserSimple(comment.getReplyToUserId());
+            replyToUser = replyUserResponse.isSuccess() ? replyUserResponse.getData() : createDefaultUser(comment.getReplyToUserId());
+        }
+
+        return CommentVO.builder()
+                .id(comment.getId())
+                .postId(comment.getPostId())
+                .rootId(comment.isTopLevel() ? null : comment.getRootId())
+                .content(comment.getContent())
+                .imageIds(comment.getImageIds())
+                .voiceId(comment.getVoiceId())
+                .voiceDuration(comment.getVoiceDuration())
+                .author(author)
+                .replyToUser(replyToUser)
+                .likeCount(comment.getStats().getLikeCount())
+                .replyCount(comment.getStats().getReplyCount())
+                .createdAt(comment.getCreatedAt())
+                .liked(false)  // 需要单独查询
+                .build();
+    }
+
+    private List<CommentVO> assembleCommentVOList(List<Comment> comments) {
+        if (comments.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 批量获取用户信息
+        Set<Long> authorIds = comments.stream()
+                .map(Comment::getAuthorId)
+                .collect(Collectors.toSet());
+        Map<Long, UserSimpleDTO> userMap = batchGetUsers(authorIds);
+
+        // 批量获取统计信息
+        List<Long> commentIds = comments.stream().map(Comment::getId).collect(Collectors.toList());
+        Map<Long, CommentStats> statsMap = commentRepository.batchGetStats(commentIds);
+
+        // 批量预加载热门回复
+        Map<Long, List<CommentVO>> hotRepliesMap = preloadHotReplies(commentIds);
+
+        return comments.stream()
+                .map(c -> {
+                    CommentVO vo = CommentVO.builder()
+                            .id(c.getId())
+                            .postId(c.getPostId())
+                            .content(c.getContent())
+                            .imageIds(c.getImageIds())
+                            .voiceId(c.getVoiceId())
+                            .voiceDuration(c.getVoiceDuration())
+                            .author(userMap.getOrDefault(c.getAuthorId(), createDefaultUser(c.getAuthorId())))
+                            .likeCount(statsMap.getOrDefault(c.getId(), CommentStats.empty()).getLikeCount())
+                            .replyCount(statsMap.getOrDefault(c.getId(), CommentStats.empty()).getReplyCount())
+                            .createdAt(c.getCreatedAt())
+                            .liked(false)  // 需要单独查询
+                            .build();
+                    vo.setHotReplies(hotRepliesMap.getOrDefault(c.getId(), Collections.emptyList()));
+                    return vo;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 预加载热门回复
+     */
+    private Map<Long, List<CommentVO>> preloadHotReplies(List<Long> rootIds) {
+        if (rootIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Map<Long, List<CommentVO>> result = new HashMap<>();
+        
+        // 为每个顶级评论加载热门回复
+        for (Long rootId : rootIds) {
+            List<Comment> hotReplies = commentRepository.findHotRepliesByRootId(rootId, 3);
+            if (!hotReplies.isEmpty()) {
+                result.put(rootId, assembleReplyVOList(hotReplies));
+            }
+        }
+
+        return result;
+    }
+
+    private List<CommentVO> assembleReplyVOList(List<Comment> replies) {
+        if (replies.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 批量获取用户信息（包括被回复用户）
+        Set<Long> userIds = new HashSet<>();
+        replies.forEach(r -> {
+            userIds.add(r.getAuthorId());
+            if (r.getReplyToUserId() != null) {
+                userIds.add(r.getReplyToUserId());
+            }
+        });
+        Map<Long, UserSimpleDTO> userMap = batchGetUsers(userIds);
+
+        return replies.stream()
+                .map(r -> CommentVO.builder()
+                        .id(r.getId())
+                        .postId(r.getPostId())
+                        .rootId(r.getRootId())
+                        .content(r.getContent())
+                        .imageIds(r.getImageIds())
+                        .voiceId(r.getVoiceId())
+                        .voiceDuration(r.getVoiceDuration())
+                        .author(userMap.getOrDefault(r.getAuthorId(), createDefaultUser(r.getAuthorId())))
+                        .replyToUser(r.getReplyToUserId() != null ? 
+                                userMap.getOrDefault(r.getReplyToUserId(), createDefaultUser(r.getReplyToUserId())) : null)
+                        .likeCount(r.getStats().getLikeCount())
+                        .createdAt(r.getCreatedAt())
+                        .liked(false)  // 需要单独查询
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    private Map<Long, UserSimpleDTO> batchGetUsers(Set<Long> userIds) {
+        if (userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        ApiResponse<Map<Long, UserSimpleDTO>> response = userServiceClient.batchGetUsers(userIds);
+        return response.isSuccess() && response.getData() != null ? response.getData() : Collections.emptyMap();
+    }
+
+    private UserSimpleDTO createDefaultUser(Long userId) {
+        UserSimpleDTO user = new UserSimpleDTO();
+        user.setId(userId);
+        user.setNickName("用户" + userId.toString().substring(0, Math.min(6, userId.toString().length())));
+        user.setAvatarUrl("");
+        return user;
+    }
+
+    private String truncateContent(String content, int maxLength) {
+        if (content == null || content.length() <= maxLength) {
+            return content;
+        }
+        return content.substring(0, maxLength) + "...";
+    }
+}

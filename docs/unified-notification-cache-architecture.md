@@ -41,7 +41,7 @@
           ▼
 ┌──────────────────────┐
 │ Redis (Hash per user)│
-│  blog:unread_count:{u}│
+│  ZhiCore:unread_count:{u}│
 │   ├─ comment          │
 │   ├─ mention          │
 │   ├─ interaction      │
@@ -117,7 +117,7 @@
 ## Redis 缓存结构示例
 
 ```
-Key: blog:unread_count:12345
+Key: ZhiCore:unread_count:12345
 {
   "comment":         3,
   "mention":         1,

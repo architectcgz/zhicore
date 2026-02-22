@@ -59,7 +59,7 @@ public class AuthService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IVerificationCodeRepository.cs
+// ZhiCoreCore/Domain/Repositories/IVerificationCodeRepository.cs
 public interface IVerificationCodeRepository
 {
     /// <summary>
@@ -87,7 +87,7 @@ public interface IVerificationCodeRepository
 ### Repository 实现
 
 ```csharp
-// BlogCore/Infrastructure/Repositories/VerificationCodeRepository.cs
+// ZhiCoreCore/Infrastructure/Repositories/VerificationCodeRepository.cs
 public class VerificationCodeRepository : IVerificationCodeRepository
 {
     private readonly AppDbContext _dbContext;
@@ -146,7 +146,7 @@ public class VerificationCodeRepository : IVerificationCodeRepository
 ### Domain Service
 
 ```csharp
-// BlogCore/Domain/Services/IAuthDomainService.cs
+// ZhiCoreCore/Domain/Services/IAuthDomainService.cs
 public interface IAuthDomainService
 {
     /// <summary>
@@ -165,7 +165,7 @@ public interface IAuthDomainService
     string GenerateVerificationCode();
 }
 
-// BlogCore/Domain/Services/AuthDomainService.cs
+// ZhiCoreCore/Domain/Services/AuthDomainService.cs
 public class AuthDomainService : IAuthDomainService
 {
     private readonly UserManager<AppUser> _userManager;
@@ -233,7 +233,7 @@ public class AuthDomainService : IAuthDomainService
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Auth/IAuthApplicationService.cs
+// ZhiCoreCore/Application/Auth/IAuthApplicationService.cs
 public interface IAuthApplicationService
 {
     Task RegisterAsync(RegisterReq req);
@@ -245,7 +245,7 @@ public interface IAuthApplicationService
     Task ChangePasswordAsync(string userId, ChangePasswordReq req);
 }
 
-// BlogCore/Application/Auth/AuthApplicationService.cs
+// ZhiCoreCore/Application/Auth/AuthApplicationService.cs
 public class AuthApplicationService : IAuthApplicationService
 {
     private readonly IAuthDomainService _authDomainService;

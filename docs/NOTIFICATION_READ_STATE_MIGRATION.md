@@ -8,7 +8,7 @@
 
 1. **拉取代码并还原依赖**
    ```bash
-   cd blog-api
+   cd ZhiCore-api
    dotnet build
    ```
 

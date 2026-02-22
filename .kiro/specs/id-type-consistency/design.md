@@ -69,14 +69,14 @@
 
 ```
 ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│  blog-user   │  │  blog-post   │  │ blog-comment │
+│  ZhiCore-user   │  │  ZhiCore-post   │  │ ZhiCore-comment │
 │   (8081)     │  │   (8082)     │  │   (8083)     │
 └──────────────┘  └──────────────┘  └──────────────┘
         │                 │                 │
         └─────────────────┴─────────────────┘
                           │
                 ┌─────────┴─────────┐
-                │   blog-gateway    │
+                │   ZhiCore-gateway    │
                 │      (8000)       │
                 └───────────────────┘
                           │
@@ -96,10 +96,10 @@
 #### 1.1 需要删除的模块
 
 ```
-blog-upload/
+ZhiCore-upload/
 ├── src/
-│   ├── main/java/com/blog/upload/
-│   └── test/java/com/blog/upload/
+│   ├── main/java/com/ZhiCore/upload/
+│   └── test/java/com/ZhiCore/upload/
 ├── pom.xml
 └── Dockerfile
 ```
@@ -112,7 +112,7 @@ blog-upload/
 
 #### 1.3 需要删除的数据库迁移
 
-- `blog-migration/src/main/resources/db/migration/upload/`
+- `ZhiCore-migration/src/main/resources/db/migration/upload/`
 
 
 
@@ -1132,7 +1132,7 @@ class UserApiIntegrationTest {
 ### Phase 2: Upload Service Removal (Day 1)
 
 1. **Remove Module**
-   - 删除 `blog-upload` 目录
+   - 删除 `ZhiCore-upload` 目录
    - 从 `pom.xml` 移除模块
    - 从 Docker Compose 移除服务
 
@@ -1154,7 +1154,7 @@ class UserApiIntegrationTest {
    docker-compose down
    
    # 删除数据库卷
-   docker volume rm blog-postgres-data
+   docker volume rm ZhiCore-postgres-data
    
    # 重新启动
    docker-compose up -d postgres
@@ -1243,10 +1243,10 @@ git reset --hard v1.0.0-before-id-migration
 docker-compose down
 
 # 删除数据库卷
-docker volume rm blog-postgres-data
+docker volume rm ZhiCore-postgres-data
 
 # 恢复旧的迁移脚本（如果已修改）
-git checkout v1.0.0-before-id-migration -- blog-migration/
+git checkout v1.0.0-before-id-migration -- ZhiCore-migration/
 
 # 重新启动
 docker-compose up -d
@@ -1375,12 +1375,12 @@ JSON serialization of numbers is more efficient than strings:
 
 ### Internal Dependencies
 
-1. **blog-common Module**
+1. **ZhiCore-common Module**
    - IdGeneratorService interface
    - Result wrapper classes
    - Exception handling
 
-2. **blog-api Module**
+2. **ZhiCore-api Module**
    - Shared DTOs
    - API contracts
 
@@ -1535,7 +1535,7 @@ Add entry to `CHANGELOG.md`:
 
 ## Conclusion
 
-This design provides a comprehensive plan for migrating all ID types from String/VARCHAR to Long/BIGINT across the entire blog microservices system. The migration will:
+This design provides a comprehensive plan for migrating all ID types from String/VARCHAR to Long/BIGINT across the entire ZhiCore microservices system. The migration will:
 
 1. **Improve Performance**: Faster queries, smaller indexes, reduced JSON payload
 2. **Simplify Code**: No more String ↔ Long conversions

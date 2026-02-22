@@ -1,26 +1,26 @@
-# blog-message 模块与 im-system 集成架构设计
+# ZhiCore-message 模块与 im-system 集成架构设计
 
 ## 文档版本
 
 | 版本 | 日期 | 作者 | 说明 |
 |------|------|------|------|
-| 1.0 | 2025-01-23 | System | 初始版本 - 定义 blog-message 在引入 im-system 后的新职责 |
+| 1.0 | 2025-01-23 | System | 初始版本 - 定义 ZhiCore-message 在引入 im-system 后的新职责 |
 
 ---
 
 ## 背景
 
-随着博客系统引入 **im-system**（通用即时通讯系统）作为底层聊天基础设施，**blog-message** 模块的职责需要重新定义。
+随着博客系统引入 **im-system**（通用即时通讯系统）作为底层聊天基础设施，**ZhiCore-message** 模块的职责需要重新定义。
 
 ### 问题
 
 - **im-system** 提供完整的 IM 能力（单聊、群聊、消息持久化、在线状态等）
-- **blog-message** 原本承担私信功能，与 im-system 存在功能重叠
+- **ZhiCore-message** 原本承担私信功能，与 im-system 存在功能重叠
 - 需要明确两者的边界和职责分工
 
 ### 解决方案
 
-**保留 blog-message 模块，但重新定位为"博客消息业务编排层"**，而不是完整的 IM 系统。
+**保留 ZhiCore-message 模块，但重新定位为"博客消息业务编排层"**，而不是完整的 IM 系统。
 
 ---
 
@@ -30,14 +30,14 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      Blog 微服务系统                          │
+│                      ZhiCore 微服务系统                          │
 │                                                              │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │  blog-user   │  │  blog-post   │  │ blog-comment │      │
+│  │  ZhiCore-user   │  │  ZhiCore-post   │  │ ZhiCore-comment │      │
 │  └──────────────┘  └──────────────┘  └──────────────┘      │
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │              blog-message                            │   │
+│  │              ZhiCore-message                            │   │
 │  │  (博客消息业务编排层 / IM 适配层)                     │   │
 │  │                                                      │   │
 │  │  ✓ 系统通知管理 (点赞、评论、关注)                   │   │
@@ -67,7 +67,7 @@
 
 ## 职责划分
 
-### blog-message 的新职责
+### ZhiCore-message 的新职责
 
 #### 1. 系统通知管理（独立功能，不依赖 im-system）
 
@@ -85,7 +85,7 @@
 **数据存储**：
 
 ```sql
--- 系统通知表（blog-message 自己管理）
+-- 系统通知表（ZhiCore-message 自己管理）
 CREATE TABLE system_notification (
     id BIGINT PRIMARY KEY,
     user_id BIGINT NOT NULL,           -- 接收者
@@ -277,17 +277,17 @@ im-system 作为通用 IM 基础设施，提供：
 ### 依赖关系
 
 ```xml
-<!-- blog-message/pom.xml -->
+<!-- ZhiCore-message/pom.xml -->
 <dependencies>
     <!-- 博客公共模块 -->
     <dependency>
-        <groupId>com.blog</groupId>
-        <artifactId>blog-common</artifactId>
+        <groupId>com.ZhiCore</groupId>
+        <artifactId>ZhiCore-common</artifactId>
     </dependency>
     
     <dependency>
-        <groupId>com.blog</groupId>
-        <artifactId>blog-api</artifactId>
+        <groupId>com.ZhiCore</groupId>
+        <artifactId>ZhiCore-api</artifactId>
     </dependency>
     
     <!-- im-system 客户端（新增） -->
@@ -313,10 +313,10 @@ im-system 作为通用 IM 基础设施，提供：
 
 ### Feign Client 定义
 
-在 **blog-api** 模块中定义 im-system 的 Feign 客户端：
+在 **ZhiCore-api** 模块中定义 im-system 的 Feign 客户端：
 
 ```java
-// blog-api/client/ImSystemClient.java
+// ZhiCore-api/client/ImSystemClient.java
 @FeignClient(
     name = "im-system", 
     url = "${im-system.url}",
@@ -357,7 +357,7 @@ public interface ImSystemClient {
 ### 降级策略
 
 ```java
-// blog-api/client/fallback/ImSystemFallbackFactory.java
+// ZhiCore-api/client/fallback/ImSystemFallbackFactory.java
 @Component
 public class ImSystemFallbackFactory implements FallbackFactory<ImSystemClient> {
     
@@ -385,7 +385,7 @@ public class ImSystemFallbackFactory implements FallbackFactory<ImSystemClient> 
 ### 配置
 
 ```yaml
-# blog-message/application.yml
+# ZhiCore-message/application.yml
 im-system:
   url: http://im-system:8080  # im-system 服务地址
   
@@ -402,7 +402,7 @@ feign:
 
 ## API 设计
 
-### blog-message 对外提供的 API
+### ZhiCore-message 对外提供的 API
 
 #### 1. 系统通知 API
 
@@ -510,7 +510,7 @@ public class MessageCenterController {
 
 ```
 ┌─────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│ 前端    │────►│ blog-message │────►│  im-system   │────►│  PostgreSQL  │
+│ 前端    │────►│ ZhiCore-message │────►│  im-system   │────►│  PostgreSQL  │
 │         │     │              │     │              │     │              │
 │         │     │ 1. 业务校验  │     │ 3. 消息持久化│     │ 4. 存储消息  │
 │         │     │ 2. 内容过滤  │     │ 4. 推送消息  │     │              │
@@ -530,7 +530,7 @@ public class MessageCenterController {
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│ blog-post    │────►│  RocketMQ    │────►│ blog-message │
+│ ZhiCore-post    │────►│  RocketMQ    │────►│ ZhiCore-message │
 │              │     │              │     │              │
 │ 发布事件     │     │ PostLikedEvent│    │ 1. 消费事件  │
 │              │     │              │     │ 2. 创建通知  │
@@ -546,13 +546,13 @@ public class MessageCenterController {
 ### 阶段 1：准备阶段
 
 1. 部署 im-system 服务
-2. 在 blog-api 中添加 ImSystemClient
-3. 在 blog-message 中添加 im-system-client 依赖
+2. 在 ZhiCore-api 中添加 ImSystemClient
+3. 在 ZhiCore-message 中添加 im-system-client 依赖
 
 ### 阶段 2：双写阶段
 
-1. 新私信同时写入 blog-message 和 im-system
-2. 读取优先从 im-system 读取，失败则降级到 blog-message
+1. 新私信同时写入 ZhiCore-message 和 im-system
+2. 读取优先从 im-system 读取，失败则降级到 ZhiCore-message
 3. 验证数据一致性
 
 ### 阶段 3：迁移阶段
@@ -563,7 +563,7 @@ public class MessageCenterController {
 
 ### 阶段 4：清理阶段
 
-1. 移除 blog-message 中的私信存储表
+1. 移除 ZhiCore-message 中的私信存储表
 2. 移除旧的私信相关代码
 3. 保留系统通知功能
 
@@ -573,7 +573,7 @@ public class MessageCenterController {
 
 ### 1. 职责清晰
 
-- **blog-message**：博客业务消息编排
+- **ZhiCore-message**：博客业务消息编排
 - **im-system**：通用 IM 基础设施
 
 ### 2. 解耦
@@ -597,18 +597,18 @@ public class MessageCenterController {
 
 ### 1. 用户ID映射
 
-- blog 和 im-system 可能使用不同的用户ID体系
-- 需要在 blog-message 中做映射转换
+- ZhiCore 和 im-system 可能使用不同的用户ID体系
+- 需要在 ZhiCore-message 中做映射转换
 
 ### 2. 消息格式
 
-- blog 的消息格式可能与 im-system 不完全一致
+- ZhiCore 的消息格式可能与 im-system 不完全一致
 - 需要在适配层做格式转换
 
 ### 3. 权限控制
 
 - im-system 提供基础的消息传输
-- 博客特定的权限控制（如拉黑、关注限制）在 blog-message 中实现
+- 博客特定的权限控制（如拉黑、关注限制）在 ZhiCore-message 中实现
 
 ### 4. 降级策略
 
@@ -620,5 +620,5 @@ public class MessageCenterController {
 ## 相关文档
 
 - [im-system 架构文档](../../../im-system/docs/architecture-overview.md)
-- [blog-api 模块说明](./blog-api-module-purpose.md)
+- [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md)
 - [DDD 架构总览](../ddd/overview.md)

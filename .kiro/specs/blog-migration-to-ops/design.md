@@ -2,15 +2,15 @@
 
 ## Overview
 
-本设计文档描述了将 `blog-migration` 模块重构为 `blog-ops` 运维服务模块的详细方案。重构的核心目标是移除已废弃的 Flyway 数据库迁移功能和数据迁移服务，保留 CDC 和灰度发布功能，简化模块结构，为未来的运维需求做准备。
+本设计文档描述了将 `ZhiCore-migration` 模块重构为 `ZhiCore-ops` 运维服务模块的详细方案。重构的核心目标是移除已废弃的 Flyway 数据库迁移功能和数据迁移服务，保留 CDC 和灰度发布功能，简化模块结构，为未来的运维需求做准备。
 
 ## Architecture
 
-### 当前架构（blog-migration）
+### 当前架构（ZhiCore-migration）
 
 ```
-blog-migration/
-├── src/main/java/com/blog/migration/
+ZhiCore-migration/
+├── src/main/java/com/ZhiCore/migration/
 │   ├── MigrationApplication.java
 │   ├── application/
 │   │   └── service/
@@ -43,11 +43,11 @@ blog-migration/
 └── pom.xml
 ```
 
-### 目标架构（blog-ops）
+### 目标架构（ZhiCore-ops）
 
 ```
-blog-ops/
-├── src/main/java/com/blog/ops/
+ZhiCore-ops/
+├── src/main/java/com/ZhiCore/ops/
 │   ├── OpsApplication.java
 │   ├── infrastructure/
 │   │   ├── cdc/
@@ -170,17 +170,17 @@ blog-ops/
 cdc:
   enabled: false  # 默认关闭
   connector:
-    name: blog-postgres-connector
+    name: ZhiCore-postgres-connector
     database:
       hostname: localhost
       port: 5432
       user: postgres
       password: postgres123456
-      dbname: blog_user
+      dbname: ZhiCore_user
     slot:
-      name: blog_cdc_slot
+      name: ZhiCore_cdc_slot
     publication:
-      name: blog_publication
+      name: ZhiCore_publication
     tables:
       - post_stats
       - post_likes
@@ -209,7 +209,7 @@ gray:
 
 ### Property 1: 模块重命名完整性
 
-*对于任何* 代码文件或配置文件，如果它包含对 `blog-migration` 的引用，那么在重构后应该被更新为 `blog-ops` 或被删除
+*对于任何* 代码文件或配置文件，如果它包含对 `ZhiCore-migration` 的引用，那么在重构后应该被更新为 `ZhiCore-ops` 或被删除
 
 **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 9.1, 9.2, 9.3, 9.4**
 
@@ -239,31 +239,31 @@ gray:
 
 ### Property 6: 配置文件正确性
 
-*对于* application.yml 配置文件，重构后应该满足：应用名为 `blog-ops`，不包含 Flyway 配置，不包含已注释的 migration 配置，不包含 mybatis-plus 配置，日志包名为 `com.blog.ops`
+*对于* application.yml 配置文件，重构后应该满足：应用名为 `ZhiCore-ops`，不包含 Flyway 配置，不包含已注释的 migration 配置，不包含 mybatis-plus 配置，日志包名为 `com.ZhiCore.ops`
 
 **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.6**
 
 ### Property 7: Maven 配置正确性
 
-*对于* pom.xml 文件，重构后应该满足：artifactId 为 `blog-ops`，description 包含 "运维服务"，不包含 Flyway 依赖，不包含 Flyway 插件
+*对于* pom.xml 文件，重构后应该满足：artifactId 为 `ZhiCore-ops`，description 包含 "运维服务"，不包含 Flyway 依赖，不包含 Flyway 插件
 
 **Validates: Requirements 1.2, 2.1, 2.2, 7.5**
 
 ### Property 8: 项目可编译性
 
-*对于* blog-ops 模块，执行 `mvn clean compile` 应该成功完成，不应有编译错误
+*对于* ZhiCore-ops 模块，执行 `mvn clean compile` 应该成功完成，不应有编译错误
 
 **Validates: Requirements 10.1, 10.6**
 
 ### Property 9: 项目可打包性
 
-*对于* blog-ops 模块，执行 `mvn clean package` 应该成功完成，生成可执行的 jar 文件
+*对于* ZhiCore-ops 模块，执行 `mvn clean package` 应该成功完成，生成可执行的 jar 文件
 
 **Validates: Requirements 10.2, 10.6**
 
 ### Property 10: 应用可启动性
 
-*对于* blog-ops 应用，启动后应该能够成功运行，健康检查端点 `/actuator/health` 应该返回 UP 状态
+*对于* ZhiCore-ops 应用，启动后应该能够成功运行，健康检查端点 `/actuator/health` 应该返回 UP 状态
 
 **Validates: Requirements 10.3, 10.4**
 
@@ -292,8 +292,8 @@ gray:
 **场景**: 移除依赖后可能导致其他模块编译失败
 
 **处理方式**:
-- 检查其他模块是否依赖 blog-migration
-- 如有依赖，更新为 blog-ops
+- 检查其他模块是否依赖 ZhiCore-migration
+- 如有依赖，更新为 ZhiCore-ops
 - 执行全量构建验证
 
 ### 4. 运行时错误处理
@@ -325,17 +325,17 @@ gray:
 
 1. **编译测试**
    ```bash
-   mvn clean compile -pl blog-ops
+   mvn clean compile -pl ZhiCore-ops
    ```
 
 2. **打包测试**
    ```bash
-   mvn clean package -pl blog-ops
+   mvn clean package -pl ZhiCore-ops
    ```
 
 3. **启动测试**
    ```bash
-   java -jar blog-ops/target/blog-ops-1.0.0-SNAPSHOT.jar
+   java -jar ZhiCore-ops/target/ZhiCore-ops-1.0.0-SNAPSHOT.jar
    ```
 
 4. **健康检查测试**
@@ -350,9 +350,9 @@ gray:
 
 ### 手动验证清单
 
-- [ ] 模块目录已重命名为 blog-ops
-- [ ] 所有 Java 文件的包名已更新为 com.blog.ops
-- [ ] pom.xml 中的 artifactId 已更新为 blog-ops
+- [ ] 模块目录已重命名为 ZhiCore-ops
+- [ ] 所有 Java 文件的包名已更新为 com.ZhiCore.ops
+- [ ] pom.xml 中的 artifactId 已更新为 ZhiCore-ops
 - [ ] 根 pom.xml 中的模块引用已更新
 - [ ] Flyway 依赖和插件已移除
 - [ ] db/migration 目录已删除
@@ -374,7 +374,7 @@ gray:
 
 1. **使用 Git 保留历史**
    ```bash
-   git mv blog-migration blog-ops
+   git mv ZhiCore-migration ZhiCore-ops
    ```
 
 2. **批量更新包名**
@@ -413,18 +413,18 @@ gray:
 
 ### 1. 服务注册
 
-由于服务名从 `blog-migration` 改为 `blog-ops`，需要注意：
+由于服务名从 `ZhiCore-migration` 改为 `ZhiCore-ops`，需要注意：
 
-- Nacos 中会出现新的服务名 `blog-ops`
-- 旧的 `blog-migration` 服务实例会自动下线（如果有的话）
-- 其他服务不应该依赖 blog-migration/blog-ops 服务（它是独立的运维工具）
+- Nacos 中会出现新的服务名 `ZhiCore-ops`
+- 旧的 `ZhiCore-migration` 服务实例会自动下线（如果有的话）
+- 其他服务不应该依赖 ZhiCore-migration/ZhiCore-ops 服务（它是独立的运维工具）
 
 ### 2. 配置管理
 
 如果使用 Nacos 配置中心：
 
-- 需要在 Nacos 中创建 `blog-ops` 的配置
-- 或者将 `blog-migration` 的配置重命名为 `blog-ops`
+- 需要在 Nacos 中创建 `ZhiCore-ops` 的配置
+- 或者将 `ZhiCore-migration` 的配置重命名为 `ZhiCore-ops`
 - 确保 CDC 和灰度发布配置正确
 
 ### 3. 端口配置
@@ -434,7 +434,7 @@ gray:
 
 ### 4. 依赖服务
 
-blog-ops 依赖以下服务：
+ZhiCore-ops 依赖以下服务：
 
 - **Redis**: 用于灰度发布的用户标记存储
 - **RocketMQ**: 用于 CDC 事件发送（如果启用）
@@ -443,7 +443,7 @@ blog-ops 依赖以下服务：
 
 ### 5. 启动顺序
 
-由于 CDC 和灰度发布默认关闭，blog-ops 可以独立启动，不需要特定的启动顺序。
+由于 CDC 和灰度发布默认关闭，ZhiCore-ops 可以独立启动，不需要特定的启动顺序。
 
 ## Future Enhancements
 

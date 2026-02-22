@@ -2,13 +2,13 @@
 
 ## 问题描述
 
-测试脚本直接调用 blog-post 服务（绕过网关）创建文章时失败，返回 HTTP 400 错误："参数值无效"。
+测试脚本直接调用 ZhiCore-post 服务（绕过网关）创建文章时失败，返回 HTTP 400 错误："参数值无效"。
 
 ## 根本原因
 
 1. **JWT Secret 不一致**：
-   - blog-user 服务使用自己的 JWT secret 签发 token
-   - blog-post 服务使用不同的 JWT secret 验证 token
+   - ZhiCore-user 服务使用自己的 JWT secret 签发 token
+   - ZhiCore-post 服务使用不同的 JWT secret 验证 token
    - 签名验证失败，导致 `UserContext.getUserId()` 返回 null
    - `Post.createDraft()` 收到 null 的 userId，抛出 `IllegalArgumentException: 作者ID不能为空`
 
@@ -31,21 +31,21 @@ jwt:
   refresh-token-expiration: 604800
 ```
 
-### 2. 更新 blog-user 配置
+### 2. 更新 ZhiCore-user 配置
 
-**文件**: `blog-user/src/main/resources/application.yml`
+**文件**: `ZhiCore-user/src/main/resources/application.yml`
 
 **修改前**:
 ```yaml
 spring:
   application:
-    name: blog-user
+    name: ZhiCore-user
   config:
-    import: optional:nacos:blog-user.yml?group=BLOG_SERVICE&refreshEnabled=true
+    import: optional:nacos:ZhiCore-user.yml?group=ZhiCore_SERVICE&refreshEnabled=true
 
 # JWT 配置
 jwt:
-  secret: ${JWT_SECRET:blog-microservices-jwt-secret-key-must-be-at-least-256-bits}
+  secret: ${JWT_SECRET:ZhiCore-microservices-jwt-secret-key-must-be-at-least-256-bits}
   access-token-expiration: 3600
   refresh-token-expiration: 604800
 ```
@@ -54,37 +54,37 @@ jwt:
 ```yaml
 spring:
   application:
-    name: blog-user
+    name: ZhiCore-user
   config:
     import:
-      - optional:nacos:common.yml?group=BLOG_SERVICE&refreshEnabled=true
-      - optional:nacos:blog-user.yml?group=BLOG_SERVICE&refreshEnabled=true
+      - optional:nacos:common.yml?group=ZhiCore_SERVICE&refreshEnabled=true
+      - optional:nacos:ZhiCore-user.yml?group=ZhiCore_SERVICE&refreshEnabled=true
 
 # JWT 配置已移至 common.yml
 ```
 
-### 3. 更新 blog-post 配置
+### 3. 更新 ZhiCore-post 配置
 
-**文件**: `blog-post/src/main/resources/application.yml`
+**文件**: `ZhiCore-post/src/main/resources/application.yml`
 
 **修改前**:
 ```yaml
 spring:
   application:
-    name: blog-post
+    name: ZhiCore-post
   config:
-    import: optional:nacos:blog-post.yml?group=BLOG_SERVICE&refreshEnabled=true
+    import: optional:nacos:ZhiCore-post.yml?group=ZhiCore_SERVICE&refreshEnabled=true
 ```
 
 **修改后**:
 ```yaml
 spring:
   application:
-    name: blog-post
+    name: ZhiCore-post
   config:
     import:
-      - optional:nacos:common.yml?group=BLOG_SERVICE&refreshEnabled=true
-      - optional:nacos:blog-post.yml?group=BLOG_SERVICE&refreshEnabled=true
+      - optional:nacos:common.yml?group=ZhiCore_SERVICE&refreshEnabled=true
+      - optional:nacos:ZhiCore-post.yml?group=ZhiCore_SERVICE&refreshEnabled=true
 ```
 
 ### 4. 推送配置到 Nacos
@@ -97,7 +97,7 @@ spring:
 
 ```powershell
 # 停止所有服务
-jps -l | Select-String "blog-" | ForEach-Object { 
+jps -l | Select-String "ZhiCore-" | ForEach-Object { 
     $pid = $_.ToString().Split()[0] 
     Stop-Process -Id $pid -Force 
 }
@@ -113,7 +113,7 @@ jps -l | Select-String "blog-" | ForEach-Object {
 访问 Nacos 控制台：http://localhost:8848/nacos
 
 - 命名空间：public
-- Group：BLOG_SERVICE
+- Group：ZhiCore_SERVICE
 - Data ID：common.yml
 
 确认包含 JWT 配置。
@@ -140,11 +140,11 @@ jps -l | Select-String "blog-" | ForEach-Object {
 
 ### JWT Token 流程
 
-1. **用户登录** (blog-user):
+1. **用户登录** (ZhiCore-user):
    - 使用 `jwt.secret` 签发 JWT token
    - Token 包含 `sub` (userId), `userName`, `email`, `roles`
 
-2. **直接调用服务** (blog-post):
+2. **直接调用服务** (ZhiCore-post):
    - `UserContextFilter` 从 `Authorization` header 提取 token
    - 使用 `jwt.secret` 验证签名
    - 解析 payload，设置 `UserContext`
@@ -171,7 +171,7 @@ private Claims parseToken(String token) {
 }
 ```
 
-**JwtTokenProvider.java** (blog-user):
+**JwtTokenProvider.java** (ZhiCore-user):
 ```java
 @Value("${jwt.secret:your-256-bit-secret-key-for-jwt-token-generation}")
 private String jwtSecret;
@@ -219,10 +219,10 @@ private Long accessTokenExpiration;
 ## 相关文件
 
 - `config/nacos/common.yml` - 统一配置
-- `blog-user/src/main/resources/application.yml` - 用户服务配置
-- `blog-post/src/main/resources/application.yml` - 文章服务配置
-- `blog-common/src/main/java/com/blog/common/filter/UserContextFilter.java` - JWT 解析
-- `blog-user/src/main/java/com/blog/user/infrastructure/security/JwtTokenProvider.java` - JWT 生成
+- `ZhiCore-user/src/main/resources/application.yml` - 用户服务配置
+- `ZhiCore-post/src/main/resources/application.yml` - 文章服务配置
+- `ZhiCore-common/src/main/java/com/ZhiCore/common/filter/UserContextFilter.java` - JWT 解析
+- `ZhiCore-user/src/main/java/com/ZhiCore/user/infrastructure/security/JwtTokenProvider.java` - JWT 生成
 
 ## 测试脚本
 

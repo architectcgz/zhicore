@@ -181,7 +181,7 @@ RabbitMQ处理能力：10万+ QPS
 
 当前已有的RabbitMQ消费者：
 ```
-blog-consumer-worker/Consumers/
+ZhiCore-consumer-worker/Consumers/
 ├─ PostLikeBatchWriteConsumer.cs        ✅ 文章点赞（已实现）
 ├─ CommentBatchWriteConsumer.cs         ✅ 评论批量写入（已实现）
 ├─ AntiSpamActionConsumer.cs            ✅ 反垃圾处理（已实现）
@@ -297,7 +297,7 @@ RabbitMQ丢失风险：
 
 **定义评论点赞消息**：
 ```csharp
-// blog-shared/Messages/CommentLikeBatchMessage.cs
+// ZhiCore-shared/Messages/CommentLikeBatchMessage.cs
 public class CommentLikeBatchMessage
 {
     public long CommentId { get; set; }
@@ -312,7 +312,7 @@ public class CommentLikeBatchMessage
 
 **旧代码（Redis Stream）**：
 ```csharp
-// blog-core/Services/Impl/CommentLikeService.cs
+// ZhiCore-core/Services/Impl/CommentLikeService.cs
 await _redisStreamService.PublishCommentLikeAsync(new
 {
     cid = commentId,
@@ -324,7 +324,7 @@ await _redisStreamService.PublishCommentLikeAsync(new
 
 **新代码（RabbitMQ）**：
 ```csharp
-// blog-core/Services/Impl/CommentLikeService.cs
+// ZhiCore-core/Services/Impl/CommentLikeService.cs
 await _eventPublisher.PublishAsync(
     RabbitMqConstants.Exchanges.CommentLike,
     RabbitMqConstants.RoutingKeys.CommentLikeBatch,
@@ -343,7 +343,7 @@ await _eventPublisher.PublishAsync(
 
 **新建消费者（复用文章点赞架构）**：
 ```csharp
-// blog-consumer-worker/Consumers/CommentLikeBatchWriteConsumer.cs
+// ZhiCore-consumer-worker/Consumers/CommentLikeBatchWriteConsumer.cs
 public class CommentLikeBatchWriteConsumer : BackgroundService
 {
     private readonly ConcurrentBag<CommentLikeRecord> _likeBatch = new();
@@ -399,7 +399,7 @@ public class CommentLikeBatchWriteConsumer : BackgroundService
 
 **消费者配置**：
 ```csharp
-// blog-shared/Config/CommentLikeBatchConfig.cs
+// ZhiCore-shared/Config/CommentLikeBatchConfig.cs
 public class CommentLikeBatchConfig
 {
     public int BatchSize { get; set; } = 100;

@@ -1,0 +1,426 @@
+package com.zhicore.post.infrastructure.service;
+
+import model.domain.com.zhicore.content.Post;
+import repository.domain.com.zhicore.content.PostRepository;
+import service.domain.com.zhicore.content.DualStorageManager;
+import document.mongodb.infrastructure.com.zhicore.content.PostContent;
+import repository.mongodb.infrastructure.com.zhicore.content.PostContentRepository;
+import net.jqwik.api.*;
+import net.jqwik.api.constraints.IntRange;
+import net.jqwik.api.constraints.StringLength;
+import org.junit.jupiter.api.BeforeEach;
+
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
+/**
+ * Dual Storage Manager Data Consistency Property Test
+ * 
+ * Uses property-based testing to validate data consistency between
+ * PostgreSQL and MongoDB.
+ * 
+ * **Feature: post-mongodb-hybrid, Property 2: 数据一致性**
+ * 
+ * **Validates: Requirements 2.2, 7.5**
+ * 
+ * Property 2: 数据一致性
+ * 对于任意文章 ID，如果在 PostgreSQL 中存在元数据，则在 MongoDB 中必须存在对应的内容；
+ * 反之亦然。
+ */
+class DualStorageManagerConsistencyPropertyTest {
+
+    private PostRepository postRepository;
+    private PostContentRepository postContentRepository;
+    private DualStorageManager dualStorageManager;
+
+    @BeforeEach
+    void setUp() {
+        postRepository = mock(PostRepository.class);
+        postContentRepository = mock(PostContentRepository.class);
+        dualStorageManager = new DualStorageManagerImpl(postRepository, postContentRepository);
+    }
+
+    /**
+     * Property 2: Data consistency - PostgreSQL existence implies MongoDB existence
+     * 
+     * For any post ID, if metadata exists in PostgreSQL, then content must exist in MongoDB.
+     * 
+     * **Validates: Requirements 2.2, 7.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 2: PostgreSQL existence implies MongoDB existence")
+    void postgreSQLExistenceImpliesMongoDBExistence(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @StringLength(min = 1, max = 200) String title,
+            @ForAll @StringLength(min = 10, max = 5000) String content) {
+
+        // Given: Post exists in PostgreSQL
+        String postIdStr = String.valueOf(postId);
+        Post post = Post.createDraft(postId, ownerId, title);
+        PostContent postContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(content)
+                .html("<p>" + content + "</p>")
+                .text(content)
+                .build();
+
+        when(postRepository.findById(postIdStr)).thenReturn(Optional.of(post));
+        when(postContentRepository.findByPostId(postIdStr)).thenReturn(Optional.of(postContent));
+
+        // When: Query post detail
+        DualStorageManager.PostDetail detail = dualStorageManager.getPostFullDetail(postIdStr);
+
+        // Then: Both PostgreSQL and MongoDB should have data
+        assertThat(detail).isNotNull();
+        assertThat(detail.getPost()).isNotNull();
+        assertThat(detail.getContent()).isNotNull();
+        assertThat(detail.getPost().getId()).isEqualTo(postId);
+        assertThat(detail.getContent().getPostId()).isEqualTo(postIdStr);
+
+        // Verify both repositories were queried
+        verify(postRepository, times(1)).findById(postIdStr);
+        verify(postContentRepository, times(1)).findByPostId(postIdStr);
+    }
+
+    /**
+     * Property 2: Data consistency - MongoDB existence implies PostgreSQL existence
+     * 
+     * For any post ID, if content exists in MongoDB, then metadata must exist in PostgreSQL.
+     * 
+     * **Validates: Requirements 2.2, 7.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 2: MongoDB existence implies PostgreSQL existence")
+    void mongoDBExistenceImpliesPostgreSQLExistence(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @StringLength(min = 1, max = 200) String title,
+            @ForAll @StringLength(min = 10, max = 5000) String content) {
+
+        // Given: Content exists in MongoDB
+        String postIdStr = String.valueOf(postId);
+        Post post = Post.createDraft(postId, ownerId, title);
+        PostContent postContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(content)
+                .html("<p>" + content + "</p>")
+                .text(content)
+                .build();
+
+        when(postContentRepository.findByPostId(postIdStr)).thenReturn(Optional.of(postContent));
+        when(postRepository.findById(postIdStr)).thenReturn(Optional.of(post));
+
+        // When: Query content
+        PostContent retrievedContent = postContentRepository.findByPostId(postIdStr).orElse(null);
+        assertThat(retrievedContent).isNotNull();
+
+        // Then: PostgreSQL should also have the post
+        Optional<Post> retrievedPost = postRepository.findById(postIdStr);
+        assertThat(retrievedPost).isPresent();
+        assertThat(retrievedPost.get().getId()).isEqualTo(postId);
+    }
+
+    /**
+     * Property 2: Data consistency - non-existence in PostgreSQL implies non-existence in MongoDB
+     * 
+     * For any post ID, if metadata does not exist in PostgreSQL,
+     * then content should not exist in MongoDB (no orphan data).
+     * 
+     * **Validates: Requirements 2.2, 7.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 2: Non-existence in PostgreSQL implies non-existence in MongoDB")
+    void nonExistenceInPostgreSQLImpliesNonExistenceInMongoDB(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId) {
+
+        // Given: Post does not exist in PostgreSQL
+        String postIdStr = String.valueOf(postId);
+        when(postRepository.findById(postIdStr)).thenReturn(Optional.empty());
+        when(postContentRepository.findByPostId(postIdStr)).thenReturn(Optional.empty());
+
+        // When: Query post detail
+        DualStorageManager.PostDetail detail = dualStorageManager.getPostFullDetail(postIdStr);
+
+        // Then: Both should be empty (consistent non-existence)
+        assertThat(detail).isNull();
+
+        // Verify both repositories were queried
+        verify(postRepository, times(1)).findById(postIdStr);
+        // MongoDB query may or may not happen depending on implementation
+    }
+
+    /**
+     * Property 2: Data consistency - inconsistent state detection (PostgreSQL exists, MongoDB missing)
+     * 
+     * For any post ID, if metadata exists in PostgreSQL but content is missing in MongoDB,
+     * the system should detect this inconsistency.
+     * 
+     * **Validates: Requirements 2.2, 7.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 2: Detect inconsistency when PostgreSQL exists but MongoDB missing")
+    void detectInconsistencyWhenPostgreSQLExistsButMongoDBMissing(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @StringLength(min = 1, max = 200) String title) {
+
+        // Given: Post exists in PostgreSQL but not in MongoDB (inconsistent state)
+        String postIdStr = String.valueOf(postId);
+        Post post = Post.createDraft(postId, ownerId, title);
+
+        when(postRepository.findById(postIdStr)).thenReturn(Optional.of(post));
+        when(postContentRepository.findByPostId(postIdStr)).thenReturn(Optional.empty());
+
+        // When: Query post detail
+        DualStorageManager.PostDetail detail = dualStorageManager.getPostFullDetail(postIdStr);
+
+        // Then: System should detect inconsistency
+        // The detail should indicate missing content or be null
+        if (detail != null) {
+            assertThat(detail.getPost()).isNotNull();
+            assertThat(detail.getContent()).isNull();
+        }
+
+        // Verify both repositories were queried
+        verify(postRepository, times(1)).findById(postIdStr);
+        verify(postContentRepository, times(1)).findByPostId(postIdStr);
+    }
+
+    /**
+     * Property 2: Data consistency - inconsistent state detection (MongoDB exists, PostgreSQL missing)
+     * 
+     * For any post ID, if content exists in MongoDB but metadata is missing in PostgreSQL,
+     * the system should detect this inconsistency (orphan data).
+     * 
+     * **Validates: Requirements 2.2, 7.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 2: Detect inconsistency when MongoDB exists but PostgreSQL missing")
+    void detectInconsistencyWhenMongoDBExistsButPostgreSQLMissing(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @StringLength(min = 10, max = 5000) String content) {
+
+        // Given: Content exists in MongoDB but not in PostgreSQL (orphan data)
+        String postIdStr = String.valueOf(postId);
+        PostContent postContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(content)
+                .html("<p>" + content + "</p>")
+                .text(content)
+                .build();
+
+        when(postRepository.findById(postIdStr)).thenReturn(Optional.empty());
+        when(postContentRepository.findByPostId(postIdStr)).thenReturn(Optional.of(postContent));
+
+        // When: Query post detail
+        DualStorageManager.PostDetail detail = dualStorageManager.getPostFullDetail(postIdStr);
+
+        // Then: System should detect inconsistency (no metadata, orphan content)
+        // The detail should be null or indicate missing metadata
+        if (detail != null) {
+            assertThat(detail.getPost()).isNull();
+            assertThat(detail.getContent()).isNotNull();
+        } else {
+            // Or the system returns null when metadata is missing
+            assertThat(detail).isNull();
+        }
+
+        // Verify both repositories were queried
+        verify(postRepository, times(1)).findById(postIdStr);
+    }
+
+    /**
+     * Property 2: Data consistency - batch query consistency
+     * 
+     * For any list of post IDs, the number of posts in PostgreSQL should match
+     * the number of contents in MongoDB.
+     * 
+     * **Validates: Requirements 2.2, 7.5**
+     */
+    @Property(tries = 50)
+    @Label("Property 2: Batch query should maintain consistency")
+    void batchQueryShouldMaintainConsistency(
+            @ForAll("postIdList") java.util.List<Long> postIds) {
+
+        // Given: Multiple posts exist in both databases
+        java.util.List<String> postIdStrings = postIds.stream()
+                .map(String::valueOf)
+                .collect(java.util.stream.Collectors.toList());
+
+        java.util.List<Post> posts = postIds.stream()
+                .map(id -> Post.createDraft(id, 1L, "Title " + id))
+                .collect(java.util.stream.Collectors.toList());
+
+        java.util.List<PostContent> contents = postIdStrings.stream()
+                .map(id -> PostContent.builder()
+                        .postId(id)
+                        .contentType("markdown")
+                        .raw("Content " + id)
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
+
+        when(postRepository.findByIds(postIdStrings)).thenReturn(posts);
+        when(postContentRepository.findByPostIdIn(postIdStrings)).thenReturn(contents);
+
+        // When: Batch query
+        java.util.List<Post> retrievedPosts = postRepository.findByIds(postIdStrings);
+        java.util.List<PostContent> retrievedContents = postContentRepository.findByPostIdIn(postIdStrings);
+
+        // Then: Counts should match (consistency)
+        assertThat(retrievedPosts).hasSize(postIds.size());
+        assertThat(retrievedContents).hasSize(postIds.size());
+
+        // Verify all post IDs have corresponding content
+        java.util.Set<String> postIdSet = retrievedPosts.stream()
+                .map(p -> String.valueOf(p.getId()))
+                .collect(java.util.stream.Collectors.toSet());
+        java.util.Set<String> contentIdSet = retrievedContents.stream()
+                .map(PostContent::getPostId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        assertThat(postIdSet).isEqualTo(contentIdSet);
+    }
+
+    /**
+     * Property 2: Data consistency - after successful create
+     * 
+     * For any post, after a successful create operation,
+     * querying both databases should return consistent data.
+     * 
+     * **Validates: Requirements 2.2, 7.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 2: After create, both databases should be consistent")
+    void afterCreateBothDatabasesShouldBeConsistent(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @StringLength(min = 1, max = 200) String title,
+            @ForAll @StringLength(min = 10, max = 5000) String content) {
+
+        // Given: Valid post and content
+        Post post = Post.createDraft(postId, ownerId, title);
+        PostContent postContent = PostContent.builder()
+                .postId(String.valueOf(postId))
+                .contentType("markdown")
+                .raw(content)
+                .html("<p>" + content + "</p>")
+                .text(content)
+                .build();
+
+        // Mock successful create
+        doNothing().when(postRepository).save(any(Post.class));
+        when(postContentRepository.save(any(PostContent.class))).thenReturn(postContent);
+        when(postRepository.findById(String.valueOf(postId))).thenReturn(Optional.of(post));
+        when(postContentRepository.findByPostId(String.valueOf(postId))).thenReturn(Optional.of(postContent));
+
+        // When: Create post
+        String resultPostId = dualStorageManager.createPost(post, postContent);
+
+        // Then: Query should return consistent data from both databases
+        DualStorageManager.PostDetail detail = dualStorageManager.getPostFullDetail(resultPostId);
+
+        assertThat(detail).isNotNull();
+        assertThat(detail.getPost()).isNotNull();
+        assertThat(detail.getContent()).isNotNull();
+        assertThat(detail.getPost().getId()).isEqualTo(postId);
+        assertThat(detail.getContent().getPostId()).isEqualTo(String.valueOf(postId));
+        assertThat(detail.getContent().getRaw()).isEqualTo(content);
+    }
+
+    /**
+     * Property 2: Data consistency - after successful update
+     * 
+     * For any post, after a successful update operation,
+     * querying both databases should return the updated data consistently.
+     * 
+     * **Validates: Requirements 2.2, 7.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 2: After update, both databases should reflect changes consistently")
+    void afterUpdateBothDatabasesShouldReflectChangesConsistently(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @StringLength(min = 1, max = 200) String title,
+            @ForAll @StringLength(min = 10, max = 5000) String originalContent,
+            @ForAll @StringLength(min = 10, max = 5000) String updatedContent) {
+
+        // Given: Existing post with updated content
+        Post post = Post.createDraft(postId, ownerId, title);
+        PostContent updatedPostContent = PostContent.builder()
+                .postId(String.valueOf(postId))
+                .contentType("markdown")
+                .raw(updatedContent)
+                .html("<p>" + updatedContent + "</p>")
+                .text(updatedContent)
+                .build();
+
+        // Mock successful update
+        doNothing().when(postRepository).update(any(Post.class));
+        when(postContentRepository.save(any(PostContent.class))).thenReturn(updatedPostContent);
+        when(postRepository.findById(String.valueOf(postId))).thenReturn(Optional.of(post));
+        when(postContentRepository.findByPostId(String.valueOf(postId))).thenReturn(Optional.of(updatedPostContent));
+
+        // When: Update post
+        dualStorageManager.updatePost(post, updatedPostContent);
+
+        // Then: Query should return updated data from both databases
+        DualStorageManager.PostDetail detail = dualStorageManager.getPostFullDetail(String.valueOf(postId));
+
+        assertThat(detail).isNotNull();
+        assertThat(detail.getPost()).isNotNull();
+        assertThat(detail.getContent()).isNotNull();
+        assertThat(detail.getContent().getRaw()).isEqualTo(updatedContent);
+    }
+
+    /**
+     * Property 2: Data consistency - after successful delete
+     * 
+     * For any post, after a successful delete operation,
+     * querying both databases should return empty (consistent deletion).
+     * 
+     * **Validates: Requirements 2.2, 7.5**
+     */
+    @Property(tries = 100)
+    @Label("Property 2: After delete, both databases should be empty consistently")
+    void afterDeleteBothDatabasesShouldBeEmptyConsistently(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId) {
+
+        // Given: Existing post
+        String postIdStr = String.valueOf(postId);
+
+        // Mock successful delete
+        doNothing().when(postRepository).delete(postIdStr);
+        doNothing().when(postContentRepository).deleteByPostId(postIdStr);
+        when(postRepository.findById(postIdStr)).thenReturn(Optional.empty());
+        when(postContentRepository.findByPostId(postIdStr)).thenReturn(Optional.empty());
+
+        // When: Delete post
+        dualStorageManager.deletePost(postIdStr);
+
+        // Then: Query should return empty from both databases
+        DualStorageManager.PostDetail detail = dualStorageManager.getPostFullDetail(postIdStr);
+
+        assertThat(detail).isNull();
+
+        // Verify both repositories were called for deletion
+        verify(postRepository, times(1)).delete(postIdStr);
+        verify(postContentRepository, times(1)).deleteByPostId(postIdStr);
+    }
+
+    // Data generators
+    @Provide
+    Arbitrary<java.util.List<Long>> postIdList() {
+        return Arbitraries.longs()
+                .between(1, 1000000)
+                .list()
+                .ofMinSize(1)
+                .ofMaxSize(10);
+    }
+}

@@ -1,4 +1,4 @@
-# Blog Microservice 启动脚本
+# ZhiCore Microservice 启动脚本
 
 本目录包含用于启动和管理博客微服务的 PowerShell 脚本。
 
@@ -153,7 +153,7 @@ Get-Process java | Stop-Process -Force
 
 ```powershell
 # 1. 生成 VS Code tasks.json 配置
-cd blog-microservice/scripts
+cd ZhiCore-microservice/scripts
 .\generate-vscode-tasks.ps1
 
 # 2. 在 VS Code 中使用
@@ -171,7 +171,7 @@ cd blog-microservice/scripts
 使用 `generate-vscode-commands.ps1` 获取启动命令：
 
 ```powershell
-cd blog-microservice/scripts
+cd ZhiCore-microservice/scripts
 .\generate-vscode-commands.ps1
 ```
 
@@ -187,7 +187,7 @@ cd blog-microservice/scripts
 使用 `start-all-in-terminals.ps1` 在外部终端窗口中启动：
 
 ```powershell
-cd blog-microservice/scripts
+cd ZhiCore-microservice/scripts
 .\start-all-in-terminals.ps1
 ```
 
@@ -201,7 +201,7 @@ cd blog-microservice/scripts
 使用 `start-all-services.ps1` 在后台启动所有服务：
 
 ```powershell
-cd blog-microservice/scripts
+cd ZhiCore-microservice/scripts
 .\start-all-services.ps1 -SkipBuild
 ```
 
@@ -215,7 +215,7 @@ cd blog-microservice/scripts
 使用 `start-service.ps1` 启动需要调试的服务：
 
 ```powershell
-cd blog-microservice/scripts
+cd ZhiCore-microservice/scripts
 
 # 在终端 1 中启动网关
 .\start-service.ps1 -Service gateway
@@ -241,7 +241,7 @@ cd blog-microservice/scripts
 所有脚本都要求基础设施服务已启动：
 
 ```powershell
-cd blog-microservice/docker
+cd ZhiCore-microservice/docker
 docker-compose up -d
 ```
 
@@ -257,7 +257,7 @@ docker-compose up -d
 首次使用或代码变更后需要编译：
 
 ```powershell
-cd blog-microservice
+cd ZhiCore-microservice
 mvn clean package -DskipTests
 ```
 
@@ -287,14 +287,14 @@ winget install Microsoft.WindowsTerminal
   "profiles": {
     "list": [
       {
-        "name": "Blog Gateway",
-        "commandline": "powershell.exe -NoExit -Command \"cd C:\\path\\to\\blog-microservice; .\\scripts\\start-service.ps1 -Service gateway\"",
+        "name": "ZhiCore Gateway",
+        "commandline": "powershell.exe -NoExit -Command \"cd C:\\path\\to\\ZhiCore-microservice; .\\scripts\\start-service.ps1 -Service gateway\"",
         "icon": "🌐",
         "colorScheme": "One Half Dark"
       },
       {
-        "name": "Blog User Service",
-        "commandline": "powershell.exe -NoExit -Command \"cd C:\\path\\to\\blog-microservice; .\\scripts\\start-service.ps1 -Service user\"",
+        "name": "ZhiCore User Service",
+        "commandline": "powershell.exe -NoExit -Command \"cd C:\\path\\to\\ZhiCore-microservice; .\\scripts\\start-service.ps1 -Service user\"",
         "icon": "👤",
         "colorScheme": "One Half Dark"
       }
@@ -328,13 +328,13 @@ Stop-Process -Id 12345 -Force
 
 **错误信息:**
 ```
-错误: JAR 文件不存在: blog-gateway\target\blog-gateway-1.0.0-SNAPSHOT.jar
+错误: JAR 文件不存在: ZhiCore-gateway\target\ZhiCore-gateway-1.0.0-SNAPSHOT.jar
 ```
 
 **解决方案:**
 ```powershell
 # 编译项目
-cd blog-microservice
+cd ZhiCore-microservice
 mvn clean package -DskipTests
 ```
 
@@ -348,7 +348,7 @@ mvn clean package -DskipTests
 **解决方案:**
 ```powershell
 # 启动基础设施服务
-cd blog-microservice/docker
+cd ZhiCore-microservice/docker
 docker-compose up -d
 
 # 检查服务状态
@@ -370,16 +370,16 @@ winget install Microsoft.WindowsTerminal
 
 | 服务 | 端口 | 模块名称 |
 |------|------|---------|
-| 网关服务 | 8100 | blog-gateway |
-| 用户服务 | 8101 | blog-user |
-| 文章服务 | 8102 | blog-post |
-| 评论服务 | 8103 | blog-comment |
-| 上传服务 | 8104 | blog-upload |
-| 消息服务 | 8105 | blog-message |
-| 通知服务 | 8106 | blog-notification |
-| 搜索服务 | 8107 | blog-search |
-| 排行服务 | 8108 | blog-ranking |
-| 管理服务 | 8109 | blog-admin |
+| 网关服务 | 8100 | ZhiCore-gateway |
+| 用户服务 | 8101 | ZhiCore-user |
+| 文章服务 | 8102 | ZhiCore-post |
+| 评论服务 | 8103 | ZhiCore-comment |
+| 上传服务 | 8104 | ZhiCore-upload |
+| 消息服务 | 8105 | ZhiCore-message |
+| 通知服务 | 8106 | ZhiCore-notification |
+| 搜索服务 | 8107 | ZhiCore-search |
+| 排行服务 | 8108 | ZhiCore-ranking |
+| 管理服务 | 8109 | ZhiCore-admin |
 
 ---
 

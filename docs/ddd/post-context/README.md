@@ -67,7 +67,7 @@ PostAggregate
 ## 目录结构
 
 ```
-BlogCore/
+ZhiCoreCore/
 ├── Application/Post/
 │   ├── IPostApplicationService.cs
 │   ├── PostApplicationService.cs

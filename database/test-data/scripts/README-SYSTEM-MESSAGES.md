@@ -54,7 +54,7 @@
 
 ```powershell
 # 进入脚本目录
-cd blog-microservice/database/test-data/scripts
+cd ZhiCore-microservice/database/test-data/scripts
 
 # 生成公告数据
 .\Generate-Announcements.ps1
@@ -67,7 +67,7 @@ psql -h localhost -p 5432 -U postgres -f "..\sql\generated-announcements.sql"
 
 ```powershell
 # 进入脚本目录
-cd blog-microservice/database/test-data/scripts
+cd ZhiCore-microservice/database/test-data/scripts
 
 # 生成小助手消息数据
 .\Generate-AssistantMessages.ps1
@@ -154,7 +154,7 @@ psql -h localhost -p 5432 -U postgres -f "..\sql\generated-assistant-messages.sq
 ### 验证全局公告
 
 ```sql
-\c blog_notification;
+\c ZhiCore_notification;
 
 -- 查询公告总数
 SELECT COUNT(*) FROM global_announcements;
@@ -178,7 +178,7 @@ GROUP BY type;
 ### 验证小助手消息
 
 ```sql
-\c blog_notification;
+\c ZhiCore_notification;
 
 -- 查询消息总数
 SELECT COUNT(*) FROM assistant_messages;
@@ -230,7 +230,7 @@ WHERE type = 'welcome';
 如果需要重新生成数据，先清理旧数据：
 
 ```sql
-\c blog_notification;
+\c ZhiCore_notification;
 
 -- 清理全局公告
 DELETE FROM global_announcements;

@@ -1,4 +1,4 @@
-# Blog 微服务架构文档
+# ZhiCore 微服务架构文档
 
 ## 文档版本
 
@@ -10,7 +10,7 @@
 
 ## 📚 文档概述
 
-本目录包含 blog-microservice 系统的完整架构文档，涵盖系统概述、微服务架构、技术选型、服务间通信、DDD 分层架构、数据架构、基础设施和部署架构等核心内容。
+本目录包含 ZhiCore-microservice 系统的完整架构文档，涵盖系统概述、微服务架构、技术选型、服务间通信、DDD 分层架构、数据架构、基础设施和部署架构等核心内容。
 
 ### 文档目标
 
@@ -51,19 +51,19 @@
 - 服务启动顺序
 
 **微服务列表**:
-- blog-gateway (8000) - API 网关
-- blog-user (8081) - 用户服务
-- blog-post (8082) - 文章服务
-- blog-comment (8083) - 评论服务
-- blog-message (8084) - 消息服务
-- blog-notification (8085) - 通知服务
-- blog-search (8086) - 搜索服务
-- blog-ranking (8087) - 排行服务
-- blog-admin (8090) - 管理服务
-- blog-ops - 运维服务
-- blog-upload - 文件上传服务
-- blog-api - API 模块（共享接口）
-- blog-common - 公共模块
+- ZhiCore-gateway (8000) - API 网关
+- ZhiCore-user (8081) - 用户服务
+- ZhiCore-post (8082) - 文章服务
+- ZhiCore-comment (8083) - 评论服务
+- ZhiCore-message (8084) - 消息服务
+- ZhiCore-notification (8085) - 通知服务
+- ZhiCore-search (8086) - 搜索服务
+- ZhiCore-ranking (8087) - 排行服务
+- ZhiCore-admin (8090) - 管理服务
+- ZhiCore-ops - 运维服务
+- ZhiCore-upload - 文件上传服务
+- ZhiCore-api - API 模块（共享接口）
+- ZhiCore-common - 公共模块
 
 ---
 
@@ -71,22 +71,22 @@
 
 | 文档 | 状态 | 优先级 | 说明 |
 |------|------|--------|------|
-| [03-文件上传架构](./03-file-upload-architecture.md) | 📝 待编写 | P0 | 最新的 blog-upload 架构设计（重点） |
+| [03-文件上传架构](./03-file-upload-architecture.md) | 📝 待编写 | P0 | 最新的 ZhiCore-upload 架构设计（重点） |
 
 **内容预览**:
 - 架构演进历史（为什么移除 FileUploadService 接口）
-- blog-upload 服务职责
-- 前端上传流程（直接调用 blog-upload）
-- 后端删除流程（通过 BlogUploadClient）
+- ZhiCore-upload 服务职责
+- 前端上传流程（直接调用 ZhiCore-upload）
+- 后端删除流程（通过 ZhiCoreUploadClient）
 - 支持的文件类型（图片、音频）
 - 文件上传流程图（Mermaid）
 - 文件删除流程图（Mermaid）
 - 代码示例
 
 **重要说明**:
-- ⚠️ 已移除 FileUploadService 接口，统一使用 blog-upload 服务
-- 前端直接调用 blog-upload 服务上传文件
-- 后端通过 BlogUploadClient 删除文件
+- ⚠️ 已移除 FileUploadService 接口，统一使用 ZhiCore-upload 服务
+- 前端直接调用 ZhiCore-upload 服务上传文件
+- 后端通过 ZhiCoreUploadClient 删除文件
 
 ---
 
@@ -98,7 +98,7 @@
 
 **内容预览**:
 - Feign Client 使用方式
-- blog-api 模块的作用（参考 [blog-api 模块说明](./blog-api-module-purpose.md)）
+- ZhiCore-api 模块的作用（参考 [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md)）
 - 降级策略（FallbackFactory）
 - 消息队列使用（RocketMQ）
 - 领域事件发布和订阅
@@ -120,7 +120,7 @@
 - 仓储模式实现
 - 领域事件使用
 - 分层架构图（Mermaid）
-- 代码示例（以 blog-post 为例）
+- 代码示例（以 ZhiCore-post 为例）
 
 ---
 
@@ -188,8 +188,8 @@
 
 | 文档 | 说明 | 最后更新 |
 |------|------|---------|
-| [blog-api 模块说明](./blog-api-module-purpose.md) | blog-api 模块的作用、为什么需要、如何使用 | 已完成 |
-| [blog-message 与 im-system 集成](./blog-message-im-integration.md) | blog-message 模块与 im-system 的集成架构 | 已完成 |
+| [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md) | ZhiCore-api 模块的作用、为什么需要、如何使用 | 已完成 |
+| [ZhiCore-message 与 im-system 集成](./ZhiCore-message-im-integration.md) | ZhiCore-message 模块与 im-system 的集成架构 | 已完成 |
 | [File Service 集成架构](./file-service-integration.md) | File Service 在博客系统中的集成架构 | 已完成 |
 | [File Service 数据流](./file-service-data-flow.md) | File Service 的数据流设计 | 已完成 |
 
@@ -207,7 +207,7 @@
 #### 开发人员
 1. [03-文件上传架构](./03-file-upload-architecture.md) - 实现文件上传功能
 2. [04-服务间通信](./04-service-communication.md) - 实现跨服务调用
-3. [blog-api 模块说明](./blog-api-module-purpose.md) - 使用 blog-api 模块
+3. [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md) - 使用 ZhiCore-api 模块
 4. [06-数据架构](./06-data-architecture.md) - 设计数据模型
 
 #### 运维人员
@@ -227,23 +227,23 @@
 #### 实现文件上传功能
 1. [03-文件上传架构](./03-file-upload-architecture.md) - 了解文件上传架构
 2. 参考代码：
-   - `blog-upload/src/main/java/com/blog/upload/controller/FileUploadController.java`
-   - `blog-post/src/main/java/com/blog/post/infrastructure/feign/BlogUploadClient.java`
-   - `blog-user/src/main/java/com/blog/user/infrastructure/feign/BlogUploadClient.java`
+   - `ZhiCore-upload/src/main/java/com/ZhiCore/upload/controller/FileUploadController.java`
+   - `ZhiCore-post/src/main/java/com/ZhiCore/post/infrastructure/feign/ZhiCoreUploadClient.java`
+   - `ZhiCore-user/src/main/java/com/ZhiCore/user/infrastructure/feign/ZhiCoreUploadClient.java`
 
 #### 实现跨服务调用
 1. [04-服务间通信](./04-service-communication.md) - 了解服务间通信模式
-2. [blog-api 模块说明](./blog-api-module-purpose.md) - 使用 blog-api 模块
+2. [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md) - 使用 ZhiCore-api 模块
 3. 参考代码：
-   - `blog-api/client/` - Feign Client 接口定义
-   - `blog-api/dto/` - 数据传输对象
+   - `ZhiCore-api/client/` - Feign Client 接口定义
+   - `ZhiCore-api/dto/` - 数据传输对象
 
 #### 实现消息通知
-1. [blog-message 与 im-system 集成](./blog-message-im-integration.md) - 了解消息架构
+1. [ZhiCore-message 与 im-system 集成](./ZhiCore-message-im-integration.md) - 了解消息架构
 2. [04-服务间通信](./04-service-communication.md) - 了解事件驱动
 3. 参考代码：
-   - `blog-api/event/` - 领域事件定义
-   - `blog-message/` - 消息服务实现
+   - `ZhiCore-api/event/` - 领域事件定义
+   - `ZhiCore-message/` - 消息服务实现
 
 #### 部署系统
 1. [08-部署架构](./08-deployment-architecture.md) - 了解部署架构
@@ -431,9 +431,9 @@
 
 参考 [03-文件上传架构](./03-file-upload-architecture.md) 文档，了解架构演进历史和最新的文件上传方案。
 
-### Q2: blog-api 模块的作用是什么？
+### Q2: ZhiCore-api 模块的作用是什么？
 
-参考 [blog-api 模块说明](./blog-api-module-purpose.md) 文档，了解 blog-api 模块的职责和使用方式。
+参考 [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md) 文档，了解 ZhiCore-api 模块的职责和使用方式。
 
 ### Q3: 如何实现跨服务调用？
 

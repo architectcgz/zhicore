@@ -102,7 +102,7 @@
 ## 目录结构
 
 ```
-BlogCore/
+ZhiCoreCore/
 ├── Application/Search/
 │   ├── ISearchApplicationService.cs
 │   └── SearchApplicationService.cs
@@ -150,7 +150,7 @@ public class ResilientSearchService : ISearchService
 {
   "Elasticsearch": {
     "Url": "http://localhost:9200",
-    "DefaultIndex": "blog",
+    "DefaultIndex": "ZhiCore",
     "Username": "",
     "Password": "",
     "EnableDebugMode": false

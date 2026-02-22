@@ -115,7 +115,7 @@ public class GlobalExceptionHandler {
 
 ```java
 // common-core 模块
-package com.blog.common.exception;
+package com.zhicore.common.exception;
 
 public enum ErrorCode {
     

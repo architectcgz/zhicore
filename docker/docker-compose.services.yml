@@ -1,5 +1,5 @@
 # ===========================================
-# Blog Microservices - Application Services
+# ZhiCore Microservices - Application Services
 # ===========================================
 # 使用方法:
 # 1. 先启动基础设施: docker-compose up -d
@@ -18,27 +18,27 @@ services:
   # ===========================================
   # Gateway Service
   # ===========================================
-  blog-gateway:
+  zhicore-gateway:
     build:
-      context: ../blog-gateway
+      context: ../zhicore-gateway
       dockerfile: Dockerfile
-    container_name: blog-gateway
+    container_name: zhicore-gateway
     env_file:
       - ../.env
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - NACOS_ADDR=blog-nacos:8848
-      - REDIS_HOST=blog-redis
+      - NACOS_ADDR=zhicore-nacos:8848
+      - REDIS_HOST=zhicore-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8000:8000"
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      - blog-nacos
+      - zhicore-nacos
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/actuator/health"]
       interval: 30s
@@ -50,33 +50,33 @@ services:
   # ===========================================
   # User Service
   # ===========================================
-  blog-user:
+  zhicore-user:
     build:
-      context: ../blog-user
+      context: ../zhicore-user
       dockerfile: Dockerfile
-    container_name: blog-user
+    container_name: zhicore-user
     env_file:
       - ../.env
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8081
-      - NACOS_ADDR=blog-nacos:8848
-      - POSTGRES_HOST=blog-postgres
+      - NACOS_ADDR=zhicore-nacos:8848
+      - POSTGRES_HOST=zhicore-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=blog-redis
+      - REDIS_HOST=zhicore-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=blog-rocketmq-namesrv:9876
-      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+      - ROCKETMQ_NAMESRV=zhicore-rocketmq-namesrv:9876
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8081:8081"
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      - blog-nacos
+      - zhicore-nacos
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8081/actuator/health"]
       interval: 30s
@@ -88,33 +88,33 @@ services:
   # ===========================================
   # Post Service
   # ===========================================
-  blog-post:
+  zhicore-content:
     build:
-      context: ../blog-post
+      context: ../zhicore-content
       dockerfile: Dockerfile
-    container_name: blog-post
+    container_name: zhicore-content
     env_file:
       - ../.env
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8082
-      - NACOS_ADDR=blog-nacos:8848
-      - POSTGRES_HOST=blog-postgres
+      - NACOS_ADDR=zhicore-nacos:8848
+      - POSTGRES_HOST=zhicore-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=blog-redis
+      - REDIS_HOST=zhicore-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=blog-rocketmq-namesrv:9876
-      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+      - ROCKETMQ_NAMESRV=zhicore-rocketmq-namesrv:9876
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8082:8082"
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      - blog-nacos
+      - zhicore-nacos
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8082/actuator/health"]
       interval: 30s
@@ -126,33 +126,33 @@ services:
   # ===========================================
   # Comment Service
   # ===========================================
-  blog-comment:
+  zhicore-comment:
     build:
-      context: ../blog-comment
+      context: ../zhicore-comment
       dockerfile: Dockerfile
-    container_name: blog-comment
+    container_name: zhicore-comment
     env_file:
       - ../.env
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8083
-      - NACOS_ADDR=blog-nacos:8848
-      - POSTGRES_HOST=blog-postgres
+      - NACOS_ADDR=zhicore-nacos:8848
+      - POSTGRES_HOST=zhicore-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=blog-redis
+      - REDIS_HOST=zhicore-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=blog-rocketmq-namesrv:9876
-      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+      - ROCKETMQ_NAMESRV=zhicore-rocketmq-namesrv:9876
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8083:8083"
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      - blog-nacos
+      - zhicore-nacos
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8083/actuator/health"]
       interval: 30s
@@ -164,34 +164,34 @@ services:
   # ===========================================
   # Message Service
   # ===========================================
-  blog-message:
+  zhicore-message:
     build:
-      context: ../blog-message
+      context: ../zhicore-message
       dockerfile: Dockerfile
-    container_name: blog-message
+    container_name: zhicore-message
     env_file:
       - ../.env
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8084
-      - NACOS_ADDR=blog-nacos:8848
-      - POSTGRES_HOST=blog-postgres
+      - NACOS_ADDR=zhicore-nacos:8848
+      - POSTGRES_HOST=zhicore-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=blog-redis
+      - REDIS_HOST=zhicore-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=blog-rocketmq-namesrv:9876
+      - ROCKETMQ_NAMESRV=zhicore-rocketmq-namesrv:9876
       - ID_GENERATOR_SERVER_URL=${ID_GENERATOR_SERVER_URL:-http://host.docker.internal:8011}
-      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8084:8084"
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      - blog-nacos
+      - zhicore-nacos
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8084/actuator/health"]
       interval: 30s
@@ -203,34 +203,34 @@ services:
   # ===========================================
   # Notification Service
   # ===========================================
-  blog-notification:
+  zhicore-notification:
     build:
-      context: ../blog-notification
+      context: ../zhicore-notification
       dockerfile: Dockerfile
-    container_name: blog-notification
+    container_name: zhicore-notification
     env_file:
       - ../.env
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8085
-      - NACOS_ADDR=blog-nacos:8848
-      - POSTGRES_HOST=blog-postgres
+      - NACOS_ADDR=zhicore-nacos:8848
+      - POSTGRES_HOST=zhicore-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=blog-redis
+      - REDIS_HOST=zhicore-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=blog-rocketmq-namesrv:9876
+      - ROCKETMQ_NAMESRV=zhicore-rocketmq-namesrv:9876
       - ID_GENERATOR_SERVER_URL=${ID_GENERATOR_SERVER_URL:-http://host.docker.internal:8011}
-      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8085:8085"
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      - blog-nacos
+      - zhicore-nacos
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8085/actuator/health"]
       interval: 30s
@@ -242,34 +242,34 @@ services:
   # ===========================================
   # Search Service
   # ===========================================
-  blog-search:
+  zhicore-search:
     build:
-      context: ../blog-search
+      context: ../zhicore-search
       dockerfile: Dockerfile
-    container_name: blog-search
+    container_name: zhicore-search
     env_file:
       - ../.env
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8086
-      - NACOS_ADDR=blog-nacos:8848
-      - ELASTICSEARCH_HOST=blog-elasticsearch
+      - NACOS_ADDR=zhicore-nacos:8848
+      - ELASTICSEARCH_HOST=zhicore-elasticsearch
       - ELASTICSEARCH_PORT=9200
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=blog-redis
+      - REDIS_HOST=zhicore-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=blog-rocketmq-namesrv:9876
-      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+      - ROCKETMQ_NAMESRV=zhicore-rocketmq-namesrv:9876
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8086:8086"
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      - blog-nacos
-      - blog-elasticsearch
+      - zhicore-nacos
+      - zhicore-elasticsearch
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8086/actuator/health"]
       interval: 30s
@@ -281,31 +281,31 @@ services:
   # ===========================================
   # Ranking Service
   # ===========================================
-  blog-ranking:
+  zhicore-ranking:
     build:
-      context: ../blog-ranking
+      context: ../zhicore-ranking
       dockerfile: Dockerfile
-    container_name: blog-ranking
+    container_name: zhicore-ranking
     env_file:
       - ../.env
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8087
-      - NACOS_ADDR=blog-nacos:8848
+      - NACOS_ADDR=zhicore-nacos:8848
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=blog-redis
+      - REDIS_HOST=zhicore-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=blog-rocketmq-namesrv:9876
-      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+      - ROCKETMQ_NAMESRV=zhicore-rocketmq-namesrv:9876
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8087:8087"
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      - blog-nacos
+      - zhicore-nacos
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8087/actuator/health"]
       interval: 30s
@@ -317,30 +317,30 @@ services:
   # ===========================================
   # Admin Service
   # ===========================================
-  blog-admin:
+  zhicore-admin:
     build:
-      context: ../blog-admin
+      context: ../zhicore-admin
       dockerfile: Dockerfile
-    container_name: blog-admin
+    container_name: zhicore-admin
     env_file:
       - ../.env
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8090
-      - NACOS_ADDR=blog-nacos:8848
-      - POSTGRES_HOST=blog-postgres
+      - NACOS_ADDR=zhicore-nacos:8848
+      - POSTGRES_HOST=zhicore-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=blog-skywalking-oap:11800
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8090:8090"
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      - blog-nacos
+      - zhicore-nacos
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health"]
       interval: 30s
@@ -350,5 +350,5 @@ services:
     restart: unless-stopped
 
 networks:
-  blog-network:
+  zhicore-network:
     external: true

@@ -40,7 +40,7 @@ public class ElasticsearchSearchService(
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Search/ISearchApplicationService.cs
+// ZhiCoreCore/Application/Search/ISearchApplicationService.cs
 public interface ISearchApplicationService
 {
     Task<SearchResult<PostSearchVo>> SearchPostsAsync(PostSearchQuery query);
@@ -49,7 +49,7 @@ public interface ISearchApplicationService
     Task<SearchSuggestion> GetSuggestionsAsync(string keyword);
 }
 
-// BlogCore/Application/Search/SearchApplicationService.cs
+// ZhiCoreCore/Application/Search/SearchApplicationService.cs
 public class SearchApplicationService : ISearchApplicationService
 {
     private readonly ISearchService _searchService;
@@ -113,7 +113,7 @@ public class SearchApplicationService : ISearchApplicationService
 ### 索引服务
 
 ```csharp
-// BlogCore/Infrastructure/Search/ISearchIndexService.cs
+// ZhiCoreCore/Infrastructure/Search/ISearchIndexService.cs
 public interface ISearchIndexService
 {
     Task IndexPostAsync(long postId);
@@ -123,7 +123,7 @@ public interface ISearchIndexService
     Task BulkIndexPostsAsync(IEnumerable<long> postIds);
 }
 
-// BlogCore/Infrastructure/Search/SearchIndexService.cs
+// ZhiCoreCore/Infrastructure/Search/SearchIndexService.cs
 public class SearchIndexService : ISearchIndexService
 {
     private readonly IElasticClient _elasticClient;
@@ -188,7 +188,7 @@ public class SearchIndexService : ISearchIndexService
 ## 领域事件处理器
 
 ```csharp
-// BlogCore/Domain/EventHandlers/Search/PostPublishedSearchHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Search/PostPublishedSearchHandler.cs
 public class PostPublishedSearchHandler : IDomainEventHandler<PostPublishedEvent>
 {
     private readonly ISearchIndexService _searchIndexService;
@@ -209,7 +209,7 @@ public class PostPublishedSearchHandler : IDomainEventHandler<PostPublishedEvent
     }
 }
 
-// BlogCore/Domain/EventHandlers/Search/PostUpdatedSearchHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Search/PostUpdatedSearchHandler.cs
 public class PostUpdatedSearchHandler : IDomainEventHandler<PostUpdatedEvent>
 {
     private readonly ISearchIndexService _searchIndexService;
@@ -228,7 +228,7 @@ public class PostUpdatedSearchHandler : IDomainEventHandler<PostUpdatedEvent>
     }
 }
 
-// BlogCore/Domain/EventHandlers/Search/PostDeletedSearchHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Search/PostDeletedSearchHandler.cs
 public class PostDeletedSearchHandler : IDomainEventHandler<PostDeletedEvent>
 {
     private readonly ISearchIndexService _searchIndexService;
@@ -253,7 +253,7 @@ public class PostDeletedSearchHandler : IDomainEventHandler<PostDeletedEvent>
 ### 数据库降级搜索
 
 ```csharp
-// BlogCore/Infrastructure/Search/DatabaseSearchService.cs
+// ZhiCoreCore/Infrastructure/Search/DatabaseSearchService.cs
 public class DatabaseSearchService : ISearchService
 {
     private readonly AppDbContext _dbContext;
@@ -300,7 +300,7 @@ public class DatabaseSearchService : ISearchService
 ### 弹性搜索服务
 
 ```csharp
-// BlogCore/Infrastructure/Search/ResilientSearchService.cs
+// ZhiCoreCore/Infrastructure/Search/ResilientSearchService.cs
 public class ResilientSearchService : ISearchService
 {
     private readonly ISearchService _primaryService;

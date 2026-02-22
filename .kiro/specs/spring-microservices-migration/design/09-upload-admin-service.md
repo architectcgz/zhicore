@@ -6,7 +6,7 @@
 
 ```
 upload-service/
-├── src/main/java/com/blog/upload/
+├── src/main/java/com/ZhiCore/upload/
 │   ├── interfaces/
 │   │   ├── controller/
 │   │   │   └── UploadController.java
@@ -155,7 +155,7 @@ public class OssStorageService implements StorageService {
 
 ```
 admin-service/
-├── src/main/java/com/blog/admin/
+├── src/main/java/com/ZhiCore/admin/
 │   ├── interfaces/
 │   │   ├── controller/
 │   │   │   ├── UserManageController.java

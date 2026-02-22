@@ -28,7 +28,7 @@
 
 #### Acceptance Criteria
 
-1. THE System SHALL remove the `blog-upload` module from the project
+1. THE System SHALL remove the `ZhiCore-upload` module from the project
 2. THE System SHALL remove upload service database migration scripts
 3. THE System SHALL remove upload service configuration from Nacos
 4. THE System SHALL remove upload service from Docker Compose files

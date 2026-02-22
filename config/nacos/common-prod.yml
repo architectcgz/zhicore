@@ -6,7 +6,7 @@ spring:
   cloud:
     nacos:
       discovery:
-        group: BLOG_SERVICE
+        group: ZhiCore_SERVICE
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
@@ -76,7 +76,7 @@ jwt:
 file-service:
   client:
     server-url: https://file-service-prod.example.com
-    tenant-id: blog
+    tenant-id: ZhiCore
     connect-timeout: 10000
     read-timeout: 30000
     max-connections: 100
@@ -124,12 +124,12 @@ management:
 logging:
   level:
     root: INFO
-    com.blog: INFO
+    com.ZhiCore: INFO
     com.alibaba.nacos: WARN
     org.springframework.cloud: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"
   file:
-    name: /var/log/blog/${spring.application.name}.log
+    name: /var/log/ZhiCore/${spring.application.name}.log
     max-size: 100MB
     max-history: 30

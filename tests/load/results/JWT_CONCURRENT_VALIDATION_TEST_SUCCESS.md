@@ -146,9 +146,9 @@ private final Timer validationTimer;
 
 ## Test Environment
 
-- **Gateway**: blog-gateway (with JWT concurrent validation fix)
-- **User Service**: blog-user
-- **Post Service**: blog-post
+- **Gateway**: ZhiCore-gateway (with JWT concurrent validation fix)
+- **User Service**: ZhiCore-user
+- **Post Service**: ZhiCore-post
 - **Redis**: 7.2-alpine (Port 6800)
 - **PostgreSQL**: 16-alpine (Port 5432)
 - **JWT Cache**: Enabled (max-size: 10000, ttl: 5 minutes)

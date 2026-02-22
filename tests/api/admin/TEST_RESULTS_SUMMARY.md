@@ -27,22 +27,22 @@
 
 ### 1. JWT Secret 不匹配 (已修复)
 **问题**: Gateway 和 User service 使用不同的 JWT secret
-**解决方案**: 统一 `blog-user/src/main/resources/application.yml` 中的 JWT secret
+**解决方案**: 统一 `ZhiCore-user/src/main/resources/application.yml` 中的 JWT secret
 
-### 2. blog-admin Nacos 配置缺失 (已修复)
-**问题**: blog-admin 缺少 bootstrap.yml 和完整的 Nacos 配置
+### 2. ZhiCore-admin Nacos 配置缺失 (已修复)
+**问题**: ZhiCore-admin 缺少 bootstrap.yml 和完整的 Nacos 配置
 **解决方案**: 
-- 创建 `blog-admin/src/main/resources/bootstrap.yml`
-- 更新 `blog-admin/src/main/resources/application.yml` 添加 Nacos 配置
+- 创建 `ZhiCore-admin/src/main/resources/bootstrap.yml`
+- 更新 `ZhiCore-admin/src/main/resources/application.yml` 添加 Nacos 配置
 
 ### 3. 测试脚本 userId 提取错误 (已修复)
 **问题**: 测试脚本错误地使用 `$Result.Body.data.userId` 而不是 `$Result.Body.data`
 **影响**: 导致 ADMIN 角色分配失败,所有需要管理员权限的操作都失败
 **解决方案**: 修正所有测试脚本中的 userId 提取逻辑
 
-### 4. blog-comment 服务注册 (已修复)
-**问题**: blog-comment 服务未注册到 Nacos
-**解决方案**: 用户启动了 blog-comment 服务
+### 4. ZhiCore-comment 服务注册 (已修复)
+**问题**: ZhiCore-comment 服务未注册到 Nacos
+**解决方案**: 用户启动了 ZhiCore-comment 服务
 **验证**: 所有评论管理接口测试通过
 
 ## 当前失败的测试
@@ -52,9 +52,9 @@
 **错误**: 系统繁忙,请稍后重试  
 **响应时间**: 12ms  
 **可能原因**:
-1. blog-admin 调用 blog-user 的 disable 接口失败
+1. ZhiCore-admin 调用 ZhiCore-user 的 disable 接口失败
 2. 可能是事务或数据库操作问题
-3. 需要检查 blog-user 和 blog-admin 的日志
+3. 需要检查 ZhiCore-user 和 ZhiCore-admin 的日志
 
 ### ADMIN-004: Enable User
 **状态**: FAIL  
@@ -67,7 +67,7 @@
 **错误**: 查询文章列表失败  
 **响应时间**: 67ms  
 **可能原因**:
-1. blog-post 的按状态筛选接口实现有问题
+1. ZhiCore-post 的按状态筛选接口实现有问题
 2. 可能是 SQL 查询或参数验证问题
 
 ## 成功的测试类别
@@ -108,13 +108,13 @@
 ## 下一步行动
 
 ### 优先级 1: 修复 Disable/Enable User 功能
-1. 检查 blog-user 服务日志,查看 disable/enable 接口的详细错误
-2. 检查 blog-admin 服务日志,查看 Feign 调用的详细错误
+1. 检查 ZhiCore-user 服务日志,查看 disable/enable 接口的详细错误
+2. 检查 ZhiCore-admin 服务日志,查看 Feign 调用的详细错误
 3. 验证数据库连接和事务配置
 4. 可能需要检查 UserRepository.update() 方法的实现
 
 ### 优先级 2: 修复 Filter Posts by Status 功能
-1. 检查 blog-post 的 AdminPostApplicationService.queryPosts() 方法
+1. 检查 ZhiCore-post 的 AdminPostApplicationService.queryPosts() 方法
 2. 验证 status 参数的处理逻辑
 3. 检查数据库查询语句
 
@@ -127,12 +127,12 @@
 
 | 服务 | Nacos 注册 | 测试状态 |
 |------|-----------|----------|
-| blog-gateway | ✅ HEALTHY | ✅ 正常 |
-| blog-user | ✅ HEALTHY | ⚠️ disable/enable 失败 |
-| blog-admin | ✅ HEALTHY | ✅ 正常 |
-| blog-post | ✅ HEALTHY | ⚠️ 按状态筛选失败 |
-| blog-comment | ✅ HEALTHY | ✅ 正常 |
-| blog-leaf | ✅ HEALTHY | ✅ 正常 |
+| ZhiCore-gateway | ✅ HEALTHY | ✅ 正常 |
+| ZhiCore-user | ✅ HEALTHY | ⚠️ disable/enable 失败 |
+| ZhiCore-admin | ✅ HEALTHY | ✅ 正常 |
+| ZhiCore-post | ✅ HEALTHY | ⚠️ 按状态筛选失败 |
+| ZhiCore-comment | ✅ HEALTHY | ✅ 正常 |
+| ZhiCore-leaf | ✅ HEALTHY | ✅ 正常 |
 
 ## 总结
 
@@ -148,4 +148,4 @@
 - 参数验证
 - SQL 查询逻辑
 
-建议用户检查 blog-user 和 blog-post 服务的日志以获取更详细的错误信息。
+建议用户检查 ZhiCore-user 和 ZhiCore-post 服务的日志以获取更详细的错误信息。

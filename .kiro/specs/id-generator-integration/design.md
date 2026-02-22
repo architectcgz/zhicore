@@ -2,7 +2,7 @@
 
 ## Overview
 
-本设计文档描述了如何将 blog-microservice 的 ID 生成功能从内置的 blog-leaf 服务迁移到独立的 id-generator 服务。迁移将采用渐进式方式，确保系统的稳定性和向后兼容性。
+本设计文档描述了如何将 ZhiCore-microservice 的 ID 生成功能从内置的 ZhiCore-leaf 服务迁移到独立的 id-generator 服务。迁移将采用渐进式方式，确保系统的稳定性和向后兼容性。
 
 ### 迁移策略
 
@@ -10,7 +10,7 @@
 2. **服务替换**: 逐个服务模块替换 Leaf Feign Client 为 ID Generator Client
 3. **配置迁移**: 将 Leaf 服务配置迁移到 ID Generator 配置
 4. **测试验证**: 确保所有功能正常工作
-5. **清理代码**: 移除 blog-leaf 模块及相关依赖
+5. **清理代码**: 移除 ZhiCore-leaf 模块及相关依赖
 
 ### 参考实现
 
@@ -24,13 +24,13 @@
 ### 当前架构
 
 ```
-blog-microservice
-├── blog-leaf (内置ID生成服务)
+ZhiCore-microservice
+├── ZhiCore-leaf (内置ID生成服务)
 │   ├── LeafIdGenerator (Snowflake实现)
 │   └── LeafController (REST API)
-├── blog-notification
+├── ZhiCore-notification
 │   └── LeafServiceClient (Feign)
-├── blog-message
+├── ZhiCore-message
 │   └── LeafServiceClient (Feign)
 └── 其他服务模块
 ```
@@ -38,12 +38,12 @@ blog-microservice
 ### 目标架构
 
 ```
-blog-microservice
-├── blog-common
+ZhiCore-microservice
+├── ZhiCore-common
 │   └── IdGeneratorService (接口)
-├── blog-notification
+├── ZhiCore-notification
 │   └── IdGeneratorService (使用ID Generator Client)
-├── blog-message
+├── ZhiCore-message
 │   └── IdGeneratorService (使用ID Generator Client)
 └── 其他服务模块
 
@@ -55,11 +55,11 @@ id-generator-service (独立部署)
 
 ```mermaid
 graph TD
-    A[blog-notification] --> B[id-generator-spring-boot-starter]
-    C[blog-message] --> B
-    D[blog-user] --> B
-    E[blog-post] --> B
-    F[blog-comment] --> B
+    A[ZhiCore-notification] --> B[id-generator-spring-boot-starter]
+    C[ZhiCore-message] --> B
+    D[ZhiCore-user] --> B
+    E[ZhiCore-post] --> B
+    F[ZhiCore-comment] --> B
     B --> G[id-generator-client]
     G --> H[id-generator-service]
 ```
@@ -70,7 +70,7 @@ graph TD
 
 #### 父 POM 配置
 
-在 `blog-microservice/pom.xml` 的 `<dependencyManagement>` 中添加：
+在 `ZhiCore-microservice/pom.xml` 的 `<dependencyManagement>` 中添加：
 
 ```xml
 <!-- ID Generator Client -->
@@ -83,7 +83,7 @@ graph TD
 
 #### 服务模块 POM 配置
 
-在需要 ID 生成的服务模块（如 blog-notification、blog-message）的 pom.xml 中添加：
+在需要 ID 生成的服务模块（如 ZhiCore-notification、ZhiCore-message）的 pom.xml 中添加：
 
 ```xml
 <dependencies>
@@ -128,10 +128,10 @@ id-generator:
 
 #### IdGeneratorService 接口
 
-在 `blog-common` 模块中创建统一的 ID 生成服务接口：
+在 `ZhiCore-common` 模块中创建统一的 ID 生成服务接口：
 
 ```java
-package com.blog.common.service;
+package com.zhicore.common.service;
 
 import java.util.List;
 
@@ -175,12 +175,12 @@ public interface IdGeneratorService {
 
 #### IdGeneratorServiceImpl 实现
 
-在各服务模块中创建实现类（或在 blog-common 中创建通用实现）：
+在各服务模块中创建实现类（或在 ZhiCore-common 中创建通用实现）：
 
 ```java
-package com.blog.common.service.impl;
+package com.zhicore.common.service.impl;
 
-import com.blog.common.service.IdGeneratorService;
+import com.zhicore.common.service.IdGeneratorService;
 import com.platform.idgen.client.IdGeneratorClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -229,7 +229,7 @@ public class IdGeneratorServiceImpl implements IdGeneratorService {
 
 ### 4. 服务调用替换
 
-#### blog-notification 服务
+#### ZhiCore-notification 服务
 
 **修改前**:
 ```java
@@ -245,7 +245,7 @@ private Long generateId() {
 }
 ```
 
-#### blog-message 服务
+#### ZhiCore-message 服务
 
 **修改前**:
 ```java
@@ -589,7 +589,7 @@ public class IdGeneratorBenchmark {
    - 更新各服务模块的配置文件
 
 3. **灰度发布**
-   - 先更新 blog-notification 服务
+   - 先更新 ZhiCore-notification 服务
    - 验证功能正常后，逐步更新其他服务
 
 4. **监控验证**
@@ -598,7 +598,7 @@ public class IdGeneratorBenchmark {
    - 检查错误日志
 
 5. **清理旧代码**
-   - 移除 blog-leaf 模块
+   - 移除 ZhiCore-leaf 模块
    - 移除 Leaf Feign Client
    - 清理相关配置
 
@@ -608,7 +608,7 @@ public class IdGeneratorBenchmark {
 
 1. **配置回滚**: 恢复使用 Leaf Service 的配置
 2. **代码回滚**: 回滚到使用 Leaf Feign Client 的版本
-3. **服务回滚**: 重新启动 blog-leaf 服务
+3. **服务回滚**: 重新启动 ZhiCore-leaf 服务
 
 ### 监控指标
 

@@ -17,7 +17,7 @@
 ## 目录结构
 
 ```
-BlogCore/Infrastructure/
+ZhiCoreCore/Infrastructure/
 ├── Repositories/               # Repository 实现
 │   ├── PostRepository.cs
 │   ├── CachedPostRepository.cs

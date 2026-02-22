@@ -1,5 +1,5 @@
 -- =====================================================
--- Blog Microservices Database Initialization Script
+-- ZhiCore Microservices Database Initialization Script
 -- 博客微服务系统数据库初始化脚本
 -- 
 -- 说明：此脚本用于快速初始化所有服务的数据库表结构
@@ -7,7 +7,7 @@
 -- =====================================================
 
 -- =====================================================
--- 1. User Service (blog_user 数据库)
+-- 1. User Service (ZhiCore_user 数据库)
 -- =====================================================
 
 -- 用户表
@@ -147,7 +147,7 @@ COMMENT ON COLUMN outbox_events.sent_at IS '发送时间';
 COMMENT ON COLUMN outbox_events.error_message IS '错误信息';
 
 -- =====================================================
--- 2. Post Service (blog_post 数据库)
+-- 2. Post Service (ZhiCore_post 数据库)
 -- =====================================================
 
 -- 文章表
@@ -220,7 +220,7 @@ CREATE INDEX IF NOT EXISTS idx_post_favorites_post ON post_favorites(post_id);
 CREATE INDEX IF NOT EXISTS idx_post_favorites_created_at ON post_favorites(created_at DESC);
 
 -- =====================================================
--- 3. Comment Service (blog_comment 数据库)
+-- 3. Comment Service (ZhiCore_comment 数据库)
 -- =====================================================
 
 -- 评论表
@@ -266,7 +266,7 @@ CREATE INDEX IF NOT EXISTS idx_comment_likes_user ON comment_likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_comment_likes_comment ON comment_likes(comment_id);
 
 -- =====================================================
--- 4. Message Service (blog_message 数据库)
+-- 4. Message Service (ZhiCore_message 数据库)
 -- =====================================================
 
 -- 会话表
@@ -316,7 +316,7 @@ REFERENCES conversations(id)
 ON DELETE CASCADE;
 
 -- =====================================================
--- 5. Notification Service (blog_notification 数据库)
+-- 5. Notification Service (ZhiCore_notification 数据库)
 -- =====================================================
 
 -- 通知表
@@ -374,7 +374,7 @@ CREATE INDEX IF NOT EXISTS idx_assistant_messages_user ON assistant_messages(use
 CREATE INDEX IF NOT EXISTS idx_assistant_messages_user_read ON assistant_messages(user_id, is_read);
 
 -- =====================================================
--- 6. Tag Feature (blog_post 数据库 - 标签功能扩展)
+-- 6. Tag Feature (ZhiCore_post 数据库 - 标签功能扩展)
 -- =====================================================
 
 -- 标签表

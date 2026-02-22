@@ -1,0 +1,216 @@
+server:
+  port: 8100
+
+spring:
+  application:
+    name: zhicore-gateway
+  config:
+    import:
+      - optional:nacos:common.yml?group=ZHICORE_SERVICE&refreshEnabled=true
+      - optional:nacos:zhicore-gateway.yml?group=ZHICORE_SERVICE&refreshEnabled=true
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        # 用户服务
+        - id: zhicore-user
+          uri: lb://zhicore-user
+          predicates:
+            - Path=/api/v1/users/**,/api/v1/auth/**,/api/v1/follows/**
+
+        # 文章服务
+        - id: zhicore-content
+          uri: lb://zhicore-content
+          predicates:
+            - Path=/api/v1/posts/**,/api/v1/categories/**,/api/v1/tags/**
+
+        # 评论服务
+        - id: zhicore-comment
+          uri: lb://zhicore-comment
+          predicates:
+            - Path=/api/v1/comments/**
+
+        # 消息服务
+        - id: zhicore-message
+          uri: lb://zhicore-message
+          predicates:
+            - Path=/api/v1/messages/**,/api/v1/conversations/**
+
+        # 通知服务
+        - id: zhicore-notification
+          uri: lb://zhicore-notification
+          predicates:
+            - Path=/api/v1/notifications/**
+
+        # 搜索服务
+        - id: zhicore-search
+          uri: lb://zhicore-search
+          predicates:
+            - Path=/api/v1/search/**
+
+        # 排行榜服务
+        - id: zhicore-ranking
+          uri: lb://zhicore-ranking
+          predicates:
+            - Path=/api/v1/ranking/**
+
+        # 文件服务 (替代原 ZhiCore-upload)
+        - id: file-service
+          uri: lb://file-service
+          predicates:
+            - Path=/api/v1/upload/**,/api/v1/files/**
+          filters:
+            - PreserveHostHeader
+
+        # 管理服务
+        - id: zhicore-admin
+          uri: lb://zhicore-admin
+          predicates:
+            - Path=/api/v1/admin/**
+          filters:
+            - StripPrefix=2  # 移除 /api/v1 前缀
+
+        # API 文档路由 - 用户服务
+        - id: zhicore-user-docs
+          uri: lb://zhicore-user
+          predicates:
+            - Path=/zhicore-user/v3/api-docs
+
+        # API 文档路由 - 文章服务
+        - id: zhicore-content-docs
+          uri: lb://zhicore-content
+          predicates:
+            - Path=/zhicore-content/v3/api-docs
+
+        # API 文档路由 - 评论服务
+        - id: zhicore-comment-docs
+          uri: lb://zhicore-comment
+          predicates:
+            - Path=/zhicore-comment/v3/api-docs
+
+        # API 文档路由 - 消息服务
+        - id: zhicore-message-docs
+          uri: lb://zhicore-message
+          predicates:
+            - Path=/zhicore-message/v3/api-docs
+
+        # API 文档路由 - 通知服务
+        - id: zhicore-notification-docs
+          uri: lb://zhicore-notification
+          predicates:
+            - Path=/zhicore-notification/v3/api-docs
+
+        # API 文档路由 - 搜索服务
+        - id: zhicore-search-docs
+          uri: lb://zhicore-search
+          predicates:
+            - Path=/zhicore-search/v3/api-docs
+
+        # API 文档路由 - 排行服务
+        - id: zhicore-ranking-docs
+          uri: lb://zhicore-ranking
+          predicates:
+            - Path=/zhicore-ranking/v3/api-docs
+
+        # API 文档路由 - 管理服务
+        - id: zhicore-admin-docs
+          uri: lb://zhicore-admin
+          predicates:
+            - Path=/zhicore-admin/v3/api-docs
+
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+
+    # Sentinel 配置
+    sentinel:
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:localhost:8080}
+      eager: true
+    
+    # Nacos 配置
+    nacos:
+      discovery:
+        group: ZHICORE_SERVICE
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+
+  # Redis 配置
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis123456}
+      database: 0
+
+# JWT 配置完全从 Nacos common.yml 加载
+# secret, access-token-expiration, refresh-token-expiration 由 Nacos 提供
+# 如果 Nacos 不可用，使用以下后备配置
+# Gateway 特有配置如下：
+jwt:
+  secret: ${JWT_SECRET:dev-jwt-secret-key-for-development-only-change-in-production-ZhiCore-microservice-2024}
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:7200}
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800}
+  whitelist:
+    - /api/v1/auth/login
+    - /api/v1/auth/register
+    - /api/v1/auth/refresh
+    - /api/v1/posts
+    - /api/v1/posts/*
+    - /api/v1/posts/**
+    - /api/v1/users/*/profile
+    - /api/v1/search/**
+    - /api/v1/ranking/**
+    - /api/v1/tags/**
+    - /api/v1/categories/**
+    - /actuator/**
+  
+  # Token 验证缓存配置
+  cache:
+    enabled: true      # 启用缓存（生产环境推荐 true，故障排查时可设为 false）
+    max-size: 10000    # 最大缓存 Token 数量
+    ttl-minutes: 5     # 缓存过期时间（分钟）
+
+# 灰度发布配置
+gray:
+  enabled: false
+  percentage: 0
+  gray-user-ids: []
+  gray-services: []
+
+# Actuator 配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,gateway
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# 日志配置
+logging:
+  level:
+    com.zhicore.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO
+
+# Knife4j 网关聚合配置
+knife4j:
+  gateway:
+    enabled: true
+    strategy: discover
+    discover:
+      enabled: true
+      version: openapi3
+  setting:
+    language: zh_cn
+    enable-swagger-models: true
+    enable-document-manage: true
+    swagger-model-name: 实体类列表

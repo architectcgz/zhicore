@@ -6,7 +6,7 @@
 
 ### IdGenerator.psm1
 
-ID 生成器模块，提供与 blog-id-generator 服务交互的功能。
+ID 生成器模块，提供与 ZhiCore-id-generator 服务交互的功能。
 
 **功能**:
 - `Get-NextId`: 获取单个 ID
@@ -90,4 +90,4 @@ Invoke-Pester -Path .\tests\
 ## 相关文档
 
 - [PowerShell 脚本规范](../../../../../.kiro/steering/09-powershell.md)
-- [测试数据生成设计文档](../../../.kiro/specs/blog-test-data-generation/design.md)
+- [测试数据生成设计文档](../../../.kiro/specs/ZhiCore-test-data-generation/design.md)

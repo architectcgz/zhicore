@@ -53,7 +53,7 @@ public class AntiSpamService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IUserActionHistoryRepository.cs
+// ZhiCoreCore/Domain/Repositories/IUserActionHistoryRepository.cs
 public interface IUserActionHistoryRepository
 {
     /// <summary>
@@ -89,7 +89,7 @@ public interface IUserActionHistoryRepository
 ### Domain Service
 
 ```csharp
-// BlogCore/Domain/Services/IAntiSpamDomainService.cs
+// ZhiCoreCore/Domain/Services/IAntiSpamDomainService.cs
 public interface IAntiSpamDomainService
 {
     /// <summary>
@@ -112,7 +112,7 @@ public interface IAntiSpamDomainService
         string? targetId = null);
 }
 
-// BlogCore/Domain/Services/AntiSpamDomainService.cs
+// ZhiCoreCore/Domain/Services/AntiSpamDomainService.cs
 public class AntiSpamDomainService : IAntiSpamDomainService
 {
     private readonly IUserActionHistoryRepository _historyRepository;
@@ -216,7 +216,7 @@ public class AntiSpamDomainService : IAntiSpamDomainService
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Auth/IAntiSpamApplicationService.cs
+// ZhiCoreCore/Application/Auth/IAntiSpamApplicationService.cs
 public interface IAntiSpamApplicationService
 {
     Task<AntiSpamCheckResult> CheckActionAsync(
@@ -235,7 +235,7 @@ public interface IAntiSpamApplicationService
     Task CleanupOldHistoryAsync(int olderThanDays = 30);
 }
 
-// BlogCore/Application/Auth/AntiSpamApplicationService.cs
+// ZhiCoreCore/Application/Auth/AntiSpamApplicationService.cs
 public class AntiSpamApplicationService : IAntiSpamApplicationService
 {
     private readonly IAntiSpamDomainService _domainService;

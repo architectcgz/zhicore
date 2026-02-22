@@ -7,7 +7,7 @@
 ## 前置条件
 
 1. **服务运行**：
-   - blog-id-generator 服务已启动（端口 8088）
+   - ZhiCore-id-generator 服务已启动（端口 8088）
    - PostgreSQL 数据库已启动（端口 5432）
 
 2. **基础数据**：
@@ -108,8 +108,8 @@ psql -h localhost -p 5432 -U postgres -f "..\sql\generated-notifications.sql"
 ### 验证通知数量
 
 ```sql
--- 连接到 blog_notification 数据库
-\c blog_notification;
+-- 连接到 ZhiCore_notification 数据库
+\c ZhiCore_notification;
 
 -- 查询总通知数
 SELECT COUNT(*) as total_notifications FROM notifications;
@@ -248,10 +248,10 @@ WHERE is_read = TRUE AND read_at IS NULL;
 ```powershell
 # 检查数据库连接
 $env:PGPASSWORD = "postgres123456"
-psql -h localhost -p 5432 -U postgres -d blog_notification -c "SELECT 1"
+psql -h localhost -p 5432 -U postgres -d ZhiCore_notification -c "SELECT 1"
 
 # 检查表是否存在
-psql -h localhost -p 5432 -U postgres -d blog_notification -c "\dt"
+psql -h localhost -p 5432 -U postgres -d ZhiCore_notification -c "\dt"
 ```
 
 ### 5. ID Generator 服务不可用
@@ -264,7 +264,7 @@ psql -h localhost -p 5432 -U postgres -d blog_notification -c "\dt"
 Test-NetConnection -ComputerName localhost -Port 8088
 
 # 启动服务（根据实际情况）
-cd blog-microservice
+cd ZhiCore-microservice
 .\scripts\start-all-services.ps1
 ```
 
@@ -286,8 +286,8 @@ cd blog-microservice
 如果需要清理生成的通知数据：
 
 ```sql
--- 连接到 blog_notification 数据库
-\c blog_notification;
+-- 连接到 ZhiCore_notification 数据库
+\c ZhiCore_notification;
 
 -- 删除所有通知
 BEGIN;

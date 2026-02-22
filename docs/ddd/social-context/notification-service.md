@@ -41,7 +41,7 @@ public class NotificationService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/INotificationRepository.cs
+// ZhiCoreCore/Domain/Repositories/INotificationRepository.cs
 public interface INotificationRepository
 {
     /// <summary>
@@ -95,7 +95,7 @@ public interface INotificationRepository
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Social/INotificationApplicationService.cs
+// ZhiCoreCore/Application/Social/INotificationApplicationService.cs
 public interface INotificationApplicationService
 {
     Task<NotificationVo> CreateNotificationAsync(CreateNotificationReq req);
@@ -106,7 +106,7 @@ public interface INotificationApplicationService
     Task DeleteNotificationAsync(string userId, long notificationId);
 }
 
-// BlogCore/Application/Social/NotificationApplicationService.cs
+// ZhiCoreCore/Application/Social/NotificationApplicationService.cs
 public class NotificationApplicationService : INotificationApplicationService
 {
     private readonly INotificationRepository _notificationRepository;
@@ -190,7 +190,7 @@ public class NotificationApplicationService : INotificationApplicationService
 ### 事件处理器
 
 ```csharp
-// BlogCore/Domain/EventHandlers/Social/PostLikedNotificationHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Social/PostLikedNotificationHandler.cs
 public class PostLikedNotificationHandler : IDomainEventHandler<PostLikedEvent>
 {
     private readonly INotificationApplicationService _notificationService;
@@ -225,7 +225,7 @@ public class PostLikedNotificationHandler : IDomainEventHandler<PostLikedEvent>
     }
 }
 
-// BlogCore/Domain/EventHandlers/Social/NotificationCreatedEventHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Social/NotificationCreatedEventHandler.cs
 public class NotificationCreatedEventHandler : IDomainEventHandler<NotificationCreatedEvent>
 {
     private readonly IHubContext<NotificationHub> _hubContext;

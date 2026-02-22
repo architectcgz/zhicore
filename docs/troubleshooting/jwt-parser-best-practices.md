@@ -6,7 +6,7 @@
 
 ## 1. 问题描述
 
-在 500 并发压测场景下，blog-gateway 出现 JWT 签名验证相关的性能问题：
+在 500 并发压测场景下，ZhiCore-gateway 出现 JWT 签名验证相关的性能问题：
 
 ```
 2026-01-21 19:07:33.878 [lettuce-nioEventLoop-5-1] [] ERROR c.b.g.filter.JwtAuthenticationFilter 
@@ -18,9 +18,9 @@ JWT validity cannot be asserted and should not be trusted.
 
 项目中发现 **三处** JWT 解析实现存在相同的反模式：
 
-### 2.1 blog-gateway: JwtAuthenticationFilter.java
+### 2.1 ZhiCore-gateway: JwtAuthenticationFilter.java
 
-**文件路径**: `blog-gateway/src/main/java/com/blog/gateway/filter/JwtAuthenticationFilter.java`
+**文件路径**: `ZhiCore-gateway/src/main/java/com/ZhiCore/gateway/filter/JwtAuthenticationFilter.java`
 
 **问题代码** (第 73-102 行):
 
@@ -48,9 +48,9 @@ private Mono<Void> validateAndForward(ServerWebExchange exchange, GatewayFilterC
 }
 ```
 
-### 2.2 blog-user: JwtTokenProvider.java
+### 2.2 ZhiCore-user: JwtTokenProvider.java
 
-**文件路径**: `blog-user/src/main/java/com/blog/user/infrastructure/security/JwtTokenProvider.java`
+**文件路径**: `ZhiCore-user/src/main/java/com/ZhiCore/user/infrastructure/security/JwtTokenProvider.java`
 
 **问题代码** (第 129-145 行):
 
@@ -77,9 +77,9 @@ private SecretKey getSigningKey() {
 }
 ```
 
-### 2.3 blog-common: UserContextFilter.java
+### 2.3 ZhiCore-common: UserContextFilter.java
 
-**文件路径**: `blog-common/src/main/java/com/blog/common/filter/UserContextFilter.java`
+**文件路径**: `ZhiCore-common/src/main/java/com/ZhiCore/common/filter/UserContextFilter.java`
 
 **问题代码** (第 81-88 行):
 
@@ -132,7 +132,7 @@ private Claims parseToken(String token) {
 ### 5.1 JwtTokenValidator (最佳实践)
 
 ```java
-package com.blog.gateway.security;
+package com.ZhiCore.gateway.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -208,7 +208,7 @@ public class JwtTokenValidator {
 ### 5.2 JwtTokenProvider (修正版)
 
 ```java
-package com.blog.user.infrastructure.security;
+package com.ZhiCore.user.infrastructure.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -285,7 +285,7 @@ public class JwtTokenProvider {
 ### 5.3 UserContextFilter (修正版)
 
 ```java
-package com.blog.common.filter;
+package com.zhicore.common.filter;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtParser;

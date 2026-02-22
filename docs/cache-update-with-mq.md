@@ -74,7 +74,7 @@ public class CacheEvictConsumer {
 
 ```
 ┌─────────────┐
-│  blog-post  │
+│  ZhiCore-post  │
 │   Service   │
 └──────┬──────┘
        │ 1. 更新数据库
@@ -135,13 +135,13 @@ public class CacheEvictConsumer {
 #### 1.1 在现有事件消费者中添加缓存删除
 
 ```java
-package com.blog.post.infrastructure.mq;
+package com.zhicore.post.infrastructure.mq;
 
-import com.blog.api.event.post.PostUpdatedEvent;
-import com.blog.common.mq.AbstractEventConsumer;
-import com.blog.common.mq.StatefulIdempotentHandler;
-import com.blog.common.mq.TopicConstants;
-import com.blog.post.infrastructure.cache.PostRedisKeys;
+import com.zhicore.api.event.post.PostUpdatedEvent;
+import com.zhicore.common.mq.AbstractEventConsumer;
+import com.zhicore.common.mq.StatefulIdempotentHandler;
+import com.zhicore.common.mq.TopicConstants;
+import com.zhicore.post.infrastructure.cache.PostRedisKeys;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -153,7 +153,7 @@ import org.springframework.stereotype.Component;
  * 监听 PostUpdatedEvent，删除相关缓存
  * 确保所有实例的缓存同步失效
  *
- * @author Blog Team
+ * @author ZhiCore Team
  */
 @Slf4j
 @Component
@@ -209,12 +209,12 @@ public class PostUpdatedCacheEvictConsumer extends AbstractEventConsumer<PostUpd
 #### 1.2 修改业务代码，移除延迟双删
 
 ```java
-package com.blog.post.infrastructure.service;
+package com.zhicore.post.infrastructure.service;
 
-import com.blog.post.domain.service.DualStorageManager;
-import com.blog.post.domain.model.Post;
-import com.blog.post.infrastructure.mongodb.document.PostContent;
-import com.blog.api.event.post.PostUpdatedEvent;
+import com.zhicore.post.domain.service.DualStorageManager;
+import com.zhicore.post.domain.model.Post;
+import com.zhicore.post.infrastructure.mongodb.document.PostContent;
+import com.zhicore.api.event.post.PostUpdatedEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -345,14 +345,14 @@ PostgreSQL → Debezium → Kafka/RocketMQ → Consumer → Redis
 
 ```yaml
 # Debezium PostgreSQL Connector 配置
-name: blog-post-connector
+name: ZhiCore-post-connector
 connector.class: io.debezium.connector.postgresql.PostgresConnector
 database.hostname: localhost
 database.port: 5432
 database.user: postgres
 database.password: postgres123456
-database.dbname: blog_post
-database.server.name: blog-post-db
+database.dbname: ZhiCore_post
+database.server.name: ZhiCore-post-db
 table.include.list: public.posts,public.post_stats
 transforms: route
 transforms.route.type: org.apache.kafka.connect.transforms.RegexRouter
@@ -440,7 +440,7 @@ public class PostCDCCacheEvictConsumer implements RocketMQListener<ChangeEvent> 
 
 ### 步骤 1: 添加缓存失效消费者
 
-创建文件：`blog-post/src/main/java/com/blog/post/infrastructure/mq/PostUpdatedCacheEvictConsumer.java`
+创建文件：`ZhiCore-post/src/main/java/com/ZhiCore/post/infrastructure/mq/PostUpdatedCacheEvictConsumer.java`
 
 ```java
 // 见上面的完整代码
@@ -448,7 +448,7 @@ public class PostCDCCacheEvictConsumer implements RocketMQListener<ChangeEvent> 
 
 ### 步骤 2: 修改业务代码
 
-修改文件：`blog-post/src/main/java/com/blog/post/infrastructure/service/CachedDualStorageManager.java`
+修改文件：`ZhiCore-post/src/main/java/com/ZhiCore/post/infrastructure/service/CachedDualStorageManager.java`
 
 ```java
 @Override
@@ -653,4 +653,4 @@ cacheEvictSuccessCounter.increment();
 
 **文档版本**: 1.0  
 **最后更新**: 2025-01-26  
-**作者**: Blog Team
+**作者**: ZhiCore Team

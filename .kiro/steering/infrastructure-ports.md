@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document defines the port mappings and connection details for all infrastructure services in the Blog Microservices system. Understanding these mappings is critical for proper service configuration.
+This document defines the port mappings and connection details for all infrastructure services in the ZhiCore Microservices system. Understanding these mappings is critical for proper service configuration.
 
 ---
 
@@ -25,17 +25,17 @@ Docker port mapping format: `HOST_PORT:CONTAINER_PORT`
 
 | Property | Value |
 |----------|-------|
-| Container Name | `blog-postgres` |
+| Container Name | `ZhiCore-postgres` |
 | Image | `postgres:16-alpine` |
 | Host Port | `5432` |
 | Container Port | `5432` |
 | Default User | `postgres` |
 | Default Password | `postgres123456` |
-| Default Database | `blog` |
+| Default Database | `ZhiCore` |
 
 **Connection Strings**:
-- From Host: `jdbc:postgresql://localhost:5432/blog_user`
-- From Container: `jdbc:postgresql://postgres:5432/blog_user`
+- From Host: `jdbc:postgresql://localhost:5432/ZhiCore_user`
+- From Container: `jdbc:postgresql://postgres:5432/ZhiCore_user`
 
 **Environment Variables**:
 ```yaml
@@ -46,13 +46,13 @@ DB_PASSWORD: postgres123456
 ```
 
 **Databases Created**:
-- `blog_user` - User service
-- `blog_post` - Post service
-- `blog_comment` - Comment service
-- `blog_message` - Message service
-- `blog_notification` - Notification service
-- `blog_upload` - Upload service
-- `blog_admin` - Admin service
+- `ZhiCore_user` - User service
+- `ZhiCore_post` - Post service
+- `ZhiCore_comment` - Comment service
+- `ZhiCore_message` - Message service
+- `ZhiCore_notification` - Notification service
+- `ZhiCore_upload` - Upload service
+- `ZhiCore_admin` - Admin service
 
 ---
 
@@ -60,7 +60,7 @@ DB_PASSWORD: postgres123456
 
 | Property | Value |
 |----------|-------|
-| Container Name | `blog-redis` |
+| Container Name | `ZhiCore-redis` |
 | Image | `redis:7.2-alpine` |
 | Host Port | `6379` |
 | Container Port | `6379` |
@@ -93,7 +93,7 @@ REDIS_PASSWORD: redis123456
 
 | Property | Value |
 |----------|-------|
-| Container Name | `blog-mysql-nacos` |
+| Container Name | `ZhiCore-mysql-nacos` |
 | Image | `mysql:8.0` |
 | Host Port | `3307` |
 | Container Port | `3306` |
@@ -112,7 +112,7 @@ REDIS_PASSWORD: redis123456
 
 | Property | Value |
 |----------|-------|
-| Container Name | `blog-nacos` |
+| Container Name | `ZhiCore-nacos` |
 | Image | `nacos/nacos-server:v2.3.0` |
 | Console Port | `8848` |
 | gRPC Port | `9848` |
@@ -143,7 +143,7 @@ NACOS_PASSWORD: nacos
 
 | Property | Value |
 |----------|-------|
-| Container Name | `blog-rocketmq-namesrv` |
+| Container Name | `ZhiCore-rocketmq-namesrv` |
 | Image | `apache/rocketmq:4.9.6` |
 | Port | `9876` |
 | JVM Memory | `-Xms256m -Xmx256m` |
@@ -156,7 +156,7 @@ NACOS_PASSWORD: nacos
 
 | Property | Value |
 |----------|-------|
-| Container Name | `blog-rocketmq-broker` |
+| Container Name | `ZhiCore-rocketmq-broker` |
 | Image | `apache/rocketmq:4.9.6` |
 | VIP Port | `10909` |
 | Listen Port | `10911` |
@@ -172,7 +172,7 @@ NACOS_PASSWORD: nacos
 
 | Property | Value |
 |----------|-------|
-| Container Name | `blog-rocketmq-dashboard` |
+| Container Name | `ZhiCore-rocketmq-dashboard` |
 | Port | `8180` (host) -> `8080` (container) |
 | URL | `http://localhost:8180` |
 | JVM Memory | `-Xms128m -Xmx256m` |
@@ -194,11 +194,11 @@ ROCKETMQ_NAME_SERVER: localhost:9876 (host) / rocketmq-namesrv:9876 (container)
 
 | Property | Value |
 |----------|-------|
-| Container Name | `blog-elasticsearch` |
+| Container Name | `ZhiCore-elasticsearch` |
 | Image | `elasticsearch:8.11.3` |
 | HTTP Port | `9200` |
 | Transport Port | `9300` |
-| Cluster Name | `blog-es-cluster` |
+| Cluster Name | `ZhiCore-es-cluster` |
 | Security | Disabled |
 
 **Connection**:
@@ -217,7 +217,7 @@ ELASTICSEARCH_PORT: 9200
 
 | Property | Value |
 |----------|-------|
-| Container Name | `blog-kibana` |
+| Container Name | `ZhiCore-kibana` |
 | Image | `kibana:8.11.3` |
 | Port | `5601` |
 | Locale | `zh-CN` |
@@ -229,7 +229,7 @@ ELASTICSEARCH_PORT: 9200
 
 | Property | Value |
 |----------|-------|
-| Container Name | `blog-prometheus` |
+| Container Name | `ZhiCore-prometheus` |
 | Image | `prom/prometheus:v2.48.0` |
 | Port | `9090` |
 | URL | `http://localhost:9090` |
@@ -240,7 +240,7 @@ ELASTICSEARCH_PORT: 9200
 
 | Property | Value |
 |----------|-------|
-| Container Name | `blog-grafana` |
+| Container Name | `ZhiCore-grafana` |
 | Image | `grafana/grafana:10.2.2` |
 | Host Port | `3100` |
 | Container Port | `3000` |
@@ -256,7 +256,7 @@ ELASTICSEARCH_PORT: 9200
 
 | Property | Value |
 |----------|-------|
-| Container Name | `blog-skywalking-oap` |
+| Container Name | `ZhiCore-skywalking-oap` |
 | Image | `apache/skywalking-oap-server:9.6.0` |
 | gRPC Port | `11800` |
 | HTTP Port | `12800` |
@@ -271,7 +271,7 @@ SW_AGENT_COLLECTOR_BACKEND_SERVICES: localhost:11800 (host) / skywalking-oap:118
 
 | Property | Value |
 |----------|-------|
-| Container Name | `blog-skywalking-ui` |
+| Container Name | `ZhiCore-skywalking-ui` |
 | Image | `apache/skywalking-ui:9.6.0` |
 | Host Port | `8088` |
 | Container Port | `8080` |
@@ -283,15 +283,15 @@ SW_AGENT_COLLECTOR_BACKEND_SERVICES: localhost:11800 (host) / skywalking-oap:118
 
 | Service | Container Name | Port | Description |
 |---------|---------------|------|-------------|
-| Gateway | `blog-gateway` | `8000` | API Gateway |
-| User | `blog-user` | `8101` | User Service |
-| Post | `blog-post` | `8102` | Post Service |
-| Comment | `blog-comment` | `8103` | Comment Service |
-| Message | `blog-message` | `8084` | Message Service |
-| Notification | `blog-notification` | `8085` | Notification Service |
-| Search | `blog-search` | `8086` | Search Service |
-| Ranking | `blog-ranking` | `8087` | Ranking Service |
-| Admin | `blog-admin` | `8090` | Admin Service |
+| Gateway | `ZhiCore-gateway` | `8000` | API Gateway |
+| User | `ZhiCore-user` | `8101` | User Service |
+| Post | `ZhiCore-post` | `8102` | Post Service |
+| Comment | `ZhiCore-comment` | `8103` | Comment Service |
+| Message | `ZhiCore-message` | `8084` | Message Service |
+| Notification | `ZhiCore-notification` | `8085` | Notification Service |
+| Search | `ZhiCore-search` | `8086` | Search Service |
+| Ranking | `ZhiCore-ranking` | `8087` | Ranking Service |
+| Admin | `ZhiCore-admin` | `8090` | Admin Service |
 
 **API Documentation URLs** (Knife4j):
 - Gateway (Aggregated): `http://localhost:8000/doc.html`
@@ -308,7 +308,7 @@ SW_AGENT_COLLECTOR_BACKEND_SERVICES: localhost:11800 (host) / skywalking-oap:118
 
 ## External Service Ports (DO NOT USE)
 
-These ports are used by other platform services. **DO NOT** assign these ports to blog-microservice services to avoid conflicts:
+These ports are used by other platform services. **DO NOT** assign these ports to ZhiCore-microservice services to avoid conflicts:
 
 ### ID Generator Service
 - **PostgreSQL**: `5435` (id-generator-postgres)
@@ -329,8 +329,8 @@ These ports are used by other platform services. **DO NOT** assign these ports t
 - **RocketMQ Dashboard**: `8082` (im-rocketmq-dashboard)
 
 ### Reserved Port Ranges
-- **5432-5435**: PostgreSQL instances (5432=blog, 5433=im, 5434=file, 5435=id-gen)
-- **6379-6381**: Redis instances (6379=blog, 6380=im, 6381=reserved)
+- **5432-5435**: PostgreSQL instances (5432=ZhiCore, 5433=im, 5434=file, 5435=id-gen)
+- **6379-6381**: Redis instances (6379=ZhiCore, 6380=im, 6381=reserved)
 - **8010**: ID Generator
 - **8080-8090**: Various services (check specific assignments)
 - **9001-9002**: Object storage (RustFS)
@@ -395,7 +395,7 @@ POSTGRES_PORT=5432
 redis-cli -h localhost -p 6379 -a redis123456 ping
 
 # Test from container
-docker exec blog-redis redis-cli -a redis123456 ping
+docker exec ZhiCore-redis redis-cli -a redis123456 ping
 ```
 
 ### PostgreSQL Connection Issues
@@ -409,10 +409,10 @@ docker exec blog-redis redis-cli -a redis123456 ping
 **Solution**:
 ```bash
 # List databases
-docker exec blog-postgres psql -U postgres -c "\l"
+docker exec ZhiCore-postgres psql -U postgres -c "\l"
 
 # Test connection
-docker exec blog-postgres psql -U postgres -d blog_user -c "SELECT 1"
+docker exec ZhiCore-postgres psql -U postgres -d ZhiCore_user -c "SELECT 1"
 ```
 
 ### Nacos Registration Issues
@@ -429,7 +429,7 @@ docker exec blog-postgres psql -U postgres -d blog_user -c "SELECT 1"
 curl http://localhost:8848/nacos/v1/console/health/readiness
 
 # Check service registration
-curl "http://localhost:8848/nacos/v1/ns/instance/list?serviceName=blog-user"
+curl "http://localhost:8848/nacos/v1/ns/instance/list?serviceName=ZhiCore-user"
 ```
 
 ---
@@ -454,7 +454,7 @@ docker-compose -f docker-compose.services.yml up -d
 docker ps
 
 # Check specific service logs
-docker logs blog-user
+docker logs ZhiCore-user
 
 # Check service health endpoints
 curl http://localhost:8000/actuator/health  # Gateway
@@ -480,14 +480,14 @@ docker-compose down
 ## Important Notes
 
 1. **Port Allocation Strategy**: Services use sequential port numbers for the same type of infrastructure:
-   - PostgreSQL: 5432 (blog), 5433 (im), 5434 (file), 5435 (id-gen)
-   - Redis: 6379 (blog), 6380 (im), 6381 (reserved)
+   - PostgreSQL: 5432 (ZhiCore), 5433 (im), 5434 (file), 5435 (id-gen)
+   - Redis: 6379 (ZhiCore), 6380 (im), 6381 (reserved)
 
 2. **Database Initialization**: All databases are created automatically on first startup via `docker/postgres-init/init-all-databases.sql`.
 
 3. **Nacos Configuration**: Services load configuration from Nacos on startup. Ensure Nacos is healthy before starting services.
 
-4. **Network**: All services must be on the `blog-network` Docker network to communicate.
+4. **Network**: All services must be on the `ZhiCore-network` Docker network to communicate.
 
 5. **Health Checks**: All services have health check endpoints at `/actuator/health`.
 

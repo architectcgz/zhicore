@@ -24,17 +24,17 @@ try {
     Write-Host "Checking Nacos API..." -ForegroundColor Yellow
     
     # Get service list from Nacos
-    $Response = Invoke-WebRequest -Uri "$NacosUrl/nacos/v1/ns/service/list?pageNo=1&pageSize=100&groupName=BLOG_SERVICE&accessToken=$AccessToken" -Method GET
+    $Response = Invoke-WebRequest -Uri "$NacosUrl/nacos/v1/ns/service/list?pageNo=1&pageSize=100&groupName=ZhiCore_SERVICE&accessToken=$AccessToken" -Method GET
     $Data = $Response.Content | ConvertFrom-Json
     
     Write-Host "  [PASS] Nacos API accessible" -ForegroundColor Green
     Write-Host ""
     
-    Write-Host "Services in BLOG_SERVICE group:" -ForegroundColor Yellow
+    Write-Host "Services in ZhiCore_SERVICE group:" -ForegroundColor Yellow
     
     $Services = $Data.doms
     
-    $RequiredServices = @("blog-user", "blog-admin", "blog-gateway", "blog-post", "blog-comment")
+    $RequiredServices = @("ZhiCore-user", "ZhiCore-admin", "ZhiCore-gateway", "ZhiCore-post", "ZhiCore-comment")
     
     foreach ($ServiceName in $RequiredServices) {
         if ($Services -contains $ServiceName) {
@@ -42,7 +42,7 @@ try {
             
             # Get service details
             try {
-                $DetailResponse = Invoke-WebRequest -Uri "$NacosUrl/nacos/v1/ns/instance/list?serviceName=$ServiceName&groupName=BLOG_SERVICE&accessToken=$AccessToken" -Method GET
+                $DetailResponse = Invoke-WebRequest -Uri "$NacosUrl/nacos/v1/ns/instance/list?serviceName=$ServiceName&groupName=ZhiCore_SERVICE&accessToken=$AccessToken" -Method GET
                 $DetailData = $DetailResponse.Content | ConvertFrom-Json
                 
                 if ($DetailData.hosts -and $DetailData.hosts.Count -gt 0) {

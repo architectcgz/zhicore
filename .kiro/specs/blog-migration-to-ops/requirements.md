@@ -2,12 +2,12 @@
 
 ## Introduction
 
-将 `blog-migration` 模块重构为 `blog-ops` 运维服务模块。移除已废弃的 Flyway 数据库迁移功能和数据迁移服务，保留 CDC（Change Data Capture）和灰度发布功能，为未来的运维需求做准备。
+将 `ZhiCore-migration` 模块重构为 `ZhiCore-ops` 运维服务模块。移除已废弃的 Flyway 数据库迁移功能和数据迁移服务，保留 CDC（Change Data Capture）和灰度发布功能，为未来的运维需求做准备。
 
 ## Glossary
 
-- **blog-migration**: 当前的数据迁移服务模块
-- **blog-ops**: 重构后的运维服务模块（Operations Service）
+- **ZhiCore-migration**: 当前的数据迁移服务模块
+- **ZhiCore-ops**: 重构后的运维服务模块（Operations Service）
 - **CDC**: Change Data Capture，数据变更捕获，使用 Debezium 实现
 - **Flyway**: 数据库版本管理工具，已不再需要
 - **Gray Release**: 灰度发布，用于新功能的渐进式发布
@@ -18,14 +18,14 @@
 
 ### Requirement 1: 模块重命名
 
-**User Story:** 作为开发者，我想将 blog-migration 模块重命名为 blog-ops，以便更准确地反映其作为运维服务的定位。
+**User Story:** 作为开发者，我想将 ZhiCore-migration 模块重命名为 ZhiCore-ops，以便更准确地反映其作为运维服务的定位。
 
 #### Acceptance Criteria
 
-1. WHEN 重命名模块目录 THEN THE System SHALL 将 `blog-migration` 目录重命名为 `blog-ops`
-2. WHEN 更新 Maven 配置 THEN THE System SHALL 更新 `pom.xml` 中的 artifactId 为 `blog-ops`
-3. WHEN 更新包名 THEN THE System SHALL 将 Java 包从 `com.blog.migration` 重命名为 `com.blog.ops`
-4. WHEN 更新应用名称 THEN THE System SHALL 将 Spring 应用名从 `blog-migration` 改为 `blog-ops`
+1. WHEN 重命名模块目录 THEN THE System SHALL 将 `ZhiCore-migration` 目录重命名为 `ZhiCore-ops`
+2. WHEN 更新 Maven 配置 THEN THE System SHALL 更新 `pom.xml` 中的 artifactId 为 `ZhiCore-ops`
+3. WHEN 更新包名 THEN THE System SHALL 将 Java 包从 `com.ZhiCore.migration` 重命名为 `com.ZhiCore.ops`
+4. WHEN 更新应用名称 THEN THE System SHALL 将 Spring 应用名从 `ZhiCore-migration` 改为 `ZhiCore-ops`
 5. WHEN 更新根 pom.xml THEN THE System SHALL 更新父 pom.xml 中的模块引用
 
 ### Requirement 2: 移除 Flyway 相关功能
@@ -83,7 +83,7 @@
 3. WHEN 保留 CDC 配置 THEN THE System SHALL 保留 `infrastructure/config/CdcProperties.java`
 4. WHEN 保留 CDC 配置 THEN THE System SHALL 保留 `infrastructure/config/DebeziumConfig.java`
 5. WHEN 保留 CDC 配置 THEN THE System SHALL 在 `application.yml` 中保留 `cdc` 配置段
-6. WHEN 更新包引用 THEN THE System SHALL 更新 CDC 相关类中的包导入语句（从 `com.blog.migration` 到 `com.blog.ops`）
+6. WHEN 更新包引用 THEN THE System SHALL 更新 CDC 相关类中的包导入语句（从 `com.ZhiCore.migration` 到 `com.ZhiCore.ops`）
 
 ### Requirement 6: 保留灰度发布功能
 
@@ -95,7 +95,7 @@
 2. WHEN 保留灰度发布配置 THEN THE System SHALL 保留 `infrastructure/config/GrayReleaseProperties.java`
 3. WHEN 保留灰度发布控制器 THEN THE System SHALL 保留 `interfaces/controller/GrayReleaseController.java`
 4. WHEN 保留灰度发布配置 THEN THE System SHALL 在 `application.yml` 中保留 `gray` 配置段
-5. WHEN 更新包引用 THEN THE System SHALL 更新灰度发布相关类中的包导入语句（从 `com.blog.migration` 到 `com.blog.ops`）
+5. WHEN 更新包引用 THEN THE System SHALL 更新灰度发布相关类中的包导入语句（从 `com.ZhiCore.migration` 到 `com.ZhiCore.ops`）
 6. WHEN 更新 API 路径 THEN THE System SHALL 保持 GrayReleaseController 的 API 路径为 `/api/gray`（不变）
 
 ### Requirement 7: 更新配置文件
@@ -104,12 +104,12 @@
 
 #### Acceptance Criteria
 
-1. WHEN 更新应用名称 THEN THE System SHALL 在 `application.yml` 中将 `spring.application.name` 改为 `blog-ops`
+1. WHEN 更新应用名称 THEN THE System SHALL 在 `application.yml` 中将 `spring.application.name` 改为 `ZhiCore-ops`
 2. WHEN 移除废弃配置 THEN THE System SHALL 删除 `application.yml` 中已注释的 `migration` 配置段
 3. WHEN 清理数据源配置 THEN THE System SHALL 评估并移除不需要的数据源配置（如果 CDC 和灰度发布不需要）
 4. WHEN 清理 MyBatis 配置 THEN THE System SHALL 删除 `application.yml` 中的 `mybatis-plus` 配置段
 5. WHEN 更新模块描述 THEN THE System SHALL 更新 `pom.xml` 中的 `<description>` 为 "运维服务 - CDC 和灰度发布管理"
-6. WHEN 更新日志配置 THEN THE System SHALL 在 `application.yml` 中将日志包名从 `com.blog.migration` 改为 `com.blog.ops`
+6. WHEN 更新日志配置 THEN THE System SHALL 在 `application.yml` 中将日志包名从 `com.ZhiCore.migration` 改为 `com.ZhiCore.ops`
 
 ### Requirement 8: 更新启动类和主类
 
@@ -119,19 +119,19 @@
 
 1. WHEN 重命名启动类 THEN THE System SHALL 将 `MigrationApplication.java` 重命名为 `OpsApplication.java`
 2. WHEN 更新类注释 THEN THE System SHALL 更新启动类的 JavaDoc 注释为 "运维服务启动类 - 负责 CDC 和灰度发布管理"
-3. WHEN 更新包名 THEN THE System SHALL 将启动类的包从 `com.blog.migration` 改为 `com.blog.ops`
+3. WHEN 更新包名 THEN THE System SHALL 将启动类的包从 `com.ZhiCore.migration` 改为 `com.ZhiCore.ops`
 4. WHEN 更新主类配置 THEN THE System SHALL 确保 `pom.xml` 中的 `spring-boot-maven-plugin` 配置指向正确的主类（如果有显式配置）
 
 ### Requirement 9: 更新项目引用
 
-**User Story:** 作为开发者，我想更新项目中所有对 blog-migration 模块的引用，确保重命名后项目能正常构建和运行。
+**User Story:** 作为开发者，我想更新项目中所有对 ZhiCore-migration 模块的引用，确保重命名后项目能正常构建和运行。
 
 #### Acceptance Criteria
 
-1. WHEN 更新父 pom THEN THE System SHALL 在根 `pom.xml` 的 `<modules>` 中将 `blog-migration` 改为 `blog-ops`
-2. WHEN 检查依赖引用 THEN THE System SHALL 检查其他模块是否依赖 `blog-migration`，如有则更新为 `blog-ops`
-3. WHEN 检查文档引用 THEN THE System SHALL 搜索项目文档中对 `blog-migration` 的引用并更新
-4. WHEN 检查脚本引用 THEN THE System SHALL 搜索脚本文件中对 `blog-migration` 的引用并更新
+1. WHEN 更新父 pom THEN THE System SHALL 在根 `pom.xml` 的 `<modules>` 中将 `ZhiCore-migration` 改为 `ZhiCore-ops`
+2. WHEN 检查依赖引用 THEN THE System SHALL 检查其他模块是否依赖 `ZhiCore-migration`，如有则更新为 `ZhiCore-ops`
+3. WHEN 检查文档引用 THEN THE System SHALL 搜索项目文档中对 `ZhiCore-migration` 的引用并更新
+4. WHEN 检查脚本引用 THEN THE System SHALL 搜索脚本文件中对 `ZhiCore-migration` 的引用并更新
 5. WHEN 检查配置引用 THEN THE System SHALL 检查 Docker Compose 等配置文件中是否有引用（当前应该没有）
 
 ### Requirement 10: 验证重构结果
@@ -140,9 +140,9 @@
 
 #### Acceptance Criteria
 
-1. WHEN 执行 Maven 编译 THEN THE System SHALL 成功编译 `blog-ops` 模块
-2. WHEN 执行 Maven 打包 THEN THE System SHALL 成功打包 `blog-ops` 模块
-3. WHEN 启动应用 THEN THE System SHALL 成功启动 `blog-ops` 服务（CDC 和灰度发布功能默认关闭）
+1. WHEN 执行 Maven 编译 THEN THE System SHALL 成功编译 `ZhiCore-ops` 模块
+2. WHEN 执行 Maven 打包 THEN THE System SHALL 成功打包 `ZhiCore-ops` 模块
+3. WHEN 启动应用 THEN THE System SHALL 成功启动 `ZhiCore-ops` 服务（CDC 和灰度发布功能默认关闭）
 4. WHEN 检查健康端点 THEN THE System SHALL 访问 `/actuator/health` 返回 UP 状态
 5. WHEN 检查灰度发布 API THEN THE System SHALL 确认灰度发布 API 在功能关闭时不可访问（符合 `@ConditionalOnProperty` 预期）
-6. WHEN 执行全量构建 THEN THE System SHALL 成功构建整个项目（包括 blog-ops 模块）
+6. WHEN 执行全量构建 THEN THE System SHALL 成功构建整个项目（包括 ZhiCore-ops 模块）

@@ -62,15 +62,15 @@ COMMIT;
 执行此脚本：
 
 1. 使用 psql 命令行：
-   psql -h localhost -p 5432 -U postgres -d blog -f init-post-stats.sql
+   psql -h localhost -p 5432 -U postgres -d ZhiCore -f init-post-stats.sql
 
 2. 使用 PowerShell：
    $env:PGPASSWORD="postgres123456"
-   psql -h localhost -p 5432 -U postgres -d blog -f init-post-stats.sql
+   psql -h localhost -p 5432 -U postgres -d ZhiCore -f init-post-stats.sql
 
 前置条件：
 - PostgreSQL 服务已启动
-- blog 数据库已创建
+- ZhiCore 数据库已创建
 - posts 表已存在且包含数据
 
 验证需求：

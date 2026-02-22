@@ -14,7 +14,7 @@
 ### Phase 0: 准备工作
 
 - [x] 0.1 添加 Caffeine 依赖
-  - 在 `blog-gateway/pom.xml` 中添加 Caffeine 依赖
+  - 在 `ZhiCore-gateway/pom.xml` 中添加 Caffeine 依赖
   - 验证依赖版本兼容性（与 Spring Boot 版本匹配）
   - _Requirements: 3.1_
 
@@ -35,7 +35,7 @@
 
 ---
 
-### Phase 1: 创建核心验证组件 (blog-gateway)
+### Phase 1: 创建核心验证组件 (ZhiCore-gateway)
 
 - [x] 1.1 创建数据模型
   - 创建 `ValidationResult` 数据模型
@@ -80,7 +80,7 @@
 
 ### Phase 3: 修复其他 JWT 实现
 
-- [x] 3.1 更新 JwtTokenProvider (blog-user)
+- [x] 3.1 更新 JwtTokenProvider (ZhiCore-user)
   - 添加 `@PostConstruct` 初始化方法
   - 预创建不可变的 `SecretKey` 成员变量
   - 预构建不可变的 `JwtParser` 成员变量
@@ -88,7 +88,7 @@
   - 修改 `generateAccessToken()` 复用 SecretKey
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [x] 3.2 更新 UserContextFilter (blog-common)
+- [x] 3.2 更新 UserContextFilter (ZhiCore-common)
   - 添加 `@PostConstruct` 初始化方法
   - 预创建不可变的 `SecretKey` 成员变量
   - 预构建不可变的 `JwtParser` 成员变量

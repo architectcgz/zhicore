@@ -14,7 +14,7 @@ ERROR: operator does not exist: smallint = character varying
 - MyBatis XML 查询传入的是字符串 `"1"` (PUBLISHED 的代码)
 - PostgreSQL 不会自动进行字符串到 smallint 的类型转换
 
-**修复内容**: 修改 `blog-post/src/main/resources/mapper/PostMapper.xml`
+**修复内容**: 修改 `ZhiCore-post/src/main/resources/mapper/PostMapper.xml`
 ```xml
 <!-- 修复前 -->
 <if test="status != null and status != ''">
@@ -27,7 +27,7 @@ ERROR: operator does not exist: smallint = character varying
 </if>
 ```
 
-**需要重启**: blog-post 服务
+**需要重启**: ZhiCore-post 服务
 
 ---
 
@@ -40,7 +40,7 @@ ERROR: operator does not exist: smallint = character varying
 - `UserMapper.xml` 中错误地使用了不存在的 `status` 字段
 - 查询条件需要将 ACTIVE/DISABLED 字符串转换为 TRUE/FALSE 布尔值
 
-**修复内容**: 修改 `blog-user/src/main/resources/mapper/UserMapper.xml`
+**修复内容**: 修改 `ZhiCore-user/src/main/resources/mapper/UserMapper.xml`
 ```xml
 <!-- 修复前 -->
 <if test="status != null and status != ''">
@@ -60,7 +60,7 @@ ERROR: operator does not exist: smallint = character varying
 </if>
 ```
 
-**需要重启**: blog-user 服务 (已重启)
+**需要重启**: ZhiCore-user 服务 (已重启)
 
 ---
 
@@ -78,14 +78,14 @@ ERROR: operator does not exist: smallint = character varying
 
 ## 下一步操作
 
-### 1. 重启 blog-post 服务
+### 1. 重启 ZhiCore-post 服务
 
-blog-post 服务需要重启以应用 `PostMapper.xml` 的修复：
+ZhiCore-post 服务需要重启以应用 `PostMapper.xml` 的修复：
 
 ```powershell
-# 停止当前运行的 blog-post
+# 停止当前运行的 ZhiCore-post
 # 然后重新启动
-cd blog-post
+cd ZhiCore-post
 mvn spring-boot:run
 ```
 
@@ -93,17 +93,17 @@ mvn spring-boot:run
 
 如果重启后测试仍然失败，请检查服务日志：
 
-**blog-user 服务日志** (ADMIN-003/004):
+**ZhiCore-user 服务日志** (ADMIN-003/004):
 - 查找包含 `updateById`、`UserMapper`、`is_active` 的错误
 - 可能的问题：MyBatis-Plus 的 `updateById` 方法可能需要额外配置
 
-**blog-post 服务日志** (ADMIN-013):
+**ZhiCore-post 服务日志** (ADMIN-013):
 - 查找包含 `selectByConditions`、`PostMapper`、`CAST` 的错误
 - 确认 SQL 语句是否正确生成
 
 ### 3. 重新运行测试
 
-重启 blog-post 服务后，运行：
+重启 ZhiCore-post 服务后，运行：
 
 ```powershell
 cd tests/api/admin
@@ -122,7 +122,7 @@ cd tests/api/admin
 
 3. **事务问题**: 可能是事务配置导致更新失败
 
-**建议**: 查看 blog-user 服务的完整错误堆栈，确定具体失败原因
+**建议**: 查看 ZhiCore-user 服务的完整错误堆栈，确定具体失败原因
 
 ---
 
@@ -140,8 +140,8 @@ cd tests/api/admin
 
 ## 文件修改清单
 
-1. ✅ `blog-post/src/main/resources/mapper/PostMapper.xml` - 添加 CAST 类型转换
-2. ✅ `blog-user/src/main/resources/mapper/UserMapper.xml` - 修复状态字段映射
+1. ✅ `ZhiCore-post/src/main/resources/mapper/PostMapper.xml` - 添加 CAST 类型转换
+2. ✅ `ZhiCore-user/src/main/resources/mapper/UserMapper.xml` - 修复状态字段映射
 3. ✅ `tests/api/admin/test-fixes.ps1` - 创建快速测试脚本
 4. ✅ `tests/api/admin/RESTART_INSTRUCTIONS.md` - 重启指令文档
 
@@ -150,6 +150,6 @@ cd tests/api/admin
 ## 联系信息
 
 如果问题持续存在，请提供：
-1. blog-user 服务的完整错误日志
-2. blog-post 服务的完整错误日志
+1. ZhiCore-user 服务的完整错误日志
+2. ZhiCore-post 服务的完整错误日志
 3. 数据库表结构 (users 和 posts 表)

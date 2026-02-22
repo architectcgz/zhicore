@@ -4,7 +4,7 @@
 
 ```
 comment-service/
-├── src/main/java/com/blog/comment/
+├── src/main/java/com/ZhiCore/comment/
 │   ├── interfaces/
 │   │   ├── controller/
 │   │   │   ├── CommentController.java

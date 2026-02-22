@@ -5,10 +5,10 @@
 apiVersion: 1
 
 providers:
-  - name: 'Blog Microservices'
+  - name: 'ZhiCore Microservices'
     orgId: 1
-    folder: 'Blog Microservices'
-    folderUid: 'blog-microservices'
+    folder: 'ZhiCore Microservices'
+    folderUid: 'ZhiCore-microservices'
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30

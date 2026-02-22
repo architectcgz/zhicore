@@ -34,7 +34,7 @@
       },
       "pluginVersion": "10.2.2",
       "targets": [
-        {"expr": "up{job=~\"blog-.*\"}", "legendFormat": "{{job}}", "refId": "A"}
+        {"expr": "up{job=~\"ZhiCore-.*\"}", "legendFormat": "{{job}}", "refId": "A"}
       ],
       "title": "服务状态",
       "type": "stat"
@@ -80,12 +80,12 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=~\"blog-.*\", uri!~\"/actuator.*\"}[5m])) by (job, le))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=~\"ZhiCore-.*\", uri!~\"/actuator.*\"}[5m])) by (job, le))",
           "legendFormat": "{{job}} P95",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=~\"blog-.*\", uri!~\"/actuator.*\"}[5m])) by (job, le))",
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=~\"ZhiCore-.*\", uri!~\"/actuator.*\"}[5m])) by (job, le))",
           "legendFormat": "{{job}} P99",
           "refId": "B"
         }
@@ -134,7 +134,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=~\"blog-.*\", status=~\"5..\"}[5m])) by (job) / sum(rate(http_server_requests_seconds_count{job=~\"blog-.*\"}[5m])) by (job)",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=~\"ZhiCore-.*\", status=~\"5..\"}[5m])) by (job) / sum(rate(http_server_requests_seconds_count{job=~\"ZhiCore-.*\"}[5m])) by (job)",
           "legendFormat": "{{job}}",
           "refId": "A"
         }
@@ -180,7 +180,7 @@
       },
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{job=~\"blog-.*\", area=\"heap\"} / jvm_memory_max_bytes{job=~\"blog-.*\", area=\"heap\"}",
+          "expr": "jvm_memory_used_bytes{job=~\"ZhiCore-.*\", area=\"heap\"} / jvm_memory_max_bytes{job=~\"ZhiCore-.*\", area=\"heap\"}",
           "legendFormat": "{{job}}",
           "refId": "A"
         }
@@ -226,7 +226,7 @@
       },
       "targets": [
         {
-          "expr": "jvm_threads_live_threads{job=~\"blog-.*\"}",
+          "expr": "jvm_threads_live_threads{job=~\"ZhiCore-.*\"}",
           "legendFormat": "{{job}}",
           "refId": "A"
         }
@@ -272,7 +272,7 @@
       },
       "targets": [
         {
-          "expr": "hikaricp_connections_active{job=~\"blog-.*\"} / hikaricp_connections_max{job=~\"blog-.*\"}",
+          "expr": "hikaricp_connections_active{job=~\"ZhiCore-.*\"} / hikaricp_connections_max{job=~\"ZhiCore-.*\"}",
           "legendFormat": "{{job}}",
           "refId": "A"
         }
@@ -318,7 +318,7 @@
       },
       "targets": [
         {
-          "expr": "rate(jvm_gc_pause_seconds_sum{job=~\"blog-.*\"}[5m]) / rate(jvm_gc_pause_seconds_count{job=~\"blog-.*\"}[5m])",
+          "expr": "rate(jvm_gc_pause_seconds_sum{job=~\"ZhiCore-.*\"}[5m]) / rate(jvm_gc_pause_seconds_count{job=~\"ZhiCore-.*\"}[5m])",
           "legendFormat": "{{job}} {{action}}",
           "refId": "A"
         }
@@ -330,13 +330,13 @@
   "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["blog", "microservices", "sla"],
+  "tags": ["ZhiCore", "microservices", "sla"],
   "templating": {"list": []},
   "time": {"from": "now-1h", "to": "now"},
   "timepicker": {},
   "timezone": "",
-  "title": "Blog Services - SLA Dashboard",
-  "uid": "blog-sla",
+  "title": "ZhiCore Services - SLA Dashboard",
+  "uid": "ZhiCore-sla",
   "version": 1,
   "weekStart": ""
 }

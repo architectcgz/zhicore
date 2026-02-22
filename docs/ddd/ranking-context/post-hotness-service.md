@@ -48,7 +48,7 @@ public class TieredHotnessService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IPostHotnessRepository.cs
+// ZhiCoreCore/Domain/Repositories/IPostHotnessRepository.cs
 public interface IPostHotnessRepository
 {
     /// <summary>
@@ -101,7 +101,7 @@ public interface IPostHotnessRepository
 ### Repository 实现
 
 ```csharp
-// BlogCore/Infrastructure/Repositories/PostHotnessRepository.cs
+// ZhiCoreCore/Infrastructure/Repositories/PostHotnessRepository.cs
 public class PostHotnessRepository : IPostHotnessRepository
 {
     private readonly IDatabase _redis;
@@ -237,7 +237,7 @@ public class PostHotnessRepository : IPostHotnessRepository
 ### Domain Service
 
 ```csharp
-// BlogCore/Domain/Services/IPostHotnessDomainService.cs
+// ZhiCoreCore/Domain/Services/IPostHotnessDomainService.cs
 public interface IPostHotnessDomainService
 {
     /// <summary>
@@ -262,7 +262,7 @@ public interface IPostHotnessDomainService
     double CalculateTimeDecayFactor(DateTimeOffset publishedAt);
 }
 
-// BlogCore/Domain/Services/PostHotnessDomainService.cs
+// ZhiCoreCore/Domain/Services/PostHotnessDomainService.cs
 public class PostHotnessDomainService : IPostHotnessDomainService
 {
     private readonly HotnessConfig _config;
@@ -323,7 +323,7 @@ public class PostHotnessDomainService : IPostHotnessDomainService
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Ranking/IPostHotnessApplicationService.cs
+// ZhiCoreCore/Application/Ranking/IPostHotnessApplicationService.cs
 public interface IPostHotnessApplicationService
 {
     Task<IReadOnlyList<HotPostVo>> GetHotPostsAsync(int page, int pageSize, string? tier = null);
@@ -333,7 +333,7 @@ public interface IPostHotnessApplicationService
     Task RecalculateAllHotnessAsync();
 }
 
-// BlogCore/Application/Ranking/PostHotnessApplicationService.cs
+// ZhiCoreCore/Application/Ranking/PostHotnessApplicationService.cs
 public class PostHotnessApplicationService : IPostHotnessApplicationService
 {
     private readonly IPostHotnessRepository _hotnessRepository;
@@ -629,7 +629,7 @@ public enum HotnessTier
 ## 领域事件处理器
 
 ```csharp
-// BlogCore/Domain/EventHandlers/Ranking/PostPublishedHotnessHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Ranking/PostPublishedHotnessHandler.cs
 public class PostPublishedHotnessHandler : IDomainEventHandler<PostPublishedEvent>
 {
     private readonly IPostHotnessApplicationService _hotnessService;
@@ -648,7 +648,7 @@ public class PostPublishedHotnessHandler : IDomainEventHandler<PostPublishedEven
     }
 }
 
-// BlogCore/Domain/EventHandlers/Ranking/PostLikedHotnessHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Ranking/PostLikedHotnessHandler.cs
 public class PostLikedHotnessHandler : IDomainEventHandler<PostLikedEvent>
 {
     private readonly IPostHotnessApplicationService _hotnessService;
@@ -669,7 +669,7 @@ public class PostLikedHotnessHandler : IDomainEventHandler<PostLikedEvent>
     }
 }
 
-// BlogCore/Domain/EventHandlers/Ranking/PostViewedHotnessHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Ranking/PostViewedHotnessHandler.cs
 public class PostViewedHotnessHandler : IDomainEventHandler<PostViewedEvent>
 {
     private readonly IPostHotnessApplicationService _hotnessService;
@@ -689,7 +689,7 @@ public class PostViewedHotnessHandler : IDomainEventHandler<PostViewedEvent>
     }
 }
 
-// BlogCore/Domain/EventHandlers/Ranking/CommentCreatedHotnessHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Ranking/CommentCreatedHotnessHandler.cs
 public class CommentCreatedHotnessHandler : IDomainEventHandler<CommentCreatedEvent>
 {
     private readonly IPostHotnessApplicationService _hotnessService;
@@ -823,7 +823,7 @@ public class HotTierManager : IHotTierManager
 ## DI 注册
 
 ```csharp
-// BlogCore/Extensions/RankingServiceExtensions.cs
+// ZhiCoreCore/Extensions/RankingServiceExtensions.cs
 public static class RankingServiceExtensions
 {
     public static IServiceCollection AddRankingServices(this IServiceCollection services)

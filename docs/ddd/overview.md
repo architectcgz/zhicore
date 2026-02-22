@@ -42,11 +42,11 @@
 
 ## 限界上下文
 
-> **注意**：Social Context 中的 Message 模块已重新定位为"博客消息业务编排层"，私信功能委托给独立的 **im-system** 服务。详见 [blog-message 与 im-system 集成架构](../architecture/blog-message-im-integration.md)。
+> **注意**：Social Context 中的 Message 模块已重新定位为"博客消息业务编排层"，私信功能委托给独立的 **im-system** 服务。详见 [ZhiCore-message 与 im-system 集成架构](../architecture/ZhiCore-message-im-integration.md)。
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                           Blog System                                    │
+│                           ZhiCore System                                    │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
@@ -110,7 +110,7 @@
 ## 目录结构
 
 ```
-BlogCore/
+ZhiCoreCore/
 ├── Application/                    # 应用层
 │   ├── Post/
 │   │   ├── IPostApplicationService.cs
@@ -258,10 +258,10 @@ PostService.PublishPostAsync()
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      Blog System                             │
+│                      ZhiCore System                             │
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │              blog-message                            │   │
+│  │              ZhiCore-message                            │   │
 │  │  (博客消息业务编排层)                                 │   │
 │  │                                                      │   │
 │  │  ✓ 系统通知 (点赞、评论、关注)                       │   │
@@ -287,7 +287,7 @@ PostService.PublishPostAsync()
 
 | 模块 | 职责 |
 |------|------|
-| **blog-message** | 系统通知管理、私信业务编排、消息权限控制、内容过滤 |
+| **ZhiCore-message** | 系统通知管理、私信业务编排、消息权限控制、内容过滤 |
 | **im-system** | 消息传输、消息持久化、在线状态、消息推送 |
 
-**详细文档**：[blog-message 与 im-system 集成架构](../architecture/blog-message-im-integration.md)
+**详细文档**：[ZhiCore-message 与 im-system 集成架构](../architecture/ZhiCore-message-im-integration.md)

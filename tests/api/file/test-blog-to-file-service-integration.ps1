@@ -1,8 +1,8 @@
-# Blog 系统调用 File Service 集成测试
-# 测试 blog-upload 服务能否成功调用外部 file-service
+# ZhiCore 系统调用 File Service 集成测试
+# 测试 ZhiCore-upload 服务能否成功调用外部 file-service
 
 param(
-    [string]$BlogUploadUrl = "http://localhost:8089",
+    [string]$ZhiCoreUploadUrl = "http://localhost:8089",
     [string]$FileServiceUrl = "http://localhost:8089",
     [string]$ConfigPath = "../../config/test-env.json"
 )
@@ -46,8 +46,8 @@ function Invoke-ApiRequest {
 }
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Blog to File Service Integration Test" -ForegroundColor Cyan
-Write-Host "Blog Upload URL: $BlogUploadUrl" -ForegroundColor Cyan
+Write-Host "ZhiCore to File Service Integration Test" -ForegroundColor Cyan
+Write-Host "ZhiCore Upload URL: $ZhiCoreUploadUrl" -ForegroundColor Cyan
 Write-Host "File Service URL: $FileServiceUrl" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
@@ -56,15 +56,15 @@ Write-Host ""
 Write-Host "=== SECTION 1: Service Health Checks ===" -ForegroundColor Magenta
 Write-Host ""
 
-# [INT-001]: 检查 Blog Upload 服务健康状态
-Write-Host "[INT-001] Checking Blog Upload Service Health..." -ForegroundColor Yellow
-$Result = Invoke-ApiRequest -Method "GET" -Url "$BlogUploadUrl/actuator/health"
+# [INT-001]: 检查 ZhiCore Upload 服务健康状态
+Write-Host "[INT-001] Checking ZhiCore Upload Service Health..." -ForegroundColor Yellow
+$Result = Invoke-ApiRequest -Method "GET" -Url "$ZhiCoreUploadUrl/actuator/health"
 if ($Result.Success -and $Result.Body.status -eq "UP") {
-    Add-TestResult -TestId "INT-001" -TestName "Blog Upload Health Check" -Status "PASS" -ResponseTime "$($Result.ResponseTime)ms" -Note "Service is UP"
-    Write-Host "  PASS - Blog Upload service is healthy ($($Result.ResponseTime)ms)" -ForegroundColor Green
+    Add-TestResult -TestId "INT-001" -TestName "ZhiCore Upload Health Check" -Status "PASS" -ResponseTime "$($Result.ResponseTime)ms" -Note "Service is UP"
+    Write-Host "  PASS - ZhiCore Upload service is healthy ($($Result.ResponseTime)ms)" -ForegroundColor Green
 } else {
     $ErrorMsg = if ($Result.Body.status) { "Status: $($Result.Body.status)" } else { $Result.Error }
-    Add-TestResult -TestId "INT-001" -TestName "Blog Upload Health Check" -Status "FAIL" -ResponseTime "$($Result.ResponseTime)ms" -Note $ErrorMsg
+    Add-TestResult -TestId "INT-001" -TestName "ZhiCore Upload Health Check" -Status "FAIL" -ResponseTime "$($Result.ResponseTime)ms" -Note $ErrorMsg
     Write-Host "  FAIL - $ErrorMsg ($($Result.ResponseTime)ms)" -ForegroundColor Red
 }
 
@@ -90,10 +90,10 @@ Write-Host ""
 Write-Host "[INT-003] Testing Docker Network Connectivity..." -ForegroundColor Yellow
 Write-Host "  Checking if services are in the same Docker network..." -ForegroundColor Gray
 
-# 检查 blog-network 是否存在
-$BlogNetworkExists = docker network ls --filter name=blog-network --format "{{.Name}}" 2>$null
-if ($BlogNetworkExists -eq "blog-network") {
-    Write-Host "  INFO - blog-network exists" -ForegroundColor Cyan
+# 检查 ZhiCore-network 是否存在
+$ZhiCoreNetworkExists = docker network ls --filter name=ZhiCore-network --format "{{.Name}}" 2>$null
+if ($ZhiCoreNetworkExists -eq "ZhiCore-network") {
+    Write-Host "  INFO - ZhiCore-network exists" -ForegroundColor Cyan
     
     # 检查 file-service-network 是否存在
     $FileNetworkExists = docker network ls --filter name=file-service-network --format "{{.Name}}" 2>$null
@@ -101,16 +101,16 @@ if ($BlogNetworkExists -eq "blog-network") {
         Write-Host "  INFO - file-service-network exists" -ForegroundColor Cyan
         Write-Host "  WARN - Services are in DIFFERENT networks!" -ForegroundColor Yellow
         Add-TestResult -TestId "INT-003" -TestName "Docker Network Check" -Status "FAIL" -ResponseTime "-" -Note "Services in different networks"
-        Write-Host "  FAIL - Blog and File Service are in separate networks" -ForegroundColor Red
+        Write-Host "  FAIL - ZhiCore and File Service are in separate networks" -ForegroundColor Red
     } else {
         Write-Host "  INFO - file-service-network does not exist" -ForegroundColor Cyan
         Add-TestResult -TestId "INT-003" -TestName "Docker Network Check" -Status "SKIP" -ResponseTime "-" -Note "File service network not found"
         Write-Host "  SKIP - File service network not found" -ForegroundColor Gray
     }
 } else {
-    Write-Host "  INFO - blog-network does not exist" -ForegroundColor Cyan
-    Add-TestResult -TestId "INT-003" -TestName "Docker Network Check" -Status "SKIP" -ResponseTime "-" -Note "Blog network not found"
-    Write-Host "  SKIP - Blog network not found" -ForegroundColor Gray
+    Write-Host "  INFO - ZhiCore-network does not exist" -ForegroundColor Cyan
+    Add-TestResult -TestId "INT-003" -TestName "Docker Network Check" -Status "SKIP" -ResponseTime "-" -Note "ZhiCore network not found"
+    Write-Host "  SKIP - ZhiCore network not found" -ForegroundColor Gray
 }
 
 Write-Host ""
@@ -195,13 +195,13 @@ if ($FailCount -gt 0) {
     $NetworkIssue = $TestResults | Where-Object { $_.TestId -eq "INT-003" -and $_.Status -eq "FAIL" }
     if ($NetworkIssue) {
         Write-Host "[SOLUTION 1] Network Isolation Issue" -ForegroundColor Yellow
-        Write-Host "  Problem: Blog services and File Service are in different Docker networks" -ForegroundColor White
-        Write-Host "  Solution: Connect file-service containers to blog-network" -ForegroundColor White
+        Write-Host "  Problem: ZhiCore services and File Service are in different Docker networks" -ForegroundColor White
+        Write-Host "  Solution: Connect file-service containers to ZhiCore-network" -ForegroundColor White
         Write-Host ""
         Write-Host "  Run these commands:" -ForegroundColor Cyan
-        Write-Host "    docker network connect blog-network file-service-postgres" -ForegroundColor Gray
-        Write-Host "    docker network connect blog-network file-service-rustfs" -ForegroundColor Gray
-        Write-Host "    docker network connect blog-network file-service-app" -ForegroundColor Gray
+        Write-Host "    docker network connect ZhiCore-network file-service-postgres" -ForegroundColor Gray
+        Write-Host "    docker network connect ZhiCore-network file-service-rustfs" -ForegroundColor Gray
+        Write-Host "    docker network connect ZhiCore-network file-service-app" -ForegroundColor Gray
         Write-Host ""
     }
     
@@ -235,17 +235,17 @@ if ($FailCount -gt 0) {
     Write-Host "     cd file-service/docker" -ForegroundColor Gray
     Write-Host "     docker-compose up -d" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  2. Connect to blog network:" -ForegroundColor White
-    Write-Host "     docker network connect blog-network file-service-postgres" -ForegroundColor Gray
-    Write-Host "     docker network connect blog-network file-service-rustfs" -ForegroundColor Gray
-    Write-Host "     docker network connect blog-network file-service-app" -ForegroundColor Gray
+    Write-Host "  2. Connect to ZhiCore network:" -ForegroundColor White
+    Write-Host "     docker network connect ZhiCore-network file-service-postgres" -ForegroundColor Gray
+    Write-Host "     docker network connect ZhiCore-network file-service-rustfs" -ForegroundColor Gray
+    Write-Host "     docker network connect ZhiCore-network file-service-app" -ForegroundColor Gray
     Write-Host ""
     Write-Host "  3. Verify connectivity:" -ForegroundColor White
-    Write-Host "     .\test-blog-to-file-service-integration.ps1" -ForegroundColor Gray
+    Write-Host "     .\test-ZhiCore-to-file-service-integration.ps1" -ForegroundColor Gray
     Write-Host ""
 } else {
     Write-Host "[SUCCESS] All integration checks passed!" -ForegroundColor Green
-    Write-Host "Blog system can successfully communicate with File Service" -ForegroundColor White
+    Write-Host "ZhiCore system can successfully communicate with File Service" -ForegroundColor White
     Write-Host ""
 }
 

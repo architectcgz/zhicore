@@ -83,9 +83,9 @@
 ## 前置条件
 
 1. **服务运行**
-   - blog-id-generator 服务已启动（端口 8088）
-   - blog-gateway 服务已启动（端口 8000）
-   - blog-message 服务已启动
+   - ZhiCore-id-generator 服务已启动（端口 8088）
+   - ZhiCore-gateway 服务已启动（端口 8000）
+   - ZhiCore-message 服务已启动
 
 2. **数据准备**
    - 已执行用户数据生成脚本（`Execute-UserGeneration.ps1`）
@@ -297,7 +297,7 @@ Invoke-RestMethod -Uri "http://localhost:8000/api/v1/users/test-users" `
 
 ### 查看日志
 
-- API 服务日志: `blog-microservice/blog-message/logs/`
+- API 服务日志: `ZhiCore-microservice/ZhiCore-message/logs/`
 - 脚本执行日志: 控制台输出
 
 ### 清理测试数据

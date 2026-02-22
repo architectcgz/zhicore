@@ -74,7 +74,7 @@ certbot --version
 ```bash
 # 1. 停止 nginx 容器（释放 80 端口）
 cd /path/to/your/deploy
-docker-compose stop blog-frontend
+docker-compose stop ZhiCore-frontend
 
 # 2. 获取证书
 sudo certbot certonly \
@@ -162,9 +162,9 @@ http {
 
 ```yaml
 services:
-  blog-frontend:
+  ZhiCore-frontend:
     image: your-frontend-image
-    container_name: blog-frontend
+    container_name: ZhiCore-frontend
     ports:
       - "80:80"
       - "443:443"  # 添加 HTTPS 端口
@@ -179,20 +179,20 @@ services:
       - RUSTFS_REGION=${RUSTFS_REGION:-cn-north-1}
     restart: always
     networks:
-      - blog-network
+      - ZhiCore-network
 ```
 
 ### 步骤5：重启服务
 
 ```bash
 # 重新构建镜像（如果修改了 nginx.conf）
-docker-compose build blog-frontend
+docker-compose build ZhiCore-frontend
 
 # 启动服务
-docker-compose up -d blog-frontend
+docker-compose up -d ZhiCore-frontend
 
 # 查看日志
-docker-compose logs -f blog-frontend
+docker-compose logs -f ZhiCore-frontend
 ```
 
 ---
@@ -218,7 +218,7 @@ services:
       - /var/www/certbot:/var/www/certbot
     command: certonly --webroot --webroot-path=/var/www/certbot --email your-email@example.com --agree-tos --no-eff-email -d www.archi0v0.top -d archi0v0.top
     depends_on:
-      - blog-frontend
+      - ZhiCore-frontend
 ```
 
 ### 步骤2：配置 Nginx 支持 Webroot 验证
@@ -248,7 +248,7 @@ sudo mkdir -p /etc/letsencrypt
 sudo mkdir -p /var/lib/letsencrypt
 
 # 启动 nginx（用于验证）
-docker-compose up -d blog-frontend
+docker-compose up -d ZhiCore-frontend
 
 # 运行 certbot 获取证书
 docker-compose run --rm certbot certonly \
@@ -269,7 +269,7 @@ sudo ls -la /etc/letsencrypt/live/www.archi0v0.top/
 按照方案A的步骤3配置 HTTPS，然后重启：
 
 ```bash
-docker-compose restart blog-frontend
+docker-compose restart ZhiCore-frontend
 ```
 
 ---
@@ -285,10 +285,10 @@ Let's Encrypt 证书有效期为 90 天，需要定期续期。
 sudo crontab -e
 
 # 添加定时任务（每月1号凌晨3点尝试续期）
-0 3 1 * * certbot renew --quiet --deploy-hook "docker-compose -f /path/to/deploy/docker-compose.yml restart blog-frontend"
+0 3 1 * * certbot renew --quiet --deploy-hook "docker-compose -f /path/to/deploy/docker-compose.yml restart ZhiCore-frontend"
 
 # 或者每周尝试续期（推荐）
-0 3 * * 0 certbot renew --quiet --deploy-hook "docker-compose -f /path/to/deploy/docker-compose.yml restart blog-frontend"
+0 3 * * 0 certbot renew --quiet --deploy-hook "docker-compose -f /path/to/deploy/docker-compose.yml restart ZhiCore-frontend"
 ```
 
 ### 方案B：使用 Docker Certbot 续期
@@ -307,7 +307,7 @@ cd /path/to/your/deploy
 docker-compose run --rm certbot renew --quiet
 
 # 重启 nginx 以加载新证书
-docker-compose restart blog-frontend
+docker-compose restart ZhiCore-frontend
 
 echo "证书续期完成！"
 ```
@@ -382,7 +382,7 @@ sudo certbot certificates
 
 **A:** 确保停止了 nginx 容器：
 ```bash
-docker-compose stop blog-frontend
+docker-compose stop ZhiCore-frontend
 # 或停止所有服务
 docker-compose down
 ```
@@ -446,13 +446,13 @@ sudo ntpdate -u ntp.aliyun.com
 
 ```bash
 # 查看容器日志
-docker-compose logs blog-frontend
+docker-compose logs ZhiCore-frontend
 
 # 进入容器查看 nginx 错误日志
-docker-compose exec blog-frontend cat /var/log/nginx/error.log
+docker-compose exec ZhiCore-frontend cat /var/log/nginx/error.log
 
 # 实时查看日志
-docker-compose logs -f blog-frontend
+docker-compose logs -f ZhiCore-frontend
 ```
 
 ---

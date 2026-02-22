@@ -47,7 +47,7 @@
       "pluginVersion": "10.2.2",
       "targets": [
         {
-          "expr": "count(up{job=~\"blog-.*\"} == 1)",
+          "expr": "count(up{job=~\"ZhiCore-.*\"} == 1)",
           "legendFormat": "Running Services",
           "refId": "A"
         }
@@ -99,7 +99,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_server_requests_seconds_count{job=~\"blog-.*\"}[5m])) by (job)",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=~\"ZhiCore-.*\"}[5m])) by (job)",
           "legendFormat": "{{job}}",
           "refId": "A"
         }
@@ -151,7 +151,7 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=~\"blog-.*\"}[5m])) by (job, le))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=~\"ZhiCore-.*\"}[5m])) by (job, le))",
           "legendFormat": "{{job}} P95",
           "refId": "A"
         }
@@ -163,13 +163,13 @@
   "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["blog", "microservices"],
+  "tags": ["ZhiCore", "microservices"],
   "templating": {"list": []},
   "time": {"from": "now-1h", "to": "now"},
   "timepicker": {},
   "timezone": "",
-  "title": "Blog Microservices Overview",
-  "uid": "blog-overview",
+  "title": "ZhiCore Microservices Overview",
+  "uid": "ZhiCore-overview",
   "version": 1,
   "weekStart": ""
 }

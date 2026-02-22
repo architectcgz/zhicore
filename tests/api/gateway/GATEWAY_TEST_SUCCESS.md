@@ -46,29 +46,29 @@
    - Verified JWT configuration in Nacos
 
 2. **Removed Hardcoded Default Value**
-   - File: `blog-gateway/src/main/java/com/blog/gateway/config/JwtProperties.java`
+   - File: `ZhiCore-gateway/src/main/java/com/ZhiCore/gateway/config/JwtProperties.java`
    - Changed: `private String secret = "..."` → `private String secret;`
    - This allows configuration files to set the value
 
 3. **Added Nacos Configuration Import**
-   - File: `blog-gateway/src/main/resources/application.yml`
+   - File: `ZhiCore-gateway/src/main/resources/application.yml`
    - Added: `spring.cloud.nacos.discovery` configuration
    - Updated: JWT secret default value to match Nacos
 
 4. **Created Bootstrap Configuration** (Final Solution)
-   - File: `blog-gateway/src/main/resources/bootstrap.yml`
+   - File: `ZhiCore-gateway/src/main/resources/bootstrap.yml`
    - Ensures Nacos configuration loads BEFORE application.yml
    - Configured shared-configs to load `common.yml` from Nacos
 
 ## Files Modified
 
 ### Configuration Files
-1. `blog-gateway/src/main/resources/bootstrap.yml` - **CREATED**
-2. `blog-gateway/src/main/resources/application.yml` - **UPDATED**
+1. `ZhiCore-gateway/src/main/resources/bootstrap.yml` - **CREATED**
+2. `ZhiCore-gateway/src/main/resources/application.yml` - **UPDATED**
 3. `config/nacos/common.yml` - **RE-UPLOADED** (fixed encoding)
 
 ### Java Files
-1. `blog-gateway/src/main/java/com/blog/gateway/config/JwtProperties.java` - **UPDATED**
+1. `ZhiCore-gateway/src/main/java/com/ZhiCore/gateway/config/JwtProperties.java` - **UPDATED**
    - Removed hardcoded default value
 
 ### Test Scripts
@@ -126,9 +126,9 @@ To verify the fix works:
    ```
 
 2. **Start Microservices**
-   - blog-user (8081)
-   - blog-post (8082)
-   - blog-gateway (8000)
+   - ZhiCore-user (8081)
+   - ZhiCore-post (8082)
+   - ZhiCore-gateway (8000)
 
 3. **Run Gateway Tests**
    ```powershell

@@ -2,11 +2,11 @@
 
 ## Problem Identified
 
-The admin API tests were failing because the `blog-postgres` PostgreSQL container was not running, causing all database connection attempts to fail.
+The admin API tests were failing because the `ZhiCore-postgres` PostgreSQL container was not running, causing all database connection attempts to fail.
 
 ## Root Cause
 
-The `blog-postgres` container defined in `docker/docker-compose.yml` was not started, even though other infrastructure services (Redis, Nacos, RocketMQ, etc.) were running.
+The `ZhiCore-postgres` container defined in `docker/docker-compose.yml` was not started, even though other infrastructure services (Redis, Nacos, RocketMQ, etc.) were running.
 
 ## Solution Applied
 
@@ -21,23 +21,23 @@ docker-compose up -d postgres
 
 ### 1. Container Status
 ```bash
-docker ps --filter "name=blog-postgres"
+docker ps --filter "name=ZhiCore-postgres"
 ```
 Result: Container is running and healthy on port 5432
 
 ### 2. Database Creation
 All required databases were created automatically via initialization script:
-- blog_user
-- blog_post
-- blog_comment
-- blog_message
-- blog_notification
-- blog_upload
-- blog_admin
+- ZhiCore_user
+- ZhiCore_post
+- ZhiCore_comment
+- ZhiCore_message
+- ZhiCore_notification
+- ZhiCore_upload
+- ZhiCore_admin
 
 ### 3. Connection Test
 ```bash
-docker exec blog-postgres psql -U postgres -d blog_user -c "SELECT 1"
+docker exec ZhiCore-postgres psql -U postgres -d ZhiCore_user -c "SELECT 1"
 ```
 Result: Connection successful
 
@@ -90,7 +90,7 @@ Result: User registration now works successfully
 ## Infrastructure Configuration
 
 ### Redis Port Configuration
-The Redis port configuration in `config/nacos/common.yml` and `blog-user/src/main/resources/application.yml` is **CORRECT** for local development:
+The Redis port configuration in `config/nacos/common.yml` and `ZhiCore-user/src/main/resources/application.yml` is **CORRECT** for local development:
 
 ```yaml
 redis:
@@ -105,7 +105,7 @@ redis:
 ### PostgreSQL Configuration
 ```yaml
 datasource:
-  url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:blog_user}
+  url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ZhiCore_user}
   username: ${DB_USERNAME:postgres}
   password: ${DB_PASSWORD:postgres123456}
 ```
@@ -120,9 +120,9 @@ The "系统繁忙" (System busy) errors suggest:
 
 **Action**: Check service logs for detailed error messages:
 ```bash
-docker logs blog-admin
-docker logs blog-user
-docker logs blog-comment
+docker logs ZhiCore-admin
+docker logs ZhiCore-user
+docker logs ZhiCore-comment
 ```
 
 ### 2. Fix Skipped Tests
@@ -135,10 +135,10 @@ Some tests are skipped because test data wasn't created properly:
 ### 3. Monitor Service Health
 Ensure all microservices are healthy:
 ```bash
-curl http://localhost:8081/actuator/health  # blog-user
-curl http://localhost:8082/actuator/health  # blog-post
-curl http://localhost:8083/actuator/health  # blog-comment
-curl http://localhost:8090/actuator/health  # blog-admin
+curl http://localhost:8081/actuator/health  # ZhiCore-user
+curl http://localhost:8082/actuator/health  # ZhiCore-post
+curl http://localhost:8083/actuator/health  # ZhiCore-comment
+curl http://localhost:8090/actuator/health  # ZhiCore-admin
 ```
 
 ## Documentation Created

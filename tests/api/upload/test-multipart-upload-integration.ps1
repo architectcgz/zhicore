@@ -16,7 +16,7 @@ $TestUser = $Config.test_user
 
 # RustFS/S3 Configuration
 $RustFSEndpoint = "http://localhost:9100"
-$RustFSBucket = "blog-uploads"
+$RustFSBucket = "ZhiCore-uploads"
 
 $Global:AccessToken = ""
 $Global:TestUserId = ""
@@ -227,9 +227,9 @@ try {
 catch {
     Write-TestStep "Upload Service is not running at $UploadServiceUrl" "FAIL"
     Write-Host ""
-    Write-Host "Please ensure blog-upload service is running with STORAGE_TYPE=s3:" -ForegroundColor Yellow
+    Write-Host "Please ensure ZhiCore-upload service is running with STORAGE_TYPE=s3:" -ForegroundColor Yellow
     Write-Host "  Set environment variable: STORAGE_TYPE=s3" -ForegroundColor Gray
-    Write-Host "  Start the service: mvn spring-boot:run -pl blog-upload" -ForegroundColor Gray
+    Write-Host "  Start the service: mvn spring-boot:run -pl ZhiCore-upload" -ForegroundColor Gray
     Write-Host ""
     $TestsFailed++
     

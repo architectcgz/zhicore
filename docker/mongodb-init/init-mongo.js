@@ -1,8 +1,8 @@
-// MongoDB Initialization Script for Blog Post Service
-// This script creates the blog database, collections, and indexes
+// MongoDB Initialization Script for ZhiCore Content Service
+// This script creates the zhicore database, collections, and indexes
 
-// Switch to blog database
-db = db.getSiblingDB('blog');
+// Switch to zhicore database
+db = db.getSiblingDB('zhicore');
 
 // Create collections
 db.createCollection('post_contents');

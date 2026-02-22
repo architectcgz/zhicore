@@ -150,9 +150,9 @@ Write-Host "     - Average response time (target: < 500ms)" -ForegroundColor Gra
 Write-Host "     - Throughput (target: > 1000 req/s)" -ForegroundColor Gray
 Write-Host "     - 95th percentile response time" -ForegroundColor Gray
 Write-Host "  3. Check service logs for errors:" -ForegroundColor White
-Write-Host "     docker logs blog-gateway" -ForegroundColor Gray
-Write-Host "     docker logs blog-user" -ForegroundColor Gray
-Write-Host "     docker logs blog-post" -ForegroundColor Gray
+Write-Host "     docker logs ZhiCore-gateway" -ForegroundColor Gray
+Write-Host "     docker logs ZhiCore-user" -ForegroundColor Gray
+Write-Host "     docker logs ZhiCore-post" -ForegroundColor Gray
 Write-Host "  4. Monitor system resources:" -ForegroundColor White
 Write-Host "     - CPU usage" -ForegroundColor Gray
 Write-Host "     - Memory usage" -ForegroundColor Gray

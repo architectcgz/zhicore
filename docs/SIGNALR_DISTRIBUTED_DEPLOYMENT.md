@@ -22,13 +22,13 @@
 
 ```
 # 用户的连接ID集合（支持多设备）
-blog:signalr:connections:{userId} -> Set<connectionId>
+ZhiCore:signalr:connections:{userId} -> Set<connectionId>
 
 # 连接ID到用户ID的反向映射
-blog:signalr:connection_user:{connectionId} -> userId
+ZhiCore:signalr:connection_user:{connectionId} -> userId
 
 # 用户在线状态（TTL 30分钟）
-blog:signalr:online:{userId} -> timestamp
+ZhiCore:signalr:online:{userId} -> timestamp
 ```
 
 #### 核心服务：`SignalRConnectionService`
@@ -216,27 +216,27 @@ services:
     volumes:
       - redis-data:/data
     networks:
-      - blog-network
+      - ZhiCore-network
 
-  blog-backend-1:
-    image: blog-backend:latest
+  ZhiCore-backend-1:
+    image: ZhiCore-backend:latest
     environment:
       - REDIS_ENABLED=true
       - REDIS_CONNECTION_STRING=redis:6379,password=your_password
     depends_on:
       - redis
     networks:
-      - blog-network
+      - ZhiCore-network
 
-  blog-backend-2:
-    image: blog-backend:latest
+  ZhiCore-backend-2:
+    image: ZhiCore-backend:latest
     environment:
       - REDIS_ENABLED=true
       - REDIS_CONNECTION_STRING=redis:6379,password=your_password
     depends_on:
       - redis
     networks:
-      - blog-network
+      - ZhiCore-network
 
   nginx:
     image: nginx:alpine
@@ -246,13 +246,13 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - blog-backend-1
-      - blog-backend-2
+      - ZhiCore-backend-1
+      - ZhiCore-backend-2
     networks:
-      - blog-network
+      - ZhiCore-network
 
 networks:
-  blog-network:
+  ZhiCore-network:
 
 volumes:
   redis-data:
@@ -265,8 +265,8 @@ upstream backend_servers {
     # 使用 IP hash 确保 WebSocket 连接的粘性
     ip_hash;
     
-    server blog-backend-1:5000;
-    server blog-backend-2:5000;
+    server ZhiCore-backend-1:5000;
+    server ZhiCore-backend-2:5000;
 }
 
 server {
@@ -355,10 +355,10 @@ dotnet run --urls "http://localhost:5001"
 redis-cli
 
 # 查看连接信息
-SMEMBERS blog:signalr:connections:{userId}
+SMEMBERS ZhiCore:signalr:connections:{userId}
 
 # 查看在线状态
-EXISTS blog:signalr:online:{userId}
+EXISTS ZhiCore:signalr:online:{userId}
 
 # 监控 SignalR 消息
 PSUBSCRIBE signalr:*
@@ -422,14 +422,14 @@ redis-cli ping
 **解决方法：**
 ```bash
 # 查看用户连接
-redis-cli SMEMBERS blog:signalr:connections:{userId}
+redis-cli SMEMBERS ZhiCore:signalr:connections:{userId}
 
 # 查看连接映射
-redis-cli GET blog:signalr:connection_user:{connectionId}
+redis-cli GET ZhiCore:signalr:connection_user:{connectionId}
 
 # 查看在线状态
-redis-cli GET blog:signalr:online:{userId}
-redis-cli TTL blog:signalr:online:{userId}
+redis-cli GET ZhiCore:signalr:online:{userId}
+redis-cli TTL ZhiCore:signalr:online:{userId}
 ```
 
 ### 问题：Redis 内存占用过高
@@ -441,7 +441,7 @@ redis-cli TTL blog:signalr:online:{userId}
 **解决方法：**
 ```bash
 # 手动清理过期数据
-redis-cli KEYS "blog:signalr:connection_user:*" | xargs redis-cli DEL
+redis-cli KEYS "ZhiCore:signalr:connection_user:*" | xargs redis-cli DEL
 
 # 调整 Redis 内存策略
 redis-cli CONFIG SET maxmemory-policy allkeys-lru

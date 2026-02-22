@@ -112,7 +112,7 @@ certbot --version
 ```bash
 # 停止nginx（释放80端口）
 cd /path/to/your/deploy
-docker-compose stop blog-frontend
+docker-compose stop ZhiCore-frontend
 
 # 获取证书
 sudo certbot certonly \
@@ -190,7 +190,7 @@ http {
 
 ```yaml
 services:
-  blog-frontend:
+  ZhiCore-frontend:
     ports:
       - "80:80"
       - "443:443"
@@ -202,9 +202,9 @@ services:
 ### 步骤5：启动服务
 
 ```bash
-docker-compose build blog-frontend
+docker-compose build ZhiCore-frontend
 docker-compose up -d
-docker-compose logs -f blog-frontend
+docker-compose logs -f ZhiCore-frontend
 ```
 
 ---
@@ -229,7 +229,7 @@ sudo crontab -e
 
 ```bash
 sudo crontab -e
-# 添加：0 3 * * * certbot renew --quiet --deploy-hook "docker-compose -f /path/to/deploy/docker-compose.yml restart blog-frontend"
+# 添加：0 3 * * * certbot renew --quiet --deploy-hook "docker-compose -f /path/to/deploy/docker-compose.yml restart ZhiCore-frontend"
 ```
 
 ### 测试续期
@@ -298,7 +298,7 @@ docker-compose down  # 停止占用80端口的容器
 sudo ls -la /etc/letsencrypt/live/yourdomain.com/
 
 # 检查容器挂载
-docker-compose exec blog-frontend ls /etc/letsencrypt/live/
+docker-compose exec ZhiCore-frontend ls /etc/letsencrypt/live/
 
 # 修复权限
 sudo chmod -R 755 /etc/letsencrypt/
@@ -360,9 +360,9 @@ sudo certbot delete --cert-name yourdomain.com  # 删除证书
 
 ### Docker操作
 ```bash
-docker-compose restart blog-frontend           # 重启服务
-docker-compose logs -f blog-frontend          # 查看日志
-docker-compose exec blog-frontend nginx -t    # 测试配置
+docker-compose restart ZhiCore-frontend           # 重启服务
+docker-compose logs -f ZhiCore-frontend          # 查看日志
+docker-compose exec ZhiCore-frontend nginx -t    # 测试配置
 ```
 
 ### 测试命令
@@ -375,7 +375,7 @@ openssl s_client -connect yourdomain.com:443 -servername yourdomain.com < /dev/n
 ```bash
 sudo tail -50 /var/log/letsencrypt/letsencrypt.log    # certbot日志
 sudo tail -f /var/log/certbot-renew.log               # 续期日志
-docker-compose exec blog-frontend tail -f /var/log/nginx/error.log  # nginx日志
+docker-compose exec ZhiCore-frontend tail -f /var/log/nginx/error.log  # nginx日志
 ```
 
 ---
@@ -606,7 +606,7 @@ update_docker_compose() {
     print_info "需要添加的配置："
     cat << 'EOF'
 
-在 blog-frontend 服务中添加：
+在 ZhiCore-frontend 服务中添加：
     ports:
       - "80:80"
       - "443:443"  # 添加 HTTPS 端口
@@ -640,7 +640,7 @@ set -e
 echo "[$(date)] 开始续期 SSL 证书..."
 
 # 尝试续期证书
-certbot renew --quiet --deploy-hook "cd $deploy_path && docker-compose restart blog-frontend"
+certbot renew --quiet --deploy-hook "cd $deploy_path && docker-compose restart ZhiCore-frontend"
 
 if [ \$? -eq 0 ]; then
     echo "[$(date)] 证书续期成功"
@@ -677,7 +677,7 @@ start_services() {
     mkdir -p /var/www/certbot
     
     # 重新构建镜像
-    docker-compose build blog-frontend
+    docker-compose build ZhiCore-frontend
     
     # 启动服务
     docker-compose up -d
@@ -686,11 +686,11 @@ start_services() {
     sleep 5
     
     # 检查服务状态
-    if docker-compose ps | grep "blog-frontend" | grep "Up"; then
+    if docker-compose ps | grep "ZhiCore-frontend" | grep "Up"; then
         print_info "服务启动成功"
     else
         print_error "服务启动失败"
-        docker-compose logs blog-frontend
+        docker-compose logs ZhiCore-frontend
         exit 1
     fi
 }
@@ -834,7 +834,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 配置
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
-SERVICE_NAME="blog-frontend"
+SERVICE_NAME="ZhiCore-frontend"
 LOG_FILE="/var/log/certbot-renew.log"
 
 # 检查 certbot 是否安装

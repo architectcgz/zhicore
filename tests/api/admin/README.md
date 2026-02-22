@@ -11,11 +11,11 @@
 - RocketMQ (端口 9876)
 
 ### 必需的微服务
-- blog-leaf (端口 8010) - ID生成服务
-- blog-user (端口 8081) - 用户服务
-- blog-post (端口 8082) - 文章服务  
-- blog-comment (端口 8083) - 评论服务
-- blog-admin (端口 8090) - 管理服务
+- ZhiCore-leaf (端口 8010) - ID生成服务
+- ZhiCore-user (端口 8081) - 用户服务
+- ZhiCore-post (端口 8082) - 文章服务  
+- ZhiCore-comment (端口 8083) - 评论服务
+- ZhiCore-admin (端口 8090) - 管理服务
 
 ## 启动服务
 
@@ -28,7 +28,7 @@ docker-compose up -d
 
 # 2. 构建并启动微服务
 docker-compose -f docker-compose.services.yml build
-docker-compose -f docker-compose.services.yml up -d blog-leaf blog-user blog-post blog-comment blog-admin
+docker-compose -f docker-compose.services.yml up -d ZhiCore-leaf ZhiCore-user ZhiCore-post ZhiCore-comment ZhiCore-admin
 
 # 3. 等待服务启动 (约2-3分钟)
 Start-Sleep -Seconds 120
@@ -49,23 +49,23 @@ cd ..
 
 # 启动各个服务 (每个服务在单独的终端窗口)
 # 终端1:
-cd blog-leaf
+cd ZhiCore-leaf
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 # 终端2:
-cd blog-user  
+cd ZhiCore-user  
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 # 终端3:
-cd blog-post
+cd ZhiCore-post
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 # 终端4:
-cd blog-comment
+cd ZhiCore-comment
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 # 终端5:
-cd blog-admin
+cd ZhiCore-admin
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
@@ -144,7 +144,7 @@ foreach ($port in $ports) {
 ### 服务无法启动
 - 检查端口是否被占用: `netstat -ano | findstr "8081"`
 - 检查Docker容器状态: `docker ps`
-- 查看服务日志: `docker logs blog-user`
+- 查看服务日志: `docker logs ZhiCore-user`
 
 ### 测试失败
 - 确认所有服务都已启动并健康

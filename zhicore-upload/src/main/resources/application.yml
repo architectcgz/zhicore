@@ -1,0 +1,103 @@
+server:
+  port: 8104
+
+spring:
+  application:
+    name: zhicore-upload
+  config:
+    import:
+      - optional:nacos:common.yml?group=ZHICORE_SERVICE&refreshEnabled=true
+      - optional:nacos:zhicore-upload.yml?group=ZHICORE_SERVICE&refreshEnabled=true
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+      enabled: true
+
+  cloud:
+    nacos:
+      discovery:
+        group: ZHICORE_SERVICE
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+
+# 文件上传配置
+file-upload:
+  # 最大文件大小（字节）
+  max-file-size: 52428800        # 50MB
+  # 允许的图片类型
+  allowed-image-types:
+    - image/jpeg
+    - image/jpg
+    - image/png
+    - image/gif
+    - image/webp
+
+# File Service Client 配置
+file-service:
+  client:
+    server-url: ${FILE_SERVICE_URL:http://localhost:8089}
+    tenant-id: ${FILE_SERVICE_TENANT_ID:ZhiCore}
+    
+    # 连接设置
+    connect-timeout: 10000
+    read-timeout: 30000
+    max-connections: 50
+    
+    # 域名设置
+    custom-domain: ${FILE_SERVICE_CUSTOM_DOMAIN:}
+    cdn-domain: ${FILE_SERVICE_CDN_DOMAIN:}
+    
+    # 重试设置
+    max-retries: 3
+    retry-delay-ms: 1000
+
+# Feign 配置
+spring.cloud.openfeign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 30000
+        logger-level: BASIC
+
+# 日志配置
+logging:
+  level:
+    com.zhicore.upload: DEBUG
+    com.platform.fileservice: DEBUG
+
+# Actuator 配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# Knife4j API 文档配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+knife4j:
+  enable: true
+  title: 文件上传服务 API 文档
+  version: 1.0.0
+  description: 文件上传服务微服务接口文档，作为 file-service 的轻量级代理层
+  setting:
+    language: zh_cn
+    enable-swagger-models: true
+    enable-document-manage: true
+    swagger-model-name: 实体类列表
+  production: false

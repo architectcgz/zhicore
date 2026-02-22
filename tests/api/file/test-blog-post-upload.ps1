@@ -1,8 +1,8 @@
-# Blog Post 服务上传图片测试
-# 测试 blog-post 通过 file-api 调用 file-service 上传图片
+# ZhiCore Post 服务上传图片测试
+# 测试 ZhiCore-post 通过 file-api 调用 file-service 上传图片
 
 param(
-    [string]$BlogPostUrl = "http://localhost:8082",
+    [string]$ZhiCorePostUrl = "http://localhost:8082",
     [string]$UserServiceUrl = "http://localhost:8081"
 )
 
@@ -128,14 +128,14 @@ function Invoke-ApiRequest {
 }
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Blog Post Image Upload Integration Test" -ForegroundColor Cyan
-Write-Host "Blog Post URL: $BlogPostUrl" -ForegroundColor Cyan
+Write-Host "ZhiCore Post Image Upload Integration Test" -ForegroundColor Cyan
+Write-Host "ZhiCore Post URL: $ZhiCorePostUrl" -ForegroundColor Cyan
 Write-Host "User Service URL: $UserServiceUrl" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # 创建临时目录
-$TempDir = Join-Path $env:TEMP "blog_post_test_$Timestamp"
+$TempDir = Join-Path $env:TEMP "ZhiCore_post_test_$Timestamp"
 New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
 
 # === Setup: 创建测试用户并登录 ===
@@ -170,12 +170,12 @@ Write-Host ""
 # === TEST 1: 上传封面图 ===
 Write-Host "=== TEST 1: Upload Cover Image ===" -ForegroundColor Magenta
 
-Write-Host "[TEST-001] Uploading cover image via blog-post service..." -ForegroundColor Yellow
+Write-Host "[TEST-001] Uploading cover image via ZhiCore-post service..." -ForegroundColor Yellow
 if ($Global:AccessToken) {
     $CoverImagePath = Join-Path $TempDir "cover_image.png"
     New-TestImageFile -FilePath $CoverImagePath
     
-    $Result = Invoke-FileUpload -Url "$BlogPostUrl/api/v1/posts/images/cover" -FilePath $CoverImagePath -Headers (Get-AuthHeaders)
+    $Result = Invoke-FileUpload -Url "$ZhiCorePostUrl/api/v1/posts/images/cover" -FilePath $CoverImagePath -Headers (Get-AuthHeaders)
     if ($Result.Success -and $Result.Body.code -eq 200 -and $Result.Body.data) {
         Add-TestResult -TestId "TEST-001" -TestName "Upload Cover Image" -Status "PASS" -ResponseTime "$($Result.ResponseTime)ms" -Note "FileId: $($Result.Body.data.fileId)"
         Write-Host "  PASS - Cover image uploaded successfully" -ForegroundColor Green
@@ -199,12 +199,12 @@ Write-Host ""
 # === TEST 2: 上传内容图 ===
 Write-Host "=== TEST 2: Upload Content Image ===" -ForegroundColor Magenta
 
-Write-Host "[TEST-002] Uploading content image via blog-post service..." -ForegroundColor Yellow
+Write-Host "[TEST-002] Uploading content image via ZhiCore-post service..." -ForegroundColor Yellow
 if ($Global:AccessToken) {
     $ContentImagePath = Join-Path $TempDir "content_image.png"
     New-TestImageFile -FilePath $ContentImagePath
     
-    $Result = Invoke-FileUpload -Url "$BlogPostUrl/api/v1/posts/images/content" -FilePath $ContentImagePath -Headers (Get-AuthHeaders)
+    $Result = Invoke-FileUpload -Url "$ZhiCorePostUrl/api/v1/posts/images/content" -FilePath $ContentImagePath -Headers (Get-AuthHeaders)
     if ($Result.Success -and $Result.Body.code -eq 200 -and $Result.Body.data) {
         Add-TestResult -TestId "TEST-002" -TestName "Upload Content Image" -Status "PASS" -ResponseTime "$($Result.ResponseTime)ms" -Note "FileId: $($Result.Body.data.fileId)"
         Write-Host "  PASS - Content image uploaded successfully" -ForegroundColor Green

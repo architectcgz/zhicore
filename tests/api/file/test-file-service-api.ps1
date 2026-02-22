@@ -20,7 +20,7 @@ $TestResults = @()
 $Global:AccessToken = ""
 $Global:RefreshToken = ""
 $Global:TestUserId = ""
-$Global:BlogFileId = ""
+$Global:ZhiCoreFileId = ""
 $Global:ImFileId = ""
 $Global:SecondAccessToken = ""
 $Global:SecondUserId = ""
@@ -208,18 +208,18 @@ Write-Host "=== SECTION 1: X-App-Id Validation Tests ===" -ForegroundColor Magen
 Write-Host ""
 
 # FILE-001: Normal upload with X-App-Id
-Write-Host "[FILE-001] Testing normal upload with X-App-Id (blog)..." -ForegroundColor Yellow
+Write-Host "[FILE-001] Testing normal upload with X-App-Id (ZhiCore)..." -ForegroundColor Yellow
 $TestImagePath = Join-Path $env:TEMP "test-file-001.png"
 New-TestImageFile -FilePath $TestImagePath | Out-Null
 
 $Headers = Get-AuthHeaders
-$Headers["X-App-Id"] = "blog"
+$Headers["X-App-Id"] = "ZhiCore"
 $Result = Invoke-FileUpload -Url "$FileServiceUrl/api/v1/upload/image" -FilePath $TestImagePath -Headers $Headers
 
 if ($Result.Success -and $Result.Body.code -eq 200) {
-    $Global:BlogFileId = $Result.Body.data.fileId
-    Add-TestResult -TestId "FILE-001" -TestName "Normal upload with X-App-Id" -Status "PASS" -ResponseTime "$($Result.ResponseTime)ms" -Note "FileId: $Global:BlogFileId"
-    Write-Host "  PASS - File uploaded successfully with blog appId ($($Result.ResponseTime)ms)" -ForegroundColor Green
+    $Global:ZhiCoreFileId = $Result.Body.data.fileId
+    Add-TestResult -TestId "FILE-001" -TestName "Normal upload with X-App-Id" -Status "PASS" -ResponseTime "$($Result.ResponseTime)ms" -Note "FileId: $Global:ZhiCoreFileId"
+    Write-Host "  PASS - File uploaded successfully with ZhiCore appId ($($Result.ResponseTime)ms)" -ForegroundColor Green
 } else {
     $ErrorMsg = if ($Result.Body.message) { $Result.Body.message } else { $Result.Error }
     Add-TestResult -TestId "FILE-001" -TestName "Normal upload with X-App-Id" -Status "FAIL" -ResponseTime "$($Result.ResponseTime)ms" -Note $ErrorMsg
@@ -276,11 +276,11 @@ Write-Host ""
 
 # FILE-004: Cross appId access (expect 403)
 Write-Host "[FILE-004] Testing cross appId file access (expect 403)..." -ForegroundColor Yellow
-if ($Global:BlogFileId) {
-    # Try to access blog file with im appId
+if ($Global:ZhiCoreFileId) {
+    # Try to access ZhiCore file with im appId
     $Headers = Get-AuthHeaders
     $Headers["X-App-Id"] = "im"
-    $Result = Invoke-ApiRequest -Method "GET" -Url "$FileServiceUrl/api/v1/files/$Global:BlogFileId" -Headers $Headers
+    $Result = Invoke-ApiRequest -Method "GET" -Url "$FileServiceUrl/api/v1/files/$Global:ZhiCoreFileId" -Headers $Headers
     
     if ($Result.StatusCode -eq 403 -or ($Result.Body -and $Result.Body.code -eq 403)) {
         Add-TestResult -TestId "FILE-004" -TestName "Cross appId access" -Status "PASS" -ResponseTime "$($Result.ResponseTime)ms" -Note "Correctly rejected with 403"
@@ -291,8 +291,8 @@ if ($Global:BlogFileId) {
         Write-Host "  FAIL - $ErrorMsg ($($Result.ResponseTime)ms)" -ForegroundColor Red
     }
 } else {
-    Add-TestResult -TestId "FILE-004" -TestName "Cross appId access" -Status "SKIP" -ResponseTime "-" -Note "No blog file available"
-    Write-Host "  SKIP - No blog file available" -ForegroundColor Gray
+    Add-TestResult -TestId "FILE-004" -TestName "Cross appId access" -Status "SKIP" -ResponseTime "-" -Note "No ZhiCore file available"
+    Write-Host "  SKIP - No ZhiCore file available" -ForegroundColor Gray
 }
 
 Write-Host ""
@@ -308,7 +308,7 @@ New-TestImageFile -FilePath $TestImagePath | Out-Null
 
 # Upload same file twice with same appId
 $Headers = Get-AuthHeaders
-$Headers["X-App-Id"] = "blog"
+$Headers["X-App-Id"] = "ZhiCore"
 $Result1 = Invoke-FileUpload -Url "$FileServiceUrl/api/v1/upload/image" -FilePath $TestImagePath -Headers $Headers
 
 if ($Result1.Success -and $Result1.Body.code -eq 200) {
@@ -341,13 +341,13 @@ Write-Host "[FILE-006] Testing file deduplication across different appIds..." -F
 $TestImagePath = Join-Path $env:TEMP "test-file-006.png"
 New-TestImageFile -FilePath $TestImagePath | Out-Null
 
-# Upload with blog appId
+# Upload with ZhiCore appId
 $Headers = Get-AuthHeaders
-$Headers["X-App-Id"] = "blog"
+$Headers["X-App-Id"] = "ZhiCore"
 $Result1 = Invoke-FileUpload -Url "$FileServiceUrl/api/v1/upload/image" -FilePath $TestImagePath -Headers $Headers
 
 if ($Result1.Success -and $Result1.Body.code -eq 200) {
-    $BlogFileId = $Result1.Body.data.fileId
+    $ZhiCoreFileId = $Result1.Body.data.fileId
     
     # Upload same file with im appId
     $Headers["X-App-Id"] = "im"
@@ -381,26 +381,26 @@ Write-Host ""
 
 # FILE-007: Delete file (verify appId ownership)
 Write-Host "[FILE-007] Testing file deletion with appId verification..." -ForegroundColor Yellow
-if ($Global:BlogFileId) {
+if ($Global:ZhiCoreFileId) {
     # Try to delete with correct appId
     $Headers = Get-AuthHeaders
-    $Headers["X-App-Id"] = "blog"
-    $Result = Invoke-ApiRequest -Method "DELETE" -Url "$FileServiceUrl/api/v1/upload/$Global:BlogFileId" -Headers $Headers
+    $Headers["X-App-Id"] = "ZhiCore"
+    $Result = Invoke-ApiRequest -Method "DELETE" -Url "$FileServiceUrl/api/v1/upload/$Global:ZhiCoreFileId" -Headers $Headers
     
     if ($Result.Success -and $Result.Body.code -eq 200) {
         Add-TestResult -TestId "FILE-007" -TestName "Delete file (verify appId)" -Status "PASS" -ResponseTime "$($Result.ResponseTime)ms" -Note "File deleted successfully"
         Write-Host "  PASS - File deleted with correct appId ($($Result.ResponseTime)ms)" -ForegroundColor Green
         
         # Clear the fileId since it's deleted
-        $Global:BlogFileId = ""
+        $Global:ZhiCoreFileId = ""
     } else {
         $ErrorMsg = if ($Result.Body.message) { $Result.Body.message } else { $Result.Error }
         Add-TestResult -TestId "FILE-007" -TestName "Delete file (verify appId)" -Status "FAIL" -ResponseTime "$($Result.ResponseTime)ms" -Note $ErrorMsg
         Write-Host "  FAIL - $ErrorMsg ($($Result.ResponseTime)ms)" -ForegroundColor Red
     }
 } else {
-    Add-TestResult -TestId "FILE-007" -TestName "Delete file (verify appId)" -Status "SKIP" -ResponseTime "-" -Note "No blog file available"
-    Write-Host "  SKIP - No blog file available" -ForegroundColor Gray
+    Add-TestResult -TestId "FILE-007" -TestName "Delete file (verify appId)" -Status "SKIP" -ResponseTime "-" -Note "No ZhiCore file available"
+    Write-Host "  SKIP - No ZhiCore file available" -ForegroundColor Gray
 }
 
 # FILE-008: Get file details (verify appId)

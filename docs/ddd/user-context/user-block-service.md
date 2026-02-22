@@ -36,7 +36,7 @@ public class UserBlockService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IUserBlockRepository.cs
+// ZhiCoreCore/Domain/Repositories/IUserBlockRepository.cs
 public interface IUserBlockRepository
 {
     /// <summary>
@@ -86,7 +86,7 @@ public interface IUserBlockRepository
 ### Domain Service
 
 ```csharp
-// BlogCore/Domain/Services/IUserBlockDomainService.cs
+// ZhiCoreCore/Domain/Services/IUserBlockDomainService.cs
 public interface IUserBlockDomainService
 {
     /// <summary>
@@ -100,7 +100,7 @@ public interface IUserBlockDomainService
     Task ValidateBlockAsync(string blockerId, string blockedUserId);
 }
 
-// BlogCore/Domain/Services/UserBlockDomainService.cs
+// ZhiCoreCore/Domain/Services/UserBlockDomainService.cs
 public class UserBlockDomainService : IUserBlockDomainService
 {
     private readonly IUserRepository _userRepository;
@@ -136,7 +136,7 @@ public class UserBlockDomainService : IUserBlockDomainService
 ### Application Service
 
 ```csharp
-// BlogCore/Application/User/IUserBlockApplicationService.cs
+// ZhiCoreCore/Application/User/IUserBlockApplicationService.cs
 public interface IUserBlockApplicationService
 {
     Task<bool> BlockUserAsync(string blockerId, string blockedUserId);
@@ -146,7 +146,7 @@ public interface IUserBlockApplicationService
     Task<PaginatedResult<UserBasicInfo>> GetBlockListAsync(string userId, int page, int pageSize);
 }
 
-// BlogCore/Application/User/UserBlockApplicationService.cs
+// ZhiCoreCore/Application/User/UserBlockApplicationService.cs
 public class UserBlockApplicationService : IUserBlockApplicationService
 {
     private readonly IUserBlockRepository _userBlockRepository;
@@ -231,7 +231,7 @@ public record UserUnblockedEvent : DomainEventBase
 ### 事件处理器
 
 ```csharp
-// BlogCore/Domain/EventHandlers/User/UserBlockedEventHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/User/UserBlockedEventHandler.cs
 public class UserBlockedEventHandler : IDomainEventHandler<UserBlockedEvent>
 {
     private readonly IUserFollowRepository _userFollowRepository;

@@ -31,7 +31,7 @@ public class PostStatsService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IPostStatsRepository.cs
+// ZhiCoreCore/Domain/Repositories/IPostStatsRepository.cs
 public interface IPostStatsRepository
 {
     /// <summary>
@@ -84,7 +84,7 @@ public interface IPostStatsRepository
 ### Repository 实现
 
 ```csharp
-// BlogCore/Infrastructure/Repositories/PostStatsRepository.cs
+// ZhiCoreCore/Infrastructure/Repositories/PostStatsRepository.cs
 public class PostStatsRepository : IPostStatsRepository
 {
     private readonly AppDbContext _dbContext;
@@ -285,7 +285,7 @@ Fields:
 ### 对账服务
 
 ```csharp
-// BlogCore/Services/Background/PostStatsReconciliationService.cs
+// ZhiCoreCore/Services/Background/PostStatsReconciliationService.cs
 public class PostStatsReconciliationService : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

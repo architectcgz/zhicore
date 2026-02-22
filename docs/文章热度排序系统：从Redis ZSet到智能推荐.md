@@ -53,12 +53,12 @@
 我们选择Redis ZSet作为核心存储结构，原因如下：
 
 ```redis
-# ZSet结构：blog:posts:hotness
+# ZSet结构：ZhiCore:posts:hotness
 # 成员：文章ID (long)
 # 分数：热度分数 (double)
 # 排序：按分数降序排列
 
-127.0.0.1:6379> ZREVRANGE blog:posts:hotness 0 9 WITHSCORES
+127.0.0.1:6379> ZREVRANGE ZhiCore:posts:hotness 0 9 WITHSCORES
 1) "123456"      # 文章ID
 2) "1250.75"     # 热度分数
 3) "123457"
@@ -237,13 +237,13 @@ public async Task BatchUpdateHotnessAsync(List<long> postIds)
 
 ```bash
 # 查看热度排行榜前10
-redis-cli ZREVRANGE blog:posts:hotness 0 9 WITHSCORES
+redis-cli ZREVRANGE ZhiCore:posts:hotness 0 9 WITHSCORES
 
 # 查看特定文章热度
-redis-cli ZSCORE blog:posts:hotness 123456
+redis-cli ZSCORE ZhiCore:posts:hotness 123456
 
 # 查看热度榜单总数
-redis-cli ZCARD blog:posts:hotness
+redis-cli ZCARD ZhiCore:posts:hotness
 ```
 
 ### 日志记录

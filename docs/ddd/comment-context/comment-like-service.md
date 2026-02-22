@@ -67,7 +67,7 @@ public class CommentLikeService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/ICommentLikeRepository.cs
+// ZhiCoreCore/Domain/Repositories/ICommentLikeRepository.cs
 public interface ICommentLikeRepository
 {
     /// <summary>
@@ -95,7 +95,7 @@ public interface ICommentLikeRepository
 ### Domain Service
 
 ```csharp
-// BlogCore/Domain/Services/ICommentLikeDomainService.cs
+// ZhiCoreCore/Domain/Services/ICommentLikeDomainService.cs
 public interface ICommentLikeDomainService
 {
     /// <summary>
@@ -119,7 +119,7 @@ public interface ICommentLikeDomainService
     Task<bool> RemoveLikeFromCacheAsync(long commentId, string userId);
 }
 
-// BlogCore/Domain/Services/CommentLikeDomainService.cs
+// ZhiCoreCore/Domain/Services/CommentLikeDomainService.cs
 public class CommentLikeDomainService : ICommentLikeDomainService
 {
     private readonly ICommentCacheService _commentCacheService;
@@ -175,7 +175,7 @@ public class CommentLikeDomainService : ICommentLikeDomainService
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Comment/ICommentLikeApplicationService.cs
+// ZhiCoreCore/Application/Comment/ICommentLikeApplicationService.cs
 public interface ICommentLikeApplicationService
 {
     Task<bool> LikeCommentAsync(long commentId, string userId);
@@ -184,7 +184,7 @@ public interface ICommentLikeApplicationService
     Task<Dictionary<long, bool>> AreCommentsLikedByUserAsync(List<long> commentIds, string userId);
 }
 
-// BlogCore/Application/Comment/CommentLikeApplicationService.cs
+// ZhiCoreCore/Application/Comment/CommentLikeApplicationService.cs
 public class CommentLikeApplicationService : ICommentLikeApplicationService
 {
     private readonly ICommentLikeDomainService _domainService;
@@ -275,7 +275,7 @@ public record CommentLikedEvent : DomainEventBase
 ### 事件处理器
 
 ```csharp
-// BlogCore/Domain/EventHandlers/Comment/CommentLikedEventHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Comment/CommentLikedEventHandler.cs
 public class CommentLikedEventHandler : IDomainEventHandler<CommentLikedEvent>
 {
     private readonly ICommentLikeRepository _likeRepository;

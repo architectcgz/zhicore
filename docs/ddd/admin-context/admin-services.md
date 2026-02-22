@@ -9,7 +9,7 @@ AdminPostService 负责文章的管理操作，包括下架、恢复、批量操
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Admin/IAdminPostApplicationService.cs
+// ZhiCoreCore/Application/Admin/IAdminPostApplicationService.cs
 public interface IAdminPostApplicationService
 {
     Task TakeDownPostAsync(string adminId, long postId, TakeDownReq req);
@@ -19,7 +19,7 @@ public interface IAdminPostApplicationService
     Task<PaginatedResult<AdminPostVo>> GetTakenDownPostsAsync(int page, int pageSize);
 }
 
-// BlogCore/Application/Admin/AdminPostApplicationService.cs
+// ZhiCoreCore/Application/Admin/AdminPostApplicationService.cs
 public class AdminPostApplicationService : IAdminPostApplicationService
 {
     private readonly IPostRepository _postRepository;
@@ -129,7 +129,7 @@ AdminUserService 负责用户的管理操作，包括封禁、解封、角色管
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Admin/IAdminUserApplicationService.cs
+// ZhiCoreCore/Application/Admin/IAdminUserApplicationService.cs
 public interface IAdminUserApplicationService
 {
     Task LockUserAsync(string adminId, string userId, LockUserReq req);
@@ -139,7 +139,7 @@ public interface IAdminUserApplicationService
     Task RemoveRoleAsync(string adminId, string userId, string role);
 }
 
-// BlogCore/Application/Admin/AdminUserApplicationService.cs
+// ZhiCoreCore/Application/Admin/AdminUserApplicationService.cs
 public class AdminUserApplicationService : IAdminUserApplicationService
 {
     private readonly IUserRepository _userRepository;
@@ -282,7 +282,7 @@ public record UserLockedEvent : DomainEventBase
 ### 事件处理器
 
 ```csharp
-// BlogCore/Domain/EventHandlers/Admin/PostTakenDownEventHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Admin/PostTakenDownEventHandler.cs
 public class PostTakenDownEventHandler : IDomainEventHandler<PostTakenDownEvent>
 {
     private readonly ISearchIndexService _searchIndexService;
@@ -320,7 +320,7 @@ public class PostTakenDownEventHandler : IDomainEventHandler<PostTakenDownEvent>
     }
 }
 
-// BlogCore/Domain/EventHandlers/Admin/UserLockedEventHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Admin/UserLockedEventHandler.cs
 public class UserLockedEventHandler : IDomainEventHandler<UserLockedEvent>
 {
     private readonly INotificationApplicationService _notificationService;

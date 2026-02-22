@@ -79,15 +79,15 @@ COMMIT;
 执行此脚本：
 
 1. 使用 psql 命令行：
-   psql -h localhost -p 5432 -U postgres -d blog -f generate-post-views.sql
+   psql -h localhost -p 5432 -U postgres -d ZhiCore -f generate-post-views.sql
 
 2. 使用 PowerShell：
    $env:PGPASSWORD="postgres123456"
-   psql -h localhost -p 5432 -U postgres -d blog -f generate-post-views.sql
+   psql -h localhost -p 5432 -U postgres -d ZhiCore -f generate-post-views.sql
 
 前置条件：
 - PostgreSQL 服务已启动
-- blog 数据库已创建
+- ZhiCore 数据库已创建
 - posts 表已存在且包含已发布文章
 - post_stats 表已初始化（执行 init-post-stats.sql）
 

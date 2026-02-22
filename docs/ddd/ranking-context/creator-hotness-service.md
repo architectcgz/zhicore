@@ -70,7 +70,7 @@ public class CreatorHotnessService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/ICreatorHotnessRepository.cs
+// ZhiCoreCore/Domain/Repositories/ICreatorHotnessRepository.cs
 public interface ICreatorHotnessRepository
 {
     /// <summary>
@@ -118,7 +118,7 @@ public interface ICreatorHotnessRepository
 ### Repository 实现
 
 ```csharp
-// BlogCore/Infrastructure/Repositories/CreatorHotnessRepository.cs
+// ZhiCoreCore/Infrastructure/Repositories/CreatorHotnessRepository.cs
 public class CreatorHotnessRepository : ICreatorHotnessRepository
 {
     private readonly IDatabase _redis;
@@ -243,7 +243,7 @@ public class CreatorHotnessRepository : ICreatorHotnessRepository
 ### Domain Service
 
 ```csharp
-// BlogCore/Domain/Services/ICreatorHotnessDomainService.cs
+// ZhiCoreCore/Domain/Services/ICreatorHotnessDomainService.cs
 public interface ICreatorHotnessDomainService
 {
     /// <summary>
@@ -267,7 +267,7 @@ public interface ICreatorHotnessDomainService
     Task<double> CalculateRecentInteractionScoreAsync(string userId, DateTimeOffset since);
 }
 
-// BlogCore/Domain/Services/CreatorHotnessDomainService.cs
+// ZhiCoreCore/Domain/Services/CreatorHotnessDomainService.cs
 public class CreatorHotnessDomainService : ICreatorHotnessDomainService
 {
     private readonly AppDbContext _dbContext;
@@ -337,7 +337,7 @@ public class CreatorHotnessDomainService : ICreatorHotnessDomainService
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Ranking/ICreatorHotnessApplicationService.cs
+// ZhiCoreCore/Application/Ranking/ICreatorHotnessApplicationService.cs
 public interface ICreatorHotnessApplicationService
 {
     Task<double> CalculateCreatorHotnessAsync(string userId);
@@ -348,7 +348,7 @@ public interface ICreatorHotnessApplicationService
     Task<int> RecalculateAllCreatorHotnessAsync(int limit = 500);
 }
 
-// BlogCore/Application/Ranking/CreatorHotnessApplicationService.cs
+// ZhiCoreCore/Application/Ranking/CreatorHotnessApplicationService.cs
 public class CreatorHotnessApplicationService : ICreatorHotnessApplicationService
 {
     private readonly ICreatorHotnessDomainService _domainService;
@@ -607,7 +607,7 @@ return await _redisPolicyProvider.ExecuteWithFallbackAsync(
 ## DI 注册
 
 ```csharp
-// BlogCore/Extensions/RankingServiceExtensions.cs
+// ZhiCoreCore/Extensions/RankingServiceExtensions.cs
 public static IServiceCollection AddCreatorHotnessServices(this IServiceCollection services)
 {
     // Repository

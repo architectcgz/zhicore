@@ -2,7 +2,7 @@
 
 ## 概述
 
-本文档描述了 File Service 在 blog-microservice 系统中的部署架构，包括 Docker 容器部署、网络配置、端口分配、健康检查和 CDN 集成。
+本文档描述了 File Service 在 ZhiCore-microservice 系统中的部署架构，包括 Docker 容器部署、网络配置、端口分配、健康检查和 CDN 集成。
 
 ## 部署架构图
 
@@ -16,15 +16,15 @@ graph TB
     end
     
     subgraph "Docker Host"
-        subgraph "blog-network (Docker Network)"
+        subgraph "ZhiCore-network (Docker Network)"
             subgraph "网关层"
-                Gateway[blog-gateway<br/>:8080]
+                Gateway[ZhiCore-gateway<br/>:8080]
             end
             
             subgraph "业务服务层"
-                UserService[blog-user<br/>:8081]
-                PostService[blog-post<br/>:8082]
-                CommentService[blog-comment<br/>:8083]
+                UserService[ZhiCore-user<br/>:8081]
+                PostService[ZhiCore-post<br/>:8082]
+                CommentService[ZhiCore-comment<br/>:8083]
             end
             
             subgraph "文件服务层"
@@ -84,9 +84,9 @@ graph TB
 
 ```mermaid
 graph TB
-    A[blog-gateway] --> B[blog-user]
-    A --> C[blog-post]
-    A --> D[blog-comment]
+    A[ZhiCore-gateway] --> B[ZhiCore-user]
+    A --> C[ZhiCore-post]
+    A --> D[ZhiCore-comment]
     
     B --> E[file-service]
     C --> E
@@ -118,18 +118,18 @@ services:
   # PostgreSQL 数据库
   postgres:
     image: postgres:15-alpine
-    container_name: blog-postgres
+    container_name: ZhiCore-postgres
     ports:
       - "5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: blog
+      POSTGRES_DB: ZhiCore
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./docker/postgres-init:/docker-entrypoint-initdb.d
     networks:
-      - blog-network
+      - ZhiCore-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -140,7 +140,7 @@ services:
   # Redis 缓存
   redis:
     image: redis:7-alpine
-    container_name: blog-redis
+    container_name: ZhiCore-redis
     ports:
       - "6379:6379"
     volumes:
@@ -148,7 +148,7 @@ services:
       - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
     networks:
-      - blog-network
+      - ZhiCore-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -159,7 +159,7 @@ services:
   # Nacos 配置中心
   nacos:
     image: nacos/nacos-server:v2.2.3
-    container_name: blog-nacos
+    container_name: ZhiCore-nacos
     ports:
       - "8848:8848"
       - "9848:9848"
@@ -174,7 +174,7 @@ services:
     volumes:
       - nacos-data:/home/nacos/data
     networks:
-      - blog-network
+      - ZhiCore-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/"]
       interval: 30s
@@ -189,7 +189,7 @@ services:
   # MinIO 对象存储
   minio:
     image: minio/minio:latest
-    container_name: blog-minio
+    container_name: ZhiCore-minio
     ports:
       - "9000:9000"    # API 端口
       - "9001:9001"    # Console 端口
@@ -201,7 +201,7 @@ services:
       - minio-data:/data
     command: server /data --console-address ":9001"
     networks:
-      - blog-network
+      - ZhiCore-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
@@ -212,7 +212,7 @@ services:
   # File Service
   file-service:
     image: file-service:latest
-    container_name: blog-file-service
+    container_name: ZhiCore-file-service
     ports:
       - "8089:8089"
     environment:
@@ -234,7 +234,7 @@ services:
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
-      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-blog-files}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-ZhiCore-files}
       
       # JWT 配置
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
@@ -250,7 +250,7 @@ services:
     volumes:
       - ./logs/file-service:/app/logs
     networks:
-      - blog-network
+      - ZhiCore-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -269,19 +269,19 @@ services:
   # ==================== 业务服务层 ====================
   
   # 用户服务
-  blog-user:
-    image: blog-user:latest
-    container_name: blog-user
+  ZhiCore-user:
+    image: ZhiCore-user:latest
+    container_name: ZhiCore-user
     ports:
       - "8081:8081"
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       NACOS_SERVER_ADDR: nacos:8848
       FILE_SERVICE_URL: http://file-service:8089
-      FILE_SERVICE_TENANT_ID: blog
+      FILE_SERVICE_TENANT_ID: ZhiCore
       FILE_SERVICE_CDN_DOMAIN: ${CDN_DOMAIN:-}
     networks:
-      - blog-network
+      - ZhiCore-network
     depends_on:
       nacos:
         condition: service_healthy
@@ -290,19 +290,19 @@ services:
     restart: unless-stopped
 
   # 文章服务
-  blog-post:
-    image: blog-post:latest
-    container_name: blog-post
+  ZhiCore-post:
+    image: ZhiCore-post:latest
+    container_name: ZhiCore-post
     ports:
       - "8082:8082"
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       NACOS_SERVER_ADDR: nacos:8848
       FILE_SERVICE_URL: http://file-service:8089
-      FILE_SERVICE_TENANT_ID: blog
+      FILE_SERVICE_TENANT_ID: ZhiCore
       FILE_SERVICE_CDN_DOMAIN: ${CDN_DOMAIN:-}
     networks:
-      - blog-network
+      - ZhiCore-network
     depends_on:
       nacos:
         condition: service_healthy
@@ -311,19 +311,19 @@ services:
     restart: unless-stopped
 
   # 评论服务
-  blog-comment:
-    image: blog-comment:latest
-    container_name: blog-comment
+  ZhiCore-comment:
+    image: ZhiCore-comment:latest
+    container_name: ZhiCore-comment
     ports:
       - "8083:8083"
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       NACOS_SERVER_ADDR: nacos:8848
       FILE_SERVICE_URL: http://file-service:8089
-      FILE_SERVICE_TENANT_ID: blog
+      FILE_SERVICE_TENANT_ID: ZhiCore
       FILE_SERVICE_CDN_DOMAIN: ${CDN_DOMAIN:-}
     networks:
-      - blog-network
+      - ZhiCore-network
     depends_on:
       nacos:
         condition: service_healthy
@@ -334,26 +334,26 @@ services:
   # ==================== 网关层 ====================
   
   # API 网关
-  blog-gateway:
-    image: blog-gateway:latest
-    container_name: blog-gateway
+  ZhiCore-gateway:
+    image: ZhiCore-gateway:latest
+    container_name: ZhiCore-gateway
     ports:
       - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       NACOS_SERVER_ADDR: nacos:8848
     networks:
-      - blog-network
+      - ZhiCore-network
     depends_on:
       - nacos
-      - blog-user
-      - blog-post
-      - blog-comment
+      - ZhiCore-user
+      - ZhiCore-post
+      - ZhiCore-comment
     restart: unless-stopped
 
 # ==================== 网络配置 ====================
 networks:
-  blog-network:
+  ZhiCore-network:
     driver: bridge
     ipam:
       config:
@@ -389,12 +389,12 @@ REDIS_PASSWORD=your-redis-password
 # ==================== MinIO 配置 ====================
 MINIO_ROOT_USER=minioadmin
 MINIO_ROOT_PASSWORD=your-secure-minio-password
-MINIO_BUCKET_NAME=blog-files
+MINIO_BUCKET_NAME=ZhiCore-files
 MINIO_DOMAIN=files.yourdomain.com
 
 # ==================== File Service 配置 ====================
 FILE_SERVICE_URL=http://file-service:8089
-FILE_SERVICE_TENANT_ID=blog
+FILE_SERVICE_TENANT_ID=ZhiCore
 FILE_MAX_SIZE=10485760
 FILE_ALLOWED_TYPES=image/jpeg,image/png,image/gif,image/webp
 
@@ -411,10 +411,10 @@ CDN_ENABLED=true
 
 | 服务 | 容器端口 | 主机端口 | 协议 | 说明 |
 |-----|---------|---------|------|------|
-| blog-gateway | 8080 | 8080 | HTTP | API 网关 |
-| blog-user | 8081 | 8081 | HTTP | 用户服务 |
-| blog-post | 8082 | 8082 | HTTP | 文章服务 |
-| blog-comment | 8083 | 8083 | HTTP | 评论服务 |
+| ZhiCore-gateway | 8080 | 8080 | HTTP | API 网关 |
+| ZhiCore-user | 8081 | 8081 | HTTP | 用户服务 |
+| ZhiCore-post | 8082 | 8082 | HTTP | 文章服务 |
+| ZhiCore-comment | 8083 | 8083 | HTTP | 评论服务 |
 | file-service | 8089 | 8089 | HTTP | 文件服务 |
 | MinIO API | 9000 | 9000 | HTTP | 对象存储 API |
 | MinIO Console | 9001 | 9001 | HTTP | MinIO 管理控制台 |
@@ -429,7 +429,7 @@ CDN_ENABLED=true
 
 ```yaml
 networks:
-  blog-network:
+  ZhiCore-network:
     driver: bridge
     ipam:
       config:
@@ -438,7 +438,7 @@ networks:
 
 ### 服务间通信
 
-所有服务都在同一个 Docker 网络 `blog-network` 中，可以通过服务名进行通信：
+所有服务都在同一个 Docker 网络 `ZhiCore-network` 中，可以通过服务名进行通信：
 
 - 业务服务访问 File Service: `http://file-service:8089`
 - File Service 访问 MinIO: `http://minio:9000`
@@ -449,7 +449,7 @@ networks:
 
 ```mermaid
 graph LR
-    A[外部客户端] -->|:8080| B[blog-gateway]
+    A[外部客户端] -->|:8080| B[ZhiCore-gateway]
     A -->|:9001| C[MinIO Console]
     A -->|:8848| D[Nacos Console]
     
@@ -539,7 +539,7 @@ graph TB
 set -e
 
 echo "========================================="
-echo "启动 Blog 微服务系统（包含 File Service）"
+echo "启动 ZhiCore 微服务系统（包含 File Service）"
 echo "========================================="
 
 # 1. 启动基础设施服务
@@ -581,7 +581,7 @@ sleep 15
 # 5. 启动业务服务
 echo ""
 echo "[5/6] 启动业务服务..."
-docker-compose up -d blog-user blog-post blog-comment
+docker-compose up -d ZhiCore-user ZhiCore-post ZhiCore-comment
 
 # 等待业务服务就绪
 echo "等待业务服务启动..."
@@ -590,7 +590,7 @@ sleep 10
 # 6. 启动 Gateway
 echo ""
 echo "[6/6] 启动 API Gateway..."
-docker-compose up -d blog-gateway
+docker-compose up -d ZhiCore-gateway
 
 echo ""
 echo "========================================="
@@ -624,8 +624,8 @@ echo ""
 echo "停止所有服务..."
 
 # 按相反顺序停止服务
-docker-compose stop blog-gateway
-docker-compose stop blog-user blog-post blog-comment
+docker-compose stop ZhiCore-gateway
+docker-compose stop ZhiCore-user ZhiCore-post ZhiCore-comment
 docker-compose stop file-service
 docker-compose stop minio
 docker-compose stop nacos
@@ -742,7 +742,7 @@ BACKUP_DIR="/backup/minio/$(date +%Y%m%d)"
 mkdir -p $BACKUP_DIR
 
 # 使用 mc (MinIO Client) 备份
-mc mirror minio/blog-files $BACKUP_DIR
+mc mirror minio/ZhiCore-files $BACKUP_DIR
 
 echo "MinIO 数据备份完成: $BACKUP_DIR"
 ```
@@ -755,7 +755,7 @@ echo "MinIO 数据备份完成: $BACKUP_DIR"
 
 BACKUP_FILE="/backup/postgres/file_service_$(date +%Y%m%d_%H%M%S).sql"
 
-docker exec blog-postgres pg_dump -U postgres file_service > $BACKUP_FILE
+docker exec ZhiCore-postgres pg_dump -U postgres file_service > $BACKUP_FILE
 
 echo "PostgreSQL 数据备份完成: $BACKUP_FILE"
 ```
@@ -783,11 +783,11 @@ logs/
 │   ├── application.log
 │   ├── error.log
 │   └── access.log
-├── blog-user/
+├── ZhiCore-user/
 │   └── application.log
-├── blog-post/
+├── ZhiCore-post/
 │   └── application.log
-└── blog-comment/
+└── ZhiCore-comment/
     └── application.log
 ```
 
@@ -796,8 +796,8 @@ logs/
 | 服务 | 健康检查端点 | 指标端点 |
 |-----|------------|---------|
 | file-service | http://localhost:8089/actuator/health | http://localhost:8089/actuator/metrics |
-| blog-user | http://localhost:8081/actuator/health | http://localhost:8081/actuator/metrics |
-| blog-post | http://localhost:8082/actuator/health | http://localhost:8082/actuator/metrics |
+| ZhiCore-user | http://localhost:8081/actuator/health | http://localhost:8081/actuator/metrics |
+| ZhiCore-post | http://localhost:8082/actuator/health | http://localhost:8082/actuator/metrics |
 
 ## 安全配置
 
@@ -805,7 +805,7 @@ logs/
 
 ```yaml
 networks:
-  blog-network:
+  ZhiCore-network:
     driver: bridge
     internal: false  # 允许外部访问
   
@@ -911,10 +911,10 @@ healthcheck:
 # restore-data.sh
 
 # 恢复 PostgreSQL
-docker exec -i blog-postgres psql -U postgres file_service < backup.sql
+docker exec -i ZhiCore-postgres psql -U postgres file_service < backup.sql
 
 # 恢复 MinIO
-mc mirror /backup/minio/20240123 minio/blog-files
+mc mirror /backup/minio/20240123 minio/ZhiCore-files
 ```
 
 ## 性能优化
@@ -947,7 +947,7 @@ minio:
 
 ## 总结
 
-本文档详细描述了 File Service 在 blog-microservice 系统中的部署架构，包括：
+本文档详细描述了 File Service 在 ZhiCore-microservice 系统中的部署架构，包括：
 
 1. **完整的 Docker Compose 配置**: 包含所有服务的配置和依赖关系
 2. **清晰的端口分配**: 避免端口冲突

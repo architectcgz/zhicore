@@ -1,13 +1,13 @@
 # ===========================================
 # Prometheus Configuration
-# Blog Microservices Monitoring
+# ZhiCore Microservices Monitoring
 # ===========================================
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    monitor: 'blog-microservices'
+    monitor: 'ZhiCore-microservices'
 
 # Alertmanager 配置
 alerting:
@@ -28,7 +28,7 @@ scrape_configs:
 
   # Spring Boot Actuator 端点
   # Gateway Service
-  - job_name: 'blog-gateway'
+  - job_name: 'ZhiCore-gateway'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:8000']
@@ -38,7 +38,7 @@ scrape_configs:
         replacement: 'gateway'
 
   # User Service
-  - job_name: 'blog-user'
+  - job_name: 'ZhiCore-user'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:8001']
@@ -48,7 +48,7 @@ scrape_configs:
         replacement: 'user-service'
 
   # Post Service
-  - job_name: 'blog-post'
+  - job_name: 'ZhiCore-post'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:8002']
@@ -58,7 +58,7 @@ scrape_configs:
         replacement: 'post-service'
 
   # Comment Service
-  - job_name: 'blog-comment'
+  - job_name: 'ZhiCore-comment'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:8003']
@@ -68,7 +68,7 @@ scrape_configs:
         replacement: 'comment-service'
 
   # Message Service
-  - job_name: 'blog-message'
+  - job_name: 'ZhiCore-message'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:8004']
@@ -78,7 +78,7 @@ scrape_configs:
         replacement: 'message-service'
 
   # Notification Service
-  - job_name: 'blog-notification'
+  - job_name: 'ZhiCore-notification'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:8005']
@@ -88,7 +88,7 @@ scrape_configs:
         replacement: 'notification-service'
 
   # Search Service
-  - job_name: 'blog-search'
+  - job_name: 'ZhiCore-search'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:8006']
@@ -98,7 +98,7 @@ scrape_configs:
         replacement: 'search-service'
 
   # Ranking Service
-  - job_name: 'blog-ranking'
+  - job_name: 'ZhiCore-ranking'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:8007']
@@ -108,7 +108,7 @@ scrape_configs:
         replacement: 'ranking-service'
 
   # Upload Service
-  - job_name: 'blog-upload'
+  - job_name: 'ZhiCore-upload'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:8008']
@@ -118,7 +118,7 @@ scrape_configs:
         replacement: 'upload-service'
 
   # Admin Service
-  - job_name: 'blog-admin'
+  - job_name: 'ZhiCore-admin'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:8009']
@@ -128,7 +128,7 @@ scrape_configs:
         replacement: 'admin-service'
 
   # Leaf ID Service
-  - job_name: 'blog-leaf'
+  - job_name: 'ZhiCore-leaf'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:8010']

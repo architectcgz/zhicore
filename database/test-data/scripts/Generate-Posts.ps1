@@ -617,7 +617,7 @@ else {
     生成测试文章数据
 
 .DESCRIPTION
-    此脚本自动从 blog-id-generator 服务获取文章 ID，生成不同状态的文章，
+    此脚本自动从 ZhiCore-id-generator 服务获取文章 ID，生成不同状态的文章，
     并调用 API 创建文章。文章包括已发布、草稿和定时发布三种状态。
 
 .PARAMETER ConfigPath
@@ -665,8 +665,8 @@ else {
 
 .NOTES
     前置条件：
-    1. blog-id-generator 服务已启动（端口 8088）
-    2. blog-gateway 服务已启动（端口 8000）
+    1. ZhiCore-id-generator 服务已启动（端口 8088）
+    2. ZhiCore-gateway 服务已启动（端口 8000）
     3. 已执行用户数据生成脚本
     4. 网络连接正常
 

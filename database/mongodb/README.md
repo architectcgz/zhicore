@@ -39,20 +39,20 @@ mongodb/
 
 ```bash
 # Windows PowerShell
-mongosh mongodb://admin:mongo123456@localhost:27017/blog?authSource=admin init-ranking-indexes.js
+mongosh mongodb://admin:mongo123456@localhost:27017/ZhiCore?authSource=admin init-ranking-indexes.js
 
 # Linux/Mac
-mongosh "mongodb://admin:mongo123456@localhost:27017/blog?authSource=admin" init-ranking-indexes.js
+mongosh "mongodb://admin:mongo123456@localhost:27017/ZhiCore?authSource=admin" init-ranking-indexes.js
 ```
 
 #### 方法 2：在 mongosh 中加载执行
 
 ```bash
 # 1. 连接到 MongoDB
-mongosh mongodb://admin:mongo123456@localhost:27017/blog?authSource=admin
+mongosh mongodb://admin:mongo123456@localhost:27017/ZhiCore?authSource=admin
 
 # 2. 在 mongosh 中执行
-use blog
+use ZhiCore
 load('init-ranking-indexes.js')
 ```
 
@@ -60,10 +60,10 @@ load('init-ranking-indexes.js')
 
 ```bash
 # 将脚本复制到容器中
-docker cp init-ranking-indexes.js blog-mongodb:/tmp/
+docker cp init-ranking-indexes.js ZhiCore-mongodb:/tmp/
 
 # 在容器中执行脚本
-docker exec -it blog-mongodb mongosh mongodb://admin:mongo123456@localhost:27017/blog?authSource=admin /tmp/init-ranking-indexes.js
+docker exec -it ZhiCore-mongodb mongosh mongodb://admin:mongo123456@localhost:27017/ZhiCore?authSource=admin /tmp/init-ranking-indexes.js
 ```
 
 ### 验证索引
@@ -72,7 +72,7 @@ docker exec -it blog-mongodb mongosh mongodb://admin:mongo123456@localhost:27017
 
 ```javascript
 // 在 mongosh 中执行
-use blog
+use ZhiCore
 db.ranking_archive.getIndexes()
 ```
 
@@ -184,7 +184,7 @@ MongoServerError: Index with name 'idx_type_period_rank' already exists
 
 **错误信息**：
 ```
-MongoServerError: not authorized on blog to execute command
+MongoServerError: not authorized on ZhiCore to execute command
 ```
 
 **解决方案**：
@@ -196,10 +196,10 @@ MongoServerError: not authorized on blog to execute command
 - [MongoDB 索引文档](https://www.mongodb.com/docs/manual/indexes/)
 - [Partial Indexes](https://www.mongodb.com/docs/manual/core/index-partial/)
 - [Background Index Builds](https://www.mongodb.com/docs/manual/core/index-creation/)
-- [排行榜归档系统设计](.kiro/specs/blog-ranking-time-based-endpoints/design.md)
+- [排行榜归档系统设计](.kiro/specs/ZhiCore-ranking-time-based-endpoints/design.md)
 
 ## 维护
 
 - **创建时间**：2026-02-17
-- **维护者**：Blog Team
+- **维护者**：ZhiCore Team
 - **更新频率**：索引定义变更时更新

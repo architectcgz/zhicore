@@ -66,21 +66,21 @@ try {
 }
 Write-Host ""
 
-# Check blog-user database exists
-Write-Host "[CHECK 5] PostgreSQL Database 'blog_user'..." -ForegroundColor Yellow
-Write-Host "  Attempting to connect to blog_user database..." -ForegroundColor White
+# Check ZhiCore-user database exists
+Write-Host "[CHECK 5] PostgreSQL Database 'ZhiCore_user'..." -ForegroundColor Yellow
+Write-Host "  Attempting to connect to ZhiCore_user database..." -ForegroundColor White
 
 $env:PGPASSWORD = "postgres123456"
 try {
-    $DbCheck = & psql -h localhost -U postgres -d blog_user -c "SELECT 1;" 2>&1
+    $DbCheck = & psql -h localhost -U postgres -d ZhiCore_user -c "SELECT 1;" 2>&1
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "  SUCCESS - Database 'blog_user' exists and is accessible" -ForegroundColor Green
+        Write-Host "  SUCCESS - Database 'ZhiCore_user' exists and is accessible" -ForegroundColor Green
     } else {
-        Write-Host "  FAILED - Database 'blog_user' does not exist or is not accessible" -ForegroundColor Red
+        Write-Host "  FAILED - Database 'ZhiCore_user' does not exist or is not accessible" -ForegroundColor Red
         Write-Host "  Error: $DbCheck" -ForegroundColor Gray
         Write-Host ""
         Write-Host "  To create the database, run:" -ForegroundColor Yellow
-        Write-Host "  psql -h localhost -U postgres -c 'CREATE DATABASE blog_user;'" -ForegroundColor Gray
+        Write-Host "  psql -h localhost -U postgres -c 'CREATE DATABASE ZhiCore_user;'" -ForegroundColor Gray
     }
 } catch {
     Write-Host "  WARNING - psql command not found" -ForegroundColor Yellow
@@ -96,6 +96,6 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Next Steps:" -ForegroundColor Yellow
 Write-Host "1. Ensure all infrastructure services are running" -ForegroundColor White
-Write-Host "2. Verify database 'blog_user' exists" -ForegroundColor White
-Write-Host "3. Check blog-user service logs for connection errors" -ForegroundColor White
+Write-Host "2. Verify database 'ZhiCore_user' exists" -ForegroundColor White
+Write-Host "3. Check ZhiCore-user service logs for connection errors" -ForegroundColor White
 Write-Host "4. Fix Redis port in application.yml (should be 6379, not 6800)" -ForegroundColor White

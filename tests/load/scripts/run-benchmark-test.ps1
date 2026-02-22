@@ -42,10 +42,10 @@ try {
     $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
     $ResultFile = Join-Path $OutputFullPath "benchmark_results_$Timestamp.txt"
     
-    Write-Host "[INFO] Running benchmarks in blog-common module..." -ForegroundColor Yellow
+    Write-Host "[INFO] Running benchmarks in ZhiCore-common module..." -ForegroundColor Yellow
     
     # 使用 Maven 运行基准测试
-    $MavenCmd = "mvn -pl blog-common test-compile exec:java -Dexec.mainClass=`"com.blog.common.cache.CacheLockBenchmark`" -Dexec.classpathScope=test"
+    $MavenCmd = "mvn -pl ZhiCore-common test-compile exec:java -Dexec.mainClass=`"com.zhicore.common.cache.CacheLockBenchmark`" -Dexec.classpathScope=test"
     
     Write-Host "[CMD] $MavenCmd" -ForegroundColor Cyan
     

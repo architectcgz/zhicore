@@ -12,7 +12,7 @@ $ConfigFullPath = Join-Path $ScriptDir $ConfigPath
 # RustFS Configuration
 $RustFSEndpoint = "http://localhost:9100"
 $RustFSConsole = "http://localhost:9100/rustfs/console/browser"
-$RustFSBucket = "blog-uploads"
+$RustFSBucket = "ZhiCore-uploads"
 $RustFSAccessKey = "admin"
 $RustFSSecretKey = "admin123456"
 
@@ -96,7 +96,7 @@ try {
     $response = Invoke-WebRequest -Uri "$RustFSEndpoint" -Method GET -TimeoutSec 10 -ErrorAction Stop
     $content = $response.Content
     
-    if ($content -match "blog-uploads" -or $content -match "Bucket") {
+    if ($content -match "ZhiCore-uploads" -or $content -match "Bucket") {
         Write-TestStep "Bucket listing available" "PASS"
         $TestsPassed++
         
@@ -116,9 +116,9 @@ catch {
     Write-TestStep "Cannot list buckets: $($_.Exception.Message)" "WARN"
 }
 
-# === Test 4: Check blog-uploads bucket ===
+# === Test 4: Check ZhiCore-uploads bucket ===
 Write-Host ""
-Write-Host "=== Test 4: Check blog-uploads Bucket ===" -ForegroundColor Magenta
+Write-Host "=== Test 4: Check ZhiCore-uploads Bucket ===" -ForegroundColor Magenta
 Write-Host ""
 
 try {
@@ -174,18 +174,18 @@ Write-Host ""
 Write-Host "To verify files exist in RustFS, use one of these methods:" -ForegroundColor White
 Write-Host ""
 Write-Host "Method 1: AWS CLI (if installed)" -ForegroundColor Yellow
-Write-Host "  aws --endpoint-url http://localhost:9100 s3 ls s3://blog-uploads/" -ForegroundColor Gray
-Write-Host "  aws --endpoint-url http://localhost:9100 s3 ls s3://blog-uploads/images/" -ForegroundColor Gray
+Write-Host "  aws --endpoint-url http://localhost:9100 s3 ls s3://ZhiCore-uploads/" -ForegroundColor Gray
+Write-Host "  aws --endpoint-url http://localhost:9100 s3 ls s3://ZhiCore-uploads/images/" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Method 2: Direct URL Access (for public files)" -ForegroundColor Yellow
-Write-Host "  Open in browser: http://localhost:9100/blog-uploads/images/<filename>" -ForegroundColor Gray
+Write-Host "  Open in browser: http://localhost:9100/ZhiCore-uploads/images/<filename>" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Method 3: PowerShell S3 API" -ForegroundColor Yellow
-Write-Host "  Invoke-WebRequest -Uri 'http://localhost:9100/blog-uploads' -Method GET" -ForegroundColor Gray
+Write-Host "  Invoke-WebRequest -Uri 'http://localhost:9100/ZhiCore-uploads' -Method GET" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Note: To upload files to RustFS, ensure the upload service is started with:" -ForegroundColor Cyan
 Write-Host "  `$env:STORAGE_TYPE='s3'" -ForegroundColor Gray
-Write-Host "  mvn spring-boot:run -pl blog-upload" -ForegroundColor Gray
+Write-Host "  mvn spring-boot:run -pl ZhiCore-upload" -ForegroundColor Gray
 Write-Host ""
 
 if ($TestsFailed -eq 0) {

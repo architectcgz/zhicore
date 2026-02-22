@@ -1,5 +1,5 @@
 # 诊断用户禁用/启用功能
-# 直接调用 blog-user 服务，查看详细错误信息
+# 直接调用 ZhiCore-user 服务，查看详细错误信息
 
 param(
     [string]$ConfigPath = "../../config/test-env.json"
@@ -123,8 +123,8 @@ Write-Host "开始测试禁用/启用功能" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# 测试禁用用户（直接调用 blog-user 服务）
-Write-Host "[TEST-1] 直接调用 blog-user 服务禁用用户..." -ForegroundColor Yellow
+# 测试禁用用户（直接调用 ZhiCore-user 服务）
+Write-Host "[TEST-1] 直接调用 ZhiCore-user 服务禁用用户..." -ForegroundColor Yellow
 Write-Host "  URL: $UserServiceUrl/api/v1/admin/users/$Global:TestUserId/disable" -ForegroundColor Gray
 $Result = Invoke-ApiRequest -Method "POST" -Url "$UserServiceUrl/api/v1/admin/users/$Global:TestUserId/disable" -Headers (Get-AuthHeaders)
 
@@ -143,8 +143,8 @@ if ($Result.Success -and $Result.Body.code -eq 200) {
 
 Write-Host ""
 
-# 测试启用用户（直接调用 blog-user 服务）
-Write-Host "[TEST-2] 直接调用 blog-user 服务启用用户..." -ForegroundColor Yellow
+# 测试启用用户（直接调用 ZhiCore-user 服务）
+Write-Host "[TEST-2] 直接调用 ZhiCore-user 服务启用用户..." -ForegroundColor Yellow
 Write-Host "  URL: $UserServiceUrl/api/v1/admin/users/$Global:TestUserId/enable" -ForegroundColor Gray
 $Result = Invoke-ApiRequest -Method "POST" -Url "$UserServiceUrl/api/v1/admin/users/$Global:TestUserId/enable" -Headers (Get-AuthHeaders)
 

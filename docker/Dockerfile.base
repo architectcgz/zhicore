@@ -1,13 +1,13 @@
 # ===========================================
-# Blog Microservices Base Dockerfile
+# ZhiCore Microservices Base Dockerfile
 # ===========================================
 # 基础镜像，包含 JDK 17 和 SkyWalking Agent
 # ===========================================
 
 FROM eclipse-temurin:17-jre-alpine
 
-LABEL maintainer="Blog Team"
-LABEL description="Base image for Blog Microservices"
+LABEL maintainer="ZhiCore Team"
+LABEL description="Base image for ZhiCore Microservices"
 
 # 设置时区
 ENV TZ=Asia/Shanghai

@@ -15,9 +15,9 @@
 ## 前置条件
 
 1. **服务运行**：
-   - blog-id-generator 服务（端口 8088）
-   - blog-gateway 服务（端口 8000）
-   - blog-comment 服务（端口 8083）
+   - ZhiCore-id-generator 服务（端口 8088）
+   - ZhiCore-gateway 服务（端口 8000）
+   - ZhiCore-comment 服务（端口 8083）
 
 2. **数据准备**：
    - 已执行用户数据生成脚本（`Execute-UserGeneration.ps1`）
@@ -235,7 +235,7 @@ Headers:
 **解决方案**：
 1. 确认已执行文章数据生成脚本
 2. 确认至少有一些文章处于已发布状态
-3. 检查 blog-post 服务是否正常运行
+3. 检查 ZhiCore-post 服务是否正常运行
 
 ### 问题 2: 未找到测试用户
 
@@ -246,7 +246,7 @@ Headers:
 
 **解决方案**：
 1. 确认已执行用户数据生成脚本
-2. 检查 blog-user 服务是否正常运行
+2. 检查 ZhiCore-user 服务是否正常运行
 
 ### 问题 3: 创建评论失败
 
@@ -256,7 +256,7 @@ Headers:
 ```
 
 **解决方案**：
-1. 检查 blog-comment 服务是否正常运行
+1. 检查 ZhiCore-comment 服务是否正常运行
 2. 检查网络连接
 3. 查看服务日志获取详细错误信息
 4. 确认 API 地址配置正确
@@ -269,7 +269,7 @@ Headers:
 ```
 
 **解决方案**：
-1. 启动 blog-id-generator 服务
+1. 启动 ZhiCore-id-generator 服务
 2. 确认服务端口为 8088
 3. 检查服务健康状态：`curl http://localhost:8088/actuator/health`
 

@@ -4,7 +4,7 @@
 # Database Configuration
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:blog_search}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ZhiCore_search}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
@@ -15,8 +15,8 @@ elasticsearch:
   username: ${ES_USERNAME:}
   password: ${ES_PASSWORD:}
   index:
-    post: blog_post
-    user: blog_user
+    post: ZhiCore_post
+    user: ZhiCore_user
 
 # Search Configuration
 search:

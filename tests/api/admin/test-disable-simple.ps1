@@ -95,8 +95,8 @@ if ($Result.Success -and $Result.Body.code -eq 200) {
 }
 Write-Host ""
 
-# 4. Test disable directly on blog-user (without admin role check)
-Write-Host "[3] Testing disable user on blog-user service..." -ForegroundColor Yellow
+# 4. Test disable directly on ZhiCore-user (without admin role check)
+Write-Host "[3] Testing disable user on ZhiCore-user service..." -ForegroundColor Yellow
 Write-Host "  URL: $UserServiceUrl/admin/users/$Global:TestUserId/disable" -ForegroundColor Cyan
 Write-Host "  Method: POST" -ForegroundColor Cyan
 Write-Host "  Headers: Authorization: Bearer <token>" -ForegroundColor Cyan
@@ -134,4 +134,4 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Test Complete" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Please check blog-user service logs for detailed error information" -ForegroundColor Yellow
+Write-Host "Please check ZhiCore-user service logs for detailed error information" -ForegroundColor Yellow

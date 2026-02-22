@@ -108,8 +108,8 @@ public class CommentService : ICommentService
 ### 1. 定义防刷特性
 
 ```csharp
-// BlogCore/Application/Attributes/AntiSpamAttribute.cs
-namespace BlogCore.Application.Attributes;
+// ZhiCoreCore/Application/Attributes/AntiSpamAttribute.cs
+namespace ZhiCoreCore.Application.Attributes;
 
 /// <summary>
 /// 防刷特性，标注在 Controller Action 或 Application Service 方法上
@@ -152,8 +152,8 @@ public class AntiSpamAttribute : Attribute
 ### 2. 实现防刷中间件
 
 ```csharp
-// BlogApi/Middlewares/AntiSpamMiddleware.cs
-namespace BlogApi.Middlewares;
+// ZhiCoreApi/Middlewares/AntiSpamMiddleware.cs
+namespace ZhiCoreApi.Middlewares;
 
 /// <summary>
 /// 防刷中间件 - 在 HTTP 请求层统一拦截
@@ -345,7 +345,7 @@ public class AntiSpamErrorResponse
 ### 3. Controller 使用示例
 
 ```csharp
-// BlogApi/Controllers/CommentController.cs
+// ZhiCoreApi/Controllers/CommentController.cs
 [ApiController]
 [Route("api/comments")]
 public class CommentController : ControllerBase
@@ -394,8 +394,8 @@ public class CommentController : ControllerBase
 ### 1. 定义防刷请求接口
 
 ```csharp
-// BlogCore/Application/Interfaces/IAntiSpamRequest.cs
-namespace BlogCore.Application.Interfaces;
+// ZhiCoreCore/Application/Interfaces/IAntiSpamRequest.cs
+namespace ZhiCoreCore.Application.Interfaces;
 
 /// <summary>
 /// 需要防刷检查的请求接口
@@ -427,8 +427,8 @@ public interface IAntiSpamRequest
 ### 2. 实现 Pipeline Behavior
 
 ```csharp
-// BlogCore/Application/Behaviors/AntiSpamBehavior.cs
-namespace BlogCore.Application.Behaviors;
+// ZhiCoreCore/Application/Behaviors/AntiSpamBehavior.cs
+namespace ZhiCoreCore.Application.Behaviors;
 
 /// <summary>
 /// 防刷管道行为 - 自动拦截实现 IAntiSpamRequest 的命令
@@ -492,8 +492,8 @@ public class AntiSpamBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest,
 ### 3. 命令定义示例
 
 ```csharp
-// BlogCore/Application/Comment/Commands/CreateCommentCommand.cs
-namespace BlogCore.Application.Comment.Commands;
+// ZhiCoreCore/Application/Comment/Commands/CreateCommentCommand.cs
+namespace ZhiCoreCore.Application.Comment.Commands;
 
 public record CreateCommentCommand : IRequest<long>, IAntiSpamRequest
 {
@@ -544,8 +544,8 @@ public class CreateCommentCommandHandler : IRequestHandler<CreateCommentCommand,
 适用于不想引入中间件或 MediatR 的简单场景。
 
 ```csharp
-// BlogApi/Filters/AntiSpamActionFilter.cs
-namespace BlogApi.Filters;
+// ZhiCoreApi/Filters/AntiSpamActionFilter.cs
+namespace ZhiCoreApi.Filters;
 
 /// <summary>
 /// 防刷 Action Filter
@@ -659,8 +659,8 @@ public class AntiSpamActionFilter : IAsyncActionFilter
 ### 定义防刷异常
 
 ```csharp
-// BlogCore/Application/Exceptions/AntiSpamException.cs
-namespace BlogCore.Application.Exceptions;
+// ZhiCoreCore/Application/Exceptions/AntiSpamException.cs
+namespace ZhiCoreCore.Application.Exceptions;
 
 /// <summary>
 /// 防刷异常
@@ -680,7 +680,7 @@ public class AntiSpamException : Exception
 ### 全局异常处理
 
 ```csharp
-// BlogApi/Middlewares/ExceptionHandlingMiddleware.cs
+// ZhiCoreApi/Middlewares/ExceptionHandlingMiddleware.cs
 public class ExceptionHandlingMiddleware
 {
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
@@ -714,8 +714,8 @@ public class ExceptionHandlingMiddleware
 ## DI 注册
 
 ```csharp
-// BlogApi/Extensions/AntiSpamExtensions.cs
-namespace BlogApi.Extensions;
+// ZhiCoreApi/Extensions/AntiSpamExtensions.cs
+namespace ZhiCoreApi.Extensions;
 
 public static class AntiSpamExtensions
 {

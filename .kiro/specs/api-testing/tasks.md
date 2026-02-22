@@ -86,9 +86,9 @@
     - **状态**: 测试脚本已完成，等待后端实现管理员端点
     - _Requirements: 9.1-9.25_
   - [x] 10.2 实现后端管理员API端点
-    - 在 blog-user 服务实现管理员端点 (GET /admin/users, POST /admin/users/{id}/disable, etc.)
-    - 在 blog-post 服务实现管理员端点 (GET /admin/posts, DELETE /admin/posts/{id}, etc.)
-    - 在 blog-comment 服务实现管理员端点 (GET /admin/comments, DELETE /admin/comments/{id}, etc.)
+    - 在 ZhiCore-user 服务实现管理员端点 (GET /admin/users, POST /admin/users/{id}/disable, etc.)
+    - 在 ZhiCore-post 服务实现管理员端点 (GET /admin/posts, DELETE /admin/posts/{id}, etc.)
+    - 在 ZhiCore-comment 服务实现管理员端点 (GET /admin/comments, DELETE /admin/comments/{id}, etc.)
     - 实现举报功能的数据库表和业务逻辑
   - [ ] 10.3 重新执行管理后台测试
     - 启动所有相关服务
@@ -112,7 +112,7 @@
 
 - [x] 12. 压力测试配置
   - [x] 12.1 创建JMeter测试计划
-    - 创建 tests/load/jmeter/blog-load-test.jmx
+    - 创建 tests/load/jmeter/ZhiCore-load-test.jmx
     - 配置8个压测场景（文章详情、列表、点赞、搜索、通知、评论列表、创建评论、评论点赞）
     - _Requirements: 11.1-11.8_       
   - [x] 12.2 创建压测运行脚本
@@ -291,7 +291,7 @@
 - MSG-020: 批量标记已读 ✅
 
 **修复记录**:
-1. 创建 blog_message 数据库并执行迁移脚本
+1. 创建 ZhiCore_message 数据库并执行迁移脚本
 2. 修复 UserServiceClient 端点路径 (/api/users -> /api/v1/users)
 3. 添加 Feign 客户端直接 URL 配置绕过服务发现问题
 4. 创建 NoOpDomainEventPublisher 解决 RocketMQ 依赖问题
@@ -321,7 +321,7 @@
 - UPLOAD-015: 删除不存在文件 ✅ (优雅处理)
 
 **修复记录**:
-1. 添加 blog-upload 服务依赖 (RocketMQ, Redis, Redisson, JWT)
+1. 添加 ZhiCore-upload 服务依赖 (RocketMQ, Redis, Redisson, JWT)
 2. 创建 bootstrap.yml 配置 Nacos
 3. 修复 application.yml 添加 spring.config.import
 4. 修复测试脚本中的 JPEG 生成函数，使用 System.Drawing 创建真实 JPEG 图片
@@ -333,7 +333,7 @@
 
 **测试结果**: 6 通过, 17 失败, 2 跳过
 
-**服务状态**: blog-admin 服务已启动并运行在端口 8090
+**服务状态**: ZhiCore-admin 服务已启动并运行在端口 8090
 
 **通过的测试用例**:
 - ADMIN-005: 禁用不存在用户 ✅ (正确拒绝)
@@ -386,30 +386,30 @@
    当目标服务端点不存在时，触发降级逻辑返回"系统繁忙，请稍后重试"。
 
 4. **服务依赖**:
-   - blog-user (8081): ✅ 运行中
-   - blog-post (8082): ✅ 运行中
-   - blog-comment (8083): ✅ 运行中（已修复 Redis 配置）
-   - blog-admin (8090): ✅ 运行中
+   - ZhiCore-user (8081): ✅ 运行中
+   - ZhiCore-post (8082): ✅ 运行中
+   - ZhiCore-comment (8083): ✅ 运行中（已修复 Redis 配置）
+   - ZhiCore-admin (8090): ✅ 运行中
 
 **后续工作**:
 
 要使管理后台测试完全通过，需要：
 
-1. 在 blog-user 服务中添加管理员端点:
+1. 在 ZhiCore-user 服务中添加管理员端点:
    - `GET /admin/users` - 查询用户列表
    - `POST /admin/users/{id}/disable` - 禁用用户
    - `POST /admin/users/{id}/enable` - 启用用户
    - `POST /admin/users/{id}/invalidate-tokens` - 使Token失效
 
-2. 在 blog-post 服务中添加管理员端点:
+2. 在 ZhiCore-post 服务中添加管理员端点:
    - `GET /admin/posts` - 查询文章列表
    - `DELETE /admin/posts/{id}` - 删除文章
 
-3. 在 blog-comment 服务中添加管理员端点:
+3. 在 ZhiCore-comment 服务中添加管理员端点:
    - `GET /admin/comments` - 查询评论列表
    - `DELETE /admin/comments/{id}` - 删除评论
 
-4. 启动 blog-comment 服务 (端口 8083) - ✅ 已完成（修复了 Redis 端口配置从 6379 改为 6800）
+4. 启动 ZhiCore-comment 服务 (端口 8083) - ✅ 已完成（修复了 Redis 端口配置从 6379 改为 6800）
 
 5. 实现举报功能的数据库表和业务逻辑
 

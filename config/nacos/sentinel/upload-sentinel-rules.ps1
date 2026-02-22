@@ -20,22 +20,22 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 # 定义规则文件
 $rules = @(
     @{
-        DataId = "blog-post-flow-rules"
-        File = "blog-post-flow-rules.json"
+        DataId = "ZhiCore-post-flow-rules"
+        File = "ZhiCore-post-flow-rules.json"
         Type = "json"
-        Description = "Blog Post Service Flow Control Rules"
+        Description = "ZhiCore Post Service Flow Control Rules"
     },
     @{
-        DataId = "blog-post-degrade-rules"
-        File = "blog-post-degrade-rules.json"
+        DataId = "ZhiCore-post-degrade-rules"
+        File = "ZhiCore-post-degrade-rules.json"
         Type = "json"
-        Description = "Blog Post Service Circuit Breaker Rules"
+        Description = "ZhiCore Post Service Circuit Breaker Rules"
     },
     @{
-        DataId = "blog-post-system-rules"
-        File = "blog-post-system-rules.json"
+        DataId = "ZhiCore-post-system-rules"
+        File = "ZhiCore-post-system-rules.json"
         Type = "json"
-        Description = "Blog Post Service System Protection Rules"
+        Description = "ZhiCore Post Service System Protection Rules"
     }
 )
 

@@ -6,18 +6,18 @@
  * 使用方法：
  * 1. 确保 MongoDB 服务正在运行
  * 2. 在命令行中执行：
- *    mongosh mongodb://admin:mongo123456@localhost:27017/blog?authSource=admin init-ranking-indexes.js
+ *    mongosh mongodb://admin:mongo123456@localhost:27017/ZhiCore?authSource=admin init-ranking-indexes.js
  * 
  * 或者在 mongosh 中执行：
- *    use blog
+ *    use ZhiCore
  *    load('init-ranking-indexes.js')
  * 
- * @author Blog Team
+ * @author ZhiCore Team
  * @date 2026-02-17
  */
 
-// 切换到 blog 数据库
-db = db.getSiblingDB('blog');
+// 切换到 ZhiCore 数据库
+db = db.getSiblingDB('ZhiCore');
 
 print('========================================');
 print('开始创建 ranking_archive 集合索引');

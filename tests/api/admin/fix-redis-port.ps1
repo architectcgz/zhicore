@@ -53,7 +53,7 @@ Write-Host "[STEP 4] Uploading to Nacos..." -ForegroundColor Yellow
 try {
     $Body = @{
         dataId = "common.yml"
-        group = "BLOG_SERVICE"
+        group = "ZhiCore_SERVICE"
         content = $FixedContent
         type = "yaml"
     }
@@ -76,7 +76,7 @@ try {
     Write-Host "  Please upload manually via Nacos console:" -ForegroundColor Yellow
     Write-Host "  1. Open http://localhost:8848/nacos" -ForegroundColor White
     Write-Host "  2. Go to Configuration Management -> Configurations" -ForegroundColor White
-    Write-Host "  3. Edit 'common.yml' in group 'BLOG_SERVICE'" -ForegroundColor White
+    Write-Host "  3. Edit 'common.yml' in group 'ZhiCore_SERVICE'" -ForegroundColor White
     Write-Host "  4. Change Redis port from 6800 to 6379" -ForegroundColor White
 }
 Write-Host ""
@@ -86,6 +86,6 @@ Write-Host "Fix Complete" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Next Steps:" -ForegroundColor Yellow
-Write-Host "1. Restart blog-user service to pick up new configuration" -ForegroundColor White
+Write-Host "1. Restart ZhiCore-user service to pick up new configuration" -ForegroundColor White
 Write-Host "2. Verify Redis connection: Test-NetConnection localhost -Port 6379" -ForegroundColor White
 Write-Host "3. Re-run the admin API tests" -ForegroundColor White

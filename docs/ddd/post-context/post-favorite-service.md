@@ -36,7 +36,7 @@ public class PostFavoriteService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IPostFavoriteRepository.cs
+// ZhiCoreCore/Domain/Repositories/IPostFavoriteRepository.cs
 public interface IPostFavoriteRepository
 {
     /// <summary>
@@ -80,7 +80,7 @@ public interface IPostFavoriteRepository
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Post/IPostFavoriteApplicationService.cs
+// ZhiCoreCore/Application/Post/IPostFavoriteApplicationService.cs
 public interface IPostFavoriteApplicationService
 {
     Task FavoritePostAsync(long postId, string userId);
@@ -90,7 +90,7 @@ public interface IPostFavoriteApplicationService
         string userId, int page, int pageSize);
 }
 
-// BlogCore/Application/Post/PostFavoriteApplicationService.cs
+// ZhiCoreCore/Application/Post/PostFavoriteApplicationService.cs
 public class PostFavoriteApplicationService : IPostFavoriteApplicationService
 {
     private readonly IPostRepository _postRepository;

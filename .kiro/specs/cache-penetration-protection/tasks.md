@@ -278,7 +278,7 @@
     - _Requirements: 1.1, 2.1, 3.1_
     - **测试结果**: 使用已运行的 Docker 服务（Redis, PostgreSQL）执行测试
     - **总计**: 68 tests, 0 failures, 0 errors
-    - **覆盖模块**: blog-common (38), blog-post (10), blog-user (10), blog-comment (10)
+    - **覆盖模块**: ZhiCore-common (38), ZhiCore-post (10), ZhiCore-user (10), ZhiCore-comment (10)
   
   - [x] 13.2 编写锁自动续期集成测试
     - 模拟长时间运行的查询

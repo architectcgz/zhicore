@@ -16,13 +16,13 @@
 
 ---
 
-## 二、数据结构设计（已统一前缀 blog:，与 comment_system 保持一致，数据库为准）
+## 二、数据结构设计（已统一前缀 ZhiCore:，与 comment_system 保持一致，数据库为准）
 
 ### 2.1 Redis数据结构（评论点赞）
 
 #### 2.1.1 点赞关系 (Set)
 ```
-Key: blog:comments:{commentId}:likes        -- 使用 HashTag {commentId}，便于集群同槽
+Key: ZhiCore:comments:{commentId}:likes        -- 使用 HashTag {commentId}，便于集群同槽
 Type: Set
 Value: Set<userId>
 TTL: 永不过期（不设过期，避免重复计数风险）
@@ -31,13 +31,13 @@ TTL: 永不过期（不设过期，避免重复计数风险）
 
 **示例**:
 ```bash
-SADD blog:comments:{123}:likes "user001"
-SISMEMBER blog:comments:{123}:likes "user001"  # 1=已点赞
+SADD ZhiCore:comments:{123}:likes "user001"
+SISMEMBER ZhiCore:comments:{123}:likes "user001"  # 1=已点赞
 ```
 
 #### 2.1.2 评论统计 (Hash，由消费者维护)
 ```
-Key: blog:comments:{commentId}:stats
+Key: ZhiCore:comments:{commentId}:stats
 Type: Hash
 Fields:
   - like_count: 点赞数
@@ -48,14 +48,14 @@ TTL: 永不过期（手动失效/重建）
 
 **示例**:
 ```bash
-HGETALL blog:comments:{123}:stats
-HINCRBY blog:comments:{123}:stats like_count 1  # 仅消费者执行
+HGETALL ZhiCore:comments:{123}:stats
+HINCRBY ZhiCore:comments:{123}:stats like_count 1  # 仅消费者执行
 ```
 
 #### 2.1.3 点赞防刷/限流键（由 AntiSpamRateLimitMiddleware 使用）
-- 计数：`blog:antispam:like:count:{actor}:{period}` （固定窗口，分钟/小时/天）
-- 冷却：`blog:antispam:like:cooldown:{actor}:{targetId}`
-- 同一目标频控：`blog:antispam:like:target:{actor}:{targetId}`
+- 计数：`ZhiCore:antispam:like:count:{actor}:{period}` （固定窗口，分钟/小时/天）
+- 冷却：`ZhiCore:antispam:like:cooldown:{actor}:{targetId}`
+- 同一目标频控：`ZhiCore:antispam:like:target:{actor}:{targetId}`
 
 > actor 形式：`user:{userId}` 或 `ip:{ip}`；Redis 不可用时中间件放行但记录日志。
 
@@ -125,7 +125,7 @@ CREATE TABLE post_stats (
     ↓
 2. 校验评论存在、拉黑关系
     ↓
-3. Redis SADD blog:comments:{cid}:likes userId   # 仅写关系，立即返回状态
+3. Redis SADD ZhiCore:comments:{cid}:likes userId   # 仅写关系，立即返回状态
     ↓
 4. 发布 MQ (CommentLikeBatchMessage IsUnlike=false)
     ↓
@@ -141,7 +141,7 @@ CREATE TABLE post_stats (
     ↓
 2. 校验评论存在
     ↓
-3. Redis SREM blog:comments:{cid}:likes userId   # 仅写关系
+3. Redis SREM ZhiCore:comments:{cid}:likes userId   # 仅写关系
     ↓
 4. 发布 MQ (CommentLikeBatchMessage IsUnlike=true)
     ↓
@@ -164,7 +164,7 @@ RabbitMQ Consumer
     ↓
 4. 提交事务
     ↓
-5. 异步更新 Redis Hash: HINCRBY blog:comments:{cid}:stats like_count ±count
+5. 异步更新 Redis Hash: HINCRBY ZhiCore:comments:{cid}:stats like_count ±count
     ↓
 6. 热度更新入队（comments:hot:urgent 等）
     ↓
@@ -292,7 +292,7 @@ GROUP BY post_id;
 // 批量获取点赞数 (Pipeline)
 var batch = redis.CreateBatch();
 var tasks = postIds.Select(id => 
-    batch.HashGetAsync($"blog:posts:stats:{id}", "like_count")
+    batch.HashGetAsync($"ZhiCore:posts:stats:{id}", "like_count")
 ).ToList();
 batch.Execute();
 ```
@@ -369,7 +369,7 @@ foreach (var tag in deliveryTags) {
 
 ```csharp
 // 限流检查
-var count = await redis.StringIncrementAsync($"blog:ratelimit:like:{userId}");
+var count = await redis.StringIncrementAsync($"ZhiCore:ratelimit:like:{userId}");
 if (count == 1) {
     await redis.KeyExpireAsync(key, TimeSpan.FromSeconds(1));
 }

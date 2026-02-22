@@ -1,0 +1,71 @@
+# Post Service 测试配置
+server:
+  port: 0
+
+spring:
+  application:
+    name: ZhiCore-post-test
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  h2:
+    console:
+      enabled: false
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+  config:
+    import: ""
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: deleted
+      logic-delete-value: true
+      logic-not-delete-value: false
+
+# Redis 测试配置
+spring.data.redis:
+  host: localhost
+  port: 6379
+
+# RocketMQ 测试配置
+rocketmq:
+  name-server: localhost:9876
+  producer:
+    group: test-producer-group
+    send-message-timeout: 3000
+
+# 缓存配置
+cache:
+  ttl:
+    entity-detail: 10m
+    list: 5m
+    stats: -1
+
+# Actuator 配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  endpoint:
+    health:
+      show-details: always
+
+# 日志配置
+logging:
+  level:
+    com.ZhiCore: DEBUG

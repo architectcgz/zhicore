@@ -2,7 +2,7 @@
   cloud:
     nacos:
       discovery:
-        group: BLOG_SERVICE
+        group: ZhiCore_SERVICE
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
@@ -39,14 +39,14 @@ cache:
     threshold: 100
 
 jwt:
-  secret: blog-microservice-jwt-secret-key-2024-very-long-and-secure-key-for-production-use
+  secret: ZhiCore-microservice-jwt-secret-key-2024-very-long-and-secure-key-for-production-use
   access-token-expiration: 7200
   refresh-token-expiration: 604800
 
 file-service:
   client:
     server-url: ${FILE_SERVICE_URL:http://localhost:8089}
-    tenant-id: ${FILE_SERVICE_TENANT_ID:blog}
+    tenant-id: ${FILE_SERVICE_TENANT_ID:ZhiCore}
     connect-timeout: 10000
     read-timeout: 30000
     max-connections: 50
@@ -93,7 +93,7 @@ management:
 logging:
   level:
     root: INFO
-    com.blog: DEBUG
+    com.ZhiCore: DEBUG
     com.alibaba.nacos: WARN
     org.springframework.cloud: INFO
   pattern:

@@ -54,7 +54,7 @@ public class CommentService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/ICommentRepository.cs
+// ZhiCoreCore/Domain/Repositories/ICommentRepository.cs
 public interface ICommentRepository
 {
     /// <summary>
@@ -110,7 +110,7 @@ public interface ICommentRepository
 ### Repository 实现
 
 ```csharp
-// BlogCore/Infrastructure/Repositories/CommentRepository.cs
+// ZhiCoreCore/Infrastructure/Repositories/CommentRepository.cs
 public class CommentRepository : ICommentRepository
 {
     private readonly AppDbContext _dbContext;
@@ -257,7 +257,7 @@ public class CommentRepository : ICommentRepository
 ### Domain Service
 
 ```csharp
-// BlogCore/Domain/Services/ICommentDomainService.cs
+// ZhiCoreCore/Domain/Services/ICommentDomainService.cs
 public interface ICommentDomainService
 {
     /// <summary>
@@ -271,7 +271,7 @@ public interface ICommentDomainService
     Task ValidateCommentAsync(CreateCommentReq dto, string userId);
 }
 
-// BlogCore/Domain/Services/CommentDomainService.cs
+// ZhiCoreCore/Domain/Services/CommentDomainService.cs
 public class CommentDomainService : ICommentDomainService
 {
     private readonly ISnowflakeIdService _snowflakeIdService;
@@ -338,7 +338,7 @@ public class CommentDomainService : ICommentDomainService
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Comment/ICommentApplicationService.cs
+// ZhiCoreCore/Application/Comment/ICommentApplicationService.cs
 public interface ICommentApplicationService
 {
     Task<CommentVo> CreateCommentAsync(CreateCommentReq dto, string userId, string? ipAddress = null);
@@ -348,7 +348,7 @@ public interface ICommentApplicationService
     Task<CommentVo> GetCommentByIdAsync(long commentId, string? currentUserId = null);
 }
 
-// BlogCore/Application/Comment/CommentApplicationService.cs
+// ZhiCoreCore/Application/Comment/CommentApplicationService.cs
 public class CommentApplicationService : ICommentApplicationService
 {
     private readonly IPostRepository _postRepository;
@@ -476,7 +476,7 @@ public record CommentDeletedEvent : DomainEventBase
 ### 事件处理器
 
 ```csharp
-// BlogCore/Domain/EventHandlers/Comment/CommentCreatedEventHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Comment/CommentCreatedEventHandler.cs
 public class CommentCreatedEventHandler : IDomainEventHandler<CommentCreatedEvent>
 {
     private readonly IPostStatsRepository _postStatsRepository;
@@ -547,7 +547,7 @@ public class CommentCreatedEventHandler : IDomainEventHandler<CommentCreatedEven
 ### Cached Decorator
 
 ```csharp
-// BlogCore/Infrastructure/Caching/CachedCommentService.cs
+// ZhiCoreCore/Infrastructure/Caching/CachedCommentService.cs
 public class CachedCommentService : ICommentService
 {
     private readonly ICommentService _inner;

@@ -130,7 +130,7 @@ docker stats
 docker ps --filter "name=rocketmq"
 
 # 查看 Broker 日志
-docker logs blog-rocketmq-broker
+docker logs ZhiCore-rocketmq-broker
 
 # 测试消息发送
 curl http://localhost:8180
@@ -138,9 +138,9 @@ curl http://localhost:8180
 
 **预期结果**:
 ```
-blog-rocketmq-namesrv     ~190MB
-blog-rocketmq-broker      ~650MB
-blog-rocketmq-dashboard   ~330MB
+ZhiCore-rocketmq-namesrv     ~190MB
+ZhiCore-rocketmq-broker      ~650MB
+ZhiCore-rocketmq-dashboard   ~330MB
 Total:                    ~1.17GB
 ```
 
@@ -192,10 +192,10 @@ docker stats --format "table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}"
 ### 3. 日志监控
 ```bash
 # Broker 日志
-docker logs -f blog-rocketmq-broker
+docker logs -f ZhiCore-rocketmq-broker
 
 # NameServer 日志
-docker logs -f blog-rocketmq-namesrv
+docker logs -f ZhiCore-rocketmq-namesrv
 ```
 
 ## 故障排查
@@ -220,7 +220,7 @@ environment:
 **解决方案**:
 ```bash
 # 检查 Broker 状态
-docker logs blog-rocketmq-broker | grep "register"
+docker logs ZhiCore-rocketmq-broker | grep "register"
 
 # 重启 Broker
 docker-compose restart rocketmq-broker
@@ -237,7 +237,7 @@ docker-compose restart rocketmq-broker
 **解决方案**:
 ```bash
 # 清理历史数据
-docker exec blog-rocketmq-broker sh -c "rm -rf /home/rocketmq/store/*"
+docker exec ZhiCore-rocketmq-broker sh -c "rm -rf /home/rocketmq/store/*"
 
 # 重启 Broker
 docker-compose restart rocketmq-broker

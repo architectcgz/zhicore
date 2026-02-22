@@ -80,7 +80,7 @@ public class PostLikeService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IPostLikeRepository.cs
+// ZhiCoreCore/Domain/Repositories/IPostLikeRepository.cs
 public interface IPostLikeRepository
 {
     /// <summary>
@@ -125,7 +125,7 @@ public interface IPostLikeRepository
 ### Repository 实现
 
 ```csharp
-// BlogCore/Infrastructure/Repositories/PostLikeRepository.cs
+// ZhiCoreCore/Infrastructure/Repositories/PostLikeRepository.cs
 public class PostLikeRepository : IPostLikeRepository
 {
     private readonly AppDbContext _dbContext;
@@ -250,7 +250,7 @@ public class PostLikeRepository : IPostLikeRepository
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Post/IPostLikeApplicationService.cs
+// ZhiCoreCore/Application/Post/IPostLikeApplicationService.cs
 public interface IPostLikeApplicationService
 {
     Task LikePostAsync(long postId, string userId);
@@ -259,7 +259,7 @@ public interface IPostLikeApplicationService
     Task<Dictionary<long, int>> GetLikeCountsBatchAsync(IEnumerable<long> postIds);
 }
 
-// BlogCore/Application/Post/PostLikeApplicationService.cs
+// ZhiCoreCore/Application/Post/PostLikeApplicationService.cs
 public class PostLikeApplicationService : IPostLikeApplicationService
 {
     private readonly IPostRepository _postRepository;
@@ -358,7 +358,7 @@ public record PostLikedEvent : DomainEventBase
 ### 事件处理器
 
 ```csharp
-// BlogCore/Domain/EventHandlers/Post/PostLikedEventHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Post/PostLikedEventHandler.cs
 public class PostLikedEventHandler : IDomainEventHandler<PostLikedEvent>
 {
     private readonly INotificationService _notificationService;

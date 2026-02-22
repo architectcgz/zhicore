@@ -455,7 +455,7 @@ public abstract class CrossServiceIntegrationTest {
     
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15")
-        .withDatabaseName("blog_test")
+        .withDatabaseName("ZhiCore_test")
         .withUsername("test")
         .withPassword("test");
     

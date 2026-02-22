@@ -445,7 +445,7 @@ else {
     生成测试标签数据
 
 .DESCRIPTION
-    此脚本自动从 blog-id-generator 服务获取标签 ID，生成标签名称和 slug，
+    此脚本自动从 ZhiCore-id-generator 服务获取标签 ID，生成标签名称和 slug，
     并调用 API 创建标签。所有 slug 都符合格式要求（小写字母、数字、连字符）。
 
 .PARAMETER ConfigPath
@@ -484,8 +484,8 @@ else {
 
 .NOTES
     前置条件：
-    1. blog-id-generator 服务已启动（端口 8088）
-    2. blog-gateway 服务已启动（端口 8000）
+    1. ZhiCore-id-generator 服务已启动（端口 8088）
+    2. ZhiCore-gateway 服务已启动（端口 8000）
     3. 网络连接正常
 
     生成数据：

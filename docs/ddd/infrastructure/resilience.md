@@ -39,7 +39,7 @@
 ### 基础策略工具类
 
 ```csharp
-// BlogCore/Infrastructure/Resilience/ResiliencePolicies.cs
+// ZhiCoreCore/Infrastructure/Resilience/ResiliencePolicies.cs
 public static class ResiliencePolicies
 {
     /// <summary>
@@ -125,7 +125,7 @@ public static class ResiliencePolicies
 ### Redis 策略提供者
 
 ```csharp
-// BlogCore/Services/Resilience/IRedisPolicyProvider.cs
+// ZhiCoreCore/Services/Resilience/IRedisPolicyProvider.cs
 public interface IRedisPolicyProvider
 {
     /// <summary>
@@ -144,7 +144,7 @@ public interface IRedisPolicyProvider
         string operationKey);
 }
 
-// BlogCore/Services/Resilience/RedisPolicyProvider.cs
+// ZhiCoreCore/Services/Resilience/RedisPolicyProvider.cs
 public class RedisPolicyProvider : IRedisPolicyProvider
 {
     private readonly AsyncPolicyWrap _policy;
@@ -217,7 +217,7 @@ public class RedisPolicyProvider : IRedisPolicyProvider
 ### RabbitMQ 策略提供者
 
 ```csharp
-// BlogCore/Services/Resilience/IRabbitMqPolicyProvider.cs
+// ZhiCoreCore/Services/Resilience/IRabbitMqPolicyProvider.cs
 public interface IRabbitMqPolicyProvider
 {
     /// <summary>
@@ -236,7 +236,7 @@ public interface IRabbitMqPolicyProvider
         string operationKey);
 }
 
-// BlogCore/Services/Resilience/RabbitMqPolicyProvider.cs
+// ZhiCoreCore/Services/Resilience/RabbitMqPolicyProvider.cs
 public class RabbitMqPolicyProvider : IRabbitMqPolicyProvider
 {
     private readonly AsyncCircuitBreakerPolicy _circuitBreaker;
@@ -287,7 +287,7 @@ public class RabbitMqPolicyProvider : IRabbitMqPolicyProvider
 ### 搜索服务降级
 
 ```csharp
-// BlogCore/Infrastructure/Resilience/ResilientSearchService.cs
+// ZhiCoreCore/Infrastructure/Resilience/ResilientSearchService.cs
 /// <summary>
 /// 带降级能力的搜索服务
 /// 主服务：Elasticsearch
@@ -335,7 +335,7 @@ public class ResilientSearchService : ISearchService
 ### 事件发布器降级
 
 ```csharp
-// BlogCore/Infrastructure/Resilience/ResilientEventPublisher.cs
+// ZhiCoreCore/Infrastructure/Resilience/ResilientEventPublisher.cs
 /// <summary>
 /// 带降级能力的事件发布器
 /// 主服务：RabbitMQ
@@ -397,7 +397,7 @@ public class ResilientEventPublisher : IEventPublisher
 ## DI 注册
 
 ```csharp
-// BlogCore/Extensions/ResilienceServiceExtensions.cs
+// ZhiCoreCore/Extensions/ResilienceServiceExtensions.cs
 public static class ResilienceServiceExtensions
 {
     public static IServiceCollection AddResilienceServices(this IServiceCollection services)
@@ -435,7 +435,7 @@ public static class ResilienceServiceExtensions
 ### 熔断器状态监控
 
 ```csharp
-// BlogCore/Services/Background/CircuitBreakerMonitorService.cs
+// ZhiCoreCore/Services/Background/CircuitBreakerMonitorService.cs
 public class CircuitBreakerMonitorService : BackgroundService
 {
     private readonly IRedisPolicyProvider _redisPolicyProvider;

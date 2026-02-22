@@ -1,6 +1,6 @@
 # MongoDB Initialization Scripts
 
-This directory contains initialization scripts for MongoDB used by the blog-post service.
+This directory contains initialization scripts for MongoDB used by the zhicore-content service.
 
 ## Overview
 
@@ -47,7 +47,7 @@ Stores archived article content.
 ## Initialization Script
 
 The `init-mongo.js` script:
-1. Creates the `blog` database
+1. Creates the `zhicore` database
 2. Creates all required collections
 3. Creates indexes for optimal query performance
 4. Inserts a sample document for verification
@@ -63,9 +63,9 @@ The `init-mongo.js` script:
 Default connection parameters (can be overridden via environment variables):
 
 ```
-Host: blog-mongodb
+Host: zhicore-mongodb
 Port: 27017
-Database: blog
+Database: zhicore
 Username: admin
 Password: mongo123456
 Auth Database: admin
@@ -84,17 +84,17 @@ After starting the containers, verify the setup:
 
 1. Check MongoDB logs:
    ```bash
-   docker logs blog-mongodb
+   docker logs zhicore-mongodb
    ```
 
 2. Access Mongo Express:
    ```
-   http://localhost:8081
+   http://localhost:8091
    ```
 
 3. Check application health:
    ```bash
-   curl http://localhost:8082/actuator/health
+   curl http://localhost:8102/actuator/health
    ```
 
 ## Troubleshooting
@@ -105,12 +105,12 @@ If the application cannot connect to MongoDB:
 
 1. Verify MongoDB is running:
    ```bash
-   docker ps | grep blog-mongodb
+   docker ps | grep zhicore-mongodb
    ```
 
 2. Check MongoDB health:
    ```bash
-   docker exec blog-mongodb mongosh --eval "db.adminCommand('ping')"
+   docker exec zhicore-mongodb mongosh --eval "db.adminCommand('ping')"
    ```
 
 3. Verify credentials in `.env` file
@@ -121,12 +121,12 @@ If indexes are not created:
 
 1. Connect to MongoDB:
    ```bash
-   docker exec -it blog-mongodb mongosh -u admin -p mongo123456 --authenticationDatabase admin
+   docker exec -it zhicore-mongodb mongosh -u admin -p mongo123456 --authenticationDatabase admin
    ```
 
-2. Switch to blog database:
+2. Switch to zhicore database:
    ```javascript
-   use blog
+   use zhicore
    ```
 
 3. List indexes:

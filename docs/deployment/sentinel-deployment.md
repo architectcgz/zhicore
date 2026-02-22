@@ -1,6 +1,6 @@
 # Sentinel 部署指南
 
-本文档介绍如何部署和配置 Sentinel 控制台，以及如何将 Blog Post Service 接入 Sentinel。
+本文档介绍如何部署和配置 Sentinel 控制台，以及如何将 ZhiCore Post Service 接入 Sentinel。
 
 ## 1. Sentinel 控制台部署
 
@@ -40,7 +40,7 @@ java -Dserver.port=8858 -jar sentinel-dashboard-1.8.6.jar
 进入规则配置目录：
 
 ```powershell
-cd blog-microservice/config/nacos/sentinel
+cd ZhiCore-microservice/config/nacos/sentinel
 ```
 
 执行上传脚本：
@@ -60,11 +60,11 @@ cd blog-microservice/config/nacos/sentinel
 1. 访问 Nacos 控制台：http://localhost:8848/nacos
 2. 进入"配置管理" -> "配置列表"
 3. 查看 SENTINEL_RULES 组下的配置：
-   - blog-post-flow-rules
-   - blog-post-degrade-rules
-   - blog-post-system-rules
+   - ZhiCore-post-flow-rules
+   - ZhiCore-post-degrade-rules
+   - ZhiCore-post-system-rules
 
-## 3. 启动 Blog Post Service
+## 3. 启动 ZhiCore Post Service
 
 ### 3.1 配置环境变量
 
@@ -83,21 +83,21 @@ NACOS_PASSWORD=nacos
 ### 3.2 启动服务
 
 ```bash
-cd blog-microservice/blog-post
+cd ZhiCore-microservice/ZhiCore-post
 mvn spring-boot:run
 ```
 
 或使用 Docker：
 
 ```bash
-docker-compose up blog-post
+docker-compose up ZhiCore-post
 ```
 
 ### 3.3 验证连接
 
 1. 访问 Sentinel 控制台：http://localhost:8858
 2. 等待服务启动并发送第一个请求
-3. 在左侧菜单中应该能看到 "blog-post" 应用
+3. 在左侧菜单中应该能看到 "ZhiCore-post" 应用
 4. 点击进入，查看实时监控数据
 
 ## 4. 规则配置说明
@@ -140,7 +140,7 @@ docker-compose up blog-post
 ### 5.1 通过 Sentinel 控制台
 
 1. 访问 Sentinel 控制台
-2. 选择 "blog-post" 应用
+2. 选择 "ZhiCore-post" 应用
 3. 进入"流控规则"、"降级规则"或"系统规则"
 4. 点击"新增"或"编辑"按钮
 5. 修改规则参数
@@ -171,7 +171,7 @@ docker-compose up blog-post
 
 ### 6.2 集成 Prometheus
 
-Blog Post Service 已集成 Prometheus 指标：
+ZhiCore Post Service 已集成 Prometheus 指标：
 
 ```yaml
 management:
@@ -275,5 +275,5 @@ management:
 - [Sentinel 官方文档](https://sentinelguard.io/zh-cn/docs/introduction.html)
 - [Spring Cloud Alibaba Sentinel](https://github.com/alibaba/spring-cloud-alibaba/wiki/Sentinel)
 - [Sentinel 规则配置](../config/nacos/sentinel/README.md)
-- [性能优化总结](../../blog-post/PERFORMANCE_OPTIMIZATION_SUMMARY.md)
-- [Sentinel 迁移指南](../../blog-post/SENTINEL_MIGRATION_GUIDE.md)
+- [性能优化总结](../../ZhiCore-post/PERFORMANCE_OPTIMIZATION_SUMMARY.md)
+- [Sentinel 迁移指南](../../ZhiCore-post/SENTINEL_MIGRATION_GUIDE.md)

@@ -16,18 +16,18 @@ File Service 是一个**独立的平台级文件服务**，特点：
 
 - **独立部署**: 拥有独立的代码库、数据库和存储
 - **多租户隔离**: 通过 `X-App-Id` 请求头实现不同应用的文件隔离
-- **通用服务**: 可被多个应用（blog、im 等）共享使用
+- **通用服务**: 可被多个应用（ZhiCore、im 等）共享使用
 
-### 2. 与 blog-upload 的关系
+### 2. 与 ZhiCore-upload 的关系
 
-- **blog-upload**: Blog 系统的上传服务，作为 **Feign Client** 调用 file-service
+- **ZhiCore-upload**: ZhiCore 系统的上传服务，作为 **Feign Client** 调用 file-service
 - **file-service**: 独立的文件服务，提供实际的文件存储和管理功能
 
 ```
 ┌─────────────┐
-│ blog-post   │
-│ blog-admin  │──┐
-│ blog-upload │  │  通过 Feign Client 调用
+│ ZhiCore-post   │
+│ ZhiCore-admin  │──┐
+│ ZhiCore-upload │  │  通过 Feign Client 调用
 └─────────────┘  │
                  ▼
          ┌──────────────┐
@@ -102,11 +102,11 @@ cd tests/api/file
 
 ### 2. 完整 API 测试
 
-需要先启动 blog-user 服务（用于认证）：
+需要先启动 ZhiCore-user 服务（用于认证）：
 
 ```powershell
-# 启动 blog-user 服务
-cd blog-user
+# 启动 ZhiCore-user 服务
+cd ZhiCore-user
 mvn spring-boot:run
 
 # 运行完整测试
@@ -120,13 +120,13 @@ cd tests/api/file
 - 文件去重
 - 文件操作（上传、获取、删除）
 
-### 3. Blog 集成测试
+### 3. ZhiCore 集成测试
 
-测试 blog 服务与 file-service 的集成：
+测试 ZhiCore 服务与 file-service 的集成：
 
 ```powershell
 cd tests/api/file
-.\test-blog-to-file-service-integration.ps1
+.\test-ZhiCore-to-file-service-integration.ps1
 ```
 
 ## 预期测试结果
@@ -257,14 +257,14 @@ MINIO_BUCKET=platform-files
 
 测试通过后，可以进行以下工作：
 
-1. **集成到 blog-upload**: 
-   - 修改 blog-upload 使用 FileServiceClient
+1. **集成到 ZhiCore-upload**: 
+   - 修改 ZhiCore-upload 使用 FileServiceClient
    - 测试文件上传功能
 
 2. **集成到其他服务**:
-   - blog-post: 文章封面图片
-   - blog-admin: 用户头像管理
-   - blog-message: 文件消息发送
+   - ZhiCore-post: 文章封面图片
+   - ZhiCore-admin: 用户头像管理
+   - ZhiCore-message: 文件消息发送
 
 3. **性能测试**:
    - 并发上传测试
@@ -276,11 +276,11 @@ MINIO_BUCKET=platform-files
 - [File Service README](../../../file-service/README.md)
 - [File Service API 文档](../../../file-service/API.md)
 - [集成指南](../../../file-service/INTEGRATION.md)
-- [Blog 集成设置](../../../file-service/BLOG_INTEGRATION_SETUP.md)
+- [ZhiCore 集成设置](../../../file-service/ZhiCore_INTEGRATION_SETUP.md)
 
 ## 总结
 
-File Service 是一个**独立的平台级服务**，需要单独启动。Blog 系统通过 Feign Client 调用其 API。
+File Service 是一个**独立的平台级服务**，需要单独启动。ZhiCore 系统通过 Feign Client 调用其 API。
 
 **关键点**:
 - File Service 有独立的代码库、数据库和存储

@@ -1,0 +1,117 @@
+server:
+  port: 8108
+
+spring:
+  application:
+    name: zhicore-ranking
+  config:
+    import:
+      - optional:nacos:common.yml?group=ZHICORE_SERVICE&username=${NACOS_USERNAME:nacos}&password=${NACOS_PASSWORD:nacos}&refreshEnabled=true
+      - optional:nacos:zhicore-ranking.yml?group=ZHICORE_SERVICE&username=${NACOS_USERNAME:nacos}&password=${NACOS_PASSWORD:nacos}&refreshEnabled=true
+  cloud:
+    nacos:
+      server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+      username: ${NACOS_USERNAME:nacos}
+      password: ${NACOS_PASSWORD:nacos}
+      discovery:
+        group: ZHICORE_SERVICE
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+  data:
+    mongodb:
+      uri: mongodb://admin:mongo123456@localhost:27017/zhicore?authSource=admin
+      database: zhicore
+
+# SpringDoc OpenAPI 配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true  # 必须启用，Knife4j 依赖此配置
+    path: /swagger-ui.html
+
+# Knife4j 配置
+knife4j:
+  enable: true
+  title: ${spring.application.name} API 文档
+  version: 1.0.0
+  description: 排行榜服务接口文档 - 提供文章、创作者、话题的热度排行功能
+  setting:
+    language: zh_cn  # 中文界面
+    enable-swagger-models: true
+    enable-document-manage: true
+    swagger-model-name: 实体类列表
+  production: false
+
+# RocketMQ 配置
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+  producer:
+    group: ranking-producer-group
+    send-message-timeout: 3000
+  consumer:
+    group: ranking-consumer-group
+
+# Feign 配置
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 5000
+  sentinel:
+    enabled: true
+
+# Sentinel 配置
+spring.cloud.sentinel:
+  transport:
+    dashboard: ${SENTINEL_DASHBOARD:localhost:8080}
+  eager: true
+
+# 排行榜配置
+ranking:
+  # 热度计算权重
+  weight:
+    view: 1.0
+    like: 5.0
+    comment: 10.0
+    favorite: 8.0
+  # 时间衰减半衰期（天）
+  half-life-days: 7
+  # 排行榜默认大小
+  default-size: 20
+  # 最大排行榜大小
+  max-size: 100
+  # 归档配置
+  archive:
+    # 归档数量限制
+    limit: 100
+  # 本地聚合缓冲配置
+  buffer:
+    # 刷写间隔（毫秒），默认 5000ms（5秒）
+    flush-interval: 5000
+    # 批量刷写大小，默认 1000
+    batch-size: 1000
+
+# 分页配置
+ZhiCore:
+  ranking:
+    pagination:
+      default-size: 20    # 默认分页大小
+      max-size: 100       # 最大分页大小
+
+# 日志配置
+logging:
+  level:
+    com.zhicore.ranking: DEBUG
+
+# Actuator 配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always

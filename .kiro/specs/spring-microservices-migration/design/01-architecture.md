@@ -184,11 +184,11 @@ public class UserServiceFallbackFactory implements FallbackFactory<UserServiceCl
 
 | Topic | 事件类型 | 是否顺序 | 幂等 Key | 最大重试 | 死信策略 | 补偿机制 |
 |-------|---------|---------|---------|---------|---------|---------|
-| blog-post-events | PostPublished | 否 | eventId | 3 | 转入死信队列 | 定时任务重试 |
-| blog-post-events | PostLiked | 否 | postId:userId | 3 | 丢弃（幂等） | CDC 对账 |
-| blog-user-events | UserFollowed | 否 | followerId:followingId | 3 | 丢弃（幂等） | CDC 对账 |
-| blog-comment-events | CommentCreated | 否 | eventId | 3 | 转入死信队列 | 定时任务重试 |
-| blog-message-events | MessageSent | **是** | messageId | 5 | 人工处理 | 消息补发 |
+| ZhiCore-post-events | PostPublished | 否 | eventId | 3 | 转入死信队列 | 定时任务重试 |
+| ZhiCore-post-events | PostLiked | 否 | postId:userId | 3 | 丢弃（幂等） | CDC 对账 |
+| ZhiCore-user-events | UserFollowed | 否 | followerId:followingId | 3 | 丢弃（幂等） | CDC 对账 |
+| ZhiCore-comment-events | CommentCreated | 否 | eventId | 3 | 转入死信队列 | 定时任务重试 |
+| ZhiCore-message-events | MessageSent | **是** | messageId | 5 | 人工处理 | 消息补发 |
 
 #### 死信队列配置
 
@@ -196,7 +196,7 @@ public class UserServiceFallbackFactory implements FallbackFactory<UserServiceCl
 @Configuration
 public class RocketMQDeadLetterConfig {
     
-    public static final String DLQ_TOPIC = "blog-events-dlq";
+    public static final String DLQ_TOPIC = "ZhiCore-events-dlq";
     
     /**
      * 死信消息处理

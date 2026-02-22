@@ -1,6 +1,6 @@
 # 秒传功能集成测试指南
 
-> **注意**: 本测试文档针对旧的 blog-upload 服务。RustFS 对象存储已移至独立的 `file-service`。
+> **注意**: 本测试文档针对旧的 ZhiCore-upload 服务。RustFS 对象存储已移至独立的 `file-service`。
 > 新的文件服务测试请参考 `file-service/docker/README.md`。
 
 ## 概述
@@ -35,11 +35,11 @@ cd docker
 docker-compose up -d postgres redis rustfs
 
 # 启动用户服务
-cd ../blog-user
+cd ../ZhiCore-user
 mvn spring-boot:run
 
 # 启动上传服务（S3 模式）
-cd ../blog-upload
+cd ../ZhiCore-upload
 $env:STORAGE_TYPE = 's3'
 mvn spring-boot:run
 ```
@@ -47,7 +47,7 @@ mvn spring-boot:run
 ### 2. 运行数据库迁移
 
 ```powershell
-cd blog-migration
+cd ZhiCore-migration
 mvn flyway:migrate
 ```
 
@@ -124,7 +124,7 @@ WHERE file_hash = '<your_file_hash>';
 
 1. 访问 http://localhost:9101
 2. 登录（admin / admin123456）
-3. 浏览 `blog-uploads` bucket
+3. 浏览 `ZhiCore-uploads` bucket
 4. 验证文件是否存在或已被删除
 
 ## 故障排查
@@ -139,7 +139,7 @@ WHERE file_hash = '<your_file_hash>';
 **解决方法**:
 ```powershell
 # 检查数据库连接
-docker exec -it blog-postgres psql -U postgres -d blog_upload
+docker exec -it ZhiCore-postgres psql -U postgres -d ZhiCore_upload
 
 # 查询 storage_objects
 SELECT * FROM storage_objects ORDER BY created_at DESC LIMIT 5;
@@ -172,10 +172,10 @@ HAVING so.reference_count != COUNT(fr.id);
 **解决方法**:
 ```powershell
 # 检查 RustFS 日志
-docker logs blog-rustfs
+docker logs ZhiCore-rustfs
 
 # 手动验证 S3 对象
-aws s3 ls s3://blog-uploads/ --endpoint-url http://localhost:9100
+aws s3 ls s3://ZhiCore-uploads/ --endpoint-url http://localhost:9100
 ```
 
 ## 性能基准

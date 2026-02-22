@@ -2,7 +2,7 @@
 
 ## Introduction
 
-本规格文档定义了博客文章服务（blog-post）的混合存储架构改造需求。通过引入 MongoDB 作为内容存储层，配合现有的 PostgreSQL 元数据存储，实现更灵活、高效的文章内容管理，并支持版本历史、草稿自动保存、富文本扩展等高级功能。
+本规格文档定义了博客文章服务（ZhiCore-post）的混合存储架构改造需求。通过引入 MongoDB 作为内容存储层，配合现有的 PostgreSQL 元数据存储，实现更灵活、高效的文章内容管理，并支持版本历史、草稿自动保存、富文本扩展等高级功能。
 
 ## Glossary
 
@@ -32,7 +32,7 @@
 #### Acceptance Criteria
 
 1. WHEN 启动 Docker Compose THEN THE System SHALL 启动 MongoDB 容器并监听 27017 端口
-2. WHEN MongoDB 启动完成 THEN THE System SHALL 创建 blog 数据库和必要的集合
+2. WHEN MongoDB 启动完成 THEN THE System SHALL 创建 ZhiCore 数据库和必要的集合
 3. WHEN MongoDB 初始化 THEN THE System SHALL 创建必要的索引以优化查询性能
 4. WHEN 应用启动 THEN THE Post_Service SHALL 成功连接到 MongoDB 并验证连接状态
 5. WHERE 部署了 Mongo Express THEN THE System SHALL 提供 Web 管理界面访问 MongoDB

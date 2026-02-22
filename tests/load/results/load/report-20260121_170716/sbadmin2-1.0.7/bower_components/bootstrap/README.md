@@ -102,7 +102,7 @@ Editor preferences are available in the [editor config](https://github.com/twbs/
 Keep track of development and community news.
 
 - Follow [@getbootstrap on Twitter](https://twitter.com/getbootstrap).
-- Read and subscribe to [The Official Bootstrap Blog](http://blog.getbootstrap.com).
+- Read and subscribe to [The Official Bootstrap ZhiCore](http://ZhiCore.getbootstrap.com).
 - Chat with fellow Bootstrappers in IRC. On the `irc.freenode.net` server, in the `##bootstrap` channel.
 - Implementation help may be found at Stack Overflow (tagged [`twitter-bootstrap-3`](http://stackoverflow.com/questions/tagged/twitter-bootstrap-3)).
 - Developers should use the keyword `bootstrap` on packages which modify or add to the functionality of Bootstrap when distributing through [npm](https://www.npmjs.com/browse/keyword/bootstrap) or similar delivery mechanisms for maximum discoverability.

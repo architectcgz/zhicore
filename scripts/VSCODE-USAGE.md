@@ -11,7 +11,7 @@
 在 VS Code 终端中运行：
 
 ```powershell
-cd blog-microservice/scripts
+cd ZhiCore-microservice/scripts
 .\generate-vscode-tasks.ps1
 ```
 
@@ -59,7 +59,7 @@ cd blog-microservice/scripts
 ### 步骤 1: 获取启动命令
 
 ```powershell
-cd blog-microservice/scripts
+cd ZhiCore-microservice/scripts
 .\generate-vscode-commands.ps1
 ```
 
@@ -171,7 +171,7 @@ VS Code 支持分割终端面板：
 
 **检查基础设施**:
 ```powershell
-cd blog-microservice/docker
+cd ZhiCore-microservice/docker
 docker-compose ps
 ```
 
@@ -182,7 +182,7 @@ Get-NetTCPConnection -LocalPort 8100,8101,8102,8103,8104,8105,8106,8107,8108,810
 
 **重新编译**:
 ```powershell
-cd blog-microservice
+cd ZhiCore-microservice
 mvn clean package -DskipTests
 ```
 
@@ -271,13 +271,13 @@ Invoke-WebRequest http://localhost:8100/actuator/health
 
 1. **启动基础设施**
    ```powershell
-   cd blog-microservice/docker
+   cd ZhiCore-microservice/docker
    docker-compose up -d
    ```
 
 2. **生成 VS Code Tasks**（首次使用）
    ```powershell
-   cd blog-microservice/scripts
+   cd ZhiCore-microservice/scripts
    .\generate-vscode-tasks.ps1
    ```
 

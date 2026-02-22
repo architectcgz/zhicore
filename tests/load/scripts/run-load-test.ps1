@@ -1,9 +1,9 @@
-# Blog Microservices Load Test Runner
-# This script runs JMeter load tests for the blog microservices system
+# ZhiCore Microservices Load Test Runner
+# This script runs JMeter load tests for the ZhiCore microservices system
 
 param(
     [string]$JMeterPath = "C:\apache-jmeter\bin\jmeter.bat",
-    [string]$TestPlan = "../jmeter/blog-load-test.jmx",
+    [string]$TestPlan = "../jmeter/ZhiCore-load-test.jmx",
     [string]$ResultsDir = "../results/load",
     [string]$BaseUrl = "http://localhost:8000",
     [string]$TestPostId = "1",
@@ -42,7 +42,7 @@ if (-not (Test-Path $TestPlanPath)) {
 }
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Blog Microservices Load Test Runner" -ForegroundColor Cyan
+Write-Host "ZhiCore Microservices Load Test Runner" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Configuration:" -ForegroundColor Yellow

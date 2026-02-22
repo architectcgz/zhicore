@@ -1,4 +1,4 @@
-# Start All Blog Microservices
+# Start All ZhiCore Microservices
 # This script starts all services in the correct order with proper environment variables
 # Services will be started using controlPwshProcess for IDE terminal integration
 
@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = "Continue"
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "启动博客微服务系统" -ForegroundColor Cyan
+Write-Host "启动 ZhiCore 微服务系统" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -19,11 +19,12 @@ Write-Host "[步骤 1] 检查基础设施服务..." -ForegroundColor Yellow
 Write-Host ""
 
 $InfraServices = @(
-    @{ Name = "PostgreSQL"; Port = 5432; Container = "blog-postgres" }
-    @{ Name = "Redis"; Port = 6379; Container = "blog-redis" }
-    @{ Name = "Nacos"; Port = 8848; Container = "blog-nacos" }
-    @{ Name = "RocketMQ NameServer"; Port = 9876; Container = "blog-rocketmq-namesrv" }
-    @{ Name = "MongoDB"; Port = 27017; Container = "blog-mongodb" }
+    @{ Name = "PostgreSQL"; Port = 5432; Container = "zhicore-postgres" }
+    @{ Name = "Redis"; Port = 6379; Container = "zhicore-redis" }
+    @{ Name = "MongoDB"; Port = 27017; Container = "zhicore-mongodb" }
+    @{ Name = "Nacos"; Port = 8848; Container = "zhicore-nacos" }
+    @{ Name = "RocketMQ NameServer"; Port = 9876; Container = "zhicore-rocketmq-namesrv" }
+    @{ Name = "RocketMQ Broker"; Port = 10911; Container = "zhicore-rocketmq-broker" }
 )
 
 $AllInfraUp = $true
@@ -42,6 +43,8 @@ if (-not $AllInfraUp) {
     Write-Host "错误: 基础设施服务未运行" -ForegroundColor Red
     Write-Host "请先启动基础设施服务:" -ForegroundColor Yellow
     Write-Host "  cd docker" -ForegroundColor Gray
+    Write-Host "  .\start-infrastructure.ps1 -Build" -ForegroundColor Gray
+    Write-Host "  或者:" -ForegroundColor Gray
     Write-Host "  docker-compose up -d" -ForegroundColor Gray
     exit 1
 }
@@ -83,7 +86,7 @@ if (-not $SkipBuild) {
 Write-Host "[步骤 3] 检查并停止已运行的服务..." -ForegroundColor Yellow
 Write-Host ""
 
-$ServicePorts = @(8088, 8100, 8101, 8102, 8103, 8104, 8105, 8106, 8107, 8108, 8109)
+$ServicePorts = @(8100, 8101, 8102)
 $StoppedCount = 0
 
 foreach ($Port in $ServicePorts) {
@@ -118,81 +121,25 @@ $ProjectRoot = Split-Path -Parent $PSScriptRoot
 # Service configurations (按依赖顺序启动)
 $Services = @(
     @{ 
-        Name = "ID生成服务"
-        Module = "blog-id-generator"
-        Port = 8088
+        Name = "网关服务"
+        Module = "zhicore-gateway"
+        Port = 8100
         Profile = "dev"
         Priority = 1
     }
     @{ 
-        Name = "网关服务"
-        Module = "blog-gateway"
-        Port = 8100
+        Name = "用户服务"
+        Module = "zhicore-user"
+        Port = 8101
         Profile = "dev"
         Priority = 2
     }
     @{ 
-        Name = "用户服务"
-        Module = "blog-user"
-        Port = 8101
-        Profile = "dev"
-        Priority = 3
-    }
-    @{ 
-        Name = "文章服务"
-        Module = "blog-post"
+        Name = "内容服务"
+        Module = "zhicore-content"
         Port = 8102
         Profile = "dev"
-        Priority = 3
-    }
-    @{ 
-        Name = "评论服务"
-        Module = "blog-comment"
-        Port = 8103
-        Profile = "dev"
-        Priority = 3
-    }
-    @{ 
-        Name = "上传服务"
-        Module = "blog-upload"
-        Port = 8104
-        Profile = "dev"
-        Priority = 3
-    }
-    @{ 
-        Name = "消息服务"
-        Module = "blog-message"
-        Port = 8105
-        Profile = "dev"
-        Priority = 4
-    }
-    @{ 
-        Name = "通知服务"
-        Module = "blog-notification"
-        Port = 8106
-        Profile = "dev"
-        Priority = 4
-    }
-    @{ 
-        Name = "搜索服务"
-        Module = "blog-search"
-        Port = 8107
-        Profile = "dev"
-        Priority = 4
-    }
-    @{ 
-        Name = "排行服务"
-        Module = "blog-ranking"
-        Port = 8108
-        Profile = "dev"
-        Priority = 4
-    }
-    @{ 
-        Name = "管理服务"
-        Module = "blog-admin"
-        Port = 8109
-        Profile = "dev"
-        Priority = 5
+        Priority = 2
     }
 )
 
@@ -235,7 +182,7 @@ Write-Host '配置: $($Service.Profile)' -ForegroundColor Gray
 Write-Host ''
 Write-Host '正在启动服务...' -ForegroundColor Yellow
 Write-Host ''
-`$env:NACOS_GROUP = 'BLOG_SERVICE'
+`$env:NACOS_GROUP = 'ZHICORE_SERVICE'
 $JavaCommand
 Write-Host ''
 Write-Host '服务已停止' -ForegroundColor Red
@@ -319,30 +266,21 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 Write-Host "服务访问地址:" -ForegroundColor Cyan
-Write-Host "  - ID生成服务: http://localhost:8088" -ForegroundColor White
 Write-Host "  - 网关服务:   http://localhost:8100" -ForegroundColor White
 Write-Host "  - 用户服务:   http://localhost:8101" -ForegroundColor White
-Write-Host "  - 文章服务:   http://localhost:8102" -ForegroundColor White
-Write-Host "  - 评论服务:   http://localhost:8103" -ForegroundColor White
-Write-Host "  - 上传服务:   http://localhost:8104" -ForegroundColor White
-Write-Host "  - 消息服务:   http://localhost:8105" -ForegroundColor White
-Write-Host "  - 通知服务:   http://localhost:8106" -ForegroundColor White
-Write-Host "  - 搜索服务:   http://localhost:8107" -ForegroundColor White
-Write-Host "  - 排行服务:   http://localhost:8108" -ForegroundColor White
-Write-Host "  - 管理服务:   http://localhost:8109" -ForegroundColor White
+Write-Host "  - 内容服务:   http://localhost:8102" -ForegroundColor White
 Write-Host ""
 
 Write-Host "API 文档地址:" -ForegroundColor Cyan
 Write-Host "  - 网关聚合文档: http://localhost:8100/doc.html" -ForegroundColor White
-Write-Host "  - ID生成文档:   http://localhost:8088/doc.html" -ForegroundColor White
 Write-Host "  - 用户服务文档: http://localhost:8101/doc.html" -ForegroundColor White
-Write-Host "  - 文章服务文档: http://localhost:8102/doc.html" -ForegroundColor White
+Write-Host "  - 内容服务文档: http://localhost:8102/doc.html" -ForegroundColor White
 Write-Host ""
 
 Write-Host "健康检查命令:" -ForegroundColor Cyan
-Write-Host "  Invoke-WebRequest http://localhost:8088/actuator/health" -ForegroundColor Gray
 Write-Host "  Invoke-WebRequest http://localhost:8100/actuator/health" -ForegroundColor Gray
 Write-Host "  Invoke-WebRequest http://localhost:8101/actuator/health" -ForegroundColor Gray
+Write-Host "  Invoke-WebRequest http://localhost:8102/actuator/health" -ForegroundColor Gray
 Write-Host ""
 
 Write-Host "停止所有服务:" -ForegroundColor Yellow
@@ -356,7 +294,7 @@ foreach ($Service in $StartedServices) {
 Write-Host ""
 
 Write-Host "查看服务端口占用:" -ForegroundColor Yellow
-Write-Host "  Get-NetTCPConnection -LocalPort 8088,8100,8101,8102,8103,8104,8105,8106,8107,8108,8109 -ErrorAction SilentlyContinue | Select-Object LocalPort,State,OwningProcess" -ForegroundColor Gray
+Write-Host "  Get-NetTCPConnection -LocalPort 8100,8101,8102 -ErrorAction SilentlyContinue | Select-Object LocalPort,State,OwningProcess" -ForegroundColor Gray
 Write-Host ""
 
 Write-Host "提示: 每个服务都在独立的 PowerShell 窗口中运行（已最小化）" -ForegroundColor Yellow

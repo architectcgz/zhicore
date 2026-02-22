@@ -12,7 +12,7 @@
 
 ## 前置条件
 
-1. blog-gateway 服务已启动（端口 8000）
+1. ZhiCore-gateway 服务已启动（端口 8000）
 2. 已执行用户数据生成脚本（`Execute-UserGeneration.ps1`）
 3. 网络连接正常
 
@@ -185,7 +185,7 @@ WHERE u.id IS NULL;
 ```
 
 **解决方案**：
-1. 确认 blog-gateway 服务已启动
+1. 确认 ZhiCore-gateway 服务已启动
 2. 检查端口 8000 是否被占用
 3. 验证网络连接
 

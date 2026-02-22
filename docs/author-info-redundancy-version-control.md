@@ -4,7 +4,7 @@
 
 本文档说明文章服务中作者信息冗余的版本号控制机制，用于防止消息乱序和重复更新，保证数据的最终一致性。
 
-**相关 Spec**: `.kiro/specs/blog-post-author-redundancy/`
+**相关 Spec**: `.kiro/specs/ZhiCore-post-author-redundancy/`
 
 ---
 
@@ -52,7 +52,7 @@ public void updateProfile(Long userId, UpdateProfileRequest request) {
     User user = userRepository.findById(userId).orElseThrow();
     
     // 更新资料（会递增版本号）
-    user.updateProfile(request.getNickName(), request.getAvatarId(), request.getBio());
+    user.updateProfile(request.getNickname(), request.getAvatarId(), request.getBio());
     // profileVersion: 1 → 2
     
     // 保存到数据库
@@ -61,7 +61,7 @@ public void updateProfile(Long userId, UpdateProfileRequest request) {
     // 发送事件（包含版本号）
     eventPublisher.publish(new UserProfileUpdatedEvent(
         userId, 
-        user.getNickName(), 
+        user.getNickname(), 
         user.getAvatarId(),
         user.getProfileVersion(),  // version = 2
         LocalDateTime.now()
@@ -355,9 +355,9 @@ user_profile_sync_duration{service="post-service"}
 List<Post> posts = postRepository.findAll();
 for (Post post : posts) {
     User user = userRepository.findById(post.getOwnerId());
-    if (!post.getOwnerName().equals(user.getNickName())) {
+    if (!post.getOwnerName().equals(user.getNickname())) {
         log.warn("Inconsistent data: postId={}, expected={}, actual={}", 
-            post.getId(), user.getNickName(), post.getOwnerName());
+            post.getId(), user.getNickname(), post.getOwnerName());
     }
 }
 ```
@@ -383,7 +383,7 @@ for (Post post : posts) {
 **最后更新**：2026-02-18  
 **维护者**：开发团队  
 **相关文档**：
-- [Spec 需求文档](../.kiro/specs/blog-post-author-redundancy/requirements.md)
-- [Spec 设计文档](../.kiro/specs/blog-post-author-redundancy/design.md)
+- [Spec 需求文档](../.kiro/specs/ZhiCore-post-author-redundancy/requirements.md)
+- [Spec 设计文档](../.kiro/specs/ZhiCore-post-author-redundancy/design.md)
 - [RocketMQ 消息顺序性保证](./rocketmq-message-ordering.md)
 - [分布式系统最终一致性](./eventual-consistency.md)

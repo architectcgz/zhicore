@@ -9,7 +9,7 @@ param(
 )
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$TestPlanPath = Join-Path $ScriptDir "..\jmeter\blog-load-test-small.jmx"
+$TestPlanPath = Join-Path $ScriptDir "..\jmeter\ZhiCore-load-test-small.jmx"
 $ResultsDirPath = Join-Path $ScriptDir "..\results\load"
 $UserDataFilePath = Join-Path $ScriptDir $UserDataFile
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-本实施计划将 blog-microservice 的 ID 生成功能从内置的 blog-leaf 服务迁移到独立的 id-generator 服务。采用渐进式迁移策略，确保系统稳定性和向后兼容性。
+本实施计划将 ZhiCore-microservice 的 ID 生成功能从内置的 ZhiCore-leaf 服务迁移到独立的 id-generator 服务。采用渐进式迁移策略，确保系统稳定性和向后兼容性。
 
 ## Tasks
 
@@ -12,13 +12,13 @@
   - _Requirements: 1.1, 1.2_
 
 - [x] 2. 创建 IdGeneratorService 接口
-  - 在 blog-common 模块创建 IdGeneratorService 接口
+  - 在 ZhiCore-common 模块创建 IdGeneratorService 接口
   - 定义 nextSnowflakeId()、nextSegmentId(String bizTag)、nextBatchIds(int count) 方法
   - 添加完整的 JavaDoc 注释
   - _Requirements: 1.1, 2.5_
 
 - [x] 3. 创建 IdGeneratorService 实现类
-  - [x] 3.1 在 blog-common 模块创建 IdGeneratorServiceImpl 实现类
+  - [x] 3.1 在 ZhiCore-common 模块创建 IdGeneratorServiceImpl 实现类
     - 注入 IdGeneratorClient 依赖
     - 实现所有接口方法
     - 添加日志记录
@@ -38,8 +38,8 @@
   - 创建 IdGeneratorConfigurationException 异常类
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [x] 5. 迁移 blog-notification 服务
-  - [x] 5.1 添加 id-generator-spring-boot-starter 依赖到 blog-notification/pom.xml
+- [x] 5. 迁移 ZhiCore-notification 服务
+  - [x] 5.1 添加 id-generator-spring-boot-starter 依赖到 ZhiCore-notification/pom.xml
     - _Requirements: 1.2_
 
   - [x] 5.2 添加 ID Generator 配置到 application.yml
@@ -62,8 +62,8 @@
     - 验证 ID 生成正确性
     - _Requirements: 7.2, 7.3_
 
-- [x] 6. 迁移 blog-message 服务
-  - [x] 6.1 添加 id-generator-spring-boot-starter 依赖到 blog-message/pom.xml
+- [x] 6. 迁移 ZhiCore-message 服务
+  - [x] 6.1 添加 id-generator-spring-boot-starter 依赖到 ZhiCore-message/pom.xml
     - _Requirements: 1.2_
 
   - [x] 6.2 添加 ID Generator 配置到 application.yml
@@ -87,7 +87,7 @@
     - _Requirements: 7.2, 7.3_
 
 - [ ] 7. 检查点 - 验证核心服务迁移
-  - 确保 blog-notification 和 blog-message 服务正常工作
+  - 确保 ZhiCore-notification 和 ZhiCore-message 服务正常工作
   - 验证 ID 生成功能正确
   - 检查日志无异常
   - 询问用户是否继续
@@ -151,18 +151,18 @@
     - **Validates: Requirements 5.1, 5.2**
 
 - [x] 11. 移除 Leaf Service 依赖
-  - [x] 11.1 从父 pom.xml 中移除 blog-leaf 模块声明
+  - [x] 11.1 从父 pom.xml 中移除 ZhiCore-leaf 模块声明
     - _Requirements: 3.1_
 
-  - [x] 11.2 删除 blog-leaf 模块目录
+  - [x] 11.2 删除 ZhiCore-leaf 模块目录
     - _Requirements: 3.1_
 
   - [x] 11.3 移除所有 Leaf Feign Client 接口和实现
     - 搜索并删除 LeafServiceClient 相关代码
     - _Requirements: 3.2_
 
-  - [x] 11.4 清理 Nacos 中的 blog-leaf 配置
-    - 删除 blog-leaf 服务配置
+  - [x] 11.4 清理 Nacos 中的 ZhiCore-leaf 配置
+    - 删除 ZhiCore-leaf 服务配置
     - _Requirements: 3.4_
 
 - [-] 12. 数据库迁移（如果需要）

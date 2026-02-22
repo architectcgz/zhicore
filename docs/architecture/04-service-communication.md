@@ -4,13 +4,13 @@
 
 | 版本 | 日期 | 作者 | 说明 |
 |------|------|------|------|
-| 1.0 | 2026-02-11 | Blog Team | 初始版本 - 服务间通信架构文档 |
+| 1.0 | 2026-02-11 | ZhiCore Team | 初始版本 - 服务间通信架构文档 |
 
 ---
 
 ## 概述
 
-Blog 微服务系统采用**同步调用（Feign Client）**和**异步通信（RocketMQ）**相结合的方式实现服务间通信。本文档详细说明了服务间通信的实现方式、最佳实践和注意事项。
+ZhiCore 微服务系统采用**同步调用（Feign Client）**和**异步通信（RocketMQ）**相结合的方式实现服务间通信。本文档详细说明了服务间通信的实现方式、最佳实践和注意事项。
 
 ### 通信方式对比
 
@@ -31,7 +31,7 @@ Feign Client 是基于 HTTP 的声明式服务调用客户端，通过 Nacos 实
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      blog-api (共享模块)                      │
+│                      ZhiCore-api (共享模块)                      │
 │  - Feign Client 接口定义                                     │
 │  - DTO 数据传输对象                                          │
 │  - 领域事件定义                                              │
@@ -41,19 +41,19 @@ Feign Client 是基于 HTTP 的声明式服务调用客户端，通过 Nacos 实
         ┌───────────────────┼───────────────────┐
         │                   │                   │
 ┌───────▼────────┐  ┌──────▼───────┐  ┌───────▼────────┐
-│  blog-comment  │  │  blog-search │  │blog-notification│
+│  ZhiCore-comment  │  │  ZhiCore-search │  │ZhiCore-notification│
 │  调用 User/Post│  │  调用 Post   │  │  调用 User     │
 └────────────────┘  └──────────────┘  └────────────────┘
 ```
 
-### 1.2 blog-api 模块的作用
+### 1.2 ZhiCore-api 模块的作用
 
-`blog-api` 是一个**共享 API 模块**，用于在微服务之间共享接口定义、DTO 和事件。
+`ZhiCore-api` 是一个**共享 API 模块**，用于在微服务之间共享接口定义、DTO 和事件。
 
 #### 模块结构
 
 ```
-blog-api/
+ZhiCore-api/
 ├── client/                          # Feign 客户端接口
 │   ├── UserServiceClient.java      # 用户服务客户端
 │   ├── PostServiceClient.java      # 文章服务客户端
@@ -72,25 +72,25 @@ blog-api/
     └── comment/                     # 评论事件
 ```
 
-#### 为什么需要 blog-api？
+#### 为什么需要 ZhiCore-api？
 
 1. **接口统一**：所有服务使用相同的 Feign 客户端接口，避免重复定义
 2. **类型安全**：DTO 在编译期检查，避免运行时类型错误
-3. **版本管理**：接口变更在 blog-api 中统一管理，所有依赖服务同步更新
+3. **版本管理**：接口变更在 ZhiCore-api 中统一管理，所有依赖服务同步更新
 4. **解耦**：服务只依赖接口，不依赖实现，符合依赖倒置原则
 
 
 ### 1.3 Feign Client 使用方式
 
-#### 步骤 1：在 blog-api 中定义接口
+#### 步骤 1：在 ZhiCore-api 中定义接口
 
 ```java
-// blog-api/src/main/java/com/blog/api/client/UserServiceClient.java
-package com.blog.api.client;
+// ZhiCore-api/src/main/java/com/ZhiCore/api/client/UserServiceClient.java
+package com.zhicore.api.client;
 
-import com.blog.api.dto.user.UserDTO;
-import com.blog.api.dto.user.UserSimpleDTO;
-import com.blog.common.result.ApiResponse;
+import com.zhicore.api.dto.user.UserDTO;
+import com.zhicore.api.dto.user.UserSimpleDTO;
+import com.zhicore.common.result.ApiResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -129,13 +129,13 @@ public interface UserServiceClient {
 #### 步骤 2：在调用方服务中使用
 
 ```java
-// blog-comment/src/main/java/com/blog/comment/application/service/CommentApplicationService.java
+// ZhiCore-comment/src/main/java/com/ZhiCore/comment/application/service/CommentApplicationService.java
 @Service
 @RequiredArgsConstructor
 public class CommentApplicationService {
     
-    private final UserServiceClient userServiceClient;  // 来自 blog-api
-    private final PostServiceClient postServiceClient;  // 来自 blog-api
+    private final UserServiceClient userServiceClient;  // 来自 ZhiCore-api
+    private final PostServiceClient postServiceClient;  // 来自 ZhiCore-api
     private final CommentRepository commentRepository;
     
     public CommentVO getComment(String commentId) {
@@ -166,13 +166,13 @@ public class CommentApplicationService {
 
 #### 步骤 3：配置包扫描
 
-**重要**：必须在 `@SpringBootApplication` 中扫描 `com.blog.api` 包！
+**重要**：必须在 `@SpringBootApplication` 中扫描 `com.zhicore.api` 包！
 
 ```java
 @SpringBootApplication(scanBasePackages = {
-    "com.blog.comment",   // 扫描评论服务自己的代码
-    "com.blog.common",    // 扫描公共模块
-    "com.blog.api"        // 扫描 API 模块 ← 必须添加！
+    "com.ZhiCore.comment",   // 扫描评论服务自己的代码
+    "com.zhicore.common",    // 扫描公共模块
+    "com.zhicore.api"        // 扫描 API 模块 ← 必须添加！
 })
 public class CommentApplication {
     public static void main(String[] args) {
@@ -189,7 +189,7 @@ public class CommentApplication {
 #### 降级工厂基类
 
 ```java
-// blog-common/src/main/java/com/blog/common/sentinel/AbstractFallbackFactory.java
+// ZhiCore-common/src/main/java/com/ZhiCore/common/sentinel/AbstractFallbackFactory.java
 @Slf4j
 public abstract class AbstractFallbackFactory<T> implements FallbackFactory<T> {
 
@@ -233,7 +233,7 @@ public abstract class AbstractFallbackFactory<T> implements FallbackFactory<T> {
 #### 降级工厂实现示例
 
 ```java
-// blog-comment/src/main/java/com/blog/comment/infrastructure/feign/UserServiceFallbackFactory.java
+// ZhiCore-comment/src/main/java/com/ZhiCore/comment/infrastructure/feign/UserServiceFallbackFactory.java
 @Slf4j
 @Component
 public class UserServiceFallbackFactory extends AbstractFallbackFactory<UserServiceClient> {
@@ -275,10 +275,10 @@ public class UserServiceFallbackFactory extends AbstractFallbackFactory<UserServ
 #### 配置降级工厂
 
 ```java
-// blog-comment/src/main/java/com/blog/comment/infrastructure/feign/UserServiceClient.java
-@FeignClient(name = "blog-user", fallbackFactory = UserServiceFallbackFactory.class)
-public interface UserServiceClient extends com.blog.api.client.UserServiceClient {
-    // 继承 blog-api 中的接口定义
+// ZhiCore-comment/src/main/java/com/ZhiCore/comment/infrastructure/feign/UserServiceClient.java
+@FeignClient(name = "ZhiCore-user", fallbackFactory = UserServiceFallbackFactory.class)
+public interface UserServiceClient extends com.zhicore.api.client.UserServiceClient {
+    // 继承 ZhiCore-api 中的接口定义
 }
 ```
 
@@ -287,17 +287,17 @@ public interface UserServiceClient extends com.blog.api.client.UserServiceClient
 
 ```mermaid
 graph LR
-    A[blog-comment<br/>评论服务] -->|Feign| B[blog-user<br/>用户服务]
-    A -->|Feign| C[blog-post<br/>文章服务]
-    A -->|Feign| D[blog-upload<br/>上传服务]
+    A[ZhiCore-comment<br/>评论服务] -->|Feign| B[ZhiCore-user<br/>用户服务]
+    A -->|Feign| C[ZhiCore-post<br/>文章服务]
+    A -->|Feign| D[ZhiCore-upload<br/>上传服务]
     
-    E[blog-notification<br/>通知服务] -->|Feign| B
+    E[ZhiCore-notification<br/>通知服务] -->|Feign| B
     
-    F[blog-search<br/>搜索服务] -->|Feign| C
+    F[ZhiCore-search<br/>搜索服务] -->|Feign| C
     
-    G[blog-message<br/>消息服务] -->|Feign| B
+    G[ZhiCore-message<br/>消息服务] -->|Feign| B
     
-    H[blog-admin<br/>管理服务] -->|Feign| B
+    H[ZhiCore-admin<br/>管理服务] -->|Feign| B
     H -->|Feign| C
     H -->|Feign| A
     
@@ -321,7 +321,7 @@ graph LR
 
 #### ✅ 推荐做法
 
-1. **接口定义在 blog-api**：所有 Feign Client 接口定义在 blog-api 模块
+1. **接口定义在 ZhiCore-api**：所有 Feign Client 接口定义在 ZhiCore-api 模块
 2. **降级工厂在各服务**：每个服务根据自己的业务需求实现降级策略
 3. **批量查询优化**：使用批量接口减少网络调用次数
 4. **超时配置合理**：根据业务场景配置合理的超时时间
@@ -360,7 +360,7 @@ RocketMQ 用于服务间的异步通信，通过发布-订阅模式实现事件�
         │                   │                   │
 ┌───────┴────────┐  ┌──────┴───────┐  ┌───────┴────────┐
 │  Producer      │  │  Producer    │  │  Consumer      │
-│  blog-post     │  │  blog-user   │  │  blog-search   │
+│  ZhiCore-post     │  │  ZhiCore-user   │  │  ZhiCore-search   │
 │  发布文章事件   │  │  发布用户事件 │  │  消费文章事件   │
 └────────────────┘  └──────────────┘  └────────────────┘
 ```
@@ -371,7 +371,7 @@ RocketMQ 用于服务间的异步通信，通过发布-订阅模式实现事件�
 #### Topic 设计原则
 
 - **按业务领域划分**：每个业务领域一个 Topic
-- **命名规范**：`blog-{domain}-events`
+- **命名规范**：`ZhiCore-{domain}-events`
 
 #### Tag 设计原则
 
@@ -381,22 +381,22 @@ RocketMQ 用于服务间的异步通信，通过发布-订阅模式实现事件�
 #### Topic 和 Tag 定义
 
 ```java
-// blog-common/src/main/java/com/blog/common/mq/TopicConstants.java
+// ZhiCore-common/src/main/java/com/ZhiCore/common/mq/TopicConstants.java
 public final class TopicConstants {
 
     // ==================== Topics ====================
     
     /** 文章相关事件 Topic */
-    public static final String TOPIC_POST_EVENTS = "blog-post-events";
+    public static final String TOPIC_POST_EVENTS = "ZhiCore-post-events";
     
     /** 用户相关事件 Topic */
-    public static final String TOPIC_USER_EVENTS = "blog-user-events";
+    public static final String TOPIC_USER_EVENTS = "ZhiCore-user-events";
     
     /** 评论相关事件 Topic */
-    public static final String TOPIC_COMMENT_EVENTS = "blog-comment-events";
+    public static final String TOPIC_COMMENT_EVENTS = "ZhiCore-comment-events";
     
     /** 消息相关事件 Topic */
-    public static final String TOPIC_MESSAGE_EVENTS = "blog-message-events";
+    public static final String TOPIC_MESSAGE_EVENTS = "ZhiCore-message-events";
 
     // ==================== Tags ====================
     
@@ -423,7 +423,7 @@ public final class TopicConstants {
 #### 事件基类
 
 ```java
-// blog-api/src/main/java/com/blog/api/event/DomainEvent.java
+// ZhiCore-api/src/main/java/com/ZhiCore/api/event/DomainEvent.java
 @Getter
 public abstract class DomainEvent implements Serializable {
 
@@ -450,7 +450,7 @@ public abstract class DomainEvent implements Serializable {
 #### 具体事件示例
 
 ```java
-// blog-api/src/main/java/com/blog/api/event/post/PostPublishedEvent.java
+// ZhiCore-api/src/main/java/com/ZhiCore/api/event/post/PostPublishedEvent.java
 @Getter
 public class PostPublishedEvent extends DomainEvent {
 
@@ -486,7 +486,7 @@ public class PostPublishedEvent extends DomainEvent {
 #### 事件发布器
 
 ```java
-// blog-common/src/main/java/com/blog/common/mq/DomainEventPublisher.java
+// ZhiCore-common/src/main/java/com/ZhiCore/common/mq/DomainEventPublisher.java
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -551,7 +551,7 @@ public class DomainEventPublisher {
 #### 业务服务发布事件
 
 ```java
-// blog-post/src/main/java/com/blog/post/infrastructure/mq/PostEventPublisher.java
+// ZhiCore-post/src/main/java/com/ZhiCore/post/infrastructure/mq/PostEventPublisher.java
 @Slf4j
 @Component
 public class PostEventPublisher {
@@ -583,7 +583,7 @@ public class PostEventPublisher {
 #### 应用层发布事件
 
 ```java
-// blog-post/src/main/java/com/blog/post/application/service/PostApplicationService.java
+// ZhiCore-post/src/main/java/com/ZhiCore/post/application/service/PostApplicationService.java
 @Service
 @RequiredArgsConstructor
 public class PostApplicationService {
@@ -617,7 +617,7 @@ public class PostApplicationService {
 #### 事件消费者
 
 ```java
-// blog-search/src/main/java/com/blog/search/infrastructure/mq/PostPublishedSearchConsumer.java
+// ZhiCore-search/src/main/java/com/ZhiCore/search/infrastructure/mq/PostPublishedSearchConsumer.java
 @Slf4j
 @Component
 @RocketMQMessageListener(
@@ -653,7 +653,7 @@ public class PostPublishedSearchConsumer extends AbstractEventConsumer<PostPubli
 #### 通知服务消费事件
 
 ```java
-// blog-notification/src/main/java/com/blog/notification/infrastructure/mq/PostLikedNotificationConsumer.java
+// ZhiCore-notification/src/main/java/com/ZhiCore/notification/infrastructure/mq/PostLikedNotificationConsumer.java
 @Slf4j
 @Component
 @RocketMQMessageListener(
@@ -698,16 +698,16 @@ public class PostLikedNotificationConsumer extends AbstractEventConsumer<PostLik
 ```mermaid
 sequenceDiagram
     participant User as 用户
-    participant PostService as blog-post<br/>文章服务
+    participant PostService as ZhiCore-post<br/>文章服务
     participant RocketMQ as RocketMQ<br/>消息队列
-    participant SearchService as blog-search<br/>搜索服务
-    participant NotificationService as blog-notification<br/>通知服务
-    participant RankingService as blog-ranking<br/>排行服务
+    participant SearchService as ZhiCore-search<br/>搜索服务
+    participant NotificationService as ZhiCore-notification<br/>通知服务
+    participant RankingService as ZhiCore-ranking<br/>排行服务
 
     User->>PostService: 发布文章
     PostService->>PostService: 保存文章到数据库
     PostService->>RocketMQ: 发布 PostPublishedEvent
-    Note over RocketMQ: Topic: blog-post-events<br/>Tag: published
+    Note over RocketMQ: Topic: ZhiCore-post-events<br/>Tag: published
     
     RocketMQ-->>SearchService: 推送事件
     SearchService->>SearchService: 索引文章到 ES
@@ -732,20 +732,20 @@ sequenceDiagram
 
 | Consumer Group | 订阅 Topic | 订阅 Tag | 服务 | 用途 |
 |---------------|-----------|---------|------|------|
-| search-post-published-consumer | blog-post-events | published | blog-search | 索引新发布的文章 |
-| search-post-updated-consumer | blog-post-events | updated | blog-search | 更新文章索引 |
-| search-post-deleted-consumer | blog-post-events | deleted | blog-search | 删除文章索引 |
-| notification-post-liked-consumer | blog-post-events | liked | blog-notification | 创建点赞通知 |
-| notification-comment-created-consumer | blog-comment-events | created | blog-notification | 创建评论通知 |
-| ranking-post-viewed-consumer | blog-post-events | viewed | blog-ranking | 更新浏览排行 |
-| ranking-post-liked-consumer | blog-post-events | liked | blog-ranking | 更新点赞排行 |
+| search-post-published-consumer | ZhiCore-post-events | published | ZhiCore-search | 索引新发布的文章 |
+| search-post-updated-consumer | ZhiCore-post-events | updated | ZhiCore-search | 更新文章索引 |
+| search-post-deleted-consumer | ZhiCore-post-events | deleted | ZhiCore-search | 删除文章索引 |
+| notification-post-liked-consumer | ZhiCore-post-events | liked | ZhiCore-notification | 创建点赞通知 |
+| notification-comment-created-consumer | ZhiCore-comment-events | created | ZhiCore-notification | 创建评论通知 |
+| ranking-post-viewed-consumer | ZhiCore-post-events | viewed | ZhiCore-ranking | 更新浏览排行 |
+| ranking-post-liked-consumer | ZhiCore-post-events | liked | ZhiCore-ranking | 更新点赞排行 |
 
 
 ### 2.8 最佳实践
 
 #### ✅ 推荐做法
 
-1. **事件定义在 blog-api**：所有领域事件定义在 blog-api 模块，确保生产者和消费者使用相同的事件类
+1. **事件定义在 ZhiCore-api**：所有领域事件定义在 ZhiCore-api 模块，确保生产者和消费者使用相同的事件类
 2. **幂等性处理**：消费者必须实现幂等性，避免重复消费导致的数据不一致
 3. **异常处理**：消费失败时记录日志，RocketMQ 会自动重试
 4. **顺序消息**：需要保证顺序的场景（如用户操作日志）使用顺序消息
@@ -874,7 +874,7 @@ feign:
 rocketmq:
   name-server: localhost:9876        # NameServer 地址
   producer:
-    group: blog-producer-group       # 生产者组
+    group: ZhiCore-producer-group       # 生产者组
     send-message-timeout: 3000       # 发送超时（毫秒）
     retry-times-when-send-failed: 2  # 同步发送失败重试次数
     retry-times-when-send-async-failed: 2  # 异步发送失败重试次数
@@ -932,7 +932,7 @@ feign.FeignException: status 503 reading UserServiceClient#getUserSimple
 
 1. **检查服务是否注册到 Nacos**
    ```bash
-   curl http://localhost:8848/nacos/v1/ns/instance/list?serviceName=blog-user
+   curl http://localhost:8848/nacos/v1/ns/instance/list?serviceName=ZhiCore-user
    ```
 
 2. **检查服务是否健康**
@@ -1017,5 +1017,5 @@ RocketMQ Dashboard 显示消费延迟 > 1000 条
 ---
 
 **最后更新**：2026-02-11  
-**维护者**：Blog Team
+**维护者**：ZhiCore Team
 

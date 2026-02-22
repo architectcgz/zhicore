@@ -1,5 +1,5 @@
 # ===========================================
-# Blog Microservices Infrastructure
+# ZhiCore Microservices Infrastructure
 # ===========================================
 # 独立部署: PostgreSQL, Redis, Nacos, RocketMQ, 
 #          Elasticsearch, Kibana, Prometheus, Grafana
@@ -9,20 +9,20 @@ services:
   # ===========================================
   # PostgreSQL - 主数据库
   # ===========================================
-  blog-postgres:
+  zhicore-postgres:
     image: postgres:16-alpine
-    container_name: blog-postgres
+    container_name: zhicore-postgres
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres123456}
-      - POSTGRES_DB=blog
+      - POSTGRES_DB=zhicore
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
     networks:
-      - blog-network
+      - zhicore-network
     command: 
       - "postgres"
       - "-c"
@@ -40,17 +40,16 @@ services:
   # ===========================================
   # Redis - 缓存与会话存储
   # ===========================================
-  blog-redis:
+  zhicore-redis:
     image: redis:7.2-alpine
-    container_name: blog-redis
-    command: redis-server /usr/local/etc/redis/redis.conf
+    container_name: zhicore-redis
+    command: redis-server --requirepass redis123456 --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     networks:
-      - blog-network
+      - zhicore-network
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis123456}", "ping"]
       interval: 10s
@@ -62,13 +61,13 @@ services:
   # ===========================================
   # MongoDB - 文档数据库（文章内容存储）
   # ===========================================
-  blog-mongodb:
+  zhicore-mongodb:
     image: mongo:8.0
-    container_name: blog-mongodb
+    container_name: zhicore-mongodb
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME:-admin}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-mongo123456}
-      - MONGO_INITDB_DATABASE=blog
+      - MONGO_INITDB_DATABASE=zhicore
     ports:
       - "27017:27017"
     volumes:
@@ -76,7 +75,7 @@ services:
       - mongodb_config:/data/configdb
       - ./mongodb-init:/docker-entrypoint-initdb.d:ro
     networks:
-      - blog-network
+      - zhicore-network
     command: mongod --auth
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
@@ -89,29 +88,29 @@ services:
   # ===========================================
   # Mongo Express - MongoDB Web 管理界面
   # ===========================================
-  blog-mongo-express:
+  zhicore-mongo-express:
     image: mongo-express:latest
-    container_name: blog-mongo-express
+    container_name: zhicore-mongo-express
     environment:
       - ME_CONFIG_MONGODB_ADMINUSERNAME=${MONGO_ROOT_USERNAME:-admin}
       - ME_CONFIG_MONGODB_ADMINPASSWORD=${MONGO_ROOT_PASSWORD:-mongo123456}
-      - ME_CONFIG_MONGODB_URL=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-mongo123456}@blog-mongodb:27017/
+      - ME_CONFIG_MONGODB_URL=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-mongo123456}@zhicore-mongodb:27017/
       - ME_CONFIG_BASICAUTH_USERNAME=${MONGO_EXPRESS_USER:-admin}
       - ME_CONFIG_BASICAUTH_PASSWORD=${MONGO_EXPRESS_PASSWORD:-express123456}
     ports:
       - "8091:8081"
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      blog-mongodb:
+      zhicore-mongodb:
         condition: service_healthy
     restart: unless-stopped
   # ===========================================
   # MySQL - Nacos 专用数据库
   # ===========================================
-  blog-mysql-nacos:
+  zhicore-mysql-nacos:
     image: mysql:8.0
-    container_name: blog-mysql-nacos
+    container_name: zhicore-mysql-nacos
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root123456}
       - MYSQL_DATABASE=nacos
@@ -123,7 +122,7 @@ services:
       - mysql_nacos_data:/var/lib/mysql
       - ./nacos/mysql-init:/docker-entrypoint-initdb.d:ro
     networks:
-      - blog-network
+      - zhicore-network
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root123456}"]
@@ -136,13 +135,13 @@ services:
   # ===========================================
   # Nacos - 服务注册与配置中心
   # ===========================================
-  blog-nacos:
+  zhicore-nacos:
     image: nacos/nacos-server:v2.3.0
-    container_name: blog-nacos
+    container_name: zhicore-nacos
     environment:
       - MODE=standalone
       - SPRING_DATASOURCE_PLATFORM=mysql
-      - MYSQL_SERVICE_HOST=blog-mysql-nacos
+      - MYSQL_SERVICE_HOST=zhicore-mysql-nacos
       - MYSQL_SERVICE_PORT=3306
       - MYSQL_SERVICE_DB_NAME=nacos
       - MYSQL_SERVICE_USER=nacos
@@ -161,9 +160,9 @@ services:
     volumes:
       - ./nacos/logs:/home/nacos/logs
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      blog-mysql-nacos:
+      zhicore-mysql-nacos:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/v1/console/health/readiness"]
@@ -174,18 +173,18 @@ services:
     restart: unless-stopped
 
   # ===========================================
-  # RocketMQ NameServer (Blog专用)
+  # RocketMQ NameServer (ZhiCore专用)
   # ===========================================
-  blog-rocketmq-namesrv:
+  zhicore-rocketmq-namesrv:
     image: apache/rocketmq:4.9.6
-    container_name: blog-rocketmq-namesrv
+    container_name: zhicore-rocketmq-namesrv
     command: sh mqnamesrv
     environment:
       - JAVA_OPT_EXT=-Xms256m -Xmx256m
     ports:
-      - "9876:9876"  # Blog RocketMQ NameServer
+      - "9876:9876"  # ZhiCore RocketMQ NameServer
     networks:
-      - blog-network
+      - zhicore-network
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 9876 || exit 1"]
       interval: 10s
@@ -195,25 +194,25 @@ services:
     restart: unless-stopped
 
   # ===========================================
-  # RocketMQ Broker (Blog专用)
+  # RocketMQ Broker (ZhiCore专用)
   # ===========================================
-  blog-rocketmq-broker:
-    image: apache/rocketmq:4.9.6
-    container_name: blog-rocketmq-broker
-    command: sh mqbroker -c /home/rocketmq/rocketmq-4.9.6/conf/broker.conf
+  zhicore-rocketmq-broker:
+    build:
+      context: ./rocketmq
+      dockerfile: Dockerfile
+    container_name: zhicore-rocketmq-broker
+    command: sh bin/mqbroker -n zhicore-rocketmq-namesrv:9876 -c conf/broker.conf
     environment:
-      - NAMESRV_ADDR=blog-rocketmq-namesrv:9876
+      - NAMESRV_ADDR=zhicore-rocketmq-namesrv:9876
       - JAVA_OPT_EXT=-Xms512m -Xmx512m -Xmn256m
     ports:
-      - "10909:10909"  # Blog RocketMQ Broker VIP
-      - "10911:10911"  # Blog RocketMQ Broker Main
-      - "10912:10912"  # Blog RocketMQ Broker HA
-    volumes:
-      - ./rocketmq/broker.conf:/home/rocketmq/rocketmq-4.9.6/conf/broker.conf
+      - "10909:10909"  # ZhiCore RocketMQ Broker VIP
+      - "10911:10911"  # ZhiCore RocketMQ Broker Main
+      - "10912:10912"  # ZhiCore RocketMQ Broker HA
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      blog-rocketmq-namesrv:
+      zhicore-rocketmq-namesrv:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 10911 || exit 1"]
@@ -225,34 +224,34 @@ services:
 
 
   # ===========================================
-  # RocketMQ Dashboard (Blog专用)
+  # RocketMQ Dashboard (ZhiCore专用)
   # ===========================================
-  blog-rocketmq-dashboard:
+  zhicore-rocketmq-dashboard:
     image: apacherocketmq/rocketmq-dashboard:latest
-    container_name: blog-rocketmq-dashboard
+    container_name: zhicore-rocketmq-dashboard
     environment:
-      - JAVA_OPTS=-Xms128m -Xmx256m -Drocketmq.namesrv.addr=blog-rocketmq-namesrv:9876
+      - JAVA_OPTS=-Xms128m -Xmx256m -Drocketmq.namesrv.addr=zhicore-rocketmq-namesrv:9876
     ports:
-      - "8180:8080"  # Blog RocketMQ Dashboard
+      - "8180:8080"  # ZhiCore RocketMQ Dashboard
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      blog-rocketmq-broker:
+      zhicore-rocketmq-broker:
         condition: service_healthy
     restart: unless-stopped
 
   # ===========================================
   # Elasticsearch - 全文搜索引擎
   # ===========================================
-  blog-elasticsearch:
+  zhicore-elasticsearch:
     image: elasticsearch:8.11.3
-    container_name: blog-elasticsearch
+    container_name: zhicore-elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - xpack.security.enrollment.enabled=false
       - ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}
-      - cluster.name=blog-es-cluster
+      - cluster.name=zhicore-es-cluster
       - bootstrap.memory_lock=true
     ulimits:
       memlock:
@@ -268,7 +267,7 @@ services:
       - elasticsearch_data:/usr/share/elasticsearch/data
       - ./elasticsearch/plugins:/usr/share/elasticsearch/plugins
     networks:
-      - blog-network
+      - zhicore-network
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
       interval: 30s
@@ -279,27 +278,27 @@ services:
   # ===========================================
   # Kibana - ES 可视化
   # ===========================================
-  blog-kibana:
+  zhicore-kibana:
     image: kibana:8.11.3
-    container_name: blog-kibana
+    container_name: zhicore-kibana
     environment:
-      - ELASTICSEARCH_HOSTS=http://blog-elasticsearch:9200
+      - ELASTICSEARCH_HOSTS=http://zhicore-elasticsearch:9200
       - I18N_LOCALE=zh-CN
     ports:
       - "5601:5601"
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      blog-elasticsearch:
+      zhicore-elasticsearch:
         condition: service_healthy
     restart: unless-stopped
 
   # ===========================================
   # Prometheus - 监控数据采集
   # ===========================================
-  blog-prometheus:
+  zhicore-prometheus:
     image: prom/prometheus:v2.48.0
-    container_name: blog-prometheus
+    container_name: zhicore-prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -313,7 +312,7 @@ services:
       - ./prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     networks:
-      - blog-network
+      - zhicore-network
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
       interval: 30s
@@ -324,9 +323,9 @@ services:
   # ===========================================
   # Grafana - 监控可视化
   # ===========================================
-  blog-grafana:
+  zhicore-grafana:
     image: grafana/grafana:10.2.2
-    container_name: blog-grafana
+    container_name: zhicore-grafana
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin123456}
@@ -339,17 +338,17 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
-      - blog-network
+      - zhicore-network
     depends_on:
-      - blog-prometheus
+      - zhicore-prometheus
     restart: unless-stopped
 
 # ===========================================
 # Networks
 # ===========================================
 networks:
-  blog-network:
-    name: blog-network
+  zhicore-network:
+    name: zhicore-network
     driver: bridge
     external: false
 
@@ -358,24 +357,24 @@ networks:
 # ===========================================
 volumes:
   postgres_data:
-    name: blog_postgres_data
+    name: zhicore_postgres_data
   redis_data:
-    name: blog_redis_data
+    name: zhicore_redis_data
   mongodb_data:
-    name: blog_mongodb_data
+    name: zhicore_mongodb_data
   mongodb_config:
-    name: blog_mongodb_config
+    name: zhicore_mongodb_config
   mysql_nacos_data:
-    name: blog_mysql_nacos_data
+    name: zhicore_mysql_nacos_data
   rocketmq_namesrv_logs:
-    name: blog_rocketmq_namesrv_logs
+    name: zhicore_rocketmq_namesrv_logs
   rocketmq_broker_logs:
-    name: blog_rocketmq_broker_logs
+    name: zhicore_rocketmq_broker_logs
   rocketmq_broker_store:
-    name: blog_rocketmq_broker_store
+    name: zhicore_rocketmq_broker_store
   elasticsearch_data:
-    name: blog_elasticsearch_data
+    name: zhicore_elasticsearch_data
   prometheus_data:
-    name: blog_prometheus_data
+    name: zhicore_prometheus_data
   grafana_data:
-    name: blog_grafana_data
+    name: zhicore_grafana_data

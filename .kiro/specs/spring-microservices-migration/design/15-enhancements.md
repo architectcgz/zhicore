@@ -29,7 +29,7 @@
 
 ```java
 // common-web 模块
-package com.blog.common.web.version;
+package com.zhicore.common.web.version;
 
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
@@ -130,7 +130,7 @@ spring:
 
 ```java
 // common-saga 模块
-package com.blog.common.saga;
+package com.zhicore.common.saga;
 
 public abstract class AbstractSaga<T> {
     
@@ -433,7 +433,7 @@ public class GlobalBlockExceptionHandler implements BlockExceptionHandler {
 
 ```java
 // common-metrics 模块
-package com.blog.common.metrics;
+package com.zhicore.common.metrics;
 
 @Configuration
 public class MetricsConfig {
@@ -489,13 +489,13 @@ public class PostMetrics extends AbstractBusinessMetrics {
     public PostMetrics(MeterRegistry registry) {
         super(registry);
         
-        this.postCreatedCounter = createCounter("blog.posts.created.total", "文章创建总数");
-        this.postPublishedCounter = createCounter("blog.posts.published.total", "文章发布总数");
-        this.postLikedCounter = createCounter("blog.posts.liked.total", "文章点赞总数");
-        this.postQueryTimer = createTimer("blog.posts.query.duration", "文章查询耗时");
+        this.postCreatedCounter = createCounter("zhicore.posts.created.total", "文章创建总数");
+        this.postPublishedCounter = createCounter("zhicore.posts.published.total", "文章发布总数");
+        this.postLikedCounter = createCounter("zhicore.posts.liked.total", "文章点赞总数");
+        this.postQueryTimer = createTimer("zhicore.posts.query.duration", "文章查询耗时");
         
         this.activePostsGauge = new AtomicLong(0);
-        createGauge("blog.posts.active.count", "活跃文章数", activePostsGauge::get);
+        createGauge("zhicore.posts.active.count", "活跃文章数", activePostsGauge::get);
     }
     
     public void recordPostCreated() { postCreatedCounter.increment(); }
@@ -516,9 +516,9 @@ public class CommentMetrics extends AbstractBusinessMetrics {
     
     public CommentMetrics(MeterRegistry registry) {
         super(registry);
-        this.commentCreatedCounter = createCounter("blog.comments.created.total", "评论创建总数");
-        this.commentLikedCounter = createCounter("blog.comments.liked.total", "评论点赞总数");
-        this.commentQueryTimer = createTimer("blog.comments.query.duration", "评论查询耗时");
+        this.commentCreatedCounter = createCounter("ZhiCore.comments.created.total", "评论创建总数");
+        this.commentLikedCounter = createCounter("ZhiCore.comments.liked.total", "评论点赞总数");
+        this.commentQueryTimer = createTimer("ZhiCore.comments.query.duration", "评论查询耗时");
     }
 }
 
@@ -533,10 +533,10 @@ public class UserMetrics extends AbstractBusinessMetrics {
     
     public UserMetrics(MeterRegistry registry) {
         super(registry);
-        this.userRegisteredCounter = createCounter("blog.users.registered.total", "用户注册总数");
-        this.userLoginCounter = createCounter("blog.users.login.total", "用户登录总数");
-        this.userFollowedCounter = createCounter("blog.users.followed.total", "关注操作总数");
-        this.authTimer = createTimer("blog.auth.duration", "认证耗时");
+        this.userRegisteredCounter = createCounter("ZhiCore.users.registered.total", "用户注册总数");
+        this.userLoginCounter = createCounter("ZhiCore.users.login.total", "用户登录总数");
+        this.userFollowedCounter = createCounter("ZhiCore.users.followed.total", "关注操作总数");
+        this.authTimer = createTimer("ZhiCore.auth.duration", "认证耗时");
     }
 }
 ```
@@ -544,9 +544,9 @@ public class UserMetrics extends AbstractBusinessMetrics {
 ### 4.3 Prometheus 告警规则
 
 ```yaml
-# prometheus/rules/blog-alerts.yml
+# prometheus/rules/ZhiCore-alerts.yml
 groups:
-  - name: blog-service-alerts
+  - name: ZhiCore-service-alerts
     rules:
       # 服务可用性
       - alert: ServiceDown
@@ -642,7 +642,7 @@ groups:
 
 ```java
 // common-security 模块
-package com.blog.common.security;
+package com.zhicore.common.security;
 
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
@@ -989,7 +989,7 @@ for (PostVO post : posts) {
 
 ```java
 // common-dataloader 模块
-package com.blog.common.dataloader;
+package com.zhicore.common.dataloader;
 
 public interface DataLoader<K, V> {
     Map<K, V> batchLoad(Set<K> keys);
@@ -1415,7 +1415,7 @@ public class CommentListService extends AbstractPaginationService<CommentVO, Tim
 
 ```java
 // common-datasource 模块
-package com.blog.common.datasource;
+package com.zhicore.common.datasource;
 
 public enum DataSourceType {
     MASTER, SLAVE
@@ -1603,21 +1603,21 @@ public class CommentApplicationService {
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                              公共模块依赖图                                       │
 │                                                                                  │
-│   blog-common-core          ← 基础工具类、异常定义、Result 封装                    │
+│   ZhiCore-common-core          ← 基础工具类、异常定义、Result 封装                    │
 │        ↑                                                                         │
-│   blog-common-web           ← API 版本控制、全局异常处理、限流响应                  │
+│   ZhiCore-common-web           ← API 版本控制、全局异常处理、限流响应                  │
 │        ↑                                                                         │
-│   blog-common-security      ← RBAC 权限注解、SecurityContext                      │
+│   ZhiCore-common-security      ← RBAC 权限注解、SecurityContext                      │
 │        ↑                                                                         │
-│   blog-common-datasource    ← 读写分离、数据源路由                                 │
+│   ZhiCore-common-datasource    ← 读写分离、数据源路由                                 │
 │        ↑                                                                         │
-│   blog-common-dataloader    ← DataLoader 接口、批量查询优化                        │
+│   ZhiCore-common-dataloader    ← DataLoader 接口、批量查询优化                        │
 │        ↑                                                                         │
-│   blog-common-saga          ← Saga 编排器、补偿机制                                │
+│   ZhiCore-common-saga          ← Saga 编排器、补偿机制                                │
 │        ↑                                                                         │
-│   blog-common-metrics       ← Prometheus 指标、业务指标基类                        │
+│   ZhiCore-common-metrics       ← Prometheus 指标、业务指标基类                        │
 │        ↑                                                                         │
-│   blog-common-sentinel      ← Sentinel 限流配置、熔断降级                          │
+│   ZhiCore-common-sentinel      ← Sentinel 限流配置、熔断降级                          │
 │                                                                                  │
 │   各业务服务按需引入：                                                             │
 │   - user-service:    core, web, security, datasource, dataloader, metrics        │
@@ -1637,41 +1637,41 @@ public class CommentApplicationService {
 ```xml
 <!-- 父 POM -->
 <modules>
-    <module>blog-common-core</module>
-    <module>blog-common-web</module>
-    <module>blog-common-security</module>
-    <module>blog-common-datasource</module>
-    <module>blog-common-dataloader</module>
-    <module>blog-common-saga</module>
-    <module>blog-common-metrics</module>
-    <module>blog-common-sentinel</module>
+    <module>ZhiCore-common-core</module>
+    <module>ZhiCore-common-web</module>
+    <module>ZhiCore-common-security</module>
+    <module>ZhiCore-common-datasource</module>
+    <module>ZhiCore-common-dataloader</module>
+    <module>ZhiCore-common-saga</module>
+    <module>ZhiCore-common-metrics</module>
+    <module>ZhiCore-common-sentinel</module>
 </modules>
 
 <!-- post-service pom.xml -->
 <dependencies>
     <dependency>
-        <groupId>com.blog</groupId>
-        <artifactId>blog-common-web</artifactId>
+        <groupId>com.ZhiCore</groupId>
+        <artifactId>ZhiCore-common-web</artifactId>
     </dependency>
     <dependency>
-        <groupId>com.blog</groupId>
-        <artifactId>blog-common-security</artifactId>
+        <groupId>com.ZhiCore</groupId>
+        <artifactId>ZhiCore-common-security</artifactId>
     </dependency>
     <dependency>
-        <groupId>com.blog</groupId>
-        <artifactId>blog-common-datasource</artifactId>
+        <groupId>com.ZhiCore</groupId>
+        <artifactId>ZhiCore-common-datasource</artifactId>
     </dependency>
     <dependency>
-        <groupId>com.blog</groupId>
-        <artifactId>blog-common-dataloader</artifactId>
+        <groupId>com.ZhiCore</groupId>
+        <artifactId>ZhiCore-common-dataloader</artifactId>
     </dependency>
     <dependency>
-        <groupId>com.blog</groupId>
-        <artifactId>blog-common-metrics</artifactId>
+        <groupId>com.ZhiCore</groupId>
+        <artifactId>ZhiCore-common-metrics</artifactId>
     </dependency>
     <dependency>
-        <groupId>com.blog</groupId>
-        <artifactId>blog-common-saga</artifactId>
+        <groupId>com.ZhiCore</groupId>
+        <artifactId>ZhiCore-common-saga</artifactId>
     </dependency>
 </dependencies>
 ```

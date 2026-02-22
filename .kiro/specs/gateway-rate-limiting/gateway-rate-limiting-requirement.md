@@ -60,7 +60,7 @@
 ### 1. 创建限流配置类
 
 ```java
-// blog-gateway/src/main/java/com/blog/gateway/config/RateLimitConfig.java
+// ZhiCore-gateway/src/main/java/com/ZhiCore/gateway/config/RateLimitConfig.java
 @Configuration
 public class RateLimitConfig {
     
@@ -97,7 +97,7 @@ public class RateLimitConfig {
 ### 2. 创建限流规则管理器
 
 ```java
-// blog-gateway/src/main/java/com/blog/gateway/ratelimit/RateLimitRuleManager.java
+// ZhiCore-gateway/src/main/java/com/ZhiCore/gateway/ratelimit/RateLimitRuleManager.java
 @Component
 public class RateLimitRuleManager {
     
@@ -141,7 +141,7 @@ public class RateLimitRuleManager {
 ### 3. 创建限流过滤器
 
 ```java
-// blog-gateway/src/main/java/com/blog/gateway/filter/RateLimitFilter.java
+// ZhiCore-gateway/src/main/java/com/ZhiCore/gateway/filter/RateLimitFilter.java
 @Component
 @Order(-50)  // 在JWT过滤器之后执行
 public class RateLimitFilter implements GlobalFilter {

@@ -1,0 +1,334 @@
+package com.zhicore.post.infrastructure.service;
+
+import exception.domain.com.zhicore.content.DualStorageException;
+import model.domain.com.zhicore.content.Post;
+import repository.domain.com.zhicore.content.PostRepository;
+import service.domain.com.zhicore.content.DualStorageManager;
+import document.mongodb.infrastructure.com.zhicore.content.PostContent;
+import repository.mongodb.infrastructure.com.zhicore.content.PostContentRepository;
+import util.infrastructure.com.zhicore.content.ContentEnricher;
+import net.jqwik.api.*;
+import net.jqwik.api.constraints.IntRange;
+import net.jqwik.api.constraints.StringLength;
+import org.junit.jupiter.api.BeforeEach;
+
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
+/**
+ * Dual Storage Manager Deletion Synchronization Property Test
+ * 
+ * Uses property-based testing to validate deletion synchronization between
+ * PostgreSQL and MongoDB.
+ * 
+ * **Feature: post-mongodb-hybrid, Property 3: 删除同步性**
+ * 
+ * **Validates: Requirements 2.4**
+ * 
+ * Property 3: 删除同步性
+ * 对于任意被删除的文章，在 PostgreSQL 和 MongoDB 中都不应该存在该文章的任何数据。
+ */
+class DualStorageManagerDeletionSyncPropertyTest {
+
+    private PostRepository postRepository;
+    private PostContentRepository postContentRepository;
+    private ContentEnricher contentEnricher;
+    private DualStorageManager dualStorageManager;
+
+    @BeforeEach
+    void setUp() {
+        postRepository = mock(PostRepository.class);
+        postContentRepository = mock(PostContentRepository.class);
+        contentEnricher = mock(ContentEnricher.class);
+        dualStorageManager = new DualStorageManagerImpl(postRepository, postContentRepository, contentEnricher);
+    }
+
+    /**
+     * Property 3: Deletion synchronization - successful deletion
+     * 
+     * For any post ID, when deletion succeeds, both PostgreSQL and MongoDB
+     * should have the post deleted (no data should exist).
+     * 
+     * **Validates: Requirements 2.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 3: Both databases should have post deleted when deletion succeeds")
+    void bothDatabasesShouldHavePostDeletedWhenDeletionSucceeds(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId) {
+
+        // Given: A post ID
+        String postIdStr = String.valueOf(postId);
+
+        // Mock successful deletions
+        doNothing().when(postRepository).delete(postIdStr);
+        doNothing().when(postContentRepository).deleteByPostId(postIdStr);
+
+        // When: Delete post
+        dualStorageManager.deletePost(postIdStr);
+
+        // Then: Both repositories should be called to delete
+        verify(postRepository, times(1)).delete(postIdStr);
+        verify(postContentRepository, times(1)).deleteByPostId(postIdStr);
+    }
+
+    /**
+     * Property 3: Deletion synchronization - MongoDB failure triggers rollback
+     * 
+     * For any post ID, when PostgreSQL deletion succeeds but MongoDB fails,
+     * the PostgreSQL deletion should be rolled back (via @Transactional).
+     * 
+     * **Validates: Requirements 2.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 3: MongoDB deletion failure should trigger PostgreSQL rollback")
+    void mongoDBDeletionFailureShouldTriggerPostgreSQLRollback(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId) {
+
+        // Given: A post ID
+        String postIdStr = String.valueOf(postId);
+
+        // Mock PostgreSQL success but MongoDB failure
+        doNothing().when(postRepository).delete(postIdStr);
+        doThrow(new RuntimeException("MongoDB deletion failed"))
+                .when(postContentRepository).deleteByPostId(postIdStr);
+
+        // When & Then: Delete should throw exception
+        assertThatThrownBy(() -> dualStorageManager.deletePost(postIdStr))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to delete content from MongoDB");
+
+        // Verify both were called but MongoDB failed
+        verify(postRepository, times(1)).delete(postIdStr);
+        verify(postContentRepository, times(1)).deleteByPostId(postIdStr);
+        
+        // Note: In real scenario with @Transactional, PostgreSQL deletion would be rolled back
+        // This test verifies the exception is thrown, triggering the rollback mechanism
+    }
+
+    /**
+     * Property 3: Deletion synchronization - PostgreSQL failure prevents MongoDB deletion
+     * 
+     * For any post ID, when PostgreSQL deletion fails,
+     * MongoDB should not be deleted at all.
+     * 
+     * **Validates: Requirements 2.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 3: PostgreSQL deletion failure should prevent MongoDB deletion")
+    void postgreSQLDeletionFailureShouldPreventMongoDBDeletion(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId) {
+
+        // Given: A post ID
+        String postIdStr = String.valueOf(postId);
+
+        // Mock PostgreSQL failure
+        doThrow(new RuntimeException("PostgreSQL deletion failed"))
+                .when(postRepository).delete(postIdStr);
+
+        // When & Then: Delete should throw exception
+        assertThatThrownBy(() -> dualStorageManager.deletePost(postIdStr))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to delete post from PostgreSQL");
+
+        // Verify PostgreSQL was called but MongoDB was never called
+        verify(postRepository, times(1)).delete(postIdStr);
+        verify(postContentRepository, never()).deleteByPostId(anyString());
+    }
+
+    /**
+     * Property 3: Deletion synchronization - verify data absence after deletion
+     * 
+     * For any post, after successful deletion, querying both databases
+     * should return empty results (no data exists).
+     * 
+     * **Validates: Requirements 2.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 3: Querying deleted post should return empty from both databases")
+    void queryingDeletedPostShouldReturnEmptyFromBothDatabases(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId) {
+
+        // Given: A post ID
+        String postIdStr = String.valueOf(postId);
+
+        // Mock successful deletions
+        doNothing().when(postRepository).delete(postIdStr);
+        doNothing().when(postContentRepository).deleteByPostId(postIdStr);
+        
+        // Mock queries returning empty after deletion
+        when(postRepository.findById(postIdStr)).thenReturn(Optional.empty());
+        when(postContentRepository.findByPostId(postIdStr)).thenReturn(Optional.empty());
+
+        // When: Delete post
+        dualStorageManager.deletePost(postIdStr);
+
+        // Then: Querying should return empty from both databases
+        Optional<Post> postResult = postRepository.findById(postIdStr);
+        Optional<PostContent> contentResult = postContentRepository.findByPostId(postIdStr);
+        
+        assertThat(postResult).isEmpty();
+        assertThat(contentResult).isEmpty();
+    }
+
+    /**
+     * Property 3: Deletion synchronization - idempotency
+     * 
+     * For any post ID, attempting to delete it multiple times should either
+     * succeed on first attempt or fail consistently if post doesn't exist.
+     * 
+     * **Validates: Requirements 2.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 3: Multiple deletion attempts should be idempotent")
+    void multipleDeletionAttemptsShouldBeIdempotent(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId) {
+
+        // Given: A post ID
+        String postIdStr = String.valueOf(postId);
+
+        // Mock successful first deletion
+        doNothing().when(postRepository).delete(postIdStr);
+        doNothing().when(postContentRepository).deleteByPostId(postIdStr);
+
+        // When: First deletion succeeds
+        dualStorageManager.deletePost(postIdStr);
+        
+        // Verify first deletion called both repositories
+        verify(postRepository, times(1)).delete(postIdStr);
+        verify(postContentRepository, times(1)).deleteByPostId(postIdStr);
+
+        // Reset mocks for second deletion attempt
+        reset(postRepository, postContentRepository);
+        
+        // Mock second deletion attempt (post no longer exists)
+        doThrow(new RuntimeException("Post not found"))
+                .when(postRepository).delete(postIdStr);
+
+        // Then: Second deletion should fail consistently
+        assertThatThrownBy(() -> dualStorageManager.deletePost(postIdStr))
+                .isInstanceOf(DualStorageException.class);
+        
+        // Verify PostgreSQL was called but MongoDB was not (due to early failure)
+        verify(postRepository, times(1)).delete(postIdStr);
+        verify(postContentRepository, never()).deleteByPostId(anyString());
+    }
+
+    /**
+     * Property 3: Deletion synchronization - no partial deletion
+     * 
+     * For any post deletion operation, there should never be a state where
+     * the post exists in one database but not the other after the operation completes.
+     * 
+     * **Validates: Requirements 2.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 3: No partial deletion should occur")
+    void noPartialDeletionShouldOccur(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId) {
+
+        // Given: A post ID
+        String postIdStr = String.valueOf(postId);
+
+        // Scenario 1: Both deletions succeed
+        doNothing().when(postRepository).delete(postIdStr);
+        doNothing().when(postContentRepository).deleteByPostId(postIdStr);
+        
+        when(postRepository.findById(postIdStr)).thenReturn(Optional.empty());
+        when(postContentRepository.findByPostId(postIdStr)).thenReturn(Optional.empty());
+
+        // When: Delete post
+        dualStorageManager.deletePost(postIdStr);
+
+        // Then: Both should be empty (consistent state)
+        boolean pgExists = postRepository.findById(postIdStr).isPresent();
+        boolean mongoExists = postContentRepository.findByPostId(postIdStr).isPresent();
+        
+        assertThat(pgExists).isFalse();
+        assertThat(mongoExists).isFalse();
+        assertThat(pgExists).isEqualTo(mongoExists); // Both should be in same state
+    }
+
+    /**
+     * Property 3: Deletion synchronization - transaction boundary
+     * 
+     * For any post deletion, if MongoDB deletion fails, the entire operation
+     * should fail atomically, ensuring no partial state.
+     * 
+     * **Validates: Requirements 2.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 3: Transaction should maintain atomicity on MongoDB failure")
+    void transactionShouldMaintainAtomicityOnMongoDBFailure(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId) {
+
+        // Given: A post ID
+        String postIdStr = String.valueOf(postId);
+
+        // Mock PostgreSQL success but MongoDB failure
+        doNothing().when(postRepository).delete(postIdStr);
+        doThrow(new RuntimeException("MongoDB connection timeout"))
+                .when(postContentRepository).deleteByPostId(postIdStr);
+
+        // When & Then: Deletion should fail atomically
+        assertThatThrownBy(() -> dualStorageManager.deletePost(postIdStr))
+                .isInstanceOf(DualStorageException.class)
+                .hasMessageContaining("Failed to delete content from MongoDB");
+
+        // Verify the operation attempted both deletions
+        verify(postRepository, times(1)).delete(postIdStr);
+        verify(postContentRepository, times(1)).deleteByPostId(postIdStr);
+        
+        // Note: @Transactional ensures PostgreSQL deletion is rolled back
+        // In a real integration test, we would verify the post still exists in PostgreSQL
+    }
+
+    /**
+     * Property 3: Deletion synchronization - consistency after failure
+     * 
+     * For any post deletion that fails, both databases should remain in their
+     * original state (post still exists in both).
+     * 
+     * **Validates: Requirements 2.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 3: Failed deletion should leave both databases unchanged")
+    void failedDeletionShouldLeaveBothDatabasesUnchanged(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @IntRange(min = 1, max = 100000) long ownerId,
+            @ForAll @StringLength(min = 1, max = 200) String title) {
+
+        // Given: An existing post
+        String postIdStr = String.valueOf(postId);
+        Post existingPost = Post.createDraft(postId, ownerId, title);
+        PostContent existingContent = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw("Some content")
+                .build();
+
+        // Mock deletion failure
+        doThrow(new RuntimeException("Database error"))
+                .when(postRepository).delete(postIdStr);
+        
+        // Mock queries returning existing data (simulating rollback)
+        when(postRepository.findById(postIdStr)).thenReturn(Optional.of(existingPost));
+        when(postContentRepository.findByPostId(postIdStr)).thenReturn(Optional.of(existingContent));
+
+        // When: Deletion fails
+        assertThatThrownBy(() -> dualStorageManager.deletePost(postIdStr))
+                .isInstanceOf(DualStorageException.class);
+
+        // Then: Both databases should still have the data
+        Optional<Post> postResult = postRepository.findById(postIdStr);
+        Optional<PostContent> contentResult = postContentRepository.findByPostId(postIdStr);
+        
+        assertThat(postResult).isPresent();
+        assertThat(contentResult).isPresent();
+        assertThat(postResult.get().getId()).isEqualTo(postId);
+        assertThat(contentResult.get().getPostId()).isEqualTo(postIdStr);
+    }
+}

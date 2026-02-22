@@ -52,7 +52,7 @@ public class ChatService(
 ### Repository 接口
 
 ```csharp
-// BlogCore/Domain/Repositories/IChatRepository.cs
+// ZhiCoreCore/Domain/Repositories/IChatRepository.cs
 public interface IChatRepository
 {
     /// <summary>
@@ -101,7 +101,7 @@ public interface IChatRepository
 ### Repository 实现
 
 ```csharp
-// BlogCore/Infrastructure/Repositories/ChatRepository.cs
+// ZhiCoreCore/Infrastructure/Repositories/ChatRepository.cs
 public class ChatRepository : IChatRepository
 {
     private readonly AppDbContext _dbContext;
@@ -226,7 +226,7 @@ public class ChatRepository : IChatRepository
 ### Domain Service
 
 ```csharp
-// BlogCore/Domain/Services/IChatDomainService.cs
+// ZhiCoreCore/Domain/Services/IChatDomainService.cs
 public interface IChatDomainService
 {
     /// <summary>
@@ -240,7 +240,7 @@ public interface IChatDomainService
     Task<ChatMessage> CreateMessageAsync(string senderId, string receiverId, string content);
 }
 
-// BlogCore/Domain/Services/ChatDomainService.cs
+// ZhiCoreCore/Domain/Services/ChatDomainService.cs
 public class ChatDomainService : IChatDomainService
 {
     private readonly IUserRepository _userRepository;
@@ -324,7 +324,7 @@ public class ChatDomainService : IChatDomainService
 ### Application Service
 
 ```csharp
-// BlogCore/Application/Social/IChatApplicationService.cs
+// ZhiCoreCore/Application/Social/IChatApplicationService.cs
 public interface IChatApplicationService
 {
     Task<ChatMessageVo> SendMessageAsync(string senderId, SendMessageReq req);
@@ -334,7 +334,7 @@ public interface IChatApplicationService
     Task MarkAsReadAsync(string userId, string otherUserId);
 }
 
-// BlogCore/Application/Social/ChatApplicationService.cs
+// ZhiCoreCore/Application/Social/ChatApplicationService.cs
 public class ChatApplicationService : IChatApplicationService
 {
     private readonly IChatRepository _chatRepository;
@@ -549,7 +549,7 @@ public record MessageSentEvent : DomainEventBase
 ### 事件处理器
 
 ```csharp
-// BlogCore/Domain/EventHandlers/Social/MessageSentEventHandler.cs
+// ZhiCoreCore/Domain/EventHandlers/Social/MessageSentEventHandler.cs
 public class MessageSentEventHandler : IDomainEventHandler<MessageSentEvent>
 {
     private readonly IHubContext<ChatHub> _hubContext;
@@ -692,7 +692,7 @@ public class ChatHub : Hub
 ## DI 注册
 
 ```csharp
-// BlogCore/Extensions/SocialServiceExtensions.cs
+// ZhiCoreCore/Extensions/SocialServiceExtensions.cs
 public static IServiceCollection AddChatServices(this IServiceCollection services)
 {
     // Repository

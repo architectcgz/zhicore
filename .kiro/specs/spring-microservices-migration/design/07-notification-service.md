@@ -4,7 +4,7 @@
 
 ```
 notification-service/
-├── src/main/java/com/blog/notification/
+├── src/main/java/com/ZhiCore/notification/
 │   ├── interfaces/
 │   │   ├── controller/
 │   │   │   └── NotificationController.java

@@ -4,16 +4,16 @@
 
 | 服务名称 | 模块名 | 端口 | 说明 |
 |---------|--------|------|------|
-| 网关服务 | blog-gateway | 8000 | API 网关，统一入口 |
-| 用户服务 | blog-user | 8101 | 用户注册、登录、个人信息管理 |
-| 文章服务 | blog-post | 8102 | 文章 CRUD、点赞、收藏 |
-| 评论服务 | blog-comment | 8103 | 评论管理、评论点赞 |
-| 消息服务 | blog-message | 8084 | 私信、消息通知 |
-| 通知服务 | blog-notification | 8085 | 系统通知、消息推送 |
-| 搜索服务 | blog-search | 8086 | 全文搜索、搜索建议 |
-| 排行服务 | blog-ranking | 8087 | 热门排行、推荐算法 |
-| 管理服务 | blog-admin | 8090 | 后台管理功能 |
-| 运维服务 | blog-ops | 8090 | 运维监控（与 admin 共用端口） |
+| 网关服务 | ZhiCore-gateway | 8000 | API 网关，统一入口 |
+| 用户服务 | ZhiCore-user | 8101 | 用户注册、登录、个人信息管理 |
+| 文章服务 | ZhiCore-post | 8102 | 文章 CRUD、点赞、收藏 |
+| 评论服务 | ZhiCore-comment | 8103 | 评论管理、评论点赞 |
+| 消息服务 | ZhiCore-message | 8084 | 私信、消息通知 |
+| 通知服务 | ZhiCore-notification | 8085 | 系统通知、消息推送 |
+| 搜索服务 | ZhiCore-search | 8086 | 全文搜索、搜索建议 |
+| 排行服务 | ZhiCore-ranking | 8087 | 热门排行、推荐算法 |
+| 管理服务 | ZhiCore-admin | 8090 | 后台管理功能 |
+| 运维服务 | ZhiCore-ops | 8090 | 运维监控（与 admin 共用端口） |
 
 ## API 文档端口
 
