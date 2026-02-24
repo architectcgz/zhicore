@@ -100,7 +100,7 @@ public class PostFavoriteApplicationService {
         integrationEventPublisher.publish(new PostFavoritedIntegrationEvent(
                 newEventId(),
                 java.time.Instant.now(),
-                null,
+                post.getVersion(),
                 postId,
                 userId,
                 authorId
@@ -144,10 +144,13 @@ public class PostFavoriteApplicationService {
         }
 
         // 发布事件
+        Long aggregateVersion = postRepository.findById(postId)
+                .map(Post::getVersion)
+                .orElse(0L);
         integrationEventPublisher.publish(new PostUnfavoritedIntegrationEvent(
                 newEventId(),
                 java.time.Instant.now(),
-                null,
+                aggregateVersion,
                 postId,
                 userId
         ));

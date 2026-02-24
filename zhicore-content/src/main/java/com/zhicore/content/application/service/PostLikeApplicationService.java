@@ -101,7 +101,7 @@ public class PostLikeApplicationService {
         integrationEventPublisher.publish(new PostLikedIntegrationEvent(
                 newEventId(),
                 java.time.Instant.now(),
-                null,
+                post.getVersion(),
                 postId,
                 userId,
                 authorId,
@@ -147,10 +147,13 @@ public class PostLikeApplicationService {
         }
 
         // 发布事件
+        Long aggregateVersion = postRepository.findById(postId)
+                .map(Post::getVersion)
+                .orElse(0L);
         integrationEventPublisher.publish(new PostUnlikedIntegrationEvent(
                 newEventId(),
                 java.time.Instant.now(),
-                null,
+                aggregateVersion,
                 postId,
                 userId,
                 null

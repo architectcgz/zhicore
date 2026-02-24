@@ -8,6 +8,7 @@ import com.zhicore.content.application.port.cache.CacheRepository;
 import com.zhicore.content.application.port.cache.CacheResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
@@ -234,4 +235,3 @@ public class RedisCacheRepositoryImpl implements CacheRepository {
         T read(JsonNode node) throws Exception;
     }
 }
-import org.springframework.beans.factory.annotation.Value;
