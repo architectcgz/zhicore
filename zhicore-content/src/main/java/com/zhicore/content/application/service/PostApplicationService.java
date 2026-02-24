@@ -891,7 +891,8 @@ public class PostApplicationService {
         vo.setRaw(detailView.getContent());
         vo.setExcerpt(detailView.getExcerpt());
         vo.setStatus(detailView.getStatus().name());
-        vo.setPublishedAt(detailView.getCreatedAt()); // 使用 createdAt 作为 publishedAt
+        // 注意：publishedAt 仅在已发布时有值；草稿/定时发布等场景应返回 null
+        vo.setPublishedAt(detailView.getPublishedAt());
         vo.setScheduledAt(detailView.getScheduledPublishAt());
         vo.setCreatedAt(detailView.getCreatedAt());
         vo.setUpdatedAt(detailView.getUpdatedAt());

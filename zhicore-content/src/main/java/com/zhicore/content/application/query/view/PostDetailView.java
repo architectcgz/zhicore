@@ -106,5 +106,10 @@ public class PostDetailView {
      * 定时发布时间（如果状态为 SCHEDULED）
      */
     private LocalDateTime scheduledPublishAt;
+
+    /**
+     * 发布时间（未发布时为 null）
+     */
+    private LocalDateTime publishedAt;
 }
 

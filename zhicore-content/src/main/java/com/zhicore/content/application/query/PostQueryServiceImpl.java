@@ -76,6 +76,7 @@ public class PostQueryServiceImpl implements PostQuery {
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .scheduledPublishAt(post.getScheduledAt())
+                .publishedAt(post.getPublishedAt())
                 .build();
     }
     
