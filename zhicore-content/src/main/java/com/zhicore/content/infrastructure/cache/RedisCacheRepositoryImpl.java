@@ -8,7 +8,6 @@ import com.zhicore.content.application.port.cache.CacheRepository;
 import com.zhicore.content.application.port.cache.CacheResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
@@ -42,12 +41,6 @@ public class RedisCacheRepositoryImpl implements CacheRepository {
      */
     private static final String NULL_VALUE_MARKER = "__NULL__";
     
-    /**
-     * 是否启用 deletePattern 功能（生产环境应禁用）
-     */
-    @Value("${cache.delete-pattern.enabled:false}")
-    private boolean deletePatternEnabled;
-
     /**
      * SCAN 删除批次大小（默认 100）
      */
@@ -132,11 +125,6 @@ public class RedisCacheRepositoryImpl implements CacheRepository {
     
     @Override
     public void deletePattern(String pattern) {
-        if (!deletePatternEnabled) {
-            log.warn("deletePattern is disabled in production environment: pattern={}", pattern);
-            return;
-        }
-        
         try {
             if (pattern == null || pattern.isBlank()) {
                 return;
@@ -147,6 +135,9 @@ public class RedisCacheRepositoryImpl implements CacheRepository {
                 redisTemplate.delete(pattern);
                 return;
             }
+
+            // pattern 删除属于“批量失效”，可能产生额外扫描成本，优先精确删除。
+            log.warn("执行 deletePattern（通配符批量失效），建议优先精确删除: pattern={}", pattern);
 
             ScanOptions options = ScanOptions.scanOptions()
                     .match(pattern)
@@ -243,3 +234,4 @@ public class RedisCacheRepositoryImpl implements CacheRepository {
         T read(JsonNode node) throws Exception;
     }
 }
+import org.springframework.beans.factory.annotation.Value;
