@@ -1,18 +1,18 @@
 package com.zhicore.content.application.service;
 
-import com.zhicore.api.client.IdGeneratorFeignClient;
-import com.zhicore.api.event.post.PostFavoritedEvent;
-import com.zhicore.api.event.post.PostUnfavoritedEvent;
+import com.zhicore.clients.client.IdGeneratorFeignClient;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
+import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostFavorite;
 import com.zhicore.content.domain.model.PostStatus;
 import com.zhicore.content.domain.repository.PostFavoriteRepository;
-import com.zhicore.content.domain.repository.PostRepository;
+import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.infrastructure.cache.PostRedisKeys;
-import com.zhicore.content.infrastructure.mq.PostEventPublisher;
+import com.zhicore.integration.messaging.post.PostFavoritedIntegrationEvent;
+import com.zhicore.integration.messaging.post.PostUnfavoritedIntegrationEvent;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 文章收藏应用服务
@@ -37,7 +38,7 @@ public class PostFavoriteApplicationService {
 
     private final PostFavoriteRepository favoriteRepository;
     private final PostRepository postRepository;
-    private final PostEventPublisher eventPublisher;
+    private final IntegrationEventPublisher integrationEventPublisher;
     private final RedisTemplate<String, Object> redisTemplate;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
     private final TransactionTemplate transactionTemplate;
@@ -68,7 +69,7 @@ public class PostFavoriteApplicationService {
             throw new BusinessException("文章未发布，无法收藏");
         }
 
-        Long authorId = post.getOwnerId();
+        Long authorId = post.getOwnerId().getValue();
 
         // 数据库操作在事务中执行
         transactionTemplate.executeWithoutResult(status -> {
@@ -96,7 +97,14 @@ public class PostFavoriteApplicationService {
         }
 
         // 发布事件（用于通知、排行榜更新）
-        eventPublisher.publish(new PostFavoritedEvent(postId, userId, authorId));
+        integrationEventPublisher.publish(new PostFavoritedIntegrationEvent(
+                newEventId(),
+                java.time.Instant.now(),
+                null,
+                postId,
+                userId,
+                authorId
+        ));
 
         log.info("Post favorited: postId={}, userId={}", postId, userId);
     }
@@ -136,7 +144,13 @@ public class PostFavoriteApplicationService {
         }
 
         // 发布事件
-        eventPublisher.publish(new PostUnfavoritedEvent(postId, userId));
+        integrationEventPublisher.publish(new PostUnfavoritedIntegrationEvent(
+                newEventId(),
+                java.time.Instant.now(),
+                null,
+                postId,
+                userId
+        ));
 
         log.info("Post unfavorited: postId={}, userId={}", postId, userId);
     }
@@ -250,5 +264,9 @@ public class PostFavoriteApplicationService {
 
         // 注意：不抛出异常，主流程已成功
         // CDC 和定时任务会自动修复数据
+    }
+
+    private String newEventId() {
+        return UUID.randomUUID().toString().replace("-", "");
     }
 }

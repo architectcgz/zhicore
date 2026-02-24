@@ -1,6 +1,12 @@
 server:
   port: 8102
 
+# 应用环境标识（用于分布式锁键隔离）
+# 推荐值：dev | test | prod
+# 注意：不要直接使用 spring.profiles.active，因为它可能包含多个 profile（如 "prod,k8s"）
+app:
+  env: ${APP_ENV:dev}
+
 spring:
   application:
     name: zhicore-content

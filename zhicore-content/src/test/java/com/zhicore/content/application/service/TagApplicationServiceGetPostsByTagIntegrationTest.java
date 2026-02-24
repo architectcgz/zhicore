@@ -3,9 +3,11 @@ package com.zhicore.content.application.service;
 import com.zhicore.common.exception.ResourceNotFoundException;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.content.application.dto.PostVO;
+import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.model.Post;
+import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.Tag;
-import com.zhicore.content.domain.repository.PostRepository;
+import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.domain.service.TagDomainService;
@@ -79,7 +81,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
         for (int i = 0; i < 5; i++) {
             Post post = createAndSavePost("Test Post " + i, 1000L);
             testPosts.add(post);
-            postTagRepository.attach(post.getId(), testTag.getId());
+            postTagRepository.attach(post.getId().getValue(), testTag.getId());
         }
 
         // When: 查询标签下的文章
@@ -92,7 +94,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
         
         // 验证所有返回的文章都在测试文章列表中
         Set<Long> expectedPostIds = testPosts.stream()
-                .map(Post::getId)
+                .map(post -> post.getId().getValue())
                 .collect(Collectors.toSet());
         
         for (PostVO postVO : result.getRecords()) {
@@ -150,7 +152,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
         for (int i = 0; i < 25; i++) {
             Post post = createAndSavePost("Test Post " + i, 1000L);
             testPosts.add(post);
-            postTagRepository.attach(post.getId(), testTag.getId());
+            postTagRepository.attach(post.getId().getValue(), testTag.getId());
         }
 
         // When: 查询第一页（每页 10 条）
@@ -175,7 +177,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
         for (int i = 0; i < 25; i++) {
             Post post = createAndSavePost("Test Post " + i, 1000L);
             testPosts.add(post);
-            postTagRepository.attach(post.getId(), testTag.getId());
+            postTagRepository.attach(post.getId().getValue(), testTag.getId());
         }
 
         // When: 查询第二页（每页 10 条）
@@ -200,7 +202,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
         for (int i = 0; i < 25; i++) {
             Post post = createAndSavePost("Test Post " + i, 1000L);
             testPosts.add(post);
-            postTagRepository.attach(post.getId(), testTag.getId());
+            postTagRepository.attach(post.getId().getValue(), testTag.getId());
         }
 
         // When: 查询第三页（每页 10 条，最后一页只有 5 条）
@@ -225,7 +227,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
         for (int i = 0; i < 5; i++) {
             Post post = createAndSavePost("Test Post " + i, 1000L);
             testPosts.add(post);
-            postTagRepository.attach(post.getId(), testTag.getId());
+            postTagRepository.attach(post.getId().getValue(), testTag.getId());
         }
 
         // When: 查询第 10 页（超出范围）
@@ -262,7 +264,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
             for (int i = 0; i < postCount; i++) {
                 Post post = createAndSavePost("Property Test Post " + i + " " + System.currentTimeMillis(), 1000L);
                 posts.add(post);
-                postTagRepository.attach(post.getId(), tag.getId());
+                postTagRepository.attach(post.getId().getValue(), tag.getId());
             }
             
             // 创建一些不关联该标签的文章（干扰数据）
@@ -280,7 +282,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
             
             // 验证每个返回的文章都在关联列表中
             Set<Long> expectedPostIds = posts.stream()
-                    .map(Post::getId)
+                    .map(post -> post.getId().getValue())
                     .collect(Collectors.toSet());
             
             for (PostVO postVO : result.getRecords()) {
@@ -322,7 +324,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
             
             for (int i = 0; i < postCount; i++) {
                 Post post = createAndSavePost("Consistency Test Post " + i + " " + System.currentTimeMillis(), 1000L);
-                postTagRepository.attach(post.getId(), tag.getId());
+                postTagRepository.attach(post.getId().getValue(), tag.getId());
             }
             
             // When: 多次查询同一页
@@ -378,8 +380,8 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
             
             for (int i = 0; i < postCount; i++) {
                 Post post = createAndSavePost("Completeness Test Post " + i + " " + System.currentTimeMillis(), 1000L);
-                expectedPostIds.add(post.getId());
-                postTagRepository.attach(post.getId(), tag.getId());
+                expectedPostIds.add(post.getId().getValue());
+                postTagRepository.attach(post.getId().getValue(), tag.getId());
             }
             
             // When: 遍历所有分页
@@ -420,14 +422,11 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
      */
     private Post createAndSavePost(String title, Long ownerId) {
         Post post = Post.createDraft(
-                generatePostId(),
-                ownerId,
+                PostId.of(generatePostId()),
+                UserId.of(ownerId),
                 title
         );
-        
-        // 设置为已发布状态
-        post.publish();
-        
+
         // 保存
         postRepository.save(post);
         
@@ -442,3 +441,4 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
         return System.currentTimeMillis() + new Random().nextInt(10000);
     }
 }
+

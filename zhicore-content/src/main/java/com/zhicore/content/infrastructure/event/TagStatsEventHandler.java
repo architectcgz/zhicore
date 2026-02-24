@@ -1,10 +1,11 @@
 package com.zhicore.content.infrastructure.event;
 
-import com.zhicore.api.event.post.PostDeletedEvent;
-import com.zhicore.content.domain.event.PostCreatedEvent;
-import com.zhicore.content.domain.event.PostTagsUpdatedEvent;
+import com.zhicore.content.domain.event.PostCreatedDomainEvent;
+import com.zhicore.content.domain.event.PostDeletedEvent;
+import com.zhicore.content.domain.event.PostTagsUpdatedDomainEvent;
+import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.infrastructure.cache.TagRedisKeys;
-import com.zhicore.content.infrastructure.repository.mapper.TagStatsMapper;
+import com.zhicore.content.infrastructure.persistence.pg.mapper.TagStatsEntityMyBatisMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -24,9 +25,9 @@ import java.util.Set;
  * 监听文章相关事件，异步更新 tag_stats 表和 Redis 缓存
  * 
  * 处理的事件：
- * - PostCreatedEvent: 文章创建时更新相关标签的统计
+ * - PostCreatedDomainEvent: 文章创建时更新相关标签的统计
  * - PostDeletedEvent: 文章删除时更新相关标签的统计
- * - PostTagsUpdatedEvent: 文章标签更新时更新相关标签的统计
+ * - PostTagsUpdatedDomainEvent: 文章标签更新时更新相关标签的统计
  * 
  * Requirements: 4.4
  *
@@ -37,7 +38,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class TagStatsEventHandler {
 
-    private final TagStatsMapper tagStatsMapper;
+    private final TagStatsEntityMyBatisMapper tagStatsMapper;
     private final RedisTemplate<String, Object> redisTemplate;
 
     /**
@@ -49,19 +50,18 @@ public class TagStatsEventHandler {
      */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handlePostCreated(PostCreatedEvent event) {
+    public void handlePostCreated(PostCreatedDomainEvent event) {
         try {
             log.info("Handling PostCreatedEvent for tag stats: postId={}, tagIds={}", 
                     event.getPostId(), event.getTagIds());
 
-            List<String> tagIds = event.getTagIds();
-            if (tagIds == null || tagIds.isEmpty()) {
+            if (event.getTagIds() == null || event.getTagIds().isEmpty()) {
                 log.debug("No tags to update stats for postId={}", event.getPostId());
                 return;
             }
 
             // 转换为 Long 类型
-            List<Long> tagIdList = convertToLongList(tagIds);
+            List<Long> tagIdList = convertTagIds(event.getTagIds());
 
             // 批量更新 tag_stats 表
             updateTagStats(tagIdList);
@@ -70,7 +70,7 @@ public class TagStatsEventHandler {
             invalidateTagStatsCache(tagIdList);
 
             log.info("Successfully updated tag stats for PostCreatedEvent: postId={}, tagCount={}", 
-                    event.getPostId(), tagIds.size());
+                    event.getPostId(), event.getTagIds().size());
 
         } catch (Exception e) {
             log.error("Failed to handle PostCreatedEvent for tag stats: postId={}", 
@@ -117,7 +117,7 @@ public class TagStatsEventHandler {
      */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handlePostTagsUpdated(PostTagsUpdatedEvent event) {
+    public void handlePostTagsUpdated(PostTagsUpdatedDomainEvent event) {
         try {
             log.info("Handling PostTagsUpdatedEvent for tag stats: postId={}, oldTagIds={}, newTagIds={}", 
                     event.getPostId(), event.getOldTagIds(), event.getNewTagIds());
@@ -126,11 +126,11 @@ public class TagStatsEventHandler {
             Set<Long> affectedTagIds = new HashSet<>();
             
             if (event.getOldTagIds() != null) {
-                affectedTagIds.addAll(convertToLongList(event.getOldTagIds()));
+                affectedTagIds.addAll(convertTagIds(event.getOldTagIds()));
             }
             
             if (event.getNewTagIds() != null) {
-                affectedTagIds.addAll(convertToLongList(event.getNewTagIds()));
+                affectedTagIds.addAll(convertTagIds(event.getNewTagIds()));
             }
 
             if (affectedTagIds.isEmpty()) {
@@ -228,20 +228,14 @@ public class TagStatsEventHandler {
     }
 
     /**
-     * 转换字符串ID列表为Long列表
+     * 转换 TagId 集合为 Long 列表
      * 
-     * @param stringIds 字符串ID列表
+     * @param tagIds TagId 集合
      * @return Long ID列表
      */
-    private List<Long> convertToLongList(List<String> stringIds) {
-        List<Long> longIds = new ArrayList<>();
-        for (String id : stringIds) {
-            try {
-                longIds.add(Long.parseLong(id));
-            } catch (NumberFormatException e) {
-                log.warn("Failed to parse tag ID: {}", id);
-            }
-        }
-        return longIds;
+    private List<Long> convertTagIds(java.util.Set<TagId> tagIds) {
+        return tagIds.stream()
+                .map(TagId::getValue)
+                .collect(java.util.stream.Collectors.toList());
     }
 }

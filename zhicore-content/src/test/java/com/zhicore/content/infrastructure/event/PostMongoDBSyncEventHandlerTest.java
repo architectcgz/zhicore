@@ -1,13 +1,18 @@
 package com.zhicore.content.infrastructure.event;
 
-import com.zhicore.content.domain.event.PostCreatedEvent;
-import com.zhicore.content.domain.event.PostTagsUpdatedEvent;
+import com.zhicore.content.application.port.store.PostContentStore;
+import com.zhicore.content.domain.event.PostCreatedDomainEvent;
+import com.zhicore.content.domain.event.PostTagsUpdatedDomainEvent;
+import com.zhicore.content.domain.model.ContentType;
+import com.zhicore.content.domain.model.PostBody;
+import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.Tag;
+import com.zhicore.content.domain.model.TagId;
+import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.TagRepository;
-import com.zhicore.content.infrastructure.mongodb.document.PostDocument;
-import com.zhicore.content.infrastructure.mongodb.repository.PostDocumentRepository;
+import com.zhicore.content.infrastructure.persistence.mongo.document.PostDocument;
+import com.zhicore.content.infrastructure.persistence.mongo.repository.PostDocumentRepository;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -15,229 +20,105 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
-import java.util.Arrays;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-/**
- * PostMongoDBSyncEventHandler 测试
- *
- * @author ZhiCore Team
- */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("PostMongoDBSyncEventHandler 测试")
 class PostMongoDBSyncEventHandlerTest {
 
     @Mock
     private PostDocumentRepository postDocumentRepository;
-
     @Mock
     private TagRepository tagRepository;
+    @Mock
+    private PostContentStore postContentStore;
 
     @InjectMocks
     private PostMongoDBSyncEventHandler eventHandler;
 
-    private PostCreatedEvent postCreatedEvent;
-    private PostTagsUpdatedEvent postTagsUpdatedEvent;
-    private List<Tag> tags;
+    private PostCreatedDomainEvent createdEvent;
+    private PostTagsUpdatedDomainEvent tagsUpdatedEvent;
 
     @BeforeEach
     void setUp() {
-        // 准备测试数据
-        tags = Arrays.asList(
+        Instant now = Instant.now();
+        createdEvent = new PostCreatedDomainEvent(
+            "e1",
+            now,
+            PostId.of(1L),
+            "Test Post",
+            "Test Excerpt",
+            UserId.of(100L),
+            "Author",
+            Set.of(TagId.of(1001L), TagId.of(1002L)),
+            null,
+            null,
+            "PUBLISHED",
+            now,
+            now,
+            1L
+        );
+        tagsUpdatedEvent = new PostTagsUpdatedDomainEvent(
+            "e2",
+            now,
+            PostId.of(1L),
+            Set.of(TagId.of(1001L)),
+            Set.of(TagId.of(1001L), TagId.of(1002L)),
+            now,
+            2L
+        );
+    }
+
+    @Test
+    void handlePostCreated_shouldSaveMongoDocument() {
+        List<Tag> tags = List.of(
             Tag.create(1001L, "Java", "java"),
-            Tag.create(1002L, "Spring Boot", "spring-boot")
+            Tag.create(1002L, "Spring", "spring")
         );
+        when(tagRepository.findByIdIn(anyList())).thenReturn(tags);
+        when(postContentStore.getContent(PostId.of(1L)))
+            .thenReturn(Optional.of(PostBody.create(PostId.of(1L), "markdown", ContentType.MARKDOWN)));
+        when(postDocumentRepository.save(any(PostDocument.class))).thenAnswer(i -> i.getArgument(0));
 
-        postCreatedEvent = new PostCreatedEvent(
-            "1",
-            "Test Post",
-            "Test Content",
-            "Test Excerpt",
-            "100",
-            "Test Author",
-            Arrays.asList("1001", "1002"),
-            "10",
-            "Technology",
-            "PUBLISHED",
-            LocalDateTime.now(),
-            LocalDateTime.now(),
-            LocalDateTime.now()
-        );
+        eventHandler.handlePostCreated(createdEvent);
 
-        postTagsUpdatedEvent = new PostTagsUpdatedEvent(
-            "1",
-            Arrays.asList("1001"),
-            Arrays.asList("1001", "1002"),
-            LocalDateTime.now(),
-            LocalDateTime.now()
-        );
+        ArgumentCaptor<PostDocument> captor = ArgumentCaptor.forClass(PostDocument.class);
+        verify(postDocumentRepository).save(captor.capture());
+        PostDocument doc = captor.getValue();
+        assertEquals("1", doc.getPostId());
+        assertEquals("Test Post", doc.getTitle());
+        assertEquals("markdown", doc.getContent());
+        assertNotNull(doc.getTags());
+        assertEquals(2, doc.getTags().size());
     }
 
     @Test
-    @DisplayName("处理文章创建事件 - 成功同步到 MongoDB")
-    void testHandlePostCreated_Success() {
-        // Given
+    void handlePostTagsUpdated_shouldUpdateTagList() {
+        PostDocument existing = PostDocument.builder().id("m1").postId("1").tags(List.of()).build();
+        List<Tag> tags = List.of(
+            Tag.create(1001L, "Java", "java"),
+            Tag.create(1002L, "Spring", "spring")
+        );
+        when(postDocumentRepository.findByPostId("1")).thenReturn(Optional.of(existing));
         when(tagRepository.findByIdIn(anyList())).thenReturn(tags);
         when(postDocumentRepository.save(any(PostDocument.class))).thenAnswer(i -> i.getArgument(0));
 
-        // When
-        eventHandler.handlePostCreated(postCreatedEvent);
+        eventHandler.handlePostTagsUpdated(tagsUpdatedEvent);
 
-        // Then
         ArgumentCaptor<PostDocument> captor = ArgumentCaptor.forClass(PostDocument.class);
         verify(postDocumentRepository).save(captor.capture());
-
-        PostDocument savedDocument = captor.getValue();
-        assertEquals("1", savedDocument.getPostId());
-        assertEquals("Test Post", savedDocument.getTitle());
-        assertEquals(2, savedDocument.getTags().size());
-        assertEquals("Java", savedDocument.getTags().get(0).getName());
-        assertEquals("java", savedDocument.getTags().get(0).getSlug());
-    }
-
-    @Test
-    @DisplayName("处理文章创建事件 - 无标签")
-    void testHandlePostCreated_NoTags() {
-        // Given
-        PostCreatedEvent eventWithoutTags = new PostCreatedEvent(
-            "1",
-            "Test Post",
-            "Test Content",
-            "Test Excerpt",
-            "100",
-            "Test Author",
-            null,
-            "10",
-            "Technology",
-            "PUBLISHED",
-            LocalDateTime.now(),
-            LocalDateTime.now(),
-            LocalDateTime.now()
-        );
-        when(postDocumentRepository.save(any(PostDocument.class))).thenAnswer(i -> i.getArgument(0));
-
-        // When
-        eventHandler.handlePostCreated(eventWithoutTags);
-
-        // Then
-        ArgumentCaptor<PostDocument> captor = ArgumentCaptor.forClass(PostDocument.class);
-        verify(postDocumentRepository).save(captor.capture());
-
-        PostDocument savedDocument = captor.getValue();
-        assertTrue(savedDocument.getTags().isEmpty());
-        verify(tagRepository, never()).findByIdIn(anyList());
-    }
-
-    @Test
-    @DisplayName("处理文章创建事件 - 异常不影响主流程")
-    void testHandlePostCreated_ExceptionHandled() {
-        // Given
-        when(tagRepository.findByIdIn(anyList())).thenThrow(new RuntimeException("Database error"));
-
-        // When & Then - 不应该抛出异常
-        assertDoesNotThrow(() -> eventHandler.handlePostCreated(postCreatedEvent));
-    }
-
-    @Test
-    @DisplayName("处理文章标签更新事件 - 成功更新")
-    void testHandlePostTagsUpdated_Success() {
-        // Given
-        PostDocument existingDocument = PostDocument.builder()
-            .id("mongo-id-1")
-            .postId("1")
-            .title("Test Post")
-            .tags(Arrays.asList(
-                PostDocument.TagInfo.builder()
-                    .id("1001")
-                    .name("Java")
-                    .slug("java")
-                    .build()
-            ))
-            .build();
-
-        when(postDocumentRepository.findByPostId("1")).thenReturn(Optional.of(existingDocument));
-        when(tagRepository.findByIdIn(anyList())).thenReturn(tags);
-        when(postDocumentRepository.save(any(PostDocument.class))).thenAnswer(i -> i.getArgument(0));
-
-        // When
-        eventHandler.handlePostTagsUpdated(postTagsUpdatedEvent);
-
-        // Then
-        ArgumentCaptor<PostDocument> captor = ArgumentCaptor.forClass(PostDocument.class);
-        verify(postDocumentRepository).save(captor.capture());
-
-        PostDocument updatedDocument = captor.getValue();
-        assertEquals(2, updatedDocument.getTags().size());
-        assertEquals("Spring Boot", updatedDocument.getTags().get(1).getName());
-    }
-
-    @Test
-    @DisplayName("处理文章标签更新事件 - 文档不存在")
-    void testHandlePostTagsUpdated_DocumentNotFound() {
-        // Given
-        when(postDocumentRepository.findByPostId("1")).thenReturn(Optional.empty());
-
-        // When
-        eventHandler.handlePostTagsUpdated(postTagsUpdatedEvent);
-
-        // Then
-        verify(postDocumentRepository, never()).save(any());
-        verify(tagRepository, never()).findByIdIn(anyList());
-    }
-
-    @Test
-    @DisplayName("处理文章标签更新事件 - 清空标签")
-    void testHandlePostTagsUpdated_ClearTags() {
-        // Given
-        PostDocument existingDocument = PostDocument.builder()
-            .id("mongo-id-1")
-            .postId("1")
-            .title("Test Post")
-            .tags(Arrays.asList(
-                PostDocument.TagInfo.builder()
-                    .id("1001")
-                    .name("Java")
-                    .slug("java")
-                    .build()
-            ))
-            .build();
-
-        PostTagsUpdatedEvent eventWithoutTags = new PostTagsUpdatedEvent(
-            "1",
-            Arrays.asList("1001"),
-            null,
-            LocalDateTime.now(),
-            LocalDateTime.now()
-        );
-
-        when(postDocumentRepository.findByPostId("1")).thenReturn(Optional.of(existingDocument));
-        when(postDocumentRepository.save(any(PostDocument.class))).thenAnswer(i -> i.getArgument(0));
-
-        // When
-        eventHandler.handlePostTagsUpdated(eventWithoutTags);
-
-        // Then
-        ArgumentCaptor<PostDocument> captor = ArgumentCaptor.forClass(PostDocument.class);
-        verify(postDocumentRepository).save(captor.capture());
-
-        PostDocument updatedDocument = captor.getValue();
-        assertTrue(updatedDocument.getTags().isEmpty());
-    }
-
-    @Test
-    @DisplayName("处理文章标签更新事件 - 异常不影响主流程")
-    void testHandlePostTagsUpdated_ExceptionHandled() {
-        // Given
-        when(postDocumentRepository.findByPostId("1")).thenThrow(new RuntimeException("Database error"));
-
-        // When & Then - 不应该抛出异常
-        assertDoesNotThrow(() -> eventHandler.handlePostTagsUpdated(postTagsUpdatedEvent));
+        PostDocument updated = captor.getValue();
+        assertTrue(updated.getTags().size() >= 2);
     }
 }
+

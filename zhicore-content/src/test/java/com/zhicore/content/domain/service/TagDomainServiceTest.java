@@ -2,7 +2,7 @@ package com.zhicore.content.domain.service;
 
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.TagRepository;
-import com.zhicore.content.domain.service.impl.TagDomainServiceImpl;
+import com.zhicore.content.infrastructure.service.TagDomainServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

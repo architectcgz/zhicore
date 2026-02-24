@@ -2,10 +2,12 @@ package com.zhicore.content.interfaces.controller;
 
 import com.zhicore.common.context.UserContext;
 import com.zhicore.content.application.dto.TagDTO;
+import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.service.PostApplicationService;
 import com.zhicore.content.domain.model.Post;
+import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.Tag;
-import com.zhicore.content.domain.repository.PostRepository;
+import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.domain.service.TagDomainService;
@@ -64,7 +66,7 @@ class PostControllerTagTest {
         UserContext.setUser(userInfo);
 
         // 创建测试文章
-        Post post = Post.createDraft(testPostId, testUserId, "Test Post for Tags");
+        Post post = Post.createDraft(PostId.of(testPostId), UserId.of(testUserId), "Test Post for Tags");
         postRepository.save(post);
     }
 

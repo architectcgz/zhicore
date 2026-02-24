@@ -1,58 +1,75 @@
 package com.zhicore.content.application.service;
 
-import com.zhicore.api.client.IdGeneratorFeignClient;
-import com.zhicore.api.client.UserServiceClient;
-import com.zhicore.api.dto.post.PostDTO;
-import com.zhicore.api.dto.user.UserSimpleDTO;
-import com.zhicore.api.event.post.PostDeletedEvent;
-import com.zhicore.api.event.post.PostPublishedEvent;
-import com.zhicore.api.event.post.PostScheduleExecuteEvent;
-import com.zhicore.api.event.post.PostScheduledEvent;
-import com.zhicore.api.event.post.PostUpdatedEvent;
-import com.zhicore.api.event.post.AuthorInfoCompensationEvent;
+import com.zhicore.clients.client.IdGeneratorFeignClient;
+import com.zhicore.clients.client.UserServiceClient;
+import com.zhicore.clients.client.UploadServiceClient;
+import com.zhicore.clients.dto.post.PostDTO;
+import com.zhicore.clients.dto.user.UserSimpleDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.ForbiddenException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.HybridPageRequest;
 import com.zhicore.common.result.HybridPageResult;
 import com.zhicore.common.result.ResultCode;
-import com.zhicore.content.application.assembler.PostAssembler;
+import com.zhicore.content.application.assembler.PostViewAssembler;
+import com.zhicore.content.application.command.commands.CreatePostCommand;
+import com.zhicore.content.application.command.commands.DeletePostCommand;
+import com.zhicore.content.application.command.handlers.DeletePostHandler;
+import com.zhicore.content.application.command.handlers.PurgePostHandler;
+import com.zhicore.content.application.command.commands.UpdatePostContentCommand;
+import com.zhicore.content.application.command.handlers.UpdatePostContentHandler;
+import com.zhicore.content.application.command.commands.UpdatePostMetaCommand;
+import com.zhicore.content.application.command.handlers.UpdatePostMetaHandler;
+import com.zhicore.content.application.mapper.EventMapper;
+import com.zhicore.content.application.port.messaging.EventPublisher;
+import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
+import com.zhicore.content.application.workflow.CreateDraftWorkflow;
+import com.zhicore.content.application.workflow.PublishPostWorkflow;
+import com.zhicore.content.application.query.PostQuery;
+import com.zhicore.content.application.query.view.PostDetailView;
+import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.application.dto.PostBriefVO;
 import com.zhicore.content.application.dto.PostVO;
 import com.zhicore.content.application.dto.TagDTO;
-import com.zhicore.content.domain.constant.PostConstants;
+import com.zhicore.content.domain.event.DomainEvent;
+import com.zhicore.content.domain.event.PostCreatedDomainEvent;
+import com.zhicore.content.domain.event.PostPublishedDomainEvent;
+import com.zhicore.content.domain.model.ContentType;
+import com.zhicore.content.domain.model.OwnerSnapshot;
 import com.zhicore.content.domain.model.Post;
+import com.zhicore.content.domain.model.PostBody;
+import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.PostStatus;
-import com.zhicore.content.domain.event.PostCreatedEvent;
-import com.zhicore.content.domain.event.PostTagsUpdatedEvent;
 import com.zhicore.content.domain.model.Tag;
-import com.zhicore.content.domain.repository.PostRepository;
-import com.zhicore.content.domain.service.DraftManager;
-import com.zhicore.content.domain.service.DualStorageManager;
+import com.zhicore.content.domain.model.TagId;
+import com.zhicore.content.domain.model.TopicId;
+import com.zhicore.content.domain.model.UserId;
+import com.zhicore.content.application.port.repo.PostRepository;
+import com.zhicore.content.domain.service.DraftService;
 import com.zhicore.content.domain.service.TagDomainService;
-import com.zhicore.content.infrastructure.mq.PostEventPublisher;
+import com.zhicore.content.domain.valueobject.DraftSnapshot;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
-import com.zhicore.content.infrastructure.feign.ZhiCoreUploadClient;
 import com.zhicore.content.interfaces.dto.request.CreatePostRequest;
 import com.zhicore.content.interfaces.dto.request.UpdatePostRequest;
-import com.zhicore.content.infrastructure.mongodb.document.PostContent;
-import com.zhicore.content.infrastructure.mongodb.document.PostDraft;
+import com.zhicore.content.infrastructure.persistence.mongo.document.PostContent;
 import com.zhicore.content.interfaces.dto.request.SaveDraftRequest;
 import com.zhicore.content.interfaces.dto.response.DraftVO;
+import com.zhicore.integration.messaging.post.AuthorInfoCompensationIntegrationEvent;
+import com.zhicore.integration.messaging.post.PostPublishedIntegrationEvent;
+import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEvent;
+import com.zhicore.integration.messaging.post.PostScheduledIntegrationEvent;
+import com.zhicore.integration.messaging.post.PostTagsUpdatedIntegrationEvent;
+import com.zhicore.integration.messaging.post.PostUpdatedIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -66,19 +83,32 @@ import java.util.stream.Collectors;
 public class PostApplicationService {
 
     private final PostRepository postRepository;
-    private final PostEventPublisher eventPublisher;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
-    private final DualStorageManager dualStorageManager;
-    private final DraftManager draftManager;
+    private final DraftService draftService;
     private final TagDomainService tagDomainService;
     private final PostTagRepository postTagRepository;
     private final TagRepository tagRepository;
-    private final ZhiCoreUploadClient ZhiCoreUploadClient;
+    private final UploadServiceClient uploadServiceClient;
     private final UserServiceClient userServiceClient;
+    
+    // 新架构依赖
+    private final CreateDraftWorkflow createDraftWorkflow;
+    private final PublishPostWorkflow publishPostWorkflow;
+    private final UpdatePostMetaHandler updatePostMetaHandler;
+    private final UpdatePostContentHandler updatePostContentHandler;
+    private final DeletePostHandler deletePostHandler;
+    private final PurgePostHandler purgePostHandler;
+    private final PostQuery cacheAsidePostQuery;
+    private final PostContentStore postContentStore;
+    
+    // 事件相关依赖
+    private final EventPublisher domainEventPublisher;
+    private final IntegrationEventPublisher integrationEventPublisher;
+    private final EventMapper eventMapper;
 
     /**
      * 创建文章（草稿）
-     * 使用双写机制：同时写入 PostgreSQL（元数据）和 MongoDB（内容）
+     * 使用 CreateDraftWorkflow 实现两阶段提交保证数据一致性
      *
      * @param userId 用户ID
      * @param request 创建请求
@@ -94,32 +124,13 @@ public class PostApplicationService {
         }
         Long postId = idResponse.getData();
 
-        // 创建草稿
-        Post post = Post.createDraft(postId, userId, request.getTitle());
-        
-        // 填充作者信息（冗余存储）
-        fillAuthorInfo(post, userId);
-        
-        // 设置话题
-        if (request.getTopicId() != null) {
-            post.setTopic(request.getTopicId());
-        }
-
-        // 设置封面图（验证并存储 fileId）
+        // 验证封面图 fileId 格式
         if (request.getCoverImageId() != null && !request.getCoverImageId().isEmpty()) {
             validateFileId(request.getCoverImageId());
-            post.setCoverImage(request.getCoverImageId());
         }
 
-        // 创建 MongoDB 内容文档
-        PostContent content =
-            new PostContent();
-        content.setContentType("markdown");
-        content.setRaw(request.getContent());
-        // HTML 和 text 将由 ContentEnricher 自动生成
-
-        // 处理标签（在事务内）
-        List<Long> tagIds = null;
+        // 处理标签（查找或创建）
+        Set<TagId> tagIds = null;
         if (request.getTags() != null && !request.getTags().isEmpty()) {
             // 验证标签数量
             if (request.getTags().size() > 10) {
@@ -129,48 +140,99 @@ public class PostApplicationService {
             // 查找或创建标签
             List<Tag> tags = tagDomainService.findOrCreateBatch(request.getTags());
             tagIds = tags.stream()
-                    .map(Tag::getId)
-                    .collect(Collectors.toList());
+                    .map(tag -> TagId.of(tag.getId()))
+                    .collect(Collectors.toSet());
         }
 
-        // 使用双写机制保存（三阶段提交）
-        dualStorageManager.createPost(post, content);
+        // 获取作者信息快照
+        OwnerSnapshot ownerSnapshot = getOwnerSnapshot(userId);
 
-        // 创建 Post-Tag 关联（在同一事务中）
-        if (tagIds != null && !tagIds.isEmpty()) {
-            postTagRepository.attachBatch(postId, tagIds);
-            log.info("Post tags attached: postId={}, tagCount={}", postId, tagIds.size());
-        }
+        // 创建命令对象
+        CreatePostCommand command = 
+            new CreatePostCommand(
+                PostId.of(postId),           // postId (值对象)
+                UserId.of(userId),           // ownerId (值对象)
+                request.getTitle(),          // title
+                null,                        // excerpt (自动生成)
+                request.getCoverImageId(),   // coverImage
+                request.getContent(),        // content
+                ContentType.MARKDOWN,        // contentType
+                ownerSnapshot,               // ownerSnapshot
+                tagIds,                      // tagIds
+                request.getTopicId() != null ? TopicId.of(request.getTopicId()) : null  // topicId
+            );
 
-        // 发布 PostCreated 事件（用于 MongoDB 同步）
-        List<String> tagIdStrings = tagIds != null ? 
-            tagIds.stream().map(String::valueOf).collect(Collectors.toList()) : 
-            Collections.emptyList();
+        // 使用 CreateDraftWorkflow 执行创建（两阶段提交）
+        CreateDraftWorkflow.ExecutionResult result = createDraftWorkflow.execute(command);
+
+        // 标签与话题已在 workflow 中完成持久化，避免重复写入
+
+        List<DomainEvent<?>> domainEvents = result.domainEvents();
         
-        eventPublisher.publish(new PostCreatedEvent(
-            postId.toString(),
-            post.getTitle(),
-            request.getContent(),
-            post.getExcerpt(),
-            userId.toString(),
-            post.getOwnerName(), // 使用填充的作者名称
-            tagIdStrings,
-            request.getTopicId() != null ? request.getTopicId().toString() : null,
-            null, // categoryName
-            post.getStatus().name(),
-            post.getPublishedAt(),
-            post.getCreatedAt(),
-            LocalDateTime.now()
-        ));
+        // 发布领域事件
+        if (!domainEvents.isEmpty()) {
+            @SuppressWarnings("unchecked")
+            List<DomainEvent> rawEvents = (List) domainEvents;
+            domainEventPublisher.publishBatch(rawEvents);
+            log.info("Published {} domain events for post: postId={}", domainEvents.size(), postId);
+        }
+        
+        // 转换并发布集成事件（写 Outbox）
+        for (DomainEvent<?> domainEvent : domainEvents) {
+            if (domainEvent instanceof PostCreatedDomainEvent) {
+                PostCreatedDomainEvent createdEvent = (PostCreatedDomainEvent) domainEvent;
+                com.zhicore.integration.messaging.post.PostCreatedIntegrationEvent integrationEvent = 
+                    eventMapper.toIntegrationEvent(createdEvent);
+                integrationEventPublisher.publish(integrationEvent);
+                log.info("Published integration event to Outbox: eventId={}, postId={}", 
+                    integrationEvent.getEventId(), postId);
+            }
+        }
 
-        log.info("Post created with dual storage: postId={}, userId={}, ownerName={}", 
-            postId, userId, post.getOwnerName());
+        log.info("Draft created: postId={}, userId={}, ownerName={}", 
+            postId, userId, ownerSnapshot.getName());
         return postId;
     }
 
     /**
+     * 获取作者信息快照
+     * 
+     * 从 user-service 获取作者信息并创建快照
+     * 如果获取失败，使用默认值
+     * 
+     * @param userId 用户ID（作者ID）
+     * @return 作者信息快照
+     */
+    private OwnerSnapshot getOwnerSnapshot(Long userId) {
+        try {
+            // 调用 user-service 获取用户信息
+            ApiResponse<List<UserSimpleDTO>> response =
+                userServiceClient.getUsersSimple(Collections.singletonList(userId));
+            
+            if (response != null && response.isSuccess() && response.getData() != null && !response.getData().isEmpty()) {
+                // 成功获取用户信息
+                UserSimpleDTO userInfo = response.getData().get(0);
+                return new OwnerSnapshot(
+                    UserId.of(userId),
+                    userInfo.getNickname(),
+                    userInfo.getAvatarId(),
+                    userInfo.getProfileVersion() != null ? userInfo.getProfileVersion() : 0L
+                );
+            } else {
+                // user-service 返回失败，使用默认值
+                log.warn("获取用户信息失败，使用默认值: userId={}, response={}", userId, response);
+                return OwnerSnapshot.createDefault(UserId.of(userId));
+            }
+        } catch (Exception e) {
+            // 调用 user-service 异常，使用默认值
+            log.error("调用 user-service 异常，使用默认值: userId={}", userId, e);
+            return OwnerSnapshot.createDefault(UserId.of(userId));
+        }
+    }
+
+    /**
      * 更新文章
-     * 使用双写机制：同时更新 PostgreSQL（元数据）和 MongoDB（内容）
+     * 拆分为更新元数据和更新内容两个调用
      *
      * @param userId 用户ID
      * @param postId 文章ID
@@ -190,7 +252,7 @@ public class PostApplicationService {
             if (oldCoverImageId != null && !oldCoverImageId.isEmpty() 
                     && !oldCoverImageId.equals(request.getCoverImageId())) {
                 try {
-                    ZhiCoreUploadClient.deleteFile(oldCoverImageId);
+                    uploadServiceClient.deleteFile(oldCoverImageId);
                     log.info("删除旧封面图: postId={}, fileId={}", postId, oldCoverImageId);
                 } catch (Exception e) {
                     log.error("删除旧封面图失败: postId={}, fileId={}, error={}", 
@@ -198,24 +260,13 @@ public class PostApplicationService {
                     // 不影响主流程，继续执行
                 }
             }
-            
-            post.setCoverImage(request.getCoverImageId());
         }
 
-        // 更新内容
-        post.updateContent(request.getTitle(), request.getContent());
-        
         // 更新话题
         if (request.getTopicId() != null) {
-            post.setTopic(request.getTopicId());
+            post.setTopic(TopicId.of(request.getTopicId()));
+            postRepository.update(post);
         }
-
-        // 创建 MongoDB 内容文档
-        PostContent content =
-            new PostContent();
-        content.setContentType("markdown");
-        content.setRaw(request.getContent());
-        // HTML 和 text 将由 ContentEnricher 自动生成
 
         // 处理标签更新（如果提供了标签列表）
         if (request.getTags() != null) {
@@ -238,33 +289,53 @@ public class PostApplicationService {
                 log.info("Post tags cleared: postId={}", postId);
             }
             
-            // 发布 PostTagsUpdated 事件
-            List<String> oldTagIdStrings = oldTagIds.stream()
-                    .map(String::valueOf)
-                    .collect(Collectors.toList());
-            List<String> newTagIdStrings = newTagIds.stream()
-                    .map(String::valueOf)
-                    .collect(Collectors.toList());
-            
-            eventPublisher.publish(new PostTagsUpdatedEvent(
-                postId.toString(),
-                oldTagIdStrings,
-                newTagIdStrings,
-                LocalDateTime.now(),
-                LocalDateTime.now()
+            integrationEventPublisher.publish(new PostTagsUpdatedIntegrationEvent(
+                newEventId(),
+                Instant.now(),
+                postId,
+                oldTagIds,
+                newTagIds,
+                Instant.now(),
+                post.getVersion()
             ));
         }
 
-        // 使用双写机制更新
-        dualStorageManager.updatePost(post, content);
+        // 使用 UpdatePostMetaHandler 更新元数据
+        UpdatePostMetaCommand metaCommand = 
+            new UpdatePostMetaCommand(
+                PostId.of(postId),
+                UserId.of(userId),
+                request.getTitle(),
+                post.getExcerpt(), // 使用当前的 excerpt，因为 request 中没有
+                request.getCoverImageId()
+            );
+        updatePostMetaHandler.handle(metaCommand);
 
-        // 如果已发布，发布更新事件
+        // 使用 UpdatePostContentHandler 更新内容
+        UpdatePostContentCommand contentCommand = 
+            new UpdatePostContentCommand(
+                PostId.of(postId),
+                UserId.of(userId),
+                request.getContent(),
+                ContentType.MARKDOWN
+            );
+        updatePostContentHandler.handle(contentCommand);
+
+        // 如果已发布，发布集成更新事件（Outbox）
         if (post.isPublished()) {
-            eventPublisher.publish(new PostUpdatedEvent(
-                    postId, post.getTitle(), content.getRaw(), post.getExcerpt(), Collections.emptyList()));
+            integrationEventPublisher.publish(new PostUpdatedIntegrationEvent(
+                    newEventId(),
+                    Instant.now(),
+                    post.getVersion(),
+                    postId,
+                    request.getTitle(),
+                    request.getContent(),
+                    post.getExcerpt(),
+                    Collections.emptyList()
+            ));
         }
 
-        log.info("Post updated with dual storage: postId={}, userId={}", postId, userId);
+        log.info("Post updated: postId={}, userId={}", postId, userId);
     }
 
     /**
@@ -313,19 +384,14 @@ public class PostApplicationService {
         }
 
         // 发布 PostTagsUpdated 事件（用于缓存失效和 MongoDB/ES 同步）
-        List<String> oldTagIdStrings = oldTagIds.stream()
-                .map(String::valueOf)
-                .collect(Collectors.toList());
-        List<String> newTagIdStrings = newTagIds.stream()
-                .map(String::valueOf)
-                .collect(Collectors.toList());
-        
-        eventPublisher.publish(new PostTagsUpdatedEvent(
-            postId.toString(),
-            oldTagIdStrings,
-            newTagIdStrings,
-            LocalDateTime.now(),
-            LocalDateTime.now()
+        integrationEventPublisher.publish(new PostTagsUpdatedIntegrationEvent(
+            newEventId(),
+            Instant.now(),
+            postId,
+            oldTagIds,
+            newTagIds,
+            Instant.now(),
+            post.getVersion()
         ));
 
         log.info("Post tags replaced: postId={}, userId={}, newTagCount={}", 
@@ -334,23 +400,38 @@ public class PostApplicationService {
 
     /**
      * 发布文章
+     * 使用 PublishPostWorkflow 完成发布流程
      *
      * @param userId 用户ID
      * @param postId 文章ID
      */
     @Transactional
     public void publishPost(Long userId, Long postId) {
-        Post post = getPostAndCheckOwnership(postId, userId);
-
-        // 发布
-        post.publish();
-
-        // 保存
-        postRepository.update(post);
-
-        // 发布事件
-        eventPublisher.publish(new PostPublishedEvent(
-                postId, userId, post.getTitle(), post.getExcerpt(), Collections.emptyList()));
+        // 使用 PublishPostWorkflow 执行发布
+        List<DomainEvent<?>> domainEvents = publishPostWorkflow.execute(
+            PostId.of(postId),
+            UserId.of(userId)
+        );
+        
+        // 发布领域事件
+        if (!domainEvents.isEmpty()) {
+            @SuppressWarnings("unchecked")
+            List<DomainEvent> rawEvents = (List) domainEvents;
+            domainEventPublisher.publishBatch(rawEvents);
+            log.info("Published {} domain events for post: postId={}", domainEvents.size(), postId);
+        }
+        
+        // 转换并发布集成事件（写 Outbox）
+        for (DomainEvent<?> domainEvent : domainEvents) {
+            if (domainEvent instanceof PostPublishedDomainEvent) {
+                PostPublishedDomainEvent publishedEvent = (PostPublishedDomainEvent) domainEvent;
+                com.zhicore.integration.messaging.post.PostPublishedIntegrationEvent integrationEvent = 
+                    eventMapper.toIntegrationEvent(publishedEvent);
+                integrationEventPublisher.publish(integrationEvent);
+                log.info("Published integration event to Outbox: eventId={}, postId={}", 
+                    integrationEvent.getEventId(), postId);
+            }
+        }
 
         log.info("Post published: postId={}, userId={}", postId, userId);
     }
@@ -394,13 +475,26 @@ public class PostApplicationService {
         // 计算延迟级别
         int delayLevel = calculateDelayLevel(scheduledAt);
 
-        // 发布延迟消息
-        eventPublisher.publishDelayed(
-                new PostScheduleExecuteEvent(postId, userId), 
-                delayLevel);
+        // 发布延迟执行事件（通过 Outbox 投递）
+        integrationEventPublisher.publish(new PostScheduleExecuteIntegrationEvent(
+                newEventId(),
+                Instant.now(),
+                post.getVersion(),
+                postId,
+                userId,
+                scheduledAt.atZone(java.time.ZoneId.systemDefault()).toInstant(),
+                delayLevel
+        ));
 
-        // 发布定时发布事件（用于通知等）
-        eventPublisher.publish(new PostScheduledEvent(postId, userId, scheduledAt));
+        // 发布定时发布事件（通过 Outbox 投递）
+        integrationEventPublisher.publish(new PostScheduledIntegrationEvent(
+                newEventId(),
+                Instant.now(),
+                post.getVersion(),
+                postId,
+                userId,
+                scheduledAt.atZone(java.time.ZoneId.systemDefault()).toInstant()
+        ));
 
         log.info("Post scheduled: postId={}, userId={}, scheduledAt={}", postId, userId, scheduledAt);
     }
@@ -447,16 +541,23 @@ public class PostApplicationService {
         // 保存
         postRepository.update(post);
 
-        // 发布事件
-        eventPublisher.publish(new PostPublishedEvent(
-                postId, post.getOwnerId(), post.getTitle(), post.getExcerpt(), Collections.emptyList()));
+        // 发布集成事件（通过 Outbox 投递）
+        integrationEventPublisher.publish(new PostPublishedIntegrationEvent(
+                newEventId(),
+                Instant.now(),
+                postId,
+                post.getPublishedAt() != null
+                        ? post.getPublishedAt().atZone(java.time.ZoneId.systemDefault()).toInstant()
+                        : Instant.now(),
+                post.getVersion()
+        ));
 
         log.info("Scheduled post published: postId={}", postId);
     }
 
     /**
      * 删除文章（软删除）
-     * 使用双删除机制：同时删除 PostgreSQL 和 MongoDB 中的数据
+     * 使用 DeletePostHandler 处理删除逻辑
      *
      * @param userId 用户ID
      * @param postId 文章ID
@@ -468,7 +569,7 @@ public class PostApplicationService {
         // 删除封面图
         if (post.getCoverImageId() != null && !post.getCoverImageId().isEmpty()) {
             try {
-                ZhiCoreUploadClient.deleteFile(post.getCoverImageId());
+                uploadServiceClient.deleteFile(post.getCoverImageId());
                 log.info("删除封面图: postId={}, fileId={}", postId, post.getCoverImageId());
             } catch (Exception e) {
                 log.error("删除封面图失败: postId={}, fileId={}, error={}", 
@@ -482,68 +583,81 @@ public class PostApplicationService {
         // For now, skip this step as it's not critical for deletion
         // TODO: Implement content image cleanup by fetching from MongoDB
 
-        // 软删除
-        post.delete();
+        // 使用 DeletePostHandler 软删除
+        DeletePostCommand command = 
+            new DeletePostCommand(
+                PostId.of(postId),
+                UserId.of(userId)
+            );
+        deletePostHandler.handle(command);
 
-        // 使用双删除机制
-        dualStorageManager.deletePost(postId);
-
-        // 发布删除事件
-        eventPublisher.publish(new PostDeletedEvent(postId, userId));
-
-        log.info("Post deleted with dual storage: postId={}, userId={}", postId, userId);
+        log.info("Post deleted: postId={}, userId={}", postId, userId);
     }
 
     /**
      * 获取文章详情
-     * 使用双存储查询:从 PostgreSQL 获取元数据，从 MongoDB 获取内容
+     * 使用 CacheAsidePostQuery 查询
      *
      * @param postId 文章ID
      * @return 文章视图对象
      */
     @Transactional(readOnly = true)
     public PostVO getPostById(Long postId) {
-        // 使用双存储管理器获取完整详情（并行查询）
-        DualStorageManager.PostDetail detail =
-            dualStorageManager.getPostFullDetail(postId);
+        // 使用 CacheAsidePostQuery 获取详情
+        PostDetailView detailView = 
+            cacheAsidePostQuery.getDetail(PostId.of(postId));
         
-        Post post = detail.getPost();
-        
-        if (post == null) {
+        if (detailView == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "文章不存在");
         }
 
-        if (post.isDeleted()) {
+        if (detailView.getStatus() == PostStatus.DELETED) {
             throw new BusinessException(ResultCode.NOT_FOUND, "文章已删除");
         }
 
+        // 转换为 PostVO
+        PostVO vo = new PostVO();
+        vo.setId(detailView.getId().getValue());
+        vo.setOwnerId(detailView.getOwnerSnapshot().getOwnerId().getValue());
+        vo.setOwnerName(detailView.getOwnerSnapshot().getName());
+        vo.setTitle(detailView.getTitle());
+        vo.setRaw(detailView.getContent());
+        vo.setExcerpt(detailView.getExcerpt());
+        vo.setStatus(detailView.getStatus().name());
+        vo.setPublishedAt(detailView.getCreatedAt()); // 使用 createdAt 作为 publishedAt
+        vo.setScheduledAt(detailView.getScheduledPublishAt());
+        vo.setCreatedAt(detailView.getCreatedAt());
+        vo.setUpdatedAt(detailView.getUpdatedAt());
+        
+        // 统计数据
+        vo.setViewCount(detailView.getViewCount());
+        vo.setLikeCount((int) detailView.getLikeCount());
+        vo.setCommentCount((int) detailView.getCommentCount());
+        
         // 获取封面图 URL
-        String coverImageUrl = null;
-        if (post.getCoverImageId() != null && !post.getCoverImageId().isEmpty()) {
-            coverImageUrl = getFileUrl(post.getCoverImageId());
+        if (detailView.getCoverImage() != null && !detailView.getCoverImage().isEmpty()) {
+            vo.setCoverImageUrl(getFileUrl(detailView.getCoverImage()));
         }
 
-        // 如果内容不可用（降级场景），返回不包含内容的 VO
-        if (detail.isContentUnavailable() || detail.getContent() == null) {
-            log.warn("Post content unavailable for postId: {}, returning metadata only", postId);
-            PostVO vo = PostAssembler.toVO(post);
-            vo.setCoverImageUrl(coverImageUrl);
-            // 填充作者信息
-            enrichPostWithAuthorInfo(vo, post);
-            return vo;
+        // 填充作者头像
+        if (detailView.getOwnerSnapshot().getAvatarId() != null && 
+            !detailView.getOwnerSnapshot().getAvatarId().isEmpty()) {
+            try {
+                String avatarUrl = getFileUrl(detailView.getOwnerSnapshot().getAvatarId());
+                vo.setOwnerAvatar(avatarUrl);
+            } catch (Exception e) {
+                log.error("Failed to get avatar URL for fileId: {}", 
+                    detailView.getOwnerSnapshot().getAvatarId(), e);
+                vo.setOwnerAvatar(null);
+            }
         }
 
-        // 返回包含完整内容的 VO
-        PostVO vo = PostAssembler.toVOWithContent(post, detail.getContent());
-        vo.setCoverImageUrl(coverImageUrl);
-        // 填充作者信息
-        enrichPostWithAuthorInfo(vo, post);
         return vo;
     }
 
     /**
      * 获取用户的文章详情（包括草稿）
-     * 使用双存储查询：从 PostgreSQL 获取元数据，从 MongoDB 获取内容
+     * 使用 CacheAsidePostQuery 查询
      *
      * @param userId 用户ID
      * @param postId 文章ID
@@ -551,45 +665,59 @@ public class PostApplicationService {
      */
     @Transactional(readOnly = true)
     public PostVO getUserPostById(Long userId, Long postId) {
-        // 使用双存储管理器获取完整详情（并行查询）
-        DualStorageManager.PostDetail detail =
-            dualStorageManager.getPostFullDetail(postId);
+        // 使用 CacheAsidePostQuery 获取详情
+        PostDetailView detailView = 
+            cacheAsidePostQuery.getDetail(PostId.of(postId));
         
-        Post post = detail.getPost();
-        
-        if (post == null) {
+        if (detailView == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "文章不存在");
         }
 
-        if (!post.isOwnedBy(userId)) {
+        if (!detailView.getOwnerSnapshot().getOwnerId().getValue().equals(userId)) {
             throw new ForbiddenException("无权访问此文章");
         }
 
-        if (post.isDeleted()) {
+        if (detailView.getStatus() == PostStatus.DELETED) {
             throw new BusinessException(ResultCode.NOT_FOUND, "文章已删除");
         }
 
+        // 转换为 PostVO
+        PostVO vo = new PostVO();
+        vo.setId(detailView.getId().getValue());
+        vo.setOwnerId(detailView.getOwnerSnapshot().getOwnerId().getValue());
+        vo.setOwnerName(detailView.getOwnerSnapshot().getName());
+        vo.setTitle(detailView.getTitle());
+        vo.setRaw(detailView.getContent());
+        vo.setExcerpt(detailView.getExcerpt());
+        vo.setStatus(detailView.getStatus().name());
+        vo.setPublishedAt(detailView.getCreatedAt()); // 使用 createdAt 作为 publishedAt
+        vo.setScheduledAt(detailView.getScheduledPublishAt());
+        vo.setCreatedAt(detailView.getCreatedAt());
+        vo.setUpdatedAt(detailView.getUpdatedAt());
+        
+        // 统计数据
+        vo.setViewCount(detailView.getViewCount());
+        vo.setLikeCount((int) detailView.getLikeCount());
+        vo.setCommentCount((int) detailView.getCommentCount());
+        
         // 获取封面图 URL
-        String coverImageUrl = null;
-        if (post.getCoverImageId() != null && !post.getCoverImageId().isEmpty()) {
-            coverImageUrl = getFileUrl(post.getCoverImageId());
+        if (detailView.getCoverImage() != null && !detailView.getCoverImage().isEmpty()) {
+            vo.setCoverImageUrl(getFileUrl(detailView.getCoverImage()));
         }
 
-        // 如果内容不可用（降级场景），返回不包含内容的 VO
-        if (detail.isContentUnavailable() || detail.getContent() == null) {
-            log.warn("Post content unavailable for postId: {}, returning metadata only", postId);
-            PostVO vo = PostAssembler.toVO(post);
-            vo.setCoverImageUrl(coverImageUrl);
-            // 填充作者信息
-            enrichPostWithAuthorInfo(vo, post);
-            return vo;
+        // 填充作者头像
+        if (detailView.getOwnerSnapshot().getAvatarId() != null && 
+            !detailView.getOwnerSnapshot().getAvatarId().isEmpty()) {
+            try {
+                String avatarUrl = getFileUrl(detailView.getOwnerSnapshot().getAvatarId());
+                vo.setOwnerAvatar(avatarUrl);
+            } catch (Exception e) {
+                log.error("Failed to get avatar URL for fileId: {}", 
+                    detailView.getOwnerSnapshot().getAvatarId(), e);
+                vo.setOwnerAvatar(null);
+            }
         }
 
-        // 返回包含完整内容的 VO
-        PostVO vo = PostAssembler.toVOWithContent(post, detail.getContent());
-        vo.setCoverImageUrl(coverImageUrl);
-        // 填充作者信息
-        enrichPostWithAuthorInfo(vo, post);
         return vo;
     }
 
@@ -608,7 +736,7 @@ public class PostApplicationService {
         List<Post> posts = postRepository.findByOwnerId(userId, status, offset, size);
         return posts.stream()
                 .map(post -> {
-                    PostBriefVO vo = PostAssembler.toBriefVO(post);
+                    PostBriefVO vo = PostViewAssembler.toBriefVO(post);
                     // 获取封面图 URL
                     if (post.getCoverImageId() != null && !post.getCoverImageId().isEmpty()) {
                         vo.setCoverImageUrl(getFileUrl(post.getCoverImageId()));
@@ -631,7 +759,7 @@ public class PostApplicationService {
         List<Post> posts = postRepository.findPublished(offset, size);
         return posts.stream()
                 .map(post -> {
-                    PostBriefVO vo = PostAssembler.toBriefVO(post);
+                    PostBriefVO vo = PostViewAssembler.toBriefVO(post);
                     // 获取封面图 URL
                     if (post.getCoverImageId() != null && !post.getCoverImageId().isEmpty()) {
                         vo.setCoverImageUrl(getFileUrl(post.getCoverImageId()));
@@ -653,7 +781,7 @@ public class PostApplicationService {
         List<Post> posts = postRepository.findPublishedCursor(cursor, size);
         return posts.stream()
                 .map(post -> {
-                    PostBriefVO vo = PostAssembler.toBriefVO(post);
+                    PostBriefVO vo = PostViewAssembler.toBriefVO(post);
                     // 获取封面图 URL
                     if (post.getCoverImageId() != null && !post.getCoverImageId().isEmpty()) {
                         vo.setCoverImageUrl(getFileUrl(post.getCoverImageId()));
@@ -742,7 +870,7 @@ public class PostApplicationService {
 
         if (!posts.isEmpty()) {
             Post lastPost = posts.get(posts.size() - 1);
-            nextCursor = encodeCursor(lastPost.getPublishedAt(), lastPost.getId());
+            nextCursor = encodeCursor(lastPost.getPublishedAt(), lastPost.getId().getValue());
         }
 
         List<PostBriefVO> voList = enrichPostsWithAuthorInfo(posts);
@@ -788,7 +916,7 @@ public class PostApplicationService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BusinessException(ResultCode.NOT_FOUND, "文章不存在"));
 
-        if (!post.isOwnedBy(userId)) {
+        if (!post.isOwnedBy(UserId.of(userId))) {
             throw new ForbiddenException("无权操作此文章");
         }
 
@@ -842,14 +970,14 @@ public class PostApplicationService {
         for (Map.Entry<Long, Post> entry : posts.entrySet()) {
             Post post = entry.getValue();
             if (!post.isDeleted()) {
-                com.zhicore.api.dto.post.PostDTO dto = new com.zhicore.api.dto.post.PostDTO();
-                dto.setId(post.getId());
+                PostDTO dto = new PostDTO();
+                dto.setId(post.getId().getValue());
                 dto.setTitle(post.getTitle());
-                dto.setOwnerId(post.getOwnerId());
+                dto.setOwnerId(post.getOwnerId().getValue());
                 dto.setStatus(post.getStatus().name());
                 dto.setCreatedAt(post.getCreatedAt());
                 dto.setPublishedAt(post.getPublishedAt());
-                result.put(post.getId(), dto);
+                result.put(post.getId().getValue(), dto);
             }
         }
         
@@ -866,7 +994,24 @@ public class PostApplicationService {
      */
     @Transactional(readOnly = true)
     public PostContent getPostContent(Long postId) {
-        return dualStorageManager.getPostContent(postId);
+        // 使用 PostContentStore 获取内容
+        Optional<PostBody> bodyOpt =
+            postContentStore.getContent(PostId.of(postId));
+        
+        if (!bodyOpt.isPresent()) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "文章内容不存在");
+        }
+        
+        // 转换 PostBody 到 PostContent（MongoDB 文档）
+        PostBody body = bodyOpt.get();
+        PostContent content = new PostContent();
+        content.setPostId(String.valueOf(postId));
+        content.setContentType(body.getContentType().getValue());
+        content.setRaw(body.getContent());
+        content.setCreatedAt(body.getCreatedAt());
+        content.setUpdatedAt(body.getUpdatedAt());
+        
+        return content;
     }
 
     // ==================== 草稿管理方法 ====================
@@ -884,7 +1029,7 @@ public class PostApplicationService {
         Post post = getPostAndCheckOwnership(postId, userId);
         
         // 调用 DraftManager 保存草稿
-        draftManager.saveDraft(
+        draftService.saveDraft(
             postId,
             userId,
             request.getContent(),
@@ -909,14 +1054,14 @@ public class PostApplicationService {
         Post post = getPostAndCheckOwnership(postId, userId);
         
         // 调用 DraftManager 获取草稿
-        java.util.Optional<PostDraft> draftOpt =
-            draftManager.getLatestDraft(postId, userId);
+        java.util.Optional<DraftSnapshot> draftOpt =
+            draftService.getLatestDraft(postId, userId);
         
         if (draftOpt.isEmpty()) {
             throw new BusinessException(ResultCode.NOT_FOUND, "草稿不存在");
         }
         
-        PostDraft draft = draftOpt.get();
+        DraftSnapshot draft = draftOpt.get();
         
         // 转换为 VO
         return DraftVO.builder()
@@ -942,8 +1087,8 @@ public class PostApplicationService {
     @Transactional(readOnly = true)
     public List<DraftVO> getUserDrafts(Long userId) {
         // 调用 DraftManager 获取用户所有草稿
-        List<PostDraft> drafts =
-            draftManager.getUserDrafts(userId);
+        List<DraftSnapshot> drafts =
+            draftService.getUserDrafts(userId);
         
         // 转换为 VO 列表
         return drafts.stream()
@@ -973,7 +1118,7 @@ public class PostApplicationService {
         Post post = getPostAndCheckOwnership(postId, userId);
         
         // 调用 DraftManager 删除草稿
-        draftManager.deleteDraft(postId, userId);
+        draftService.deleteDraft(postId, userId);
         
         log.info("Draft deleted: postId={}, userId={}", postId, userId);
     }
@@ -1034,11 +1179,11 @@ public class PostApplicationService {
         }
 
         try {
-            ApiResponse<String> response = ZhiCoreUploadClient.getFileUrl(fileId);
+            ApiResponse<String> response = uploadServiceClient.getFileUrl(fileId);
             if (response != null && response.isSuccess() && response.getData() != null) {
                 return response.getData();
             } else {
-                log.warn("Failed to get file URL from ZhiCore-upload: fileId={}, response={}",
+                log.warn("Failed to get file URL from upload service: fileId={}, response={}",
                     fileId, response);
                 return null;
             }
@@ -1050,7 +1195,7 @@ public class PostApplicationService {
 
     /**
      * 填充单个文章的作者信息
-     * 使用文章表中的冗余字段（ownerName），避免调用 user-service
+     * 使用文章表中的冗余字段（ownerSnapshot），避免调用 user-service
      * 
      * @param vo 文章视图对象
      * @param post 文章领域对象
@@ -1061,16 +1206,16 @@ public class PostApplicationService {
         }
 
         // 使用文章表中的冗余字段
-        vo.setOwnerName(post.getOwnerName());
-        log.debug("使用缓存的作者信息: postId={}, ownerName={}", post.getId(), post.getOwnerName());
+        vo.setOwnerName(post.getOwnerSnapshot().getName());
+        log.debug("使用缓存的作者信息: postId={}, ownerName={}", post.getId(), post.getOwnerSnapshot().getName());
 
         // 如果有 avatarId，调用 file-service 转换为 URL
-        if (post.getOwnerAvatarId() != null && !post.getOwnerAvatarId().isEmpty()) {
+        if (post.getOwnerSnapshot().getAvatarId() != null && !post.getOwnerSnapshot().getAvatarId().isEmpty()) {
             try {
-                String avatarUrl = getFileUrl(post.getOwnerAvatarId());
+                String avatarUrl = getFileUrl(post.getOwnerSnapshot().getAvatarId());
                 vo.setOwnerAvatar(avatarUrl);
             } catch (Exception e) {
-                log.error("Failed to get avatar URL for fileId: {}", post.getOwnerAvatarId(), e);
+                log.error("Failed to get avatar URL for fileId: {}", post.getOwnerSnapshot().getAvatarId(), e);
                 vo.setOwnerAvatar(null);
             }
         } else {
@@ -1080,7 +1225,7 @@ public class PostApplicationService {
 
     /**
      * 批量填充文章的作者信息
-     * 使用文章表中的冗余字段（ownerName），避免调用 user-service
+     * 使用文章表中的冗余字段（ownerSnapshot），避免调用 user-service
      * 
      * @param posts 文章列表
      * @return 填充了作者信息的 PostBriefVO 列表
@@ -1095,7 +1240,7 @@ public class PostApplicationService {
         // 组装 VO 并填充作者信息
         return posts.stream()
                 .map(post -> {
-                    PostBriefVO vo = PostAssembler.toBriefVO(post);
+                    PostBriefVO vo = PostViewAssembler.toBriefVO(post);
                     
                     // 获取封面图 URL
                     if (post.getCoverImageId() != null && !post.getCoverImageId().isEmpty()) {
@@ -1103,15 +1248,15 @@ public class PostApplicationService {
                     }
                     
                     // 使用文章表中的冗余字段
-                    vo.setOwnerName(post.getOwnerName());
+                    vo.setOwnerName(post.getOwnerSnapshot().getName());
                     
                     // 如果有 avatarId，调用 file-service 转换为 URL
-                    if (post.getOwnerAvatarId() != null && !post.getOwnerAvatarId().isEmpty()) {
+                    if (post.getOwnerSnapshot().getAvatarId() != null && !post.getOwnerSnapshot().getAvatarId().isEmpty()) {
                         try {
-                            String avatarUrl = getFileUrl(post.getOwnerAvatarId());
+                            String avatarUrl = getFileUrl(post.getOwnerSnapshot().getAvatarId());
                             vo.setOwnerAvatar(avatarUrl);
                         } catch (Exception e) {
-                            log.error("Failed to get avatar URL for fileId: {}", post.getOwnerAvatarId(), e);
+                            log.error("Failed to get avatar URL for fileId: {}", post.getOwnerSnapshot().getAvatarId(), e);
                             vo.setOwnerAvatar(null);
                         }
                     } else {
@@ -1163,8 +1308,14 @@ public class PostApplicationService {
             if (response != null && response.isSuccess() && response.getData() != null && !response.getData().isEmpty()) {
                 // 成功获取用户信息
                 UserSimpleDTO userInfo = response.getData().get(0);
-                post.setOwnerInfo(userInfo.getNickname(), userInfo.getAvatarId(),
-                    userInfo.getProfileVersion() != null ? userInfo.getProfileVersion() : 0L);
+                OwnerSnapshot snapshot = 
+                    new OwnerSnapshot(
+                        UserId.of(userId),
+                        userInfo.getNickname(),
+                        userInfo.getAvatarId(),
+                        userInfo.getProfileVersion() != null ? userInfo.getProfileVersion() : 0L
+                    );
+                post.setOwnerSnapshot(snapshot);
                 
                 log.info("作者信息填充成功: postId={}, userId={}, ownerName={}, profileVersion={}", 
                     post.getId(), userId, userInfo.getNickname(), userInfo.getProfileVersion());
@@ -1173,14 +1324,14 @@ public class PostApplicationService {
                 log.warn("获取用户信息失败，使用默认值并安排补偿: postId={}, userId={}, response={}", 
                     post.getId(), userId, response);
                 setDefaultAuthorInfo(post);
-                scheduleAuthorInfoCompensation(post.getId(), userId);
+                scheduleAuthorInfoCompensation(post.getId().getValue(), userId);
             }
         } catch (Exception e) {
             // 调用 user-service 异常，使用默认值并安排补偿
             log.error("调用 user-service 异常，使用默认值并安排补偿: postId={}, userId={}", 
                 post.getId(), userId, e);
             setDefaultAuthorInfo(post);
-            scheduleAuthorInfoCompensation(post.getId(), userId);
+            scheduleAuthorInfoCompensation(post.getId().getValue(), userId);
         }
     }
 
@@ -1192,12 +1343,13 @@ public class PostApplicationService {
      * @param post 文章对象
      */
     private void setDefaultAuthorInfo(Post post) {
-        post.setOwnerInfo(PostConstants.UNKNOWN_AUTHOR_NAME, null, PostConstants.DEFAULT_PROFILE_VERSION);
-        
-        log.info("设置默认作者信息: postId={}",PostConstants.DEFAULT_PROFILE_VERSION);
+        // 使用 OwnerSnapshot.createDefault() 创建默认快照
+        OwnerSnapshot defaultSnapshot = 
+            OwnerSnapshot.createDefault(post.getOwnerId());
+        post.setOwnerSnapshot(defaultSnapshot);
         
         log.info("设置默认作者信息: postId={}, ownerName={}", 
-            post.getId(), PostConstants.UNKNOWN_AUTHOR_NAME);
+            post.getId(), defaultSnapshot.getName());
     }
 
     /**
@@ -1210,16 +1362,17 @@ public class PostApplicationService {
      */
     private void scheduleAuthorInfoCompensation(Long postId, Long userId) {
         try {
-            // 创建补偿事件
-            AuthorInfoCompensationEvent compensationEvent =
-                new AuthorInfoCompensationEvent(
+            // 创建补偿集成事件（通过 Outbox 延迟投递）
+            AuthorInfoCompensationIntegrationEvent compensationEvent =
+                new AuthorInfoCompensationIntegrationEvent(
+                    newEventId(),
+                    Instant.now(),
+                    null,
                     postId,
                     userId,
-                    LocalDateTime.now()
+                    5
                 );
-            
-            // 发送延迟消息（延迟级别 5 = 1 分钟）
-            eventPublisher.publishDelayed(compensationEvent, 5);
+            integrationEventPublisher.publish(compensationEvent);
             
             log.info("作者信息补偿任务已安排: postId={}, userId={}, delayLevel=5 (1分钟)", 
                 postId, userId);
@@ -1228,5 +1381,10 @@ public class PostApplicationService {
             log.error("安排作者信息补偿任务失败: postId={}, userId={}", postId, userId, e);
         }
     }
+
+    private String newEventId() {
+        return UUID.randomUUID().toString().replace("-", "");
+    }
 }
+
 

@@ -1,6 +1,7 @@
 package com.zhicore.content.domain.service;
 
-import com.zhicore.content.infrastructure.mongodb.document.PostContent;
+import com.zhicore.content.domain.valueobject.ContentBlock;
+import com.zhicore.content.domain.valueobject.MediaResource;
 
 import java.util.List;
 
@@ -19,7 +20,7 @@ public interface ContentProcessor {
      * @param blocks 内容块列表
      * @return 处理后的内容块列表
      */
-    List<PostContent.ContentBlock> processContentBlocks(List<PostContent.ContentBlock> blocks);
+    List<ContentBlock> processContentBlocks(List<ContentBlock> blocks);
 
     /**
      * 提取媒体资源元数据
@@ -28,7 +29,7 @@ public interface ContentProcessor {
      * @param content 文章内容
      * @return 媒体资源列表
      */
-    List<PostContent.MediaResource> extractMediaMetadata(String content);
+    List<MediaResource> extractMediaMetadata(String content);
 
     /**
      * 计算字数
@@ -55,7 +56,7 @@ public interface ContentProcessor {
      * @param blocks 内容块列表
      * @return JSON字符串
      */
-    String serializeContentBlocks(List<PostContent.ContentBlock> blocks);
+    String serializeContentBlocks(List<ContentBlock> blocks);
 
     /**
      * 反序列化内容块
@@ -64,5 +65,5 @@ public interface ContentProcessor {
      * @param json JSON字符串
      * @return 内容块列表
      */
-    List<PostContent.ContentBlock> deserializeContentBlocks(String json);
+    List<ContentBlock> deserializeContentBlocks(String json);
 }

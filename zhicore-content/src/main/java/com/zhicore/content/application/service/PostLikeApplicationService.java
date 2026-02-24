@@ -1,18 +1,18 @@
 package com.zhicore.content.application.service;
 
-import com.zhicore.api.client.IdGeneratorFeignClient;
-import com.zhicore.api.event.post.PostLikedEvent;
-import com.zhicore.api.event.post.PostUnlikedEvent;
+import com.zhicore.clients.client.IdGeneratorFeignClient;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
+import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostLike;
 import com.zhicore.content.domain.model.PostStatus;
 import com.zhicore.content.domain.repository.PostLikeRepository;
-import com.zhicore.content.domain.repository.PostRepository;
+import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.infrastructure.cache.PostRedisKeys;
-import com.zhicore.content.infrastructure.mq.PostEventPublisher;
+import com.zhicore.integration.messaging.post.PostLikedIntegrationEvent;
+import com.zhicore.integration.messaging.post.PostUnlikedIntegrationEvent;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 文章点赞应用服务
@@ -37,7 +38,7 @@ public class PostLikeApplicationService {
 
     private final PostLikeRepository likeRepository;
     private final PostRepository postRepository;
-    private final PostEventPublisher eventPublisher;
+    private final IntegrationEventPublisher integrationEventPublisher;
     private final RedisTemplate<String, Object> redisTemplate;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
     private final TransactionTemplate transactionTemplate;
@@ -56,7 +57,7 @@ public class PostLikeApplicationService {
         String likeKey = PostRedisKeys.userLiked(userId, postId);
         Boolean alreadyLiked = redisTemplate.hasKey(likeKey);
 
-        if (Boolean.TRUE.equals(alreadyLiked)) {
+        if (alreadyLiked) {
             throw new BusinessException("已经点赞过了");
         }
 
@@ -68,7 +69,7 @@ public class PostLikeApplicationService {
             throw new BusinessException("文章未发布，无法点赞");
         }
 
-        Long authorId = post.getOwnerId();
+        Long authorId = post.getOwnerId().getValue();
 
         // 数据库操作在事务中执行
         transactionTemplate.executeWithoutResult(status -> {
@@ -97,7 +98,16 @@ public class PostLikeApplicationService {
         }
 
         // 发布事件（用于通知、排行榜更新）
-        eventPublisher.publish(new PostLikedEvent(postId, userId, authorId));
+        integrationEventPublisher.publish(new PostLikedIntegrationEvent(
+                newEventId(),
+                java.time.Instant.now(),
+                null,
+                postId,
+                userId,
+                authorId,
+                post.getPublishedAt() == null ? null :
+                    post.getPublishedAt().atZone(java.time.ZoneId.systemDefault()).toInstant()
+        ));
 
         log.info("Post liked: postId={}, userId={}", postId, userId);
     }
@@ -115,7 +125,7 @@ public class PostLikeApplicationService {
         String likeKey = PostRedisKeys.userLiked(userId, postId);
         Boolean liked = redisTemplate.hasKey(likeKey);
 
-        if (!Boolean.TRUE.equals(liked)) {
+        if (!liked) {
             // 再查数据库确认
             if (!likeRepository.exists(postId, userId)) {
                 throw new BusinessException("尚未点赞");
@@ -137,7 +147,14 @@ public class PostLikeApplicationService {
         }
 
         // 发布事件
-        eventPublisher.publish(new PostUnlikedEvent(postId, userId));
+        integrationEventPublisher.publish(new PostUnlikedIntegrationEvent(
+                newEventId(),
+                java.time.Instant.now(),
+                null,
+                postId,
+                userId,
+                null
+        ));
 
         log.info("Post unliked: postId={}, userId={}", postId, userId);
     }
@@ -251,5 +268,9 @@ public class PostLikeApplicationService {
 
         // 注意：不抛出异常，主流程已成功
         // CDC 和定时任务会自动修复数据
+    }
+
+    private String newEventId() {
+        return UUID.randomUUID().toString().replace("-", "");
     }
 }

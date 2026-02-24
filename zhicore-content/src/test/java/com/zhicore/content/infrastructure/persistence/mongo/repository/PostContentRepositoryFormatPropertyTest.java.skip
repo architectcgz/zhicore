@@ -1,0 +1,464 @@
+package com.zhicore.content.infrastructure.persistence.mongo.repository;
+
+import com.zhicore.content.infrastructure.persistence.mongo.document.PostContent;
+import net.jqwik.api.*;
+import net.jqwik.api.constraints.IntRange;
+import net.jqwik.api.constraints.StringLength;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * PostContentRepository Content Format Support Property Test
+ * 
+ * Uses property-based testing to validate that different content formats
+ * (Markdown, HTML, rich text) can be correctly stored and retrieved.
+ * 
+ * **Feature: post-mongodb-hybrid, Property 15: 内容格式支持**
+ * 
+ * **Validates: Requirements 5.1, 5.3, 5.4**
+ * 
+ * Property 15: 内容格式支持
+ * 对于任意内容格式（Markdown、HTML、富文本），系统都应该能正确存储和检索，
+ * 且检索后的内容与存储前的内容一致。
+ */
+@DataMongoTest
+@Testcontainers
+class PostContentRepositoryFormatPropertyTest {
+
+    @Container
+    static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:8.0")
+            .withExposedPorts(27017);
+
+    @DynamicPropertySource
+    static void setProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
+    }
+
+    @Autowired
+    private PostContentRepository postContentRepository;
+
+    @BeforeEach
+    void setUp() {
+        postContentRepository.deleteAll();
+    }
+
+    /**
+     * Property 15: Markdown format round-trip consistency
+     * 
+     * For any valid Markdown content, storing and retrieving should preserve
+     * the content exactly as it was stored.
+     * 
+     * **Validates: Requirements 5.1, 5.3, 5.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 15: Markdown format round-trip consistency")
+    void markdownFormatRoundTripConsistency(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @StringLength(min = 10, max = 5000) String markdownContent) {
+
+        // Given: PostContent with Markdown format
+        String postIdStr = String.valueOf(postId);
+        String htmlContent = "<p>" + markdownContent + "</p>";
+        String textContent = markdownContent.replaceAll("[#*_`]", "");
+
+        PostContent original = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("markdown")
+                .raw(markdownContent)
+                .html(htmlContent)
+                .text(textContent)
+                .wordCount(markdownContent.split("\\s+").length)
+                .readingTime((markdownContent.split("\\s+").length / 200) + 1)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        // When: Save and retrieve
+        postContentRepository.save(original);
+        Optional<PostContent> retrieved = postContentRepository.findByPostId(postIdStr);
+
+        // Then: Content should be preserved exactly
+        assertThat(retrieved).isPresent();
+        PostContent content = retrieved.get();
+        assertThat(content.getPostId()).isEqualTo(postIdStr);
+        assertThat(content.getContentType()).isEqualTo("markdown");
+        assertThat(content.getRaw()).isEqualTo(markdownContent);
+        assertThat(content.getHtml()).isEqualTo(htmlContent);
+        assertThat(content.getText()).isEqualTo(textContent);
+        assertThat(content.getWordCount()).isEqualTo(original.getWordCount());
+        assertThat(content.getReadingTime()).isEqualTo(original.getReadingTime());
+    }
+
+    /**
+     * Property 15: HTML format round-trip consistency
+     * 
+     * For any valid HTML content, storing and retrieving should preserve
+     * the content exactly as it was stored.
+     * 
+     * **Validates: Requirements 5.1, 5.3, 5.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 15: HTML format round-trip consistency")
+    void htmlFormatRoundTripConsistency(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll @StringLength(min = 10, max = 5000) String htmlContent) {
+
+        // Given: PostContent with HTML format
+        String postIdStr = String.valueOf(postId);
+        String textContent = htmlContent.replaceAll("<[^>]*>", "");
+
+        PostContent original = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("html")
+                .raw(htmlContent)
+                .html(htmlContent)
+                .text(textContent)
+                .wordCount(textContent.split("\\s+").length)
+                .readingTime((textContent.split("\\s+").length / 200) + 1)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        // When: Save and retrieve
+        postContentRepository.save(original);
+        Optional<PostContent> retrieved = postContentRepository.findByPostId(postIdStr);
+
+        // Then: Content should be preserved exactly
+        assertThat(retrieved).isPresent();
+        PostContent content = retrieved.get();
+        assertThat(content.getPostId()).isEqualTo(postIdStr);
+        assertThat(content.getContentType()).isEqualTo("html");
+        assertThat(content.getRaw()).isEqualTo(htmlContent);
+        assertThat(content.getHtml()).isEqualTo(htmlContent);
+        assertThat(content.getText()).isEqualTo(textContent);
+    }
+
+    /**
+     * Property 15: Rich text format with blocks round-trip consistency
+     * 
+     * For any rich text content with content blocks, storing and retrieving
+     * should preserve all blocks and their properties.
+     * 
+     * **Validates: Requirements 5.1, 5.3, 5.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 15: Rich text format with blocks round-trip consistency")
+    void richTextFormatWithBlocksRoundTripConsistency(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll("contentBlockList") List<PostContent.ContentBlock> blocks) {
+
+        // Given: PostContent with rich text format and blocks
+        String postIdStr = String.valueOf(postId);
+        String combinedText = blocks.stream()
+                .map(PostContent.ContentBlock::getContent)
+                .reduce("", (a, b) -> a + " " + b);
+
+        PostContent original = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("rich")
+                .raw(combinedText)
+                .html(combinedText)
+                .text(combinedText)
+                .blocks(blocks)
+                .wordCount(combinedText.split("\\s+").length)
+                .readingTime((combinedText.split("\\s+").length / 200) + 1)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        // When: Save and retrieve
+        postContentRepository.save(original);
+        Optional<PostContent> retrieved = postContentRepository.findByPostId(postIdStr);
+
+        // Then: Content and blocks should be preserved exactly
+        assertThat(retrieved).isPresent();
+        PostContent content = retrieved.get();
+        assertThat(content.getPostId()).isEqualTo(postIdStr);
+        assertThat(content.getContentType()).isEqualTo("rich");
+        assertThat(content.getBlocks()).isNotNull();
+        assertThat(content.getBlocks()).hasSize(blocks.size());
+
+        // Verify each block is preserved
+        for (int i = 0; i < blocks.size(); i++) {
+            PostContent.ContentBlock originalBlock = blocks.get(i);
+            PostContent.ContentBlock retrievedBlock = content.getBlocks().get(i);
+            assertThat(retrievedBlock.getType()).isEqualTo(originalBlock.getType());
+            assertThat(retrievedBlock.getContent()).isEqualTo(originalBlock.getContent());
+            assertThat(retrievedBlock.getOrder()).isEqualTo(originalBlock.getOrder());
+        }
+    }
+
+    /**
+     * Property 15: Rich text format with media resources round-trip consistency
+     * 
+     * For any rich text content with media resources, storing and retrieving
+     * should preserve all media metadata.
+     * 
+     * **Validates: Requirements 5.1, 5.3, 5.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 15: Rich text format with media resources round-trip consistency")
+    void richTextFormatWithMediaRoundTripConsistency(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll("mediaResourceList") List<PostContent.MediaResource> media,
+            @ForAll @StringLength(min = 10, max = 1000) String textContent) {
+
+        // Given: PostContent with rich text format and media resources
+        String postIdStr = String.valueOf(postId);
+
+        PostContent original = PostContent.builder()
+                .postId(postIdStr)
+                .contentType("rich")
+                .raw(textContent)
+                .html(textContent)
+                .text(textContent)
+                .media(media)
+                .wordCount(textContent.split("\\s+").length)
+                .readingTime((textContent.split("\\s+").length / 200) + 1)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        // When: Save and retrieve
+        postContentRepository.save(original);
+        Optional<PostContent> retrieved = postContentRepository.findByPostId(postIdStr);
+
+        // Then: Content and media should be preserved exactly
+        assertThat(retrieved).isPresent();
+        PostContent content = retrieved.get();
+        assertThat(content.getPostId()).isEqualTo(postIdStr);
+        assertThat(content.getContentType()).isEqualTo("rich");
+        assertThat(content.getMedia()).isNotNull();
+        assertThat(content.getMedia()).hasSize(media.size());
+
+        // Verify each media resource is preserved
+        for (int i = 0; i < media.size(); i++) {
+            PostContent.MediaResource originalMedia = media.get(i);
+            PostContent.MediaResource retrievedMedia = content.getMedia().get(i);
+            assertThat(retrievedMedia.getType()).isEqualTo(originalMedia.getType());
+            assertThat(retrievedMedia.getUrl()).isEqualTo(originalMedia.getUrl());
+            assertThat(retrievedMedia.getThumbnail()).isEqualTo(originalMedia.getThumbnail());
+            assertThat(retrievedMedia.getSize()).isEqualTo(originalMedia.getSize());
+        }
+    }
+
+    /**
+     * Property 15: Mixed format support - all formats can coexist
+     * 
+     * For any combination of content formats, the repository should be able
+     * to store and retrieve different formats independently.
+     * 
+     * **Validates: Requirements 5.1, 5.3, 5.4**
+     */
+    @Property(tries = 50)
+    @Label("Property 15: Mixed format support - all formats can coexist")
+    void mixedFormatSupportAllFormatsCanCoexist(
+            @ForAll("contentFormatList") List<String> contentTypes,
+            @ForAll @IntRange(min = 1, max = 100) int basePostId) {
+
+        // Given: Multiple PostContent with different formats
+        List<PostContent> originalContents = new ArrayList<>();
+        for (int i = 0; i < contentTypes.size(); i++) {
+            String postIdStr = String.valueOf(basePostId + i);
+            String contentType = contentTypes.get(i);
+            String content = "Content for " + contentType + " format " + i;
+
+            PostContent postContent = PostContent.builder()
+                    .postId(postIdStr)
+                    .contentType(contentType)
+                    .raw(content)
+                    .html(content)
+                    .text(content)
+                    .wordCount(content.split("\\s+").length)
+                    .readingTime(1)
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            originalContents.add(postContent);
+        }
+
+        // When: Save all contents
+        postContentRepository.saveAll(originalContents);
+
+        // Then: All contents should be retrievable with correct format
+        for (int i = 0; i < contentTypes.size(); i++) {
+            String postIdStr = String.valueOf(basePostId + i);
+            Optional<PostContent> retrieved = postContentRepository.findByPostId(postIdStr);
+
+            assertThat(retrieved).isPresent();
+            PostContent content = retrieved.get();
+            assertThat(content.getContentType()).isEqualTo(contentTypes.get(i));
+            assertThat(content.getRaw()).contains(contentTypes.get(i));
+        }
+    }
+
+    /**
+     * Property 15: Content format validation - empty content handling
+     * 
+     * For any content format, the system should handle empty content gracefully.
+     * 
+     * **Validates: Requirements 5.1, 5.3, 5.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 15: Content format validation - empty content handling")
+    void contentFormatValidationEmptyContentHandling(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll("contentFormat") String contentType) {
+
+        // Given: PostContent with empty content
+        String postIdStr = String.valueOf(postId);
+
+        PostContent original = PostContent.builder()
+                .postId(postIdStr)
+                .contentType(contentType)
+                .raw("")
+                .html("")
+                .text("")
+                .wordCount(0)
+                .readingTime(0)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        // When: Save and retrieve
+        postContentRepository.save(original);
+        Optional<PostContent> retrieved = postContentRepository.findByPostId(postIdStr);
+
+        // Then: Empty content should be preserved
+        assertThat(retrieved).isPresent();
+        PostContent content = retrieved.get();
+        assertThat(content.getPostId()).isEqualTo(postIdStr);
+        assertThat(content.getContentType()).isEqualTo(contentType);
+        assertThat(content.getRaw()).isEmpty();
+        assertThat(content.getHtml()).isEmpty();
+        assertThat(content.getText()).isEmpty();
+        assertThat(content.getWordCount()).isEqualTo(0);
+    }
+
+    /**
+     * Property 15: Special characters preservation across formats
+     * 
+     * For any content format, special characters should be preserved exactly.
+     * 
+     * **Validates: Requirements 5.1, 5.3, 5.4**
+     */
+    @Property(tries = 100)
+    @Label("Property 15: Special characters preservation across formats")
+    void specialCharactersPreservationAcrossFormats(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll("contentFormat") String contentType,
+            @ForAll("specialCharContent") String specialContent) {
+
+        // Given: PostContent with special characters
+        String postIdStr = String.valueOf(postId);
+
+        PostContent original = PostContent.builder()
+                .postId(postIdStr)
+                .contentType(contentType)
+                .raw(specialContent)
+                .html(specialContent)
+                .text(specialContent)
+                .wordCount(specialContent.split("\\s+").length)
+                .readingTime(1)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        // When: Save and retrieve
+        postContentRepository.save(original);
+        Optional<PostContent> retrieved = postContentRepository.findByPostId(postIdStr);
+
+        // Then: Special characters should be preserved exactly
+        assertThat(retrieved).isPresent();
+        PostContent content = retrieved.get();
+        assertThat(content.getRaw()).isEqualTo(specialContent);
+        assertThat(content.getHtml()).isEqualTo(specialContent);
+        assertThat(content.getText()).isEqualTo(specialContent);
+    }
+
+    // Data generators
+
+    @Provide
+    Arbitrary<String> contentFormat() {
+        return Arbitraries.of("markdown", "html", "rich");
+    }
+
+    @Provide
+    Arbitrary<List<String>> contentFormatList() {
+        return Arbitraries.of("markdown", "html", "rich")
+                .list()
+                .ofMinSize(1)
+                .ofMaxSize(5);
+    }
+
+    @Provide
+    Arbitrary<PostContent.ContentBlock> contentBlock() {
+        return Combinators.combine(
+                Arbitraries.of("text", "image", "video", "code", "chart"),
+                Arbitraries.strings().alpha().ofMinLength(10).ofMaxLength(500),
+                Arbitraries.integers().between(0, 100)
+        ).as((type, content, order) ->
+                PostContent.ContentBlock.builder()
+                        .type(type)
+                        .content(content)
+                        .order(order)
+                        .build()
+        );
+    }
+
+    @Provide
+    Arbitrary<List<PostContent.ContentBlock>> contentBlockList() {
+        return contentBlock()
+                .list()
+                .ofMinSize(1)
+                .ofMaxSize(5);
+    }
+
+    @Provide
+    Arbitrary<PostContent.MediaResource> mediaResource() {
+        return Combinators.combine(
+                Arbitraries.of("image", "video", "audio"),
+                Arbitraries.strings().alpha().ofMinLength(10).ofMaxLength(100).map(s -> "https://example.com/" + s),
+                Arbitraries.strings().alpha().ofMinLength(10).ofMaxLength(100).map(s -> "https://example.com/thumb/" + s),
+                Arbitraries.longs().between(1000L, 10000000L)
+        ).as((type, url, thumbnail, size) ->
+                PostContent.MediaResource.builder()
+                        .type(type)
+                        .url(url)
+                        .thumbnail(thumbnail)
+                        .size(size)
+                        .build()
+        );
+    }
+
+    @Provide
+    Arbitrary<List<PostContent.MediaResource>> mediaResourceList() {
+        return mediaResource()
+                .list()
+                .ofMinSize(1)
+                .ofMaxSize(3);
+    }
+
+    @Provide
+    Arbitrary<String> specialCharContent() {
+        return Arbitraries.strings()
+                .withCharRange('!', '~')
+                .ofMinLength(10)
+                .ofMaxLength(200);
+    }
+}
+

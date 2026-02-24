@@ -6,7 +6,7 @@ import com.zhicore.common.result.ResultCode;
 import com.zhicore.common.util.QueryParamValidator;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostStatus;
-import com.zhicore.content.domain.repository.PostRepository;
+import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.interfaces.dto.response.PostManageDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -107,9 +107,9 @@ public class AdminPostApplicationService {
      */
     private PostManageDTO convertToManageDTO(Post post) {
         return PostManageDTO.builder()
-                .id(post.getId())
+                .id(post.getId().getValue())
                 .title(post.getTitle())
-                .authorId(post.getOwnerId())
+                .authorId(post.getOwnerId().getValue())
                 .authorName("") // 需要从用户服务获取，这里简化处理
                 .status(post.getStatus().name())
                 .viewCount((int) post.getStats().getViewCount())

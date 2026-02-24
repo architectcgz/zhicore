@@ -3,6 +3,7 @@ package com.zhicore.content.infrastructure.config;
 import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import org.apache.ibatis.annotations.Mapper;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,7 +14,10 @@ import org.springframework.context.annotation.Configuration;
  * @author ZhiCore Team
  */
 @Configuration
-@MapperScan("com.zhicore.post.infrastructure.repository.mapper")
+@MapperScan(
+    basePackages = "com.zhicore.content.infrastructure.persistence.pg.mapper",
+    annotationClass = Mapper.class
+)
 public class MyBatisPlusConfig {
 
     @Bean

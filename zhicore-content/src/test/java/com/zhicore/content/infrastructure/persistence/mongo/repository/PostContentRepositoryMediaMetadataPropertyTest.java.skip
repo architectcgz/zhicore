@@ -1,0 +1,377 @@
+package com.zhicore.content.infrastructure.persistence.mongo.repository;
+
+import com.zhicore.content.infrastructure.persistence.mongo.document.PostContent;
+import net.jqwik.api.*;
+import net.jqwik.api.constraints.IntRange;
+import net.jqwik.api.constraints.StringLength;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Property 17: 媒体资源元数据完整性
+ * 
+ * 对于任意包含媒体资源的文章，系统应该存储媒体的 URL、缩略图、大小等完整元数据。
+ * 
+ * Validates: Requirements 5.5
+ * 
+ * @author ZhiCore Team
+ */
+@DataMongoTest
+@Testcontainers
+@Tag("Feature: post-mongodb-hybrid, Property 17: 媒体资源元数据完整性")
+public class PostContentRepositoryMediaMetadataPropertyTest {
+
+    @Container
+    static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:8.0")
+            .withExposedPorts(27017);
+
+    @DynamicPropertySource
+    static void setProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
+    }
+
+    @Autowired
+    private PostContentRepository repository;
+
+    @BeforeEach
+    void setUp() {
+        repository.deleteAll();
+    }
+
+    @AfterEach
+    void tearDown() {
+        repository.deleteAll();
+    }
+
+    /**
+     * Property 17: 媒体资源元数据完整性
+     * 
+     * 对于任意包含媒体资源的文章，存储后检索应该返回完整的媒体元数据：
+     * - URL
+     * - 缩略图
+     * - 文件大小
+     * - 元数据对象
+     */
+    @Property(tries = 100)
+    @Tag("Feature: post-mongodb-hybrid, Property 17: 媒体资源元数据完整性")
+    void mediaResourceMetadataIntegrity(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll("mediaResourceListWithCompleteMetadata") List<PostContent.MediaResource> mediaResources,
+            @ForAll @StringLength(min = 10, max = 1000) String content) {
+
+        // Given: PostContent with media resources containing complete metadata
+        PostContent postContent = PostContent.builder()
+                .postId(String.valueOf(postId))
+                .contentType("rich")
+                .raw(content)
+                .html("<p>" + content + "</p>")
+                .text(content)
+                .wordCount(content.split("\\s+").length)
+                .readingTime(1)
+                .media(mediaResources)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        // When: Save to MongoDB
+        PostContent saved = repository.save(postContent);
+
+        // Then: Retrieve and verify all media metadata is preserved
+        Optional<PostContent> retrieved = repository.findByPostId(String.valueOf(postId));
+
+        assertThat(retrieved).isPresent();
+        PostContent content = retrieved.get();
+
+        // Verify media list size
+        assertThat(content.getMedia()).isNotNull();
+        assertThat(content.getMedia()).hasSize(mediaResources.size());
+
+        // Verify each media resource has complete metadata
+        for (int i = 0; i < mediaResources.size(); i++) {
+            PostContent.MediaResource original = mediaResources.get(i);
+            PostContent.MediaResource stored = content.getMedia().get(i);
+
+            // Verify all required fields are present and match
+            assertThat(stored.getType())
+                    .as("Media type should be preserved")
+                    .isNotNull()
+                    .isEqualTo(original.getType());
+
+            assertThat(stored.getUrl())
+                    .as("Media URL should be preserved")
+                    .isNotNull()
+                    .isNotEmpty()
+                    .isEqualTo(original.getUrl());
+
+            assertThat(stored.getThumbnail())
+                    .as("Media thumbnail should be preserved")
+                    .isNotNull()
+                    .isNotEmpty()
+                    .isEqualTo(original.getThumbnail());
+
+            assertThat(stored.getSize())
+                    .as("Media size should be preserved")
+                    .isNotNull()
+                    .isPositive()
+                    .isEqualTo(original.getSize());
+
+            assertThat(stored.getMetadata())
+                    .as("Media metadata should be preserved")
+                    .isNotNull()
+                    .isEqualTo(original.getMetadata());
+        }
+    }
+
+    /**
+     * Property 17.1: 媒体资源元数据不丢失
+     * 
+     * 对于任意包含媒体资源的文章，即使某些字段为空，也不应该丢失其他字段的数据
+     */
+    @Property(tries = 100)
+    @Tag("Feature: post-mongodb-hybrid, Property 17: 媒体资源元数据完整性")
+    void mediaResourceMetadataNoDataLoss(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll("mediaResourceWithPartialMetadata") PostContent.MediaResource mediaResource,
+            @ForAll @StringLength(min = 10, max = 1000) String content) {
+
+        // Given: PostContent with media resource that may have partial metadata
+        PostContent postContent = PostContent.builder()
+                .postId(String.valueOf(postId))
+                .contentType("rich")
+                .raw(content)
+                .html("<p>" + content + "</p>")
+                .text(content)
+                .wordCount(content.split("\\s+").length)
+                .readingTime(1)
+                .media(List.of(mediaResource))
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        // When: Save to MongoDB
+        repository.save(postContent);
+
+        // Then: Retrieve and verify no data loss
+        Optional<PostContent> retrieved = repository.findByPostId(String.valueOf(postId));
+
+        assertThat(retrieved).isPresent();
+        PostContent retrievedContent = retrieved.get();
+
+        assertThat(retrievedContent.getMedia()).isNotNull();
+        assertThat(retrievedContent.getMedia()).hasSize(1);
+
+        PostContent.MediaResource stored = retrievedContent.getMedia().get(0);
+
+        // Verify that all non-null fields are preserved
+        if (mediaResource.getType() != null) {
+            assertThat(stored.getType()).isEqualTo(mediaResource.getType());
+        }
+
+        if (mediaResource.getUrl() != null) {
+            assertThat(stored.getUrl()).isEqualTo(mediaResource.getUrl());
+        }
+
+        if (mediaResource.getThumbnail() != null) {
+            assertThat(stored.getThumbnail()).isEqualTo(mediaResource.getThumbnail());
+        }
+
+        if (mediaResource.getSize() != null) {
+            assertThat(stored.getSize()).isEqualTo(mediaResource.getSize());
+        }
+
+        if (mediaResource.getMetadata() != null) {
+            assertThat(stored.getMetadata()).isEqualTo(mediaResource.getMetadata());
+        }
+    }
+
+    /**
+     * Property 17.2: 多媒体资源元数据完整性
+     * 
+     * 对于任意包含多个媒体资源的文章，每个媒体资源的元数据都应该独立保存且完整
+     */
+    @Property(tries = 100)
+    @Tag("Feature: post-mongodb-hybrid, Property 17: 媒体资源元数据完整性")
+    void multipleMediaResourcesMetadataIntegrity(
+            @ForAll @IntRange(min = 1, max = 1000000) long postId,
+            @ForAll("multipleMediaResourcesWithDifferentTypes") List<PostContent.MediaResource> mediaResources,
+            @ForAll @StringLength(min = 10, max = 1000) String content) {
+
+        // Given: PostContent with multiple media resources of different types
+        PostContent postContent = PostContent.builder()
+                .postId(String.valueOf(postId))
+                .contentType("rich")
+                .raw(content)
+                .html("<p>" + content + "</p>")
+                .text(content)
+                .wordCount(content.split("\\s+").length)
+                .readingTime(1)
+                .media(mediaResources)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        // When: Save to MongoDB
+        repository.save(postContent);
+
+        // Then: Retrieve and verify all media resources maintain their metadata
+        Optional<PostContent> retrieved = repository.findByPostId(String.valueOf(postId));
+
+        assertThat(retrieved).isPresent();
+        PostContent retrievedContent = retrieved.get();
+
+        assertThat(retrievedContent.getMedia()).hasSize(mediaResources.size());
+
+        // Verify each media resource independently
+        for (int i = 0; i < mediaResources.size(); i++) {
+            PostContent.MediaResource original = mediaResources.get(i);
+            PostContent.MediaResource stored = retrievedContent.getMedia().get(i);
+
+            // Each media resource should maintain its complete metadata
+            assertThat(stored.getType()).isEqualTo(original.getType());
+            assertThat(stored.getUrl()).isEqualTo(original.getUrl());
+            assertThat(stored.getThumbnail()).isEqualTo(original.getThumbnail());
+            assertThat(stored.getSize()).isEqualTo(original.getSize());
+            assertThat(stored.getMetadata()).isEqualTo(original.getMetadata());
+        }
+
+        // Verify that different media types don't interfere with each other
+        long distinctTypes = retrievedContent.getMedia().stream()
+                .map(PostContent.MediaResource::getType)
+                .distinct()
+                .count();
+
+        long originalDistinctTypes = mediaResources.stream()
+                .map(PostContent.MediaResource::getType)
+                .distinct()
+                .count();
+
+        assertThat(distinctTypes).isEqualTo(originalDistinctTypes);
+    }
+
+    // ==================== Arbitraries ====================
+
+    /**
+     * 生成包含完整元数据的媒体资源列表
+     */
+    @Provide
+    Arbitrary<List<PostContent.MediaResource>> mediaResourceListWithCompleteMetadata() {
+        return mediaResourceWithCompleteMetadata()
+                .list()
+                .ofMinSize(1)
+                .ofMaxSize(5);
+    }
+
+    /**
+     * 生成包含完整元数据的单个媒体资源
+     */
+    @Provide
+    Arbitrary<PostContent.MediaResource> mediaResourceWithCompleteMetadata() {
+        return Combinators.combine(
+                Arbitraries.of("image", "video", "audio"),
+                Arbitraries.strings().alpha().ofMinLength(10).ofMaxLength(100).map(s -> "https://example.com/" + s),
+                Arbitraries.strings().alpha().ofMinLength(10).ofMaxLength(100).map(s -> "https://example.com/thumb/" + s),
+                Arbitraries.longs().between(1000L, 10000000L),
+                metadataObject()
+        ).as((type, url, thumbnail, size, metadata) ->
+                PostContent.MediaResource.builder()
+                        .type(type)
+                        .url(url)
+                        .thumbnail(thumbnail)
+                        .size(size)
+                        .metadata(metadata)
+                        .build()
+        );
+    }
+
+    /**
+     * 生成可能包含部分元数据的媒体资源
+     */
+    @Provide
+    Arbitrary<PostContent.MediaResource> mediaResourceWithPartialMetadata() {
+        return Combinators.combine(
+                Arbitraries.of("image", "video", "audio"),
+                Arbitraries.strings().alpha().ofMinLength(10).ofMaxLength(100).map(s -> "https://example.com/" + s),
+                Arbitraries.strings().alpha().ofMinLength(10).ofMaxLength(100).map(s -> "https://example.com/thumb/" + s).injectNull(0.3),
+                Arbitraries.longs().between(1000L, 10000000L).injectNull(0.3),
+                metadataObject().injectNull(0.3)
+        ).as((type, url, thumbnail, size, metadata) ->
+                PostContent.MediaResource.builder()
+                        .type(type)
+                        .url(url)
+                        .thumbnail(thumbnail)
+                        .size(size)
+                        .metadata(metadata)
+                        .build()
+        );
+    }
+
+    /**
+     * 生成包含不同类型媒体资源的列表
+     */
+    @Provide
+    Arbitrary<List<PostContent.MediaResource>> multipleMediaResourcesWithDifferentTypes() {
+        Arbitrary<PostContent.MediaResource> imageResource = createMediaResource("image");
+        Arbitrary<PostContent.MediaResource> videoResource = createMediaResource("video");
+        Arbitrary<PostContent.MediaResource> audioResource = createMediaResource("audio");
+
+        return Combinators.combine(
+                imageResource.list().ofMinSize(1).ofMaxSize(2),
+                videoResource.list().ofMinSize(1).ofMaxSize(2),
+                audioResource.list().ofMinSize(0).ofMaxSize(1)
+        ).as((images, videos, audios) -> {
+            List<PostContent.MediaResource> all = new java.util.ArrayList<>(images);
+            all.addAll(videos);
+            all.addAll(audios);
+            return all;
+        });
+    }
+
+    /**
+     * 创建指定类型的媒体资源
+     */
+    private Arbitrary<PostContent.MediaResource> createMediaResource(String type) {
+        return Combinators.combine(
+                Arbitraries.strings().alpha().ofMinLength(10).ofMaxLength(100).map(s -> "https://example.com/" + type + "/" + s),
+                Arbitraries.strings().alpha().ofMinLength(10).ofMaxLength(100).map(s -> "https://example.com/thumb/" + type + "/" + s),
+                Arbitraries.longs().between(1000L, 10000000L),
+                metadataObject()
+        ).as((url, thumbnail, size, metadata) ->
+                PostContent.MediaResource.builder()
+                        .type(type)
+                        .url(url)
+                        .thumbnail(thumbnail)
+                        .size(size)
+                        .metadata(metadata)
+                        .build()
+        );
+    }
+
+    /**
+     * 生成元数据对象（简单的键值对）
+     */
+    @Provide
+    Arbitrary<Object> metadataObject() {
+        return Arbitraries.maps(
+                Arbitraries.of("width", "height", "duration", "format", "codec"),
+                Arbitraries.oneOf(
+                        Arbitraries.integers().between(100, 4000).map(Object.class::cast),
+                        Arbitraries.strings().alpha().ofMinLength(3).ofMaxLength(10).map(Object.class::cast)
+                )
+        ).ofMinSize(1).ofMaxSize(3);
+    }
+}
+

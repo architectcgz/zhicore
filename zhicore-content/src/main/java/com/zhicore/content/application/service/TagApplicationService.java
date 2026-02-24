@@ -4,14 +4,14 @@ import com.zhicore.common.cache.CacheConstants;
 import com.zhicore.common.config.CacheProperties;
 import com.zhicore.common.exception.ResourceNotFoundException;
 import com.zhicore.common.result.PageResult;
-import com.zhicore.content.application.assembler.PostAssembler;
+import com.zhicore.content.application.assembler.PostViewAssembler;
 import com.zhicore.content.application.assembler.TagAssembler;
 import com.zhicore.content.application.dto.PostVO;
 import com.zhicore.content.application.dto.TagDTO;
 import com.zhicore.content.application.dto.TagStatsDTO;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.Tag;
-import com.zhicore.content.domain.repository.PostRepository;
+import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.infrastructure.cache.TagRedisKeys;
@@ -170,7 +170,7 @@ public class TagApplicationService {
         
         // 4. 组装 PostDTO 列表
         List<PostVO> postVOs = orderedPosts.stream()
-                .map(PostAssembler::toVO)
+                .map(PostViewAssembler::toVO)
                 .collect(Collectors.toList());
         
         return PageResult.of(page, size, postIdPage.getTotalElements(), postVOs);

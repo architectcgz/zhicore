@@ -24,6 +24,10 @@
             <groupId>com.zhicore</groupId>
             <artifactId>zhicore-client</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.zhicore</groupId>
+            <artifactId>zhicore-integration</artifactId>
+        </dependency>
 
         <!-- Spring Boot Starters -->
         <dependency>

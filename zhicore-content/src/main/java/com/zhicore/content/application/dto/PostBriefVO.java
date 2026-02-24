@@ -39,10 +39,17 @@ public class PostBriefVO {
 
     private int favoriteCount;
 
-    private long viewCount;
+    private int viewCount;
 
     // 当前用户状态
     private boolean liked;
 
     private boolean favorited;
+
+    // ===== 兼容新查询层命名 =====
+    public void setAuthorId(Long authorId) { this.ownerId = authorId; }
+    public void setAuthorName(String authorName) { this.ownerName = authorName; }
+    public void setAuthorAvatar(String authorAvatar) { this.ownerAvatar = authorAvatar; }
+    public void setCoverImage(String coverImage) { this.coverImageUrl = coverImage; }
+    public void setShareCount(int shareCount) { this.favoriteCount = shareCount; }
 }

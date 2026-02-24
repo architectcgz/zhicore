@@ -24,6 +24,14 @@ public class CreatePostRequest {
     @Schema(description = "文章内容（Markdown格式）", example = "# 简介\n\n这是一篇关于Spring Boot的文章...")
     private String content;
 
+    @Schema(description = "内容类型", 
+            allowableValues = {"markdown", "html", "rich"},
+            defaultValue = "markdown",
+            example = "markdown")
+    @jakarta.validation.constraints.Pattern(regexp = "^(markdown|html|rich)$", 
+             message = "内容类型必须是 markdown、html 或 rich")
+    private String contentType = "markdown";
+
     @Schema(description = "话题ID", example = "1001")
     private Long topicId;
 

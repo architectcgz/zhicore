@@ -2,7 +2,7 @@ package com.zhicore.content.domain.service;
 
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.TagRepository;
-import com.zhicore.content.domain.service.impl.TagDomainServiceImpl;
+import com.zhicore.content.infrastructure.service.TagDomainServiceImpl;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.AlphaChars;
 import net.jqwik.api.constraints.NotBlank;

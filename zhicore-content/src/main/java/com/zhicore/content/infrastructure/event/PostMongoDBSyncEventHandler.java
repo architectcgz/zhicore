@@ -1,12 +1,14 @@
 package com.zhicore.content.infrastructure.event;
 
-import com.zhicore.content.domain.event.PostCreatedEvent;
-import com.zhicore.content.domain.event.PostTagsUpdatedEvent;
+import com.zhicore.content.application.port.store.PostContentStore;
+import com.zhicore.content.domain.event.PostCreatedDomainEvent;
+import com.zhicore.content.domain.event.PostTagsUpdatedDomainEvent;
+import com.zhicore.content.domain.model.PostBody;
+import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.Tag;
-import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
-import com.zhicore.content.infrastructure.mongodb.document.PostDocument;
-import com.zhicore.content.infrastructure.mongodb.repository.PostDocumentRepository;
+import com.zhicore.content.infrastructure.persistence.mongo.document.PostDocument;
+import com.zhicore.content.infrastructure.persistence.mongo.repository.PostDocumentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -14,6 +16,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -31,7 +36,7 @@ public class PostMongoDBSyncEventHandler {
 
     private final PostDocumentRepository postDocumentRepository;
     private final TagRepository tagRepository;
-    private final PostTagRepository postTagRepository;
+    private final PostContentStore postContentStore;
 
     /**
      * 处理文章创建事件
@@ -41,15 +46,19 @@ public class PostMongoDBSyncEventHandler {
      */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handlePostCreated(PostCreatedEvent event) {
+    public void handlePostCreated(PostCreatedDomainEvent event) {
         try {
             log.info("Handling PostCreated event for postId: {}", event.getPostId());
+
+            String content = postContentStore.getContent(event.getPostId())
+                .map(PostBody::getContent)
+                .orElse(null);
 
             // 查询标签信息
             List<PostDocument.TagInfo> tagInfos = new ArrayList<>();
             if (event.getTagIds() != null && !event.getTagIds().isEmpty()) {
                 List<Long> tagIds = event.getTagIds().stream()
-                    .map(Long::parseLong)
+                    .map(tagId -> tagId.getValue())
                     .collect(Collectors.toList());
                 
                 List<Tag> tags = tagRepository.findByIdIn(tagIds);
@@ -64,22 +73,22 @@ public class PostMongoDBSyncEventHandler {
 
             // 创建 MongoDB 文档
             PostDocument document = PostDocument.builder()
-                .postId(event.getPostId())
+                .postId(event.getPostId().getValue().toString())
                 .title(event.getTitle())
-                .content(event.getContent())
+                .content(content)
                 .excerpt(event.getExcerpt())
-                .authorId(event.getAuthorId())
+                .authorId(event.getAuthorId().getValue().toString())
                 .authorName(event.getAuthorName())
                 .tags(tagInfos)
-                .categoryId(event.getCategoryId())
-                .categoryName(event.getCategoryName())
+                .categoryId(event.getTopicId() != null ? event.getTopicId().getValue().toString() : null)
+                .categoryName(event.getTopicName())
                 .status(event.getStatus())
-                .viewCount(0L)
+                .viewCount(0)
                 .likeCount(0)
                 .commentCount(0)
-                .publishedAt(event.getPublishedAt())
-                .createdAt(event.getCreatedAt())
-                .updatedAt(event.getCreatedAt())
+                .publishedAt(toLocalDateTime(event.getPublishedAt()))
+                .createdAt(toLocalDateTime(event.getCreatedAt()))
+                .updatedAt(toLocalDateTime(event.getCreatedAt()))
                 .build();
 
             postDocumentRepository.save(document);
@@ -99,12 +108,12 @@ public class PostMongoDBSyncEventHandler {
      */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handlePostTagsUpdated(PostTagsUpdatedEvent event) {
+    public void handlePostTagsUpdated(PostTagsUpdatedDomainEvent event) {
         try {
             log.info("Handling PostTagsUpdated event for postId: {}", event.getPostId());
 
             // 查询 MongoDB 文档
-            PostDocument document = postDocumentRepository.findByPostId(event.getPostId())
+            PostDocument document = postDocumentRepository.findByPostId(event.getPostId().getValue().toString())
                 .orElse(null);
 
             if (document == null) {
@@ -116,7 +125,7 @@ public class PostMongoDBSyncEventHandler {
             List<PostDocument.TagInfo> tagInfos = new ArrayList<>();
             if (event.getNewTagIds() != null && !event.getNewTagIds().isEmpty()) {
                 List<Long> tagIds = event.getNewTagIds().stream()
-                    .map(Long::parseLong)
+                    .map(tagId -> tagId.getValue())
                     .collect(Collectors.toList());
                 
                 List<Tag> tags = tagRepository.findByIdIn(tagIds);
@@ -131,7 +140,7 @@ public class PostMongoDBSyncEventHandler {
 
             // 更新标签信息
             document.setTags(tagInfos);
-            document.setUpdatedAt(event.getUpdatedAt());
+            document.setUpdatedAt(toLocalDateTime(event.getUpdatedAt()));
 
             postDocumentRepository.save(document);
             log.info("Successfully updated post tags in MongoDB: postId={}", event.getPostId());
@@ -141,4 +150,12 @@ public class PostMongoDBSyncEventHandler {
             // 不抛出异常，避免影响主流程
         }
     }
+
+    private LocalDateTime toLocalDateTime(Instant value) {
+        if (value == null) {
+            return null;
+        }
+        return LocalDateTime.ofInstant(value, ZoneId.systemDefault());
+    }
 }
+

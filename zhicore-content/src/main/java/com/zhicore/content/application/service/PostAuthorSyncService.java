@@ -1,7 +1,7 @@
 package com.zhicore.content.application.service;
 
 import com.zhicore.api.event.user.UserProfileUpdatedEvent;
-import com.zhicore.content.domain.repository.PostRepository;
+import com.zhicore.content.application.port.repo.PostRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

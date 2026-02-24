@@ -1,8 +1,9 @@
 package com.zhicore.content.infrastructure.service;
 
 import com.zhicore.content.domain.service.ContentProcessor;
+import com.zhicore.content.domain.valueobject.ContentBlock;
+import com.zhicore.content.domain.valueobject.MediaResource;
 import com.zhicore.content.infrastructure.config.ContentProperties;
-import com.zhicore.content.infrastructure.mongodb.document.PostContent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,15 +51,15 @@ public class ContentProcessorImpl implements ContentProcessor {
     );
 
     @Override
-    public List<PostContent.ContentBlock> processContentBlocks(List<PostContent.ContentBlock> blocks) {
+    public List<ContentBlock> processContentBlocks(List<ContentBlock> blocks) {
         if (blocks == null || blocks.isEmpty()) {
             return new ArrayList<>();
         }
 
-        List<PostContent.ContentBlock> processedBlocks = new ArrayList<>();
+        List<ContentBlock> processedBlocks = new ArrayList<>();
         
         for (int i = 0; i < blocks.size(); i++) {
-            PostContent.ContentBlock block = blocks.get(i);
+            ContentBlock block = blocks.get(i);
             
             // 验证块类型
             if (block.getType() == null || !SUPPORTED_BLOCK_TYPES.contains(block.getType())) {
@@ -84,19 +85,19 @@ public class ContentProcessorImpl implements ContentProcessor {
     }
 
     @Override
-    public List<PostContent.MediaResource> extractMediaMetadata(String content) {
+    public List<MediaResource> extractMediaMetadata(String content) {
         if (content == null || content.trim().isEmpty()) {
             return new ArrayList<>();
         }
 
-        List<PostContent.MediaResource> mediaList = new ArrayList<>();
+        List<MediaResource> mediaList = new ArrayList<>();
 
         // 提取图片
         Matcher imageMatcher = IMAGE_PATTERN.matcher(content);
         while (imageMatcher.find()) {
             String url = imageMatcher.group(2) != null ? imageMatcher.group(2) : imageMatcher.group(3);
             if (url != null && !url.trim().isEmpty()) {
-                PostContent.MediaResource media = PostContent.MediaResource.builder()
+                MediaResource media = MediaResource.builder()
                         .type("image")
                         .url(url.trim())
                         .build();
@@ -109,7 +110,7 @@ public class ContentProcessorImpl implements ContentProcessor {
         while (videoMatcher.find()) {
             String url = videoMatcher.group(1) != null ? videoMatcher.group(1) : videoMatcher.group(2);
             if (url != null && !url.trim().isEmpty()) {
-                PostContent.MediaResource media = PostContent.MediaResource.builder()
+                MediaResource media = MediaResource.builder()
                         .type("video")
                         .url(url.trim())
                         .build();
@@ -173,7 +174,7 @@ public class ContentProcessorImpl implements ContentProcessor {
     }
 
     @Override
-    public String serializeContentBlocks(List<PostContent.ContentBlock> blocks) {
+    public String serializeContentBlocks(List<ContentBlock> blocks) {
         if (blocks == null || blocks.isEmpty()) {
             return "[]";
         }
@@ -187,13 +188,13 @@ public class ContentProcessorImpl implements ContentProcessor {
     }
 
     @Override
-    public List<PostContent.ContentBlock> deserializeContentBlocks(String json) {
+    public List<ContentBlock> deserializeContentBlocks(String json) {
         if (json == null || json.trim().isEmpty() || "[]".equals(json.trim())) {
             return new ArrayList<>();
         }
 
         try {
-            return objectMapper.readValue(json, new TypeReference<List<PostContent.ContentBlock>>() {});
+            return objectMapper.readValue(json, new TypeReference<List<ContentBlock>>() {});
         } catch (JsonProcessingException e) {
             log.error("Failed to deserialize content blocks: {}", json, e);
             throw new RuntimeException("Failed to deserialize content blocks", e);
