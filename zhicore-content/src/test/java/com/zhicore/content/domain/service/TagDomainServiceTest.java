@@ -3,6 +3,8 @@ package com.zhicore.content.domain.service;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.infrastructure.service.TagDomainServiceImpl;
+import com.zhicore.clients.client.IdGeneratorFeignClient;
+import com.zhicore.common.result.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,11 +33,15 @@ class TagDomainServiceTest {
     @Mock
     private TagRepository tagRepository;
 
+    @Mock
+    private IdGeneratorFeignClient idGeneratorFeignClient;
+
     private TagDomainService tagDomainService;
 
     @BeforeEach
     void setUp() {
-        tagDomainService = new TagDomainServiceImpl(tagRepository);
+        when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(1L));
+        tagDomainService = new TagDomainServiceImpl(tagRepository, idGeneratorFeignClient);
     }
 
     // ==================== Slug 规范化测试 ====================

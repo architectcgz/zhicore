@@ -3,6 +3,8 @@ package com.zhicore.content.domain.service;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.infrastructure.service.TagDomainServiceImpl;
+import com.zhicore.clients.client.IdGeneratorFeignClient;
+import com.zhicore.common.result.ApiResponse;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.AlphaChars;
 import net.jqwik.api.constraints.NotBlank;
@@ -26,7 +28,9 @@ class TagDomainServicePropertyTest {
     // 为每个测试创建新的服务实例
     private TagDomainService createService() {
         TagRepository mockRepository = Mockito.mock(TagRepository.class);
-        return new TagDomainServiceImpl(mockRepository);
+        IdGeneratorFeignClient mockIdClient = Mockito.mock(IdGeneratorFeignClient.class);
+        Mockito.when(mockIdClient.generateSnowflakeId()).thenReturn(ApiResponse.success(1L));
+        return new TagDomainServiceImpl(mockRepository, mockIdClient);
     }
 
     // ==================== Property 2: Slug 规范化一致性 ====================
@@ -282,7 +286,9 @@ class TagDomainServicePropertyTest {
         
         // 创建 mock repository
         TagRepository mockRepository = Mockito.mock(TagRepository.class);
-        TagDomainService service = new TagDomainServiceImpl(mockRepository);
+        IdGeneratorFeignClient mockIdClient = Mockito.mock(IdGeneratorFeignClient.class);
+        Mockito.when(mockIdClient.generateSnowflakeId()).thenReturn(ApiResponse.success(11111L));
+        TagDomainService service = new TagDomainServiceImpl(mockRepository, mockIdClient);
         
         try {
             // 规范化 slug
@@ -358,7 +364,9 @@ class TagDomainServicePropertyTest {
         
         // 创建 mock repository
         TagRepository mockRepository = Mockito.mock(TagRepository.class);
-        TagDomainService service = new TagDomainServiceImpl(mockRepository);
+        IdGeneratorFeignClient mockIdClient = Mockito.mock(IdGeneratorFeignClient.class);
+        Mockito.when(mockIdClient.generateSnowflakeId()).thenReturn(ApiResponse.success(67890L));
+        TagDomainService service = new TagDomainServiceImpl(mockRepository, mockIdClient);
         
         try {
             // 规范化 slug
@@ -447,7 +455,9 @@ class TagDomainServicePropertyTest {
         
         // 创建 mock repository
         TagRepository mockRepository = Mockito.mock(TagRepository.class);
-        TagDomainService service = new TagDomainServiceImpl(mockRepository);
+        IdGeneratorFeignClient mockIdClient = Mockito.mock(IdGeneratorFeignClient.class);
+        Mockito.when(mockIdClient.generateSnowflakeId()).thenReturn(ApiResponse.success(11111L));
+        TagDomainService service = new TagDomainServiceImpl(mockRepository, mockIdClient);
         
         try {
             // 规范化 slug

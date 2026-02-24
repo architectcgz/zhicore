@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.content.domain.repository.PostFavoriteRepository;
 import com.zhicore.content.domain.repository.PostLikeRepository;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -18,6 +16,8 @@ import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 集成测试基类
@@ -44,7 +44,8 @@ import org.testcontainers.utility.DockerImageName;
     "cache.lock.wait-time=5",
     "cache.lock.lease-time=10",
     "spring.sql.init.mode=always",
-    "spring.sql.init.schema-locations=classpath:db/schema.sql"
+    "spring.sql.init.schema-locations=classpath:db/schema.sql",
+    "spring.task.scheduling.enabled=false"
 })
 @Testcontainers
 public abstract class IntegrationTestBase {
@@ -74,6 +75,12 @@ public abstract class IntegrationTestBase {
     protected static final GenericContainer<?> REDIS_CONTAINER = 
         new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
             .withExposedPorts(6379);
+
+    /**
+     * 说明：Spring 测试上下文会在 @DynamicPropertySource 阶段读取容器端口信息。
+     * 因此必须在注册属性前确保容器已启动，否则可能拿到“未启动时的随机端口”，导致连接被拒绝。
+     */
+    private static final AtomicBoolean CONTAINERS_STARTED = new AtomicBoolean(false);
     
     @Autowired
     protected ObjectMapper objectMapper;
@@ -84,18 +91,29 @@ public abstract class IntegrationTestBase {
     @Autowired(required = false)
     protected RedisTemplate<String, String> redisTemplate;
     
-    @BeforeAll
-    static void startContainers() {
-        POSTGRES_CONTAINER.start();
-        MONGO_CONTAINER.start();
-        REDIS_CONTAINER.start();
-    }
-    
-    @AfterAll
-    static void stopContainers() {
-        POSTGRES_CONTAINER.stop();
-        MONGO_CONTAINER.stop();
-        REDIS_CONTAINER.stop();
+    private static void ensureContainersStarted() {
+        if (CONTAINERS_STARTED.compareAndSet(false, true)) {
+            POSTGRES_CONTAINER.start();
+            MONGO_CONTAINER.start();
+            REDIS_CONTAINER.start();
+
+            // 说明：避免使用 @AfterAll（会在每个测试类结束时触发），导致后续测试类复用已停止的容器连接信息。
+            // 统一交由 JVM 退出时清理，确保同一 fork 内的多个测试类可以复用同一套容器。
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    POSTGRES_CONTAINER.stop();
+                } catch (Exception ignored) {
+                }
+                try {
+                    MONGO_CONTAINER.stop();
+                } catch (Exception ignored) {
+                }
+                try {
+                    REDIS_CONTAINER.stop();
+                } catch (Exception ignored) {
+                }
+            }, "testcontainers-shutdown"));
+        }
     }
     
     /**
@@ -105,6 +123,8 @@ public abstract class IntegrationTestBase {
      */
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
+        ensureContainersStarted();
+
         // PostgreSQL 配置
         registry.add("spring.datasource.url", POSTGRES_CONTAINER::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES_CONTAINER::getUsername);
