@@ -16,6 +16,7 @@ import net.sourceforge.pinyin4j.format.HanyuPinyinVCharType;
 import net.sourceforge.pinyin4j.format.exception.BadHanyuPinyinOutputFormatCombination;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -142,6 +143,7 @@ public class TagDomainServiceImpl implements TagDomainService {
      * 批量查找或创建标签
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public List<Tag> findOrCreateBatch(List<String> names) {
         if (names == null || names.isEmpty()) {
             return new ArrayList<>();
@@ -152,16 +154,33 @@ public class TagDomainServiceImpl implements TagDomainService {
                 .distinct()
                 .collect(Collectors.toList());
 
-        // 逐个处理（简单实现，可以优化为批量查询）
+        // 逐个处理：任一失败则整批回滚，并返回失败标签与原因（R17）
         List<Tag> tags = new ArrayList<>();
+        List<com.zhicore.common.exception.ValidationException.FieldError> errors = new ArrayList<>();
+
         for (String name : uniqueNames) {
             try {
                 Tag tag = findOrCreate(name);
                 tags.add(tag);
+            } catch (ServiceUnavailableException e) {
+                // ID 服务不可用等场景，直接按 503 返回，整批回滚
+                throw e;
+            } catch (IllegalArgumentException e) {
+                errors.add(new com.zhicore.common.exception.ValidationException.FieldError(
+                        "tags",
+                        "标签【" + name + "】创建失败: " + e.getMessage()
+                ));
             } catch (Exception e) {
-                log.error("Failed to find or create tag: {}", name, e);
-                // 继续处理其他标签
+                log.error("批量创建标签失败: name={}", name, e);
+                errors.add(new com.zhicore.common.exception.ValidationException.FieldError(
+                        "tags",
+                        "标签【" + name + "】创建失败: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName())
+                ));
             }
+        }
+
+        if (!errors.isEmpty()) {
+            throw new com.zhicore.common.exception.ValidationException(errors);
         }
 
         return tags;

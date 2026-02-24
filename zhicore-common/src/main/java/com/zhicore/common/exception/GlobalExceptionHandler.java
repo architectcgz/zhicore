@@ -118,7 +118,7 @@ public class GlobalExceptionHandler {
     public ApiResponse<Object> handleValidationException(ValidationException e) {
         log.warn("参数校验失败: {}", e.getMessage());
         if (e.getFieldErrors() != null && !e.getFieldErrors().isEmpty()) {
-            return ApiResponse.fail(ResultCode.PARAM_ERROR.getCode(), e.getMessage());
+            return ApiResponse.fail(ResultCode.PARAM_ERROR.getCode(), e.getMessage(), e.getFieldErrors());
         }
         return ApiResponse.fail(ResultCode.PARAM_ERROR, e.getMessage());
     }
