@@ -33,7 +33,7 @@ public class PostScheduleConsumer implements RocketMQListener<String> {
             PostScheduleExecuteIntegrationEvent event = JsonUtils.fromJson(message, PostScheduleExecuteIntegrationEvent.class);
             log.info("Received schedule execute event: postId={}", event.getPostId());
             
-            postApplicationService.executeScheduledPublish(event.getPostId());
+            postApplicationService.consumeScheduledPublish(event);
             
         } catch (Exception e) {
             log.error("Failed to process schedule execute event: {}", message, e);

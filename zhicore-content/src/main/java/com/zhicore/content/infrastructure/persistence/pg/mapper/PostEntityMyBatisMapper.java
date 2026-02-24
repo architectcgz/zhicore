@@ -5,7 +5,9 @@ import com.zhicore.content.infrastructure.persistence.pg.entity.PostEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -78,6 +80,65 @@ public interface PostEntityMyBatisMapper extends BaseMapper<PostEntity> {
                                    @Param("limit") int limit);
 
     /**
+     * 已发布列表复合游标分页（R10）
+     *
+     * 条件：(published_at, id) < (?, ?) 且固定排序 published_at DESC, id DESC
+     */
+    @Select("""
+            SELECT *
+            FROM posts
+            WHERE status = 1
+              AND (
+                    #{cursorPublishedAt} IS NULL
+                    OR (published_at, id) < (#{cursorPublishedAt}, #{cursorPostId})
+                  )
+            ORDER BY published_at DESC, id DESC
+            LIMIT #{limit}
+            """)
+    List<PostEntity> selectPublishedCursor(
+            @Param("cursorPublishedAt") LocalDateTime cursorPublishedAt,
+            @Param("cursorPostId") Long cursorPostId,
+            @Param("limit") int limit
+    );
+
+    /**
+     * 已发布列表热门排序（R7/R8：POPULAR 使用 page 偏移分页）
+     */
+    @Select("""
+            SELECT p.*
+            FROM posts p
+            LEFT JOIN post_stats s ON p.id = s.post_id
+            WHERE p.status = 1
+            ORDER BY COALESCE(s.view_count, 0) DESC, p.published_at DESC, p.id DESC
+            LIMIT #{limit} OFFSET #{offset}
+            """)
+    List<PostEntity> selectPublishedPopular(
+            @Param("offset") long offset,
+            @Param("limit") int limit
+    );
+
+    /**
+     * 定时发布幂等条件更新（R1）
+     *
+     * 注意：使用 PostgreSQL 的 RETURNING 返回更新后的 version，避免额外查询。
+     */
+    @Select("""
+            UPDATE posts
+            SET status = 1,
+                published_at = #{publishedAt},
+                scheduled_at = NULL,
+                updated_at = CURRENT_TIMESTAMP,
+                version = version + 1
+            WHERE id = #{postId}
+              AND status = 2
+            RETURNING version
+            """)
+    Long publishScheduledIfNeeded(
+            @Param("postId") Long postId,
+            @Param("publishedAt") LocalDateTime publishedAt
+    );
+
+    /**
      * 根据写入状态查询文章列表
      * 
      * 用于清理任务，查询标记为 INCOMPLETE 的文章。
@@ -104,7 +165,7 @@ public interface PostEntityMyBatisMapper extends BaseMapper<PostEntity> {
      * @param version 新的版本号
      * @return 更新的文章数量
      */
-    @Select("""
+    @Update("""
             UPDATE posts 
             SET owner_name = #{nickname},
                 owner_avatar_id = #{avatarId},

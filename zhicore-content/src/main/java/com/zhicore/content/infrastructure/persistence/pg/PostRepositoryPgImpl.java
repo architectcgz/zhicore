@@ -1,6 +1,8 @@
 package com.zhicore.content.infrastructure.persistence.pg;
 
 import com.zhicore.common.exception.DomainException;
+import com.zhicore.common.exception.OptimisticLockException;
+import com.zhicore.common.exception.ResourceNotFoundException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.zhicore.content.application.port.repo.PostRepository;
@@ -87,7 +89,11 @@ public class PostRepositoryPgImpl implements PostRepository {
         int rows = mybatisMapper.updateById(entity);
         
         if (rows == 0) {
-            throw new DomainException("更新文章失败，可能是乐观锁冲突或文章不存在: " + post.getId().getValue());
+            PostEntity existing = mybatisMapper.selectById(post.getId().getValue());
+            if (existing == null) {
+                throw new ResourceNotFoundException("文章不存在");
+            }
+            throw OptimisticLockException.concurrentUpdateConflict();
         }
         
         // 更新标签关联
@@ -234,23 +240,32 @@ public class PostRepositoryPgImpl implements PostRepository {
                 new LambdaQueryWrapper<PostEntity>()
                         .eq(PostEntity::getStatus, PostStatus.PUBLISHED.getCode())
                         .orderByDesc(PostEntity::getPublishedAt)
+                        .orderByDesc(PostEntity::getId)
                         .last("LIMIT " + limit + " OFFSET " + offset)
         ).stream().map(entityMapper::toDomain).collect(Collectors.toList());
     }
 
     @Override
-    public List<Post> findPublishedCursor(LocalDateTime cursor, int limit) {
-        LambdaQueryWrapper<PostEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostEntity::getStatus, PostStatus.PUBLISHED.getCode())
-                .orderByDesc(PostEntity::getPublishedAt)
-                .last("LIMIT " + limit);
-        if (cursor != null) {
-            wrapper.lt(PostEntity::getPublishedAt, cursor);
-        }
+    public List<Post> findPublishedCursor(LocalDateTime cursorPublishedAt, Long cursorPostId, int limit) {
+        // 兼容：如果只传了时间游标但没有 id，则跳过同一时间戳的记录，避免重复
+        Long safeCursorId = cursorPublishedAt == null ? null : (cursorPostId == null ? 0L : cursorPostId);
 
-        return mybatisMapper.selectList(wrapper).stream()
+        return mybatisMapper.selectPublishedCursor(cursorPublishedAt, safeCursorId, limit).stream()
                 .map(entityMapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Post> findPublishedPopular(int offset, int limit) {
+        return mybatisMapper.selectPublishedPopular(offset, limit).stream()
+                .map(entityMapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<Long> publishScheduledIfNeeded(Long postId, LocalDateTime publishedAt) {
+        Long version = mybatisMapper.publishScheduledIfNeeded(postId, publishedAt);
+        return Optional.ofNullable(version);
     }
 
     @Override

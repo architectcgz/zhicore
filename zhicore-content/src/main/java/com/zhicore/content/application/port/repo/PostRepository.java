@@ -107,7 +107,28 @@ public interface PostRepository {
 
     List<Post> findPublished(int offset, int limit);
 
-    List<Post> findPublishedCursor(LocalDateTime cursor, int limit);
+    default List<Post> findPublishedCursor(LocalDateTime cursor, int limit) {
+        return findPublishedCursor(cursor, null, limit);
+    }
+
+    /**
+     * 复合游标分页（published_at + id）
+     *
+     * 约束：ORDER BY published_at DESC, id DESC
+     */
+    List<Post> findPublishedCursor(LocalDateTime cursorPublishedAt, Long cursorPostId, int limit);
+
+    /**
+     * 热门排序（偏移分页）
+     */
+    List<Post> findPublishedPopular(int offset, int limit);
+
+    /**
+     * 定时发布幂等条件更新（R1）
+     *
+     * @return 若成功发布，返回新的 version；否则返回 empty（幂等 no-op）
+     */
+    Optional<Long> publishScheduledIfNeeded(Long postId, LocalDateTime publishedAt);
 
     long countPublished();
 

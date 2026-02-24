@@ -23,9 +23,13 @@ import com.zhicore.content.application.command.handlers.UpdatePostMetaHandler;
 import com.zhicore.content.application.mapper.EventMapper;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
+import com.zhicore.content.application.port.repo.ScheduledPublishEventRepository;
 import com.zhicore.content.application.workflow.CreateDraftWorkflow;
 import com.zhicore.content.application.workflow.PublishPostWorkflow;
 import com.zhicore.content.application.query.PostQuery;
+import com.zhicore.content.application.query.model.CursorToken;
+import com.zhicore.content.application.query.model.PostListQuery;
+import com.zhicore.content.application.query.model.PostListSort;
 import com.zhicore.content.application.query.view.PostDetailView;
 import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.application.dto.PostBriefVO;
@@ -55,12 +59,14 @@ import com.zhicore.content.interfaces.dto.request.UpdatePostRequest;
 import com.zhicore.content.infrastructure.persistence.mongo.document.PostContent;
 import com.zhicore.content.interfaces.dto.request.SaveDraftRequest;
 import com.zhicore.content.interfaces.dto.response.DraftVO;
+import com.zhicore.content.infrastructure.config.ScheduledPublishProperties;
 import com.zhicore.integration.messaging.post.AuthorInfoCompensationIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostPublishedIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostScheduledIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostTagsUpdatedIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostUpdatedIntegrationEvent;
+import com.zhicore.content.infrastructure.persistence.pg.entity.ScheduledPublishEventEntity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -68,7 +74,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -105,6 +111,10 @@ public class PostApplicationService {
     private final EventPublisher domainEventPublisher;
     private final IntegrationEventPublisher integrationEventPublisher;
     private final EventMapper eventMapper;
+
+    // 定时发布（R1）
+    private final ScheduledPublishEventRepository scheduledPublishEventRepository;
+    private final ScheduledPublishProperties scheduledPublishProperties;
 
     /**
      * 创建文章（草稿）
@@ -472,17 +482,38 @@ public class PostApplicationService {
         // 保存
         postRepository.update(post);
 
-        // 计算延迟级别
-        int delayLevel = calculateDelayLevel(scheduledAt);
+        // 统一以数据库时间计算延迟，避免应用节点时钟漂移
+        LocalDateTime dbNow = scheduledPublishEventRepository.dbNow();
+        long initialDelaySeconds = java.time.Duration.between(dbNow, scheduledAt).getSeconds();
+        int delayLevel = calculateDelayLevelBySeconds(Math.max(0, initialDelaySeconds));
+
+        // 为本次“执行定时发布”创建跟踪事件（与 Outbox/MQ 的 event_id 对齐）
+        String scheduleExecuteEventId = newEventId();
+        ScheduledPublishEventEntity record = new ScheduledPublishEventEntity();
+        record.setEventId(scheduleExecuteEventId);
+        record.setPostId(postId);
+        record.setScheduledAt(scheduledAt);
+        record.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.PENDING);
+        record.setRescheduleRetryCount(0);
+        record.setPublishRetryCount(0);
+        record.setLastEnqueueAt(dbNow);
+        record.setCreatedAt(dbNow);
+        record.setUpdatedAt(dbNow);
+        scheduledPublishEventRepository.save(record);
+
+        // 读取最新版本号作为 aggregateVersion（确保 Outbox 版本语义正确）
+        Long aggregateVersion = postRepository.findById(postId)
+                .map(Post::getVersion)
+                .orElse(post.getVersion());
 
         // 发布延迟执行事件（通过 Outbox 投递）
         integrationEventPublisher.publish(new PostScheduleExecuteIntegrationEvent(
-                newEventId(),
+                scheduleExecuteEventId,
                 Instant.now(),
-                post.getVersion(),
+                aggregateVersion,
                 postId,
                 userId,
-                scheduledAt.atZone(java.time.ZoneId.systemDefault()).toInstant(),
+                scheduledAt.atZone(ZoneId.systemDefault()).toInstant(),
                 delayLevel
         ));
 
@@ -490,10 +521,10 @@ public class PostApplicationService {
         integrationEventPublisher.publish(new PostScheduledIntegrationEvent(
                 newEventId(),
                 Instant.now(),
-                post.getVersion(),
+                aggregateVersion,
                 postId,
                 userId,
-                scheduledAt.atZone(java.time.ZoneId.systemDefault()).toInstant()
+                scheduledAt.atZone(ZoneId.systemDefault()).toInstant()
         ));
 
         log.info("Post scheduled: postId={}, userId={}, scheduledAt={}", postId, userId, scheduledAt);
@@ -525,34 +556,204 @@ public class PostApplicationService {
      */
     @Transactional
     public void executeScheduledPublish(Long postId) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new BusinessException(ResultCode.NOT_FOUND, "文章不存在"));
+        // 兼容旧调用：没有 eventId 时，尽量按 postId 找到活跃事件进行处理
+        PostScheduleExecuteIntegrationEvent synthetic = new PostScheduleExecuteIntegrationEvent(
+                newEventId(),
+                Instant.now(),
+                0L,
+                postId,
+                null,
+                Instant.now(),
+                0
+        );
+        consumeScheduledPublish(synthetic);
+    }
 
-        // 检查是否仍为定时发布状态
-        if (post.getStatus() != PostStatus.SCHEDULED) {
-            log.info("Post is not in scheduled status, skip: postId={}, status={}", 
-                    postId, post.getStatus());
+    /**
+     * 消费“定时发布执行”事件（R1）
+     *
+     * 关键点：
+     * - 必须使用数据库时间做门禁（db_now < scheduled_at 时不发布）
+     * - 发布操作必须为单条条件更新（幂等）
+     * - 未到点需按退避策略重入队，超过上限则转入 SCHEDULED_PENDING 由扫描任务兜底
+     */
+    @Transactional
+    public void consumeScheduledPublish(PostScheduleExecuteIntegrationEvent message) {
+        Long postId = message.getPostId();
+
+        LocalDateTime appNow = LocalDateTime.now();
+        LocalDateTime dbNow = scheduledPublishEventRepository.dbNow();
+        LocalDateTime scheduledAt = LocalDateTime.ofInstant(message.getScheduledAt(), ZoneId.systemDefault());
+
+        ScheduledPublishEventEntity record = scheduledPublishEventRepository.findByEventId(message.getEventId())
+                .or(() -> scheduledPublishEventRepository.findActiveByPostId(postId))
+                .orElseGet(() -> {
+                    ScheduledPublishEventEntity created = new ScheduledPublishEventEntity();
+                    created.setEventId(message.getEventId());
+                    created.setPostId(postId);
+                    created.setScheduledAt(scheduledAt);
+                    created.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.PENDING);
+                    created.setRescheduleRetryCount(0);
+                    created.setPublishRetryCount(0);
+                    created.setLastEnqueueAt(null);
+                    created.setCreatedAt(dbNow);
+                    created.setUpdatedAt(dbNow);
+                    scheduledPublishEventRepository.save(created);
+                    return created;
+                });
+
+        // 以记录内的 scheduledAt 为准（避免消息乱序/重复导致的覆盖）
+        LocalDateTime effectiveScheduledAt = record.getScheduledAt();
+        if (effectiveScheduledAt == null) {
+            effectiveScheduledAt = scheduledAt;
+        }
+
+        log.info("Consume scheduled publish: postId={}, scheduledAt={}, appNow={}, dbNow={}, rescheduleRetry={}, publishRetry={}, status={}",
+                postId,
+                effectiveScheduledAt,
+                appNow,
+                dbNow,
+                record.getRescheduleRetryCount(),
+                record.getPublishRetryCount(),
+                record.getStatus());
+
+        if (dbNow.isBefore(effectiveScheduledAt)) {
+            handleNotDue(record, dbNow, effectiveScheduledAt, message);
             return;
         }
 
-        // 执行发布
-        post.executeScheduledPublish();
+        handleDue(record, dbNow, effectiveScheduledAt);
+        return;
+    }
 
-        // 保存
-        postRepository.update(post);
+    private void handleNotDue(
+            ScheduledPublishEventEntity record,
+            LocalDateTime dbNow,
+            LocalDateTime scheduledAt,
+            PostScheduleExecuteIntegrationEvent message
+    ) {
+        long remainingSeconds = java.time.Duration.between(dbNow, scheduledAt).getSeconds();
+        int currentRetry = record.getRescheduleRetryCount() != null ? record.getRescheduleRetryCount() : 0;
 
-        // 发布集成事件（通过 Outbox 投递）
-        integrationEventPublisher.publish(new PostPublishedIntegrationEvent(
-                newEventId(),
-                Instant.now(),
-                postId,
-                post.getPublishedAt() != null
-                        ? post.getPublishedAt().atZone(java.time.ZoneId.systemDefault()).toInstant()
-                        : Instant.now(),
-                post.getVersion()
-        ));
+        if (currentRetry < scheduledPublishProperties.getMaxRescheduleRetries()) {
+            long backoffMinutes = 1L << Math.min(currentRetry, 20); // 防止位移溢出
+            long targetDelaySeconds = Math.min(
+                    remainingSeconds,
+                    Math.min(backoffMinutes * 60, scheduledPublishProperties.getMaxDelayMinutes() * 60L)
+            );
 
-        log.info("Scheduled post published: postId={}", postId);
+            int delayLevel = calculateDelayLevelBySeconds(Math.max(1, targetDelaySeconds));
+            String newEventId = newEventId();
+
+            record.setEventId(newEventId);
+            record.setRescheduleRetryCount(currentRetry + 1);
+            record.setLastEnqueueAt(dbNow);
+            record.setUpdatedAt(dbNow);
+            record.setLastError("未到点，重入队 remainingSeconds=" + remainingSeconds + ", delayLevel=" + delayLevel);
+            scheduledPublishEventRepository.update(record);
+
+            Long aggregateVersion = postRepository.findById(record.getPostId())
+                    .map(Post::getVersion)
+                    .orElse(0L);
+
+            integrationEventPublisher.publish(new PostScheduleExecuteIntegrationEvent(
+                    newEventId,
+                    Instant.now(),
+                    aggregateVersion,
+                    record.getPostId(),
+                    message.getAuthorId(),
+                    scheduledAt.atZone(ZoneId.systemDefault()).toInstant(),
+                    delayLevel
+            ));
+            return;
+        }
+
+        record.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.SCHEDULED_PENDING);
+        record.setUpdatedAt(dbNow);
+        record.setLastError("未到点且重入队达到上限，转入 SCHEDULED_PENDING 由扫描任务兜底");
+        scheduledPublishEventRepository.update(record);
+    }
+
+    private void handleDue(ScheduledPublishEventEntity record, LocalDateTime dbNow, LocalDateTime scheduledAt) {
+        try {
+            Optional<Long> newVersion = postRepository.publishScheduledIfNeeded(record.getPostId(), dbNow);
+            if (newVersion.isPresent()) {
+                record.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.PUBLISHED);
+                record.setUpdatedAt(dbNow);
+                record.setLastError(null);
+                scheduledPublishEventRepository.update(record);
+
+                integrationEventPublisher.publish(new PostPublishedIntegrationEvent(
+                        newEventId(),
+                        Instant.now(),
+                        record.getPostId(),
+                        dbNow.atZone(ZoneId.systemDefault()).toInstant(),
+                        newVersion.get()
+                ));
+                return;
+            }
+
+            // 幂等 no-op：区分已发布 vs 非法状态/不存在
+            Post existing = postRepository.findById(record.getPostId()).orElse(null);
+            if (existing == null) {
+                record.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.FAILED);
+                record.setUpdatedAt(dbNow);
+                record.setLastError("发布 no-op 且文章不存在");
+                scheduledPublishEventRepository.update(record);
+                return;
+            }
+
+            if (existing.getStatus() == PostStatus.PUBLISHED) {
+                record.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.PUBLISHED);
+                record.setUpdatedAt(dbNow);
+                record.setLastError(null);
+                scheduledPublishEventRepository.update(record);
+                return;
+            }
+
+            record.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.FAILED);
+            record.setUpdatedAt(dbNow);
+            record.setLastError("发布 no-op 且文章状态非法: " + existing.getStatus());
+            scheduledPublishEventRepository.update(record);
+        } catch (Exception e) {
+            int currentRetry = record.getPublishRetryCount() != null ? record.getPublishRetryCount() : 0;
+            if (currentRetry < scheduledPublishProperties.getMaxPublishRetries()) {
+                long backoffMinutes = 1L << Math.min(currentRetry, 20);
+                long targetDelaySeconds = Math.min(backoffMinutes * 60, scheduledPublishProperties.getMaxDelayMinutes() * 60L);
+                int delayLevel = calculateDelayLevelBySeconds(Math.max(1, targetDelaySeconds));
+
+                String newEventId = newEventId();
+                record.setEventId(newEventId);
+                record.setPublishRetryCount(currentRetry + 1);
+                record.setLastEnqueueAt(dbNow);
+                record.setUpdatedAt(dbNow);
+                record.setLastError("发布失败重试: " + e.getMessage());
+                scheduledPublishEventRepository.update(record);
+
+                Long aggregateVersion = postRepository.findById(record.getPostId())
+                        .map(Post::getVersion)
+                        .orElse(0L);
+
+                integrationEventPublisher.publish(new PostScheduleExecuteIntegrationEvent(
+                        newEventId,
+                        Instant.now(),
+                        aggregateVersion,
+                        record.getPostId(),
+                        null,
+                        scheduledAt.atZone(ZoneId.systemDefault()).toInstant(),
+                        delayLevel
+                ));
+                return;
+            }
+
+            record.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.FAILED);
+            record.setUpdatedAt(dbNow);
+            record.setLastError("发布失败且达到重试上限: " + e.getMessage());
+            scheduledPublishEventRepository.update(record);
+
+            // TODO: 投递 DLQ 与告警（Phase 2/3 统一补齐）
+            log.error("Scheduled publish failed after retries: postId={}, error={}", record.getPostId(), e.getMessage(), e);
+        }
     }
 
     /**
@@ -624,7 +825,7 @@ public class PostApplicationService {
         vo.setRaw(detailView.getContent());
         vo.setExcerpt(detailView.getExcerpt());
         vo.setStatus(detailView.getStatus().name());
-        vo.setPublishedAt(detailView.getCreatedAt()); // 使用 createdAt 作为 publishedAt
+        vo.setPublishedAt(detailView.getPublishedAt());
         vo.setScheduledAt(detailView.getScheduledPublishAt());
         vo.setCreatedAt(detailView.getCreatedAt());
         vo.setUpdatedAt(detailView.getUpdatedAt());
@@ -827,6 +1028,30 @@ public class PostApplicationService {
     }
 
     /**
+     * 统一列表查询入口（R7/R8）
+     */
+    @Transactional(readOnly = true)
+    public HybridPageResult<PostBriefVO> getPostList(PostListQuery query) {
+        PostListQuery safeQuery = query != null ? query : PostListQuery.builder().build();
+        safeQuery.validate();
+
+        PostListSort sort = safeQuery.normalizedSort();
+        int size = safeQuery.normalizedSize();
+
+        if (sort == PostListSort.LATEST) {
+            return queryPublishedPostsCursor(safeQuery.getCursor(), size);
+        }
+
+        int page = safeQuery.normalizedPage();
+        int offset = (page - 1) * size;
+
+        List<Post> posts = postRepository.findPublishedPopular(offset, size);
+        long total = postRepository.countPublished();
+        List<PostBriefVO> voList = enrichPostsWithAuthorInfo(posts);
+        return HybridPageResult.ofOffset(voList, page, size, total);
+    }
+
+    /**
      * Offset 分页查询已发布文章
      */
     private HybridPageResult<PostBriefVO> queryPublishedPostsOffset(int page, int size) {
@@ -856,10 +1081,14 @@ public class PostApplicationService {
      * Cursor 分页查询已发布文章
      */
     private HybridPageResult<PostBriefVO> queryPublishedPostsCursor(String cursor, int size) {
-        LocalDateTime cursorTime = decodeCursor(cursor);
-        
+        CursorToken token = CursorToken.decodeOrThrow(cursor);
+         
         // 多查一条用于判断是否有更多数据
-        List<Post> posts = postRepository.findPublishedCursor(cursorTime, size + 1);
+        List<Post> posts = postRepository.findPublishedCursor(
+                token != null ? token.getPublishedAt() : null,
+                token != null ? token.getPostId() : null,
+                size + 1
+        );
 
         boolean hasMore = posts.size() > size;
         String nextCursor = null;
@@ -870,41 +1099,12 @@ public class PostApplicationService {
 
         if (!posts.isEmpty()) {
             Post lastPost = posts.get(posts.size() - 1);
-            nextCursor = encodeCursor(lastPost.getPublishedAt(), lastPost.getId().getValue());
+            nextCursor = CursorToken.encode(new CursorToken(lastPost.getPublishedAt(), lastPost.getId().getValue()));
         }
 
         List<PostBriefVO> voList = enrichPostsWithAuthorInfo(posts);
 
         return HybridPageResult.ofCursor(voList, nextCursor, hasMore, size);
-    }
-
-    /**
-     * 编码游标
-     * 格式：Base64(publishedAt|postId)
-     */
-    private String encodeCursor(LocalDateTime publishedAt, Long postId) {
-        if (publishedAt == null) {
-            return null;
-        }
-        String cursorData = publishedAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + "|" + postId;
-        return Base64.getUrlEncoder().encodeToString(cursorData.getBytes());
-    }
-
-    /**
-     * 解码游标
-     */
-    private LocalDateTime decodeCursor(String cursor) {
-        if (cursor == null || cursor.isEmpty()) {
-            return null;
-        }
-        try {
-            String decoded = new String(Base64.getUrlDecoder().decode(cursor));
-            String[] parts = decoded.split("\\|");
-            return LocalDateTime.parse(parts[0], DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-        } catch (Exception e) {
-            log.warn("Invalid cursor format: {}", cursor, e);
-            return null;
-        }
     }
 
     // ==================== 私有方法 ====================
@@ -932,6 +1132,30 @@ public class PostApplicationService {
     private int calculateDelayLevel(LocalDateTime scheduledAt) {
         long delaySeconds = java.time.Duration.between(LocalDateTime.now(), scheduledAt).getSeconds();
         
+        if (delaySeconds <= 1) return 1;      // 1s
+        if (delaySeconds <= 5) return 2;      // 5s
+        if (delaySeconds <= 10) return 3;     // 10s
+        if (delaySeconds <= 30) return 4;     // 30s
+        if (delaySeconds <= 60) return 5;     // 1m
+        if (delaySeconds <= 120) return 6;    // 2m
+        if (delaySeconds <= 180) return 7;    // 3m
+        if (delaySeconds <= 240) return 8;    // 4m
+        if (delaySeconds <= 300) return 9;    // 5m
+        if (delaySeconds <= 360) return 10;   // 6m
+        if (delaySeconds <= 420) return 11;   // 7m
+        if (delaySeconds <= 480) return 12;   // 8m
+        if (delaySeconds <= 540) return 13;   // 9m
+        if (delaySeconds <= 600) return 14;   // 10m
+        if (delaySeconds <= 1200) return 15;  // 20m
+        if (delaySeconds <= 1800) return 16;  // 30m
+        if (delaySeconds <= 3600) return 17;  // 1h
+        return 18;                             // 2h (max)
+    }
+
+    /**
+     * 按秒数计算 RocketMQ 延迟级别（用于 DB 时间基准的重试/重入队）
+     */
+    private int calculateDelayLevelBySeconds(long delaySeconds) {
         if (delaySeconds <= 1) return 1;      // 1s
         if (delaySeconds <= 5) return 2;      // 5s
         if (delaySeconds <= 10) return 3;     // 10s
