@@ -1,6 +1,6 @@
 package com.zhicore.content.interfaces.controller;
 
-import com.zhicore.clients.dto.post.PostDTO;
+import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.HybridPageRequest;

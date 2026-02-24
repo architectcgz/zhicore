@@ -73,5 +73,15 @@ public interface PostTagEntityMyBatisMapper extends BaseMapper<PostTagEntity> {
      * @param postIds 文章ID列表
      * @return 关联列表
      */
+    @Select({
+            "<script>",
+            "SELECT post_id AS postId, tag_id AS tagId, created_at AS createdAt",
+            "FROM post_tags",
+            "WHERE post_id IN",
+            "<foreach collection='postIds' item='postId' open='(' separator=',' close=')'>",
+            "#{postId}",
+            "</foreach>",
+            "</script>"
+    })
     List<PostTagEntity> selectByPostIds(@Param("postIds") List<Long> postIds);
 }

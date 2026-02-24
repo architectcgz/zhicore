@@ -13,9 +13,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  *
  * @author ZhiCore Team
  */
-@SpringBootApplication(scanBasePackages = {"com.zhicore.content", "com.zhicore.common", "com.zhicore.clients"})
+@SpringBootApplication(scanBasePackages = {"com.zhicore.content", "com.zhicore.common", "com.zhicore.api"})
 @EnableDiscoveryClient
-@EnableFeignClients(basePackages = {"com.zhicore.clients.client", "com.zhicore.content.infrastructure.feign"})
+@EnableFeignClients(basePackages = {"com.zhicore.api.client", "com.zhicore.content.infrastructure.feign"})
 @EnableMongoRepositories(basePackages = "com.zhicore.content.infrastructure.persistence.mongo.repository")
 @EnableScheduling
 @EnableAsync

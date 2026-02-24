@@ -19,6 +19,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -40,6 +41,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @ActiveProfiles("test")
 @Transactional
 class TagApplicationServiceGetPostsByTagIntegrationTest {
+
+    private static final AtomicLong POST_ID_SEQ = new AtomicLong(System.currentTimeMillis());
 
     @Autowired
     private TagApplicationService tagApplicationService;
@@ -438,7 +441,8 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
      * 生成文章 ID（简化版，实际应使用 Leaf）
      */
     private Long generatePostId() {
-        return System.currentTimeMillis() + new Random().nextInt(10000);
+        // 使用进程内自增序列，避免并发/高频创建导致主键冲突，保证测试稳定性
+        return POST_ID_SEQ.incrementAndGet();
     }
 }
 

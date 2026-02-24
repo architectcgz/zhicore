@@ -1,6 +1,6 @@
 package com.zhicore.content.application.service;
 
-import com.zhicore.clients.client.IdGeneratorFeignClient;
+import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;

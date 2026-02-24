@@ -44,6 +44,12 @@ public class RedissonLockManagerImpl implements LockManager {
         
         try {
             RLock lock = redissonClient.getLock(key);
+
+            // 防止同一线程重复获取同一把锁（避免误用导致逻辑重入）
+            if (lock.isHeldByCurrentThread()) {
+                log.debug("Lock already held by current thread, skip re-acquire: key={}", key);
+                return false;
+            }
             
             boolean acquired = lock.tryLock(
                 validatedWaitTime.toMillis(),
@@ -78,6 +84,12 @@ public class RedissonLockManagerImpl implements LockManager {
         
         try {
             RLock lock = redissonClient.getLock(key);
+
+            // 防止同一线程重复获取同一把锁（避免误用导致逻辑重入）
+            if (lock.isHeldByCurrentThread()) {
+                log.debug("Lock already held by current thread, skip re-acquire: key={}", key);
+                return false;
+            }
             
             // 不指定 leaseTime，启用看门狗自动续期
             boolean acquired = lock.tryLock(

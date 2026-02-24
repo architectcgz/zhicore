@@ -1,6 +1,6 @@
-package com.zhicore.clients.client.fallback;
+package com.zhicore.api.client.fallback;
 
-import com.zhicore.clients.client.IdGeneratorFeignClient;
+import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.result.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.openfeign.FallbackFactory;

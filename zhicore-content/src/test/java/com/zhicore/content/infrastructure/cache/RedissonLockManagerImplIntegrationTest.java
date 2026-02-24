@@ -13,6 +13,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.*;
@@ -276,6 +277,7 @@ class RedissonLockManagerImplIntegrationTest extends IntegrationTestBase {
         // Given: 模拟缓存击穿场景
         String lockKey = "cache:lock:post:1001";
         AtomicInteger dbQueryCount = new AtomicInteger(0);
+        AtomicBoolean cacheFilled = new AtomicBoolean(false);
         int threadCount = 20;
         CountDownLatch latch = new CountDownLatch(threadCount);
         
@@ -294,9 +296,11 @@ class RedissonLockManagerImplIntegrationTest extends IntegrationTestBase {
                     
                     if (acquired) {
                         try {
-                            // 模拟数据库查询
-                            dbQueryCount.incrementAndGet();
-                            Thread.sleep(100);
+                            // 模拟“先查库，再写缓存”的击穿修复逻辑：只有首次持锁线程需要查库
+                            if (cacheFilled.compareAndSet(false, true)) {
+                                dbQueryCount.incrementAndGet();
+                                Thread.sleep(100);
+                            }
                         } finally {
                             lockManager.unlock(lockKey);
                         }

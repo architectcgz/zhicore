@@ -1,10 +1,10 @@
 package com.zhicore.content.application.service;
 
-import com.zhicore.clients.client.IdGeneratorFeignClient;
-import com.zhicore.clients.client.UserServiceClient;
-import com.zhicore.clients.client.UploadServiceClient;
-import com.zhicore.clients.dto.post.PostDTO;
-import com.zhicore.clients.dto.user.UserSimpleDTO;
+import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.api.client.UploadServiceClient;
+import com.zhicore.api.client.UserServiceClient;
+import com.zhicore.api.dto.post.PostDTO;
+import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.ForbiddenException;
 import com.zhicore.common.result.ApiResponse;

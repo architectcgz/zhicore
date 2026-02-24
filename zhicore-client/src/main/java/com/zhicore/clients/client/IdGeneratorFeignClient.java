@@ -18,7 +18,8 @@ import java.util.List;
 @FeignClient(
     name = "zhicore-id-generator",
     path = "/api/v1/id",
-    fallbackFactory = IdGeneratorFeignClientFallbackFactory.class
+    fallbackFactory = IdGeneratorFeignClientFallbackFactory.class,
+    primary = false
 )
 public interface IdGeneratorFeignClient {
     

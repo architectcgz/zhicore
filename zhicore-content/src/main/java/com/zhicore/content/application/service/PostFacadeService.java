@@ -1,6 +1,6 @@
 package com.zhicore.content.application.service;
 
-import com.zhicore.clients.dto.post.PostDTO;
+import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.common.result.HybridPageRequest;
 import com.zhicore.common.result.HybridPageResult;
 import com.zhicore.content.application.query.model.PostListQuery;

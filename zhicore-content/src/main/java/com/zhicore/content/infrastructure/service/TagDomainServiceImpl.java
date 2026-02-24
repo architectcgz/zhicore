@@ -1,6 +1,6 @@
 package com.zhicore.content.infrastructure.service;
 
-import com.zhicore.clients.client.IdGeneratorFeignClient;
+import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.exception.ServiceUnavailableException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.content.domain.model.Tag;

@@ -14,6 +14,7 @@
     <modules>
         <module>zhicore-common</module>
         <module>zhicore-client</module>
+        <module>zhicore-integration</module>
         <module>zhicore-gateway</module>
         <module>zhicore-user</module>
         <module>zhicore-content</module>
@@ -120,6 +121,11 @@
             <dependency>
                 <groupId>com.zhicore</groupId>
                 <artifactId>zhicore-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zhicore</groupId>
+                <artifactId>zhicore-integration</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

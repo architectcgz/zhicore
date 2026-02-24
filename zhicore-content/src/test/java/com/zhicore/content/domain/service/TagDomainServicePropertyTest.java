@@ -3,7 +3,7 @@ package com.zhicore.content.domain.service;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.infrastructure.service.TagDomainServiceImpl;
-import com.zhicore.clients.client.IdGeneratorFeignClient;
+import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.result.ApiResponse;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.AlphaChars;

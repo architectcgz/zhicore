@@ -158,16 +158,17 @@ public class TagRepositoryPgImpl implements TagRepository {
         Map<Long, List<Tag>> tagsByPostId = new HashMap<>();
         
         for (Map<String, Object> row : results) {
-            Long postId = (Long) row.get("post_id");
+            // MyBatis 在不同数据库/驱动下可能返回不同的列名大小写（例如 POST_ID vs post_id）
+            Long postId = (Long) getIgnoreCase(row, "post_id");
             
             // 构建 TagEntity
             TagEntity entity = new TagEntity();
-            entity.setId((Long) row.get("id"));
-            entity.setName((String) row.get("name"));
-            entity.setSlug((String) row.get("slug"));
-            entity.setDescription((String) row.get("description"));
-            entity.setCreatedAt((java.time.LocalDateTime) row.get("created_at"));
-            entity.setUpdatedAt((java.time.LocalDateTime) row.get("updated_at"));
+            entity.setId((Long) getIgnoreCase(row, "id"));
+            entity.setName((String) getIgnoreCase(row, "name"));
+            entity.setSlug((String) getIgnoreCase(row, "slug"));
+            entity.setDescription((String) getIgnoreCase(row, "description"));
+            entity.setCreatedAt(toLocalDateTime(getIgnoreCase(row, "created_at")));
+            entity.setUpdatedAt(toLocalDateTime(getIgnoreCase(row, "updated_at")));
             
             Tag tag = entityMapper.toDomain(entity);
             
@@ -175,5 +176,34 @@ public class TagRepositoryPgImpl implements TagRepository {
         }
         
         return tagsByPostId;
+    }
+
+    private static Object getIgnoreCase(Map<String, Object> row, String key) {
+        for (Map.Entry<String, Object> entry : row.entrySet()) {
+            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(key)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private static java.time.LocalDateTime toLocalDateTime(Object value) {
+        if (value == null) {
+            return null;
+        }
+
+        if (value instanceof java.time.LocalDateTime localDateTime) {
+            return localDateTime;
+        }
+
+        if (value instanceof java.sql.Timestamp timestamp) {
+            return timestamp.toLocalDateTime();
+        }
+
+        if (value instanceof java.util.Date date) {
+            return java.time.LocalDateTime.ofInstant(date.toInstant(), java.time.ZoneId.systemDefault());
+        }
+
+        throw new IllegalArgumentException("不支持的时间类型: " + value.getClass().getName());
     }
 }

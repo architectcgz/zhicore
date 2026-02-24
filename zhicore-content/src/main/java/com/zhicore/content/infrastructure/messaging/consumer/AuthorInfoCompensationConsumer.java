@@ -1,7 +1,7 @@
 package com.zhicore.content.infrastructure.messaging.consumer;
 
-import com.zhicore.clients.client.UserServiceClient;
-import com.zhicore.clients.dto.user.UserSimpleDTO;
+import com.zhicore.api.client.UserServiceClient;
+import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.content.domain.model.Post;

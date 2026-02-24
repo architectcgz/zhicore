@@ -38,7 +38,7 @@ class IdGeneratorFeignClientFallbackFactoryTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response.isSuccess()).isFalse();
-        assertThat(response.getCode()).isEqualTo(500);
+        assertThat(response.getCode()).isEqualTo(503);
         assertThat(response.getMessage()).isEqualTo("ID生成服务暂时不可用，请稍后重试");
         assertThat(response.getData()).isNull();
     }
@@ -55,7 +55,7 @@ class IdGeneratorFeignClientFallbackFactoryTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response.isSuccess()).isFalse();
-        assertThat(response.getCode()).isEqualTo(500);
+        assertThat(response.getCode()).isEqualTo(503);
         assertThat(response.getMessage()).isEqualTo("ID生成服务暂时不可用，请稍后重试");
         assertThat(response.getData()).isNull();
     }
@@ -72,7 +72,7 @@ class IdGeneratorFeignClientFallbackFactoryTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response.isSuccess()).isFalse();
-        assertThat(response.getCode()).isEqualTo(500);
+        assertThat(response.getCode()).isEqualTo(503);
         assertThat(response.getMessage()).isEqualTo("ID生成服务暂时不可用，请稍后重试");
         assertThat(response.getData()).isNull();
     }
@@ -112,7 +112,7 @@ class IdGeneratorFeignClientFallbackFactoryTest {
 
             // Then - 所有异常都返回相同的错误响应
             assertThat(response.isSuccess()).isFalse();
-            assertThat(response.getCode()).isEqualTo(500);
+            assertThat(response.getCode()).isEqualTo(503);
             assertThat(response.getMessage()).isEqualTo("ID生成服务暂时不可用，请稍后重试");
         }
     }
