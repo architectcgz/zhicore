@@ -83,11 +83,9 @@ public class UnpublishPostHandler {
      * @param post 文章对象
      */
     private void invalidateCache(PostId postId, Post post) {
-        cacheRepository.delete(
-                PostRedisKeys.detail(postId),
-                PostRedisKeys.listLatest(),
-                PostRedisKeys.listAuthor(post.getOwnerId())
-        );
+        cacheRepository.delete(PostRedisKeys.detail(postId));
+        cacheRepository.deletePattern(PostRedisKeys.listLatestPattern());
+        cacheRepository.deletePattern(PostRedisKeys.listAuthorPattern(post.getOwnerId()));
         log.debug("Invalidated cache for unpublished post: {}", postId);
     }
 }

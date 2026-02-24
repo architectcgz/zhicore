@@ -121,11 +121,9 @@ public class PurgePostHandler {
         // 删除详情缓存
         cacheRepository.delete(PostRedisKeys.detail(postId));
         
-        // 删除列表缓存
-        cacheRepository.delete(
-                PostRedisKeys.listLatest(),
-                PostRedisKeys.listAuthor(post.getOwnerId())
-        );
+        // 删除列表缓存（分页/size 等维度下为多 key，统一用 pattern 失效）
+        cacheRepository.deletePattern(PostRedisKeys.listLatestPattern());
+        cacheRepository.deletePattern(PostRedisKeys.listAuthorPattern(post.getOwnerId()));
         
         // 删除统计缓存
         cacheRepository.delete(

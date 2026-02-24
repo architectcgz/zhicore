@@ -83,15 +83,13 @@ public class RestorePostHandler {
         // 使用 deletePattern 删除所有相关缓存
         cacheRepository.deletePattern(PostRedisKeys.allRelatedPattern(postId));
         
-        // 删除列表缓存
-        cacheRepository.delete(
-                PostRedisKeys.listLatest(),
-                PostRedisKeys.listAuthor(post.getOwnerSnapshot().getOwnerId())
-        );
+        // 删除列表缓存（分页/size 等维度下为多 key，统一用 pattern 失效）
+        cacheRepository.deletePattern(PostRedisKeys.listLatestPattern());
+        cacheRepository.deletePattern(PostRedisKeys.listAuthorPattern(post.getOwnerSnapshot().getOwnerId()));
         
-        // 删除标签列表缓存
+        // 删除标签列表缓存（分页/size 等维度下为多 key，统一用 pattern 失效）
         post.getTagIds().forEach(tag ->
-                cacheRepository.delete(PostRedisKeys.listTag(tag))
+                cacheRepository.deletePattern(PostRedisKeys.listTagPattern(tag))
         );
         
         log.debug("Invalidated all cache for post: {}", postId.getValue());

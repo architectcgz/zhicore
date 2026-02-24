@@ -6,11 +6,14 @@ import com.zhicore.content.domain.model.UserId;
 
 /**
  * 文章服务 Redis Key 定义
- * 
- * 命名规范：{service}:{id}:{entity}:{field}
- * 示例：post:123:detail, post:list:latest
  *
- * @author ZhiCore Team
+ * 命名规范：{@code {service}:{scope}:{...}}
+ * 示例：{@code post:detail:123}、{@code post:list:v2:status:PUBLISHED:sort:LATEST:size:20:page:1}
+ *
+ * 约束（R12）：
+ * - 列表类 key 必须包含：status / sort / size / cursor|page，避免跨维度污染；
+ * - status 为空时使用 ALL 占位；
+ * - 结构升级时通过版本前缀 bump（例如 v1 -> v2）。
  */
 public final class PostRedisKeys {
 
@@ -19,6 +22,11 @@ public final class PostRedisKeys {
     }
 
     private static final String PREFIX = "post";
+
+    /**
+     * 列表缓存 Key 版本前缀（需要升级结构或维度时 bump）
+     */
+    private static final String LIST_VERSION = "v2";
 
     // ==================== 文章缓存 ====================
 
@@ -52,36 +60,50 @@ public final class PostRedisKeys {
         return content(PostId.of(postId));
     }
 
+    private static String listLatestPrefix() {
+        return PREFIX + ":list:" + LIST_VERSION + ":status:PUBLISHED:sort:LATEST";
+    }
+
     /**
-     * 最新文章列表缓存
-     * Key: post:list:latest
-     * 
-     * @return Redis key
+     * 最新文章列表缓存前缀（用于 pattern 删除）
      */
     public static String listLatest() {
-        return PREFIX + ":list:latest";
+        return listLatestPrefix();
     }
 
     /**
-     * 最新文章列表缓存（分页）
-     * Key: post:list:latest:{pageNumber}
-     * 
-     * @param pageNumber 页码
-     * @return Redis key
+     * 最新文章列表缓存（偏移分页：page）
      */
-    public static String listLatest(int pageNumber) {
-        return PREFIX + ":list:latest:" + pageNumber;
+    public static String listLatest(int pageNumber, int size) {
+        return listLatestPrefix() + ":size:" + size + ":page:" + pageNumber;
     }
 
     /**
-     * 作者文章列表缓存
-     * Key: post:list:author:{authorId}
-     * 
-     * @param authorId 作者 ID
-     * @return Redis key
+     * 最新文章列表缓存（游标分页：cursor）
+     *
+     * 说明：cursor 为空时使用 INIT 占位，避免空值导致 key 结构不稳定。
+     */
+    public static String listLatestCursor(String cursor, int size) {
+        String safeCursor = cursor == null || cursor.isBlank() ? "INIT" : cursor.trim();
+        return listLatestPrefix() + ":size:" + size + ":cursor:" + safeCursor;
+    }
+
+    /**
+     * 最新文章列表缓存 pattern（用于 deletePattern）
+     */
+    public static String listLatestPattern() {
+        return listLatestPrefix() + ":*";
+    }
+
+    private static String listAuthorPrefix(UserId authorId) {
+        return PREFIX + ":list:" + LIST_VERSION + ":author:" + authorId.getValue() + ":status:ALL:sort:LATEST";
+    }
+
+    /**
+     * 作者文章列表缓存前缀（用于 pattern 删除）
      */
     public static String listAuthor(UserId authorId) {
-        return PREFIX + ":list:author:" + authorId.getValue();
+        return listAuthorPrefix(authorId);
     }
 
     public static String listAuthor(Long authorId) {
@@ -89,26 +111,28 @@ public final class PostRedisKeys {
     }
 
     /**
-     * 作者文章列表缓存（分页）
-     * Key: post:list:author:{authorId}:{pageNumber}
-     * 
-     * @param authorId 作者 ID
-     * @param pageNumber 页码
-     * @return Redis key
+     * 作者文章列表缓存（偏移分页：page）
      */
-    public static String listAuthor(UserId authorId, int pageNumber) {
-        return PREFIX + ":list:author:" + authorId.getValue() + ":" + pageNumber;
+    public static String listAuthor(UserId authorId, int pageNumber, int size) {
+        return listAuthorPrefix(authorId) + ":size:" + size + ":page:" + pageNumber;
     }
 
     /**
-     * 标签文章列表缓存
-     * Key: post:list:tag:{tagId}
-     * 
-     * @param tagId 标签 ID
-     * @return Redis key
+     * 作者文章列表缓存 pattern（用于 deletePattern）
+     */
+    public static String listAuthorPattern(UserId authorId) {
+        return listAuthorPrefix(authorId) + ":*";
+    }
+
+    private static String listTagPrefix(TagId tagId) {
+        return PREFIX + ":list:" + LIST_VERSION + ":tag:" + tagId.getValue() + ":status:PUBLISHED:sort:LATEST";
+    }
+
+    /**
+     * 标签文章列表缓存前缀（用于 pattern 删除）
      */
     public static String listTag(TagId tagId) {
-        return PREFIX + ":list:tag:" + tagId.getValue();
+        return listTagPrefix(tagId);
     }
 
     public static String listTag(Long tagId) {
@@ -116,15 +140,17 @@ public final class PostRedisKeys {
     }
 
     /**
-     * 标签文章列表缓存（分页）
-     * Key: post:list:tag:{tagId}:{pageNumber}
-     * 
-     * @param tagId 标签 ID
-     * @param pageNumber 页码
-     * @return Redis key
+     * 标签文章列表缓存（偏移分页：page）
      */
-    public static String listTag(TagId tagId, int pageNumber) {
-        return PREFIX + ":list:tag:" + tagId.getValue() + ":" + pageNumber;
+    public static String listTag(TagId tagId, int pageNumber, int size) {
+        return listTagPrefix(tagId) + ":size:" + size + ":page:" + pageNumber;
+    }
+
+    /**
+     * 标签文章列表缓存 pattern（用于 deletePattern）
+     */
+    public static String listTagPattern(TagId tagId) {
+        return listTagPrefix(tagId) + ":*";
     }
 
     // ==================== 文章统计 ====================

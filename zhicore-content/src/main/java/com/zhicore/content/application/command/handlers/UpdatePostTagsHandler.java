@@ -16,9 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -93,16 +91,14 @@ public class UpdatePostTagsHandler {
      * @param newTags 新标签集合
      */
     private void invalidateCache(PostId postId, Set<TagId> oldTags, Set<TagId> newTags) {
-        List<String> keys = new ArrayList<>();
-        keys.add(PostRedisKeys.detail(postId));
-        
-        // 失效旧标签的列表缓存
-        oldTags.forEach(tag -> keys.add(PostRedisKeys.listTag(tag)));
-        
-        // 失效新标签的列表缓存
-        newTags.forEach(tag -> keys.add(PostRedisKeys.listTag(tag)));
-        
-        cacheRepository.delete(keys.toArray(new String[0]));
-        log.debug("Invalidated cache for post and tags: postId={}, totalKeys={}", postId, keys.size());
+        // 文章详情精确 key 直接删除
+        cacheRepository.delete(PostRedisKeys.detail(postId));
+
+        // 标签列表缓存包含分页/size 等维度，统一使用 pattern 失效
+        oldTags.forEach(tag -> cacheRepository.deletePattern(PostRedisKeys.listTagPattern(tag)));
+        newTags.forEach(tag -> cacheRepository.deletePattern(PostRedisKeys.listTagPattern(tag)));
+
+        log.debug("Invalidated cache for post and tags: postId={}, oldTags={}, newTags={}",
+                postId, oldTags.size(), newTags.size());
     }
 }
