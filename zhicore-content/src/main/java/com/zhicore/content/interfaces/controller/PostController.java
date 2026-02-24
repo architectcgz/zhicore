@@ -5,6 +5,8 @@ import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.HybridPageRequest;
 import com.zhicore.common.result.HybridPageResult;
+import com.zhicore.content.application.query.model.PostListQuery;
+import com.zhicore.content.application.query.model.PostListSort;
 import com.zhicore.content.application.dto.PostBriefVO;
 import com.zhicore.content.application.dto.PostVO;
 import com.zhicore.content.application.dto.TagDTO;
@@ -144,10 +146,18 @@ public class PostController {
     @GetMapping
     public ApiResponse<HybridPageResult<PostBriefVO>> getPublishedPosts(
             @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) String status) {
-        return ApiResponse.success(postFacadeService.getPublishedPosts(page, size));
+        PostListQuery query = PostListQuery.builder()
+                .page(page)
+                .cursor(cursor)
+                .size(size)
+                .sort(PostListSort.parse(sort))
+                .status(status)
+                .build();
+        return ApiResponse.success(postFacadeService.getPostList(query));
     }
 
     @GetMapping("/cursor")

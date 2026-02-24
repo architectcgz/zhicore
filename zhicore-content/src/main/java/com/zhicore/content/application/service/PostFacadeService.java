@@ -3,6 +3,7 @@ package com.zhicore.content.application.service;
 import com.zhicore.clients.dto.post.PostDTO;
 import com.zhicore.common.result.HybridPageRequest;
 import com.zhicore.common.result.HybridPageResult;
+import com.zhicore.content.application.query.model.PostListQuery;
 import com.zhicore.content.application.command.commands.RestorePostCommand;
 import com.zhicore.content.application.command.handlers.RestorePostHandler;
 import com.zhicore.content.application.dto.PostBriefVO;
@@ -88,6 +89,10 @@ public class PostFacadeService {
         request.setPage(page);
         request.setSize(size);
         return postApplicationService.getPublishedPostsHybrid(request);
+    }
+
+    public HybridPageResult<PostBriefVO> getPostList(PostListQuery query) {
+        return postApplicationService.getPostList(query);
     }
 
     public List<PostBriefVO> getPublishedPostsCursor(LocalDateTime cursor, int size) {
