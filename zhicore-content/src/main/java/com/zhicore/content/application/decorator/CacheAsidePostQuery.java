@@ -2,6 +2,7 @@ package com.zhicore.content.application.decorator;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.zhicore.content.application.port.cache.CacheRepository;
+import com.zhicore.content.application.port.cache.CacheResult;
 import com.zhicore.content.application.port.cache.LockManager;
 import com.zhicore.content.application.query.PostQuery;
 import com.zhicore.content.application.query.view.PostDetailView;
@@ -18,7 +19,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
@@ -55,9 +55,9 @@ public class CacheAsidePostQuery implements PostQuery {
     private static final Duration LIST_TTL = Duration.ofMinutes(10);
     
     /**
-     * 空值缓存 TTL（1 分钟）
+     * 空值缓存 TTL（5 分钟）
      */
-    private static final Duration NULL_TTL = Duration.ofMinutes(1);
+    private static final Duration NULL_TTL = Duration.ofMinutes(5);
     
     /**
      * 降级结果缓存 TTL（5 分钟）
@@ -85,10 +85,13 @@ public class CacheAsidePostQuery implements PostQuery {
         String lockKey = PostRedisKeys.lockDetail(postId);
         
         // 1. 尝试从缓存获取
-        Optional<PostDetailView> cached = cacheRepository.get(cacheKey, PostDetailView.class);
-        if (cached.isPresent()) {
+        CacheResult<PostDetailView> cached = cacheRepository.get(cacheKey, PostDetailView.class);
+        if (cached.isHit()) {
             log.debug("Cache hit for post detail: {}", postId);
-            return cached.get();
+            return cached.getValue();
+        }
+        if (cached.isNull()) {
+            return null;
         }
         
         // 2. 缓存未命中，获取锁防止击穿
@@ -104,9 +107,12 @@ public class CacheAsidePostQuery implements PostQuery {
             log.debug("Failed to acquire lock, waiting for cache: {}", postId);
             try {
                 Thread.sleep(100);
-                Optional<PostDetailView> retried = cacheRepository.get(cacheKey, PostDetailView.class);
-                if (retried.isPresent()) {
-                    return retried.get();
+                CacheResult<PostDetailView> retried = cacheRepository.get(cacheKey, PostDetailView.class);
+                if (retried.isHit()) {
+                    return retried.getValue();
+                }
+                if (retried.isNull()) {
+                    return null;
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -147,7 +153,7 @@ public class CacheAsidePostQuery implements PostQuery {
     @Override
     public List<PostListItemView> getLatestPosts(Pageable pageable) {
         return getCachedList(
-                PostRedisKeys.listLatest(pageable.getPageNumber()),
+                PostRedisKeys.listLatest(pageable.getPageNumber(), pageable.getPageSize()),
                 () -> delegate.getLatestPosts(pageable)
         );
     }
@@ -155,7 +161,7 @@ public class CacheAsidePostQuery implements PostQuery {
     @Override
     public List<PostListItemView> getPostsByAuthor(UserId authorId, Pageable pageable) {
         return getCachedList(
-                PostRedisKeys.listAuthor(authorId, pageable.getPageNumber()),
+                PostRedisKeys.listAuthor(authorId, pageable.getPageNumber(), pageable.getPageSize()),
                 () -> delegate.getPostsByAuthor(authorId, pageable)
         );
     }
@@ -163,7 +169,7 @@ public class CacheAsidePostQuery implements PostQuery {
     @Override
     public List<PostListItemView> getPostsByTag(TagId tagId, Pageable pageable) {
         return getCachedList(
-                PostRedisKeys.listTag(tagId, pageable.getPageNumber()),
+                PostRedisKeys.listTag(tagId, pageable.getPageNumber(), pageable.getPageSize()),
                 () -> delegate.getPostsByTag(tagId, pageable)
         );
     }
@@ -179,12 +185,15 @@ public class CacheAsidePostQuery implements PostQuery {
      */
     private List<PostListItemView> getCachedList(String cacheKey, Supplier<List<PostListItemView>> supplier) {
         // 使用 TypeReference 处理泛型类型
-        Optional<List<PostListItemView>> cached =
+        CacheResult<List<PostListItemView>> cached =
                 cacheRepository.get(cacheKey, new TypeReference<List<PostListItemView>>() {});
         
-        if (cached.isPresent()) {
+        if (cached.isHit()) {
             log.debug("Cache hit for list: {}", cacheKey);
-            return cached.get();
+            return cached.getValue();
+        }
+        if (cached.isNull()) {
+            return List.of();
         }
         
         log.debug("Cache miss for list, fetching from source: {}", cacheKey);

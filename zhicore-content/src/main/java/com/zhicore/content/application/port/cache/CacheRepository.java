@@ -3,16 +3,14 @@ package com.zhicore.content.application.port.cache;
 import com.fasterxml.jackson.core.type.TypeReference;
 
 import java.time.Duration;
-import java.util.Optional;
 
 /**
  * 缓存仓储端口接口
- * 
- * 定义缓存操作的契约，由基础设施层实现（如 Redis）。
- * 提供基础的缓存能力，不包含业务逻辑和缓存策略。
- * 缓存策略由应用层的 Decorator 实现。
- * 
- * @author ZhiCore Team
+ *
+ * 说明：
+ * - 定义缓存读写/失效的最小契约，由基础设施层实现（例如 Redis）；
+ * - 不在此接口内绑定具体业务策略（例如穿透保护、互斥锁、降级 TTL 等）；
+ * - 业务侧缓存策略建议通过应用层 Decorator/Query 组合实现。
  */
 public interface CacheRepository {
     
@@ -22,9 +20,9 @@ public interface CacheRepository {
      * @param key 缓存键
      * @param type 值类型
      * @param <T> 泛型类型
-     * @return 缓存值（可能为空）
+     * @return 缓存三态结果（MISS/NULL/HIT）
      */
-    <T> Optional<T> get(String key, Class<T> type);
+    <T> CacheResult<T> get(String key, Class<T> type);
 
     /**
      * 获取缓存值（泛型类型）
@@ -32,9 +30,9 @@ public interface CacheRepository {
      * @param key 缓存键
      * @param typeRef 泛型类型引用
      * @param <T> 泛型类型
-     * @return 缓存值（可能为空）
+     * @return 缓存三态结果（MISS/NULL/HIT）
      */
-    <T> Optional<T> get(String key, TypeReference<T> typeRef);
+    <T> CacheResult<T> get(String key, TypeReference<T> typeRef);
     
     /**
      * 设置缓存值
@@ -64,10 +62,9 @@ public interface CacheRepository {
     
     /**
      * 根据模式删除缓存
-     * 
-     * 注意：此操作在生产环境应谨慎使用，可能影响性能。
-     * 建议仅在开发环境启用，生产环境通过配置禁用。
-     * 
+     *
+     * 注意：pattern 失效通常意味着“批量删除”，应优先精确删除；若必须使用，需考虑 Redis 扫描成本。
+     *
      * @param pattern 键模式（支持通配符）
      */
     void deletePattern(String pattern);

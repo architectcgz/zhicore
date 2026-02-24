@@ -2,6 +2,7 @@ package com.zhicore.content.application.decorator;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.zhicore.content.application.port.cache.CacheRepository;
+import com.zhicore.content.application.port.cache.CacheResult;
 import com.zhicore.content.application.port.cache.LockManager;
 import com.zhicore.content.application.query.TagQuery;
 import com.zhicore.content.application.query.view.HotTagView;
@@ -15,7 +16,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
@@ -57,9 +57,9 @@ public class CacheAsideTagQuery implements TagQuery {
     private static final Duration HOT_TAGS_TTL = Duration.ofHours(1);
     
     /**
-     * 空值缓存 TTL（1 分钟）
+     * 空值缓存 TTL（5 分钟）
      */
-    private static final Duration NULL_TTL = Duration.ofMinutes(1);
+    private static final Duration NULL_TTL = Duration.ofMinutes(5);
     
     /**
      * 分布式锁 TTL（10 秒）
@@ -116,12 +116,15 @@ public class CacheAsideTagQuery implements TagQuery {
         String lockKey = TagRedisKeys.lockHotTags(limit);
         
         // 1. 尝试从缓存获取
-        Optional<List<HotTagView>> cached =
+        CacheResult<List<HotTagView>> cached =
                 cacheRepository.get(cacheKey, new TypeReference<List<HotTagView>>() {});
         
-        if (cached.isPresent()) {
+        if (cached.isHit()) {
             log.debug("Cache hit for hot tags: limit={}", limit);
-            return cached.get();
+            return cached.getValue();
+        }
+        if (cached.isNull()) {
+            return List.of();
         }
         
         // 2. 缓存未命中，获取锁防止击穿
@@ -136,10 +139,13 @@ public class CacheAsideTagQuery implements TagQuery {
             log.debug("Failed to acquire lock, waiting for cache: limit={}", limit);
             try {
                 Thread.sleep(100);
-                Optional<List<HotTagView>> retried =
+                CacheResult<List<HotTagView>> retried =
                         cacheRepository.get(cacheKey, new TypeReference<List<HotTagView>>() {});
-                if (retried.isPresent()) {
-                    return retried.get();
+                if (retried.isHit()) {
+                    return retried.getValue();
+                }
+                if (retried.isNull()) {
+                    return List.of();
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -185,10 +191,13 @@ public class CacheAsideTagQuery implements TagQuery {
      */
     private TagDetailView getCachedDetail(String cacheKey, String lockKey, Supplier<TagDetailView> supplier) {
         // 1. 尝试从缓存获取
-        Optional<TagDetailView> cached = cacheRepository.get(cacheKey, TagDetailView.class);
-        if (cached.isPresent()) {
+        CacheResult<TagDetailView> cached = cacheRepository.get(cacheKey, TagDetailView.class);
+        if (cached.isHit()) {
             log.debug("Cache hit for tag detail: {}", cacheKey);
-            return cached.get();
+            return cached.getValue();
+        }
+        if (cached.isNull()) {
+            return null;
         }
         
         // 2. 缓存未命中，获取锁防止击穿
@@ -203,9 +212,12 @@ public class CacheAsideTagQuery implements TagQuery {
             log.debug("Failed to acquire lock, waiting for cache: {}", cacheKey);
             try {
                 Thread.sleep(100);
-                Optional<TagDetailView> retried = cacheRepository.get(cacheKey, TagDetailView.class);
-                if (retried.isPresent()) {
-                    return retried.get();
+                CacheResult<TagDetailView> retried = cacheRepository.get(cacheKey, TagDetailView.class);
+                if (retried.isHit()) {
+                    return retried.getValue();
+                }
+                if (retried.isNull()) {
+                    return null;
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -251,12 +263,15 @@ public class CacheAsideTagQuery implements TagQuery {
      */
     private List<TagListItemView> getCachedList(String cacheKey, Supplier<List<TagListItemView>> supplier, Duration baseTtl) {
         // 使用 TypeReference 处理泛型类型
-        Optional<List<TagListItemView>> cached =
+        CacheResult<List<TagListItemView>> cached =
                 cacheRepository.get(cacheKey, new TypeReference<List<TagListItemView>>() {});
         
-        if (cached.isPresent()) {
+        if (cached.isHit()) {
             log.debug("Cache hit for list: {}", cacheKey);
-            return cached.get();
+            return cached.getValue();
+        }
+        if (cached.isNull()) {
+            return List.of();
         }
         
         log.debug("Cache miss for list, fetching from source: {}", cacheKey);
