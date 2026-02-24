@@ -4,6 +4,7 @@ import com.zhicore.content.application.command.commands.UpdatePostTagsCommand;
 import com.zhicore.content.application.port.cache.CacheRepository;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
+import com.zhicore.common.exception.OptimisticLockException;
 import com.zhicore.content.domain.event.PostTagsUpdatedDomainEvent;
 import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
@@ -57,7 +58,12 @@ public class UpdatePostTagsHandler {
         
         // 更新标签
         post.updateTags(command.getNewTagIds());
-        postRepository.update(post);
+        try {
+            postRepository.update(post);
+        } catch (OptimisticLockException e) {
+            // 标签更新并发冲突需返回专用错误码（R18）
+            throw OptimisticLockException.concurrentTagUpdate();
+        }
         log.info("Post tags updated: postId={}, oldTags={}, newTags={}", 
                 command.getPostId(), oldTagIds.size(), command.getNewTagIds().size());
         

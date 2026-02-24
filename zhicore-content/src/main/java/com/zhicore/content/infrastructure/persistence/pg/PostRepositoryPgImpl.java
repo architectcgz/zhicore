@@ -358,17 +358,40 @@ public class PostRepositoryPgImpl implements PostRepository {
      * @param tagIds 标签ID集合（值对象）
      */
     private void updateTagAssociations(PostId postId, Set<TagId> tagIds) {
-        // 删除旧关联
-        postTagMapper.delete(
-            new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<PostTagEntity>()
-                .eq("post_id", postId.getValue())  // 值对象转 Long
-        );
-        
-        // 插入新关联
-        saveTagAssociations(postId, tagIds);
-        
-        log.debug("更新标签关联: postId={}, newTagCount={}", 
-                postId.getValue(), tagIds != null ? tagIds.size() : 0);
+        Set<Long> newTagIdValues = (tagIds == null || tagIds.isEmpty())
+                ? java.util.Set.of()
+                : tagIds.stream().map(TagId::getValue).collect(java.util.stream.Collectors.toSet());
+
+        // 当前已有的标签关联
+        List<Long> existingValues = postTagMapper.selectTagIdsByPostId(postId.getValue());
+        java.util.Set<Long> existingSet = existingValues == null
+                ? new java.util.HashSet<>()
+                : new java.util.HashSet<>(existingValues);
+
+        // 差量计算：attach/detach（R18）
+        java.util.Set<Long> toDetach = new java.util.HashSet<>(existingSet);
+        toDetach.removeAll(newTagIdValues);
+
+        java.util.Set<Long> toAttach = new java.util.HashSet<>(newTagIdValues);
+        toAttach.removeAll(existingSet);
+
+        if (!toDetach.isEmpty()) {
+            postTagMapper.delete(
+                    new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<PostTagEntity>()
+                            .eq("post_id", postId.getValue())
+                            .in("tag_id", toDetach)
+            );
+        }
+
+        if (!toAttach.isEmpty()) {
+            saveTagAssociations(postId, toAttach.stream().map(TagId::of).collect(java.util.stream.Collectors.toSet()));
+        }
+
+        log.debug("更新标签关联（差量）: postId={}, attachCount={}, detachCount={}, newTagCount={}",
+                postId.getValue(),
+                toAttach.size(),
+                toDetach.size(),
+                newTagIdValues.size());
     }
 
     /**

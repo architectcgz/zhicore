@@ -27,5 +27,8 @@ public class OptimisticLockException extends BaseException {
     public static OptimisticLockException concurrentUpdateConflict() {
         return new OptimisticLockException("CONCURRENT_UPDATE_CONFLICT", "并发更新冲突，请稍后重试", true);
     }
-}
 
+    public static OptimisticLockException concurrentTagUpdate() {
+        return new OptimisticLockException("CONCURRENT_TAG_UPDATE", "并发标签更新冲突，请稍后重试", true);
+    }
+}
