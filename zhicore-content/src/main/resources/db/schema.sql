@@ -1,5 +1,5 @@
--- Direct schema definition for zhicore-content (PostgreSQL)
--- This file is the single source of truth for database schema initialization.
+-- zhicore-content（PostgreSQL）Schema 定义
+-- 该文件作为数据库初始化的唯一事实来源（single source of truth）。
 
 CREATE TABLE IF NOT EXISTS posts (
     id BIGINT PRIMARY KEY,
@@ -107,3 +107,45 @@ CREATE INDEX IF NOT EXISTS idx_outbox_event_status_created ON outbox_event(statu
 CREATE INDEX IF NOT EXISTS idx_outbox_event_event_id ON outbox_event(event_id);
 CREATE INDEX IF NOT EXISTS idx_outbox_event_aggregate ON outbox_event(aggregate_id, aggregate_version);
 CREATE INDEX IF NOT EXISTS idx_outbox_event_updated_at ON outbox_event(updated_at);
+
+-- ==================== 定时发布事件（R1） ====================
+CREATE TABLE IF NOT EXISTS scheduled_publish_event (
+    id BIGSERIAL PRIMARY KEY,
+    event_id VARCHAR(32) NOT NULL UNIQUE,
+    post_id BIGINT NOT NULL,
+    scheduled_at TIMESTAMP NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+    reschedule_retry_count INTEGER NOT NULL DEFAULT 0,
+    publish_retry_count INTEGER NOT NULL DEFAULT 0,
+    last_enqueue_at TIMESTAMP,
+    last_error TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_spe_status_scheduled_at ON scheduled_publish_event(status, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_spe_last_enqueue_at ON scheduled_publish_event(last_enqueue_at);
+CREATE INDEX IF NOT EXISTS idx_spe_post_id ON scheduled_publish_event(post_id);
+
+-- ==================== 点赞/收藏（R2/R3） ====================
+CREATE TABLE IF NOT EXISTS post_likes (
+    id BIGINT PRIMARY KEY,
+    post_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_post_likes_post_user UNIQUE (post_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_post_likes_post_id ON post_likes(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_likes_user_id_created_at ON post_likes(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS post_favorites (
+    id BIGINT PRIMARY KEY,
+    post_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_post_favorites_post_user UNIQUE (post_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_post_favorites_post_id ON post_favorites(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_favorites_user_id_created_at ON post_favorites(user_id, created_at DESC);
