@@ -16,13 +16,11 @@ import java.util.List;
 
 /**
  * Outbox 事件发布器
- * 
+ *
  * 实现 Outbox 模式：
- * 1. 事务内写入 Outbox 表
- * 2. 不直接发送 MQ（避免双写不一致）
- * 3. 事务后由 OutboxEventDispatcher 异步投递到 RocketMQ
- * 
- * @author ZhiCore Team
+ * 1) 业务事务内写入 outbox_event 表
+ * 2) 不在事务内直接发送 MQ（避免双写不一致）
+ * 3) 事务后由 {@code OutboxEventDispatcher} 异步投递到 RocketMQ
  */
 @Slf4j
 @Component
@@ -35,11 +33,19 @@ public class OutboxEventPublisher implements IntegrationEventPublisher {
     @Override
     @Transactional
     public void publish(IntegrationEvent event) {
+        // Outbox 强约束：aggregateVersion 不允许为空。
+        // 语义：aggregateVersion 表示“业务事务提交时刻”聚合根的版本号，用于：
+        // 1) 幂等与去重（同一聚合的事件顺序校验）
+        // 2) 并发冲突诊断（定位乱序/重复投递）
+        if (event.getAggregateVersion() == null) {
+            throw new IllegalArgumentException("aggregateVersion 不能为空（Outbox 事件必须携带聚合版本号）");
+        }
+
         try {
             // 序列化事件为 JSON
             String payload = objectMapper.writeValueAsString(event);
             
-            // 创建 Outbox 实体
+            // 构建 Outbox 记录（事务内落库）
             OutboxEventEntity entity = new OutboxEventEntity();
             entity.setEventId(event.getEventId());
             entity.setEventType(event.getClass().getName());
@@ -52,7 +58,7 @@ public class OutboxEventPublisher implements IntegrationEventPublisher {
             entity.setRetryCount(0);
             entity.setStatus(OutboxEventEntity.OutboxStatus.PENDING);
             
-            // 事务内写入 Outbox 表
+            // 事务内写入 Outbox 表（后续由调度器/派发器异步投递）
             outboxEventMapper.insert(entity);
             
             log.info("Integration event saved to outbox: eventId={}, eventType={}, aggregateId={}", 
