@@ -1,6 +1,7 @@
 package com.zhicore.common.exception;
 
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.common.result.ErrorInfo;
 import com.zhicore.common.result.ResultCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
@@ -73,6 +74,20 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiResponse<Void> handleResourceNotFoundException(ResourceNotFoundException e) {
         return ApiResponse.fail(ResultCode.NOT_FOUND, e.getMessage());
+    }
+
+    /**
+     * 处理乐观锁并发冲突异常（HTTP 409）
+     */
+    @ExceptionHandler(OptimisticLockException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<ErrorInfo> handleOptimisticLockException(OptimisticLockException e, HttpServletRequest request) {
+        log.warn("并发冲突: {} - {}", request.getRequestURI(), e.getMessage());
+        return ApiResponse.fail(
+                ResultCode.CONFLICT.getCode(),
+                e.getMessage(),
+                new ErrorInfo(e.getErrorCode(), e.isRetrySuggested())
+        );
     }
 
     /**
@@ -203,12 +218,19 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 处理非法参数异常（包括枚举转换失败）
+     * 处理非法参数异常（包括枚举转换失败、值对象验证错误和内容类型验证错误）
      */
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleIllegalArgumentException(IllegalArgumentException e, HttpServletRequest request) {
         String message = e.getMessage();
+        
+        // 检查是否是内容类型验证错误
+        if (message != null && message.contains("内容类型")) {
+            log.warn("内容类型验证失败: {} - {}", request.getRequestURI(), message);
+            return ApiResponse.fail(ResultCode.PARAM_ERROR, message);
+        }
+        
         // 检查是否是枚举转换失败
         if (message != null && message.contains("No enum constant")) {
             log.warn("参数值无效: {} - {}", request.getRequestURI(), message);
@@ -216,6 +238,15 @@ public class GlobalExceptionHandler {
             String enumType = message.substring(message.lastIndexOf('.') + 1);
             return ApiResponse.fail(ResultCode.PARAM_ERROR, "参数值无效: " + enumType);
         }
+        
+        // 检查是否是值对象验证错误（PostId、UserId、TagId、TopicId 等）
+        if (message != null && (message.contains("Id 值必须为正数") || 
+                                message.contains("ID 值必须为正数") ||
+                                message.contains("must be positive"))) {
+            log.warn("值对象验证失败: {} - {}", request.getRequestURI(), message);
+            return ApiResponse.fail(ResultCode.PARAM_ERROR, message);
+        }
+        
         log.warn("非法参数: {} - {}", request.getRequestURI(), message);
         return ApiResponse.fail(ResultCode.PARAM_ERROR, "参数值无效");
     }

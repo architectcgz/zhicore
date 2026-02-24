@@ -70,12 +70,20 @@ public class ApiResponse<T> implements Serializable {
         return new ApiResponse<>(code, message, null);
     }
 
+    public static <T> ApiResponse<T> fail(int code, String message, T data) {
+        return new ApiResponse<>(code, message, data);
+    }
+
     public static <T> ApiResponse<T> fail(ResultCode resultCode) {
         return new ApiResponse<>(resultCode.getCode(), resultCode.getMessage(), null);
     }
 
     public static <T> ApiResponse<T> fail(ResultCode resultCode, String message) {
         return new ApiResponse<>(resultCode.getCode(), message, null);
+    }
+
+    public static <T> ApiResponse<T> fail(ResultCode resultCode, String message, T data) {
+        return new ApiResponse<>(resultCode.getCode(), message, data);
     }
 
     public boolean isSuccess() {
