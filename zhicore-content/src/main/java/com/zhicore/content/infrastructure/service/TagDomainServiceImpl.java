@@ -1,5 +1,8 @@
 package com.zhicore.content.infrastructure.service;
 
+import com.zhicore.clients.client.IdGeneratorFeignClient;
+import com.zhicore.common.exception.ServiceUnavailableException;
+import com.zhicore.common.result.ApiResponse;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.domain.service.TagDomainService;
@@ -21,7 +24,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Tag 领域服务实现
+ * 标签领域服务实现
  *
  * @author ZhiCore Team
  * @refactored 2026-02-19 从 domain.service.impl 移动到 infrastructure.service
@@ -32,6 +35,7 @@ import java.util.stream.Collectors;
 public class TagDomainServiceImpl implements TagDomainService {
 
     private final TagRepository tagRepository;
+    private final IdGeneratorFeignClient idGeneratorFeignClient;
 
     /**
      * 规范化标签名称为 slug
@@ -121,9 +125,7 @@ public class TagDomainServiceImpl implements TagDomainService {
 
         // 4. 不存在则创建
         try {
-            // 生成 ID（这里需要 ID 生成器，暂时使用占位符）
-            // TODO: 集成 ID 生成器
-            Long id = generateId();
+            Long id = generateIdOrThrow();
             Tag tag = Tag.create(id, name.trim(), slug);
             Tag saved = tagRepository.save(tag);
             log.info("Created new tag: id={}, name={}, slug={}", saved.getId(), saved.getName(), saved.getSlug());
@@ -208,11 +210,25 @@ public class TagDomainServiceImpl implements TagDomainService {
     }
 
     /**
-     * 生成 ID（临时实现）
-     * TODO: 集成 Leaf ID 生成器
+     * 生成标签 ID（R16）
+     *
+     * 约束：
+     * - 必须调用 ID 服务；不允许本地 UUID/随机数降级；
+     * - ID 服务不可用时抛出 503，交由上层返回给客户端。
      */
-    private Long generateId() {
-        // 临时使用时间戳 + 随机数
-        return System.currentTimeMillis() * 1000 + (long) (Math.random() * 1000);
+    private Long generateIdOrThrow() {
+        try {
+            ApiResponse<Long> response = idGeneratorFeignClient.generateSnowflakeId();
+            if (response == null || !response.isSuccess() || response.getData() == null || response.getData() <= 0) {
+                log.error("ID 服务返回异常，无法生成标签ID: response={}", response);
+                throw new ServiceUnavailableException("ID 服务不可用，无法创建标签，请稍后重试");
+            }
+            return response.getData();
+        } catch (ServiceUnavailableException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("调用 ID 服务生成标签ID失败", e);
+            throw new ServiceUnavailableException("ID 服务不可用，无法创建标签，请稍后重试", e);
+        }
     }
 }

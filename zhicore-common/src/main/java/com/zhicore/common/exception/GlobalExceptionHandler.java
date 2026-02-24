@@ -101,6 +101,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理依赖服务不可用异常（HTTP 503）
+     */
+    @ExceptionHandler(ServiceUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ApiResponse<Void> handleServiceUnavailableException(ServiceUnavailableException e, HttpServletRequest request) {
+        log.warn("依赖服务不可用: {} - {}", request.getRequestURI(), e.getMessage());
+        return ApiResponse.fail(ResultCode.SERVICE_UNAVAILABLE, e.getMessage());
+    }
+
+    /**
      * 处理自定义参数校验异常
      */
     @ExceptionHandler(ValidationException.class)
