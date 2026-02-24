@@ -6,9 +6,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 告警服务
@@ -24,6 +27,11 @@ public class AlertService {
     
     // 告警去重缓存（防止短时间内重复告警）
     private final ConcurrentMap<String, LocalDateTime> alertCache = new ConcurrentHashMap<>();
+
+    /**
+     * Outbox 失败告警限流：按 eventType 每分钟最多 N 条
+     */
+    private final ConcurrentMap<String, MinuteBucket> outboxFailureRate = new ConcurrentHashMap<>();
 
     /**
      * 触发数据不一致告警
@@ -204,6 +212,66 @@ public class AlertService {
                     .build();
             
             sendAlert(alert, alertKey);
+        }
+    }
+
+    /**
+     * Outbox 投递失败告警（R14）
+     *
+     * 触发时机：Outbox 事件达到最大重试次数并收敛为 FAILED。
+     *
+     * 限流：每 eventType 每分钟最多 10 条，避免异常风暴导致告警通道被打爆。
+     */
+    public void alertOutboxDispatchFailed(String eventId, String eventType, Long aggregateId, Integer retryCount, String errorMessage) {
+        String safeEventType = (eventType == null || eventType.isBlank()) ? "UNKNOWN" : eventType;
+
+        if (!tryAcquireOutboxFailureRate(safeEventType, 10)) {
+            log.debug("Outbox 失败告警被限流: eventType={}, eventId={}", safeEventType, eventId);
+            return;
+        }
+
+        Alert alert = Alert.builder()
+                .id(UUID.randomUUID().toString())
+                .type(AlertType.OUTBOX_DISPATCH_FAILED)
+                .level(AlertType.OUTBOX_DISPATCH_FAILED.getLevel())
+                .title("Outbox 投递失败（重试耗尽）")
+                .message("Outbox 事件投递失败，已达到最大重试次数，需人工介入处理")
+                .details(String.format(
+                        "event_id=%s, event_type=%s, aggregate_id=%s, retry_count=%s, error_message=%s",
+                        eventId,
+                        safeEventType,
+                        aggregateId,
+                        retryCount,
+                        errorMessage
+                ))
+                .timestamp(LocalDateTime.now())
+                .resourceId(eventId)
+                .sent(false)
+                .build();
+
+        sendAlert(alert, AlertType.OUTBOX_DISPATCH_FAILED + ":" + safeEventType + ":" + eventId);
+    }
+
+    private boolean tryAcquireOutboxFailureRate(String eventType, int maxPerMinute) {
+        long currentMinute = ZonedDateTime.now(ZoneId.systemDefault()).toEpochSecond() / 60;
+
+        MinuteBucket bucket = outboxFailureRate.compute(eventType, (k, existing) -> {
+            if (existing == null || existing.minute != currentMinute) {
+                return new MinuteBucket(currentMinute);
+            }
+            return existing;
+        });
+
+        int current = bucket.count.incrementAndGet();
+        return current <= maxPerMinute;
+    }
+
+    private static final class MinuteBucket {
+        private final long minute;
+        private final AtomicInteger count = new AtomicInteger(0);
+
+        private MinuteBucket(long minute) {
+            this.minute = minute;
         }
     }
 

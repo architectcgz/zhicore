@@ -108,6 +108,20 @@ CREATE INDEX IF NOT EXISTS idx_outbox_event_event_id ON outbox_event(event_id);
 CREATE INDEX IF NOT EXISTS idx_outbox_event_aggregate ON outbox_event(aggregate_id, aggregate_version);
 CREATE INDEX IF NOT EXISTS idx_outbox_event_updated_at ON outbox_event(updated_at);
 
+-- ==================== Outbox 手动重试审计（R14） ====================
+CREATE TABLE IF NOT EXISTS outbox_retry_audit (
+    id BIGSERIAL PRIMARY KEY,
+    event_id VARCHAR(32) NOT NULL,
+    operator_id BIGINT NOT NULL,
+    reason TEXT,
+    retried_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    result VARCHAR(32) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_outbox_retry_audit_event_id_retried_at
+    ON outbox_retry_audit(event_id, retried_at DESC);
+
 -- ==================== 定时发布事件（R1） ====================
 CREATE TABLE IF NOT EXISTS scheduled_publish_event (
     id BIGSERIAL PRIMARY KEY,

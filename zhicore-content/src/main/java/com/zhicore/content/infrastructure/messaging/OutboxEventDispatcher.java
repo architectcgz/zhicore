@@ -2,6 +2,7 @@ package com.zhicore.content.infrastructure.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.content.application.port.cache.LockManager;
+import com.zhicore.content.infrastructure.alert.AlertService;
 import com.zhicore.content.infrastructure.cache.LockKeys;
 import com.zhicore.content.infrastructure.config.OutboxProperties;
 import com.zhicore.content.infrastructure.config.RocketMqProperties;
@@ -12,6 +13,7 @@ import com.zhicore.integration.messaging.IntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
@@ -44,6 +46,7 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnBean(RocketMQTemplate.class)
 public class OutboxEventDispatcher implements SchedulingConfigurer {
     
     private static final Duration LOCK_WAIT_TIME = Duration.ZERO;  // 不等待，获取不到直接返回
@@ -55,6 +58,7 @@ public class OutboxEventDispatcher implements SchedulingConfigurer {
     private final RocketMqProperties rocketMqProperties;
     private final LockManager lockManager;
     private final LockKeys lockKeys;
+    private final AlertService alertService;
     
     /**
      * 配置定时任务
@@ -155,7 +159,9 @@ public class OutboxEventDispatcher implements SchedulingConfigurer {
         
         // 更新 Outbox 状态为已投递
         entity.setStatus(OutboxEventEntity.OutboxStatus.DISPATCHED);
-        entity.setDispatchedAt(Instant.now());
+        Instant now = Instant.now();
+        entity.setDispatchedAt(now);
+        entity.setUpdatedAt(now);
         outboxEventMapper.updateById(entity);
         
         log.info("Outbox event dispatched: eventId={}, eventType={}, aggregateId={}",
@@ -174,9 +180,13 @@ public class OutboxEventDispatcher implements SchedulingConfigurer {
      */
     @Transactional
     protected void handleDispatchFailure(OutboxEventEntity entity, Exception e) {
+        Instant now = Instant.now();
+
         // 增加重试计数
-        entity.setRetryCount(entity.getRetryCount() + 1);
+        int currentRetry = entity.getRetryCount() != null ? entity.getRetryCount() : 0;
+        entity.setRetryCount(currentRetry + 1);
         entity.setLastError(e.getMessage());
+        entity.setUpdatedAt(now);
         
         // 检查是否超过最大重试次数
         if (entity.getRetryCount() >= outboxProperties.getMaxRetry()) {
@@ -186,8 +196,14 @@ public class OutboxEventDispatcher implements SchedulingConfigurer {
             log.error("Outbox event dispatch failed after {} retries: eventId={}, eventType={}, error={}",
                 outboxProperties.getMaxRetry(), entity.getEventId(), entity.getEventType(), e.getMessage(), e);
             
-            // TODO: 发送告警通知
-            // alertService.sendAlert("Outbox 事件投递失败", entity);
+            // 发送告警通知（限流：每 eventType 每分钟最多 10 条）
+            alertService.alertOutboxDispatchFailed(
+                    entity.getEventId(),
+                    entity.getEventType(),
+                    entity.getAggregateId(),
+                    entity.getRetryCount(),
+                    e.getMessage()
+            );
         } else {
             // 保持 PENDING 状态，等待下次重试
             log.warn("Outbox event dispatch failed (retry {}/{}): eventId={}, eventType={}, error={}",

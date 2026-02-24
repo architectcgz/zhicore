@@ -91,6 +91,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理请求过于频繁异常（HTTP 429）
+     */
+    @ExceptionHandler(TooManyRequestsException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public ApiResponse<Void> handleTooManyRequestsException(TooManyRequestsException e, HttpServletRequest request) {
+        log.warn("请求过于频繁: {} - {}", request.getRequestURI(), e.getMessage());
+        return ApiResponse.fail(ResultCode.TOO_MANY_REQUESTS, e.getMessage());
+    }
+
+    /**
      * 处理自定义参数校验异常
      */
     @ExceptionHandler(ValidationException.class)

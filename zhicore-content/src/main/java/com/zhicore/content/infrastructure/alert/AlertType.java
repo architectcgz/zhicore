@@ -37,7 +37,12 @@ public enum AlertType {
     /**
      * 慢查询告警
      */
-    SLOW_QUERY("慢查询", AlertLevel.MEDIUM);
+    SLOW_QUERY("慢查询", AlertLevel.MEDIUM),
+
+    /**
+     * Outbox 投递失败告警（重试耗尽后的失败收敛，通常需要人工介入处理）
+     */
+    OUTBOX_DISPATCH_FAILED("Outbox投递失败", AlertLevel.HIGH);
 
     private final String description;
     private final AlertLevel level;

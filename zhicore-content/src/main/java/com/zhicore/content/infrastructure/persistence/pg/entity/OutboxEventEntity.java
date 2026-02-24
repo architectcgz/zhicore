@@ -64,6 +64,11 @@ public class OutboxEventEntity {
      * Outbox记录创建时间
      */
     private Instant createdAt;
+
+    /**
+     * Outbox 记录更新时间（用于运维侧排查与监控统计口径）
+     */
+    private Instant updatedAt;
     
     /**
      * 投递成功时间

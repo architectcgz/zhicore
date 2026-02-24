@@ -54,7 +54,9 @@ public class OutboxEventPublisher implements IntegrationEventPublisher {
             entity.setSchemaVersion(event.getSchemaVersion());
             entity.setPayload(payload);
             entity.setOccurredAt(event.getOccurredAt());
-            entity.setCreatedAt(Instant.now());
+            Instant now = Instant.now();
+            entity.setCreatedAt(now);
+            entity.setUpdatedAt(now);
             entity.setRetryCount(0);
             entity.setStatus(OutboxEventEntity.OutboxStatus.PENDING);
             
