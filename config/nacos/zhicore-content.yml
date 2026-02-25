@@ -1,0 +1,40 @@
+# ZhiCore Content Service 配置
+# Data ID: zhicore-content.yml
+# Group: ZHICORE_SERVICE
+
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:zhicore}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres123456}
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+
+  data:
+    mongodb:
+      uri: mongodb://${MONGO_USERNAME:admin}:${MONGO_PASSWORD:mongo123456}@${MONGO_HOST:localhost}:${MONGO_PORT:27017}/${MONGO_DATABASE:zhicore}?authSource=admin
+      auto-index-creation: true
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+  producer:
+    group: zhicore-content-producer
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 2
+    max-message-size: 4194304

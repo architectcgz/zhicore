@@ -27,7 +27,7 @@ public interface PostRepository {
      * 
      * @param id 文章ID（值对象）
      * @return 文章聚合根
-     * @throws com.zhicore.common.exception.DomainException 文章不存在时
+     * @throws com.zhicore.common.exception.ResourceNotFoundException 文章不存在时
      */
     Post load(PostId id);
     

@@ -175,3 +175,44 @@ CREATE INDEX IF NOT EXISTS idx_post_tags_created_at ON post_tags(created_at DESC
 COMMENT ON TABLE post_tags IS '文章标签关联表';
 COMMENT ON COLUMN post_tags.post_id IS '文章ID';
 COMMENT ON COLUMN post_tags.tag_id IS '标签ID';
+
+-- 点赞表（R2）
+CREATE TABLE IF NOT EXISTS post_likes (
+    id BIGINT PRIMARY KEY,
+    post_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_post_likes_post_user UNIQUE (post_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_post_likes_post_id ON post_likes(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_likes_user_id_created_at ON post_likes(user_id, created_at DESC);
+
+-- 收藏表（R3）
+CREATE TABLE IF NOT EXISTS post_favorites (
+    id BIGINT PRIMARY KEY,
+    post_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_post_favorites_post_user UNIQUE (post_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_post_favorites_post_id ON post_favorites(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_favorites_user_id_created_at ON post_favorites(user_id, created_at DESC);
+
+-- 标签统计表
+CREATE TABLE IF NOT EXISTS tag_stats (
+    tag_id BIGINT PRIMARY KEY,
+    post_count INTEGER NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 已消费事件表（幂等）
+CREATE TABLE IF NOT EXISTS consumed_events (
+    event_id VARCHAR(64) PRIMARY KEY,
+    event_type VARCHAR(255) NOT NULL,
+    consumer_name VARCHAR(255) NOT NULL,
+    consumed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_consumed_events_consumed_at ON consumed_events(consumed_at);

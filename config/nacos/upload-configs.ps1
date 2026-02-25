@@ -12,6 +12,8 @@ $ErrorActionPreference = "Stop"
 # 配置文件列表
 $configs = @(
     "common.yml",
+    "zhicore-content.yml",
+    "zhicore-content-dev.yml",
     "ZhiCore-user.yml",
     "ZhiCore-message.yml",
     "ZhiCore-notification.yml",

@@ -49,7 +49,7 @@ public class PostRepositoryPgImpl implements PostRepository {
     @Override
     public Post load(PostId id) {
         return findById(id)
-                .orElseThrow(() -> new DomainException("文章不存在: " + id.getValue()));
+                .orElseThrow(() -> new ResourceNotFoundException("文章不存在: " + id.getValue()));
     }
 
     @Override

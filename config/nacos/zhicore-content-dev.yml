@@ -1,0 +1,29 @@
+# ZhiCore Content Service 开发环境配置
+# Data ID: zhicore-content-dev.yml
+# Group: ZHICORE_SERVICE
+
+server:
+  port: 8102
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/zhicore
+    username: postgres
+    password: postgres123456
+
+  data:
+    mongodb:
+      uri: mongodb://admin:mongo123456@localhost:27017/zhicore?authSource=admin
+
+    redis:
+      host: localhost
+      port: 6379
+      password: redis123456
+
+rocketmq:
+  name-server: localhost:9876
+
+logging:
+  level:
+    com.zhicore.content: DEBUG
+    org.springframework.data.mongodb: DEBUG
