@@ -1,14 +1,16 @@
 # ===========================================
-# ZhiCore Microservices - Application Services
+# ZhiCore Microservices - Application Services (共享模式)
 # ===========================================
 # 使用方法:
-# 1. 先启动基础设施: docker-compose up -d
-# 2. 确保 ID Generator Service 已启动 (外部服务，端口 8011)
-# 3. 构建服务镜像: docker-compose -f docker-compose.services.yml build
-# 4. 启动服务: docker-compose -f docker-compose.services.yml up -d
+# 1. 先启动共享基础设施: cd infra && docker compose up -d
+# 2. 启动 ZhiCore 特有服务: docker compose up -d
+# 3. 确保 ID Generator Service 已启动 (外部服务，端口 8011)
+# 4. 构建服务镜像: docker compose -f docker-compose.services.yml build
+# 5. 启动服务: docker compose -f docker-compose.services.yml up -d
 # ===========================================
 #
 # 注意事项:
+# - 基础设施(PostgreSQL/Redis/Nacos/RocketMQ)由共享 infra 提供
 # - ID Generator Service 是独立部署的外部服务
 # - 默认地址: http://host.docker.internal:8011
 # - 可通过环境变量 ID_GENERATOR_SERVER_URL 覆盖
@@ -27,8 +29,8 @@ services:
       - ../.env
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - NACOS_ADDR=zhicore-nacos:8848
-      - REDIS_HOST=zhicore-redis
+      - NACOS_ADDR=shared-nacos:8848
+      - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
@@ -36,9 +38,7 @@ services:
     ports:
       - "8000:8000"
     networks:
-      - zhicore-network
-    depends_on:
-      - zhicore-nacos
+      - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/actuator/health"]
       interval: 30s
@@ -60,23 +60,21 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8081
-      - NACOS_ADDR=zhicore-nacos:8848
-      - POSTGRES_HOST=zhicore-postgres
+      - NACOS_ADDR=shared-nacos:8848
+      - POSTGRES_HOST=shared-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=zhicore-redis
+      - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=zhicore-rocketmq-namesrv:9876
+      - ROCKETMQ_NAMESRV=shared-rocketmq-namesrv:9876
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8081:8081"
     networks:
-      - zhicore-network
-    depends_on:
-      - zhicore-nacos
+      - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8081/actuator/health"]
       interval: 30s
@@ -98,23 +96,21 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8082
-      - NACOS_ADDR=zhicore-nacos:8848
-      - POSTGRES_HOST=zhicore-postgres
+      - NACOS_ADDR=shared-nacos:8848
+      - POSTGRES_HOST=shared-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=zhicore-redis
+      - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=zhicore-rocketmq-namesrv:9876
+      - ROCKETMQ_NAMESRV=shared-rocketmq-namesrv:9876
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8082:8082"
     networks:
-      - zhicore-network
-    depends_on:
-      - zhicore-nacos
+      - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8082/actuator/health"]
       interval: 30s
@@ -136,23 +132,21 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8083
-      - NACOS_ADDR=zhicore-nacos:8848
-      - POSTGRES_HOST=zhicore-postgres
+      - NACOS_ADDR=shared-nacos:8848
+      - POSTGRES_HOST=shared-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=zhicore-redis
+      - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=zhicore-rocketmq-namesrv:9876
+      - ROCKETMQ_NAMESRV=shared-rocketmq-namesrv:9876
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8083:8083"
     networks:
-      - zhicore-network
-    depends_on:
-      - zhicore-nacos
+      - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8083/actuator/health"]
       interval: 30s
@@ -174,24 +168,22 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8084
-      - NACOS_ADDR=zhicore-nacos:8848
-      - POSTGRES_HOST=zhicore-postgres
+      - NACOS_ADDR=shared-nacos:8848
+      - POSTGRES_HOST=shared-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=zhicore-redis
+      - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=zhicore-rocketmq-namesrv:9876
+      - ROCKETMQ_NAMESRV=shared-rocketmq-namesrv:9876
       - ID_GENERATOR_SERVER_URL=${ID_GENERATOR_SERVER_URL:-http://host.docker.internal:8011}
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8084:8084"
     networks:
-      - zhicore-network
-    depends_on:
-      - zhicore-nacos
+      - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8084/actuator/health"]
       interval: 30s
@@ -213,24 +205,22 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8085
-      - NACOS_ADDR=zhicore-nacos:8848
-      - POSTGRES_HOST=zhicore-postgres
+      - NACOS_ADDR=shared-nacos:8848
+      - POSTGRES_HOST=shared-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=zhicore-redis
+      - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=zhicore-rocketmq-namesrv:9876
+      - ROCKETMQ_NAMESRV=shared-rocketmq-namesrv:9876
       - ID_GENERATOR_SERVER_URL=${ID_GENERATOR_SERVER_URL:-http://host.docker.internal:8011}
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8085:8085"
     networks:
-      - zhicore-network
-    depends_on:
-      - zhicore-nacos
+      - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8085/actuator/health"]
       interval: 30s
@@ -252,24 +242,21 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8086
-      - NACOS_ADDR=zhicore-nacos:8848
+      - NACOS_ADDR=shared-nacos:8848
       - ELASTICSEARCH_HOST=zhicore-elasticsearch
       - ELASTICSEARCH_PORT=9200
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=zhicore-redis
+      - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=zhicore-rocketmq-namesrv:9876
+      - ROCKETMQ_NAMESRV=shared-rocketmq-namesrv:9876
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8086:8086"
     networks:
-      - zhicore-network
-    depends_on:
-      - zhicore-nacos
-      - zhicore-elasticsearch
+      - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8086/actuator/health"]
       interval: 30s
@@ -291,21 +278,19 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8087
-      - NACOS_ADDR=zhicore-nacos:8848
+      - NACOS_ADDR=shared-nacos:8848
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=zhicore-redis
+      - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=zhicore-rocketmq-namesrv:9876
+      - ROCKETMQ_NAMESRV=shared-rocketmq-namesrv:9876
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8087:8087"
     networks:
-      - zhicore-network
-    depends_on:
-      - zhicore-nacos
+      - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8087/actuator/health"]
       interval: 30s
@@ -327,8 +312,8 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8090
-      - NACOS_ADDR=zhicore-nacos:8848
-      - POSTGRES_HOST=zhicore-postgres
+      - NACOS_ADDR=shared-nacos:8848
+      - POSTGRES_HOST=shared-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
@@ -338,9 +323,7 @@ services:
     ports:
       - "8090:8090"
     networks:
-      - zhicore-network
-    depends_on:
-      - zhicore-nacos
+      - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health"]
       interval: 30s
@@ -349,6 +332,9 @@ services:
       start_period: 60s
     restart: unless-stopped
 
+# ===========================================
+# Networks - 引用共享基础设施网络
+# ===========================================
 networks:
-  zhicore-network:
+  shared-infra:
     external: true

@@ -1,63 +1,23 @@
 # ===========================================
-# ZhiCore Microservices Infrastructure
+# ZhiCore Microservices Infrastructure (共享模式)
 # ===========================================
-# 独立部署: PostgreSQL, Redis, Nacos, RocketMQ, 
-#          Elasticsearch, Kibana, Prometheus, Grafana
+# 基础服务(PostgreSQL/Redis/Nacos/RocketMQ)已迁移至公共 infra
+# 本文件仅保留 ZhiCore 特有服务
+#
+# 使用方式:
+#   1. 先启动共享基础设施:
+#      cd infra && docker compose up -d
+#   2. 再启动本文件:
+#      cd zhicore-microservice/docker && docker compose up -d
+#
+# 共享服务连接信息:
+#   PostgreSQL: shared-postgres:5432 (各服务独立 database)
+#   Redis:      shared-redis:6379   / db=1
+#   Nacos:      shared-nacos:8848
+#   RocketMQ:   shared-rocketmq-namesrv:9876
 # ===========================================
 
 services:
-  # ===========================================
-  # PostgreSQL - 主数据库
-  # ===========================================
-  zhicore-postgres:
-    image: postgres:16-alpine
-    container_name: zhicore-postgres
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres123456}
-      - POSTGRES_DB=zhicore
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./postgres-init:/docker-entrypoint-initdb.d:ro
-    networks:
-      - zhicore-network
-    command: 
-      - "postgres"
-      - "-c"
-      - "max_connections=200"
-      - "-c"
-      - "shared_buffers=256MB"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-
-  # ===========================================
-  # Redis - 缓存与会话存储
-  # ===========================================
-  zhicore-redis:
-    image: redis:7.2-alpine
-    container_name: zhicore-redis
-    command: redis-server --requirepass redis123456 --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - zhicore-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis123456}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-
   # ===========================================
   # MongoDB - 文档数据库（文章内容存储）
   # ===========================================
@@ -75,7 +35,7 @@ services:
       - mongodb_config:/data/configdb
       - ./mongodb-init:/docker-entrypoint-initdb.d:ro
     networks:
-      - zhicore-network
+      - shared-infra
     command: mongod --auth
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
@@ -100,143 +60,9 @@ services:
     ports:
       - "8091:8081"
     networks:
-      - zhicore-network
+      - shared-infra
     depends_on:
       zhicore-mongodb:
-        condition: service_healthy
-    restart: unless-stopped
-  # ===========================================
-  # MySQL - Nacos 专用数据库
-  # ===========================================
-  zhicore-mysql-nacos:
-    image: mysql:8.0
-    container_name: zhicore-mysql-nacos
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root123456}
-      - MYSQL_DATABASE=nacos
-      - MYSQL_USER=nacos
-      - MYSQL_PASSWORD=${MYSQL_NACOS_PASSWORD:-nacos123456}
-    ports:
-      - "3307:3306"
-    volumes:
-      - mysql_nacos_data:/var/lib/mysql
-      - ./nacos/mysql-init:/docker-entrypoint-initdb.d:ro
-    networks:
-      - zhicore-network
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root123456}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    restart: unless-stopped
-
-  # ===========================================
-  # Nacos - 服务注册与配置中心
-  # ===========================================
-  zhicore-nacos:
-    image: nacos/nacos-server:v2.3.0
-    container_name: zhicore-nacos
-    environment:
-      - MODE=standalone
-      - SPRING_DATASOURCE_PLATFORM=mysql
-      - MYSQL_SERVICE_HOST=zhicore-mysql-nacos
-      - MYSQL_SERVICE_PORT=3306
-      - MYSQL_SERVICE_DB_NAME=nacos
-      - MYSQL_SERVICE_USER=nacos
-      - MYSQL_SERVICE_PASSWORD=${MYSQL_NACOS_PASSWORD:-nacos123456}
-      - MYSQL_SERVICE_DB_PARAM=characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
-      - NACOS_AUTH_ENABLE=true
-      - NACOS_AUTH_TOKEN=SecretKey012345678901234567890123456789012345678901234567890123456789
-      - NACOS_AUTH_IDENTITY_KEY=serverIdentity
-      - NACOS_AUTH_IDENTITY_VALUE=security
-      - JVM_XMS=512m
-      - JVM_XMX=512m
-    ports:
-      - "8848:8848"
-      - "9848:9848"
-      - "9849:9849"
-    volumes:
-      - ./nacos/logs:/home/nacos/logs
-    networks:
-      - zhicore-network
-    depends_on:
-      zhicore-mysql-nacos:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/v1/console/health/readiness"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
-    restart: unless-stopped
-
-  # ===========================================
-  # RocketMQ NameServer (ZhiCore专用)
-  # ===========================================
-  zhicore-rocketmq-namesrv:
-    image: apache/rocketmq:4.9.6
-    container_name: zhicore-rocketmq-namesrv
-    command: sh mqnamesrv
-    environment:
-      - JAVA_OPT_EXT=-Xms256m -Xmx256m
-    ports:
-      - "9876:9876"  # ZhiCore RocketMQ NameServer
-    networks:
-      - zhicore-network
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 9876 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    restart: unless-stopped
-
-  # ===========================================
-  # RocketMQ Broker (ZhiCore专用)
-  # ===========================================
-  zhicore-rocketmq-broker:
-    build:
-      context: ./rocketmq
-      dockerfile: Dockerfile
-    container_name: zhicore-rocketmq-broker
-    command: sh bin/mqbroker -n zhicore-rocketmq-namesrv:9876 -c conf/broker.conf
-    environment:
-      - NAMESRV_ADDR=zhicore-rocketmq-namesrv:9876
-      - JAVA_OPT_EXT=-Xms512m -Xmx512m -Xmn256m
-    ports:
-      - "10909:10909"  # ZhiCore RocketMQ Broker VIP
-      - "10911:10911"  # ZhiCore RocketMQ Broker Main
-      - "10912:10912"  # ZhiCore RocketMQ Broker HA
-    networks:
-      - zhicore-network
-    depends_on:
-      zhicore-rocketmq-namesrv:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 10911 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
-    restart: unless-stopped
-
-
-  # ===========================================
-  # RocketMQ Dashboard (ZhiCore专用)
-  # ===========================================
-  zhicore-rocketmq-dashboard:
-    image: apacherocketmq/rocketmq-dashboard:latest
-    container_name: zhicore-rocketmq-dashboard
-    environment:
-      - JAVA_OPTS=-Xms128m -Xmx256m -Drocketmq.namesrv.addr=zhicore-rocketmq-namesrv:9876
-    ports:
-      - "8180:8080"  # ZhiCore RocketMQ Dashboard
-    networks:
-      - zhicore-network
-    depends_on:
-      zhicore-rocketmq-broker:
         condition: service_healthy
     restart: unless-stopped
 
@@ -267,7 +93,7 @@ services:
       - elasticsearch_data:/usr/share/elasticsearch/data
       - ./elasticsearch/plugins:/usr/share/elasticsearch/plugins
     networks:
-      - zhicore-network
+      - shared-infra
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
       interval: 30s
@@ -287,7 +113,7 @@ services:
     ports:
       - "5601:5601"
     networks:
-      - zhicore-network
+      - shared-infra
     depends_on:
       zhicore-elasticsearch:
         condition: service_healthy
@@ -312,7 +138,7 @@ services:
       - ./prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     networks:
-      - zhicore-network
+      - shared-infra
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
       interval: 30s
@@ -338,40 +164,26 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
-      - zhicore-network
+      - shared-infra
     depends_on:
       - zhicore-prometheus
     restart: unless-stopped
 
 # ===========================================
-# Networks
+# Networks - 引用共享基础设施网络
 # ===========================================
 networks:
-  zhicore-network:
-    name: zhicore-network
-    driver: bridge
-    external: false
+  shared-infra:
+    external: true
 
 # ===========================================
 # Volumes
 # ===========================================
 volumes:
-  postgres_data:
-    name: zhicore_postgres_data
-  redis_data:
-    name: zhicore_redis_data
   mongodb_data:
     name: zhicore_mongodb_data
   mongodb_config:
     name: zhicore_mongodb_config
-  mysql_nacos_data:
-    name: zhicore_mysql_nacos_data
-  rocketmq_namesrv_logs:
-    name: zhicore_rocketmq_namesrv_logs
-  rocketmq_broker_logs:
-    name: zhicore_rocketmq_broker_logs
-  rocketmq_broker_store:
-    name: zhicore_rocketmq_broker_store
   elasticsearch_data:
     name: zhicore_elasticsearch_data
   prometheus_data:
