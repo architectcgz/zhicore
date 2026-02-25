@@ -8,13 +8,13 @@ spring:
       discovery:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
         namespace: ${NACOS_NAMESPACE:}
-        group: ZhiCore_SERVICE
+        group: ZHICORE-SERVICE
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
       config:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
         namespace: ${NACOS_NAMESPACE:}
-        group: ZhiCore_SERVICE
+        group: ZHICORE-SERVICE
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
         file-extension: yml
@@ -22,7 +22,7 @@ spring:
           enabled: false
         shared-configs:
           - data-id: common.yml
-            group: ZhiCore_SERVICE
+            group: ZHICORE-SERVICE
             refresh: true
 
 # RocketMQ 配置

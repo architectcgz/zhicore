@@ -6,15 +6,15 @@ spring:
     name: zhicore-ranking
   config:
     import:
-      - optional:nacos:common.yml?group=ZHICORE_SERVICE&username=${NACOS_USERNAME:nacos}&password=${NACOS_PASSWORD:nacos}&refreshEnabled=true
-      - optional:nacos:zhicore-ranking.yml?group=ZHICORE_SERVICE&username=${NACOS_USERNAME:nacos}&password=${NACOS_PASSWORD:nacos}&refreshEnabled=true
+      - optional:nacos:common.yml?group=ZHICORE-SERVICE&username=${NACOS_USERNAME:nacos}&password=${NACOS_PASSWORD:nacos}&refreshEnabled=true
+      - optional:nacos:zhicore-ranking.yml?group=ZHICORE-SERVICE&username=${NACOS_USERNAME:nacos}&password=${NACOS_PASSWORD:nacos}&refreshEnabled=true
   cloud:
     nacos:
       server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
       username: ${NACOS_USERNAME:nacos}
       password: ${NACOS_PASSWORD:nacos}
       discovery:
-        group: ZHICORE_SERVICE
+        group: ZHICORE-SERVICE
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
   data:

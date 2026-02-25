@@ -1,7 +1,7 @@
 # ===========================================
 # User Service 配置
 # Nacos DataId: user-service.yml
-# Group: ZhiCore_SERVICE
+# Group: ZHICORE-SERVICE
 # ===========================================
 
 server:

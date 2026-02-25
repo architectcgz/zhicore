@@ -7,7 +7,7 @@ spring:
       config:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
         namespace: ${NACOS_NAMESPACE:}
-        group: ${NACOS_GROUP:ZhiCore_SERVICE}
+        group: ${NACOS_GROUP:ZHICORE-SERVICE}
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
         file-extension: yml
@@ -18,6 +18,6 @@ spring:
       discovery:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
         namespace: ${NACOS_NAMESPACE:}
-        group: ${NACOS_GROUP:ZhiCore_SERVICE}
+        group: ${NACOS_GROUP:ZHICORE-SERVICE}
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}

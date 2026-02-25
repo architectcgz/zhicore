@@ -9,7 +9,7 @@ spring:
   cloud:
     nacos:
       discovery:
-        group: ZHICORE_SERVICE
+        group: ZHICORE-SERVICE
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
   datasource:

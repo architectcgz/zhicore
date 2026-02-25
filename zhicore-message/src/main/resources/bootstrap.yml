@@ -8,7 +8,7 @@ spring:
       discovery:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
         namespace: ${NACOS_NAMESPACE:}
-        group: ZhiCore_SERVICE
+        group: ZHICORE-SERVICE
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
         # 确保服务发现使用正确的 group
@@ -16,7 +16,7 @@ spring:
       config:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
         namespace: ${NACOS_NAMESPACE:}
-        group: ZhiCore_SERVICE
+        group: ZHICORE-SERVICE
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
         file-extension: yml

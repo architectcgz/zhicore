@@ -6,8 +6,8 @@ spring:
     name: zhicore-admin
   config:
     import:
-      - optional:nacos:common.yml?group=ZHICORE_SERVICE&username=${NACOS_USERNAME:nacos}&password=${NACOS_PASSWORD:nacos}&refreshEnabled=true
-      - optional:nacos:zhicore-admin.yml?group=ZHICORE_SERVICE&username=${NACOS_USERNAME:nacos}&password=${NACOS_PASSWORD:nacos}&refreshEnabled=true
+      - optional:nacos:common.yml?group=ZHICORE-SERVICE&username=${NACOS_USERNAME:nacos}&password=${NACOS_PASSWORD:nacos}&refreshEnabled=true
+      - optional:nacos:zhicore-admin.yml?group=ZHICORE-SERVICE&username=${NACOS_USERNAME:nacos}&password=${NACOS_PASSWORD:nacos}&refreshEnabled=true
   cloud:
     nacos:
       server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
@@ -15,7 +15,7 @@ spring:
       password: ${NACOS_PASSWORD:nacos}
       discovery:
         server-addr: ${NACOS_SERVER:localhost:8848}
-        group: ZHICORE_SERVICE
+        group: ZHICORE-SERVICE
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
         enabled: true

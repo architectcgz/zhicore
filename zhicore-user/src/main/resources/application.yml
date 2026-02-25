@@ -6,8 +6,8 @@ spring:
     name: zhicore-user
   config:
     import:
-      - optional:nacos:common.yml?group=ZHICORE_SERVICE&refreshEnabled=true
-      - optional:nacos:zhicore-user.yml?group=ZHICORE_SERVICE&refreshEnabled=true
+      - optional:nacos:common.yml?group=ZHICORE-SERVICE&refreshEnabled=true
+      - optional:nacos:zhicore-user.yml?group=ZHICORE-SERVICE&refreshEnabled=true
 
 # JWT 配置完全从 Nacos common.yml 加载，不再提供本地默认值
 # 如果 Nacos 不可用，使用以下后备配置
@@ -39,7 +39,7 @@ spring.datasource:
   cloud:
     nacos:
       discovery:
-        group: ZHICORE_SERVICE
+        group: ZHICORE-SERVICE
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
 

@@ -6,8 +6,8 @@ spring:
     name: zhicore-gateway
   config:
     import:
-      - optional:nacos:common.yml?group=ZHICORE_SERVICE&refreshEnabled=true
-      - optional:nacos:zhicore-gateway.yml?group=ZHICORE_SERVICE&refreshEnabled=true
+      - optional:nacos:common.yml?group=ZHICORE-SERVICE&refreshEnabled=true
+      - optional:nacos:zhicore-gateway.yml?group=ZHICORE-SERVICE&refreshEnabled=true
   cloud:
     gateway:
       discovery:
@@ -133,7 +133,7 @@ spring:
     # Nacos 配置
     nacos:
       discovery:
-        group: ZHICORE_SERVICE
+        group: ZHICORE-SERVICE
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
 

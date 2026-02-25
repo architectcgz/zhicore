@@ -1,7 +1,7 @@
 # ===========================================
 # File Service 共享配置
 # Nacos DataId: file-service-config.yml
-# Group: ZhiCore_SERVICE
+# Group: ZHICORE-SERVICE
 # ===========================================
 # 
 # 此配置文件为所有使用 File Service 的微服务提供统一配置
@@ -12,8 +12,8 @@
 # spring:
 #   config:
 #     import: 
-#       - optional:nacos:file-service-config.yml?group=ZhiCore_SERVICE&refreshEnabled=true
-#       - optional:nacos:{service-name}.yml?group=ZhiCore_SERVICE&refreshEnabled=true
+#       - optional:nacos:file-service-config.yml?group=ZHICORE-SERVICE&refreshEnabled=true
+#       - optional:nacos:{service-name}.yml?group=ZHICORE-SERVICE&refreshEnabled=true
 #
 
 # File Service 客户端配置

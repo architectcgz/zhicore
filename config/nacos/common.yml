@@ -2,7 +2,7 @@
   cloud:
     nacos:
       discovery:
-        group: ZhiCore_SERVICE
+        group: ZHICORE-SERVICE
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai

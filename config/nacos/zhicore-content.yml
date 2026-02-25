@@ -1,6 +1,6 @@
 # ZhiCore Content Service 配置
 # Data ID: zhicore-content.yml
-# Group: ZHICORE_SERVICE
+# Group: ZHICORE-SERVICE
 
 spring:
   datasource:

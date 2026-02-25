@@ -8,13 +8,13 @@ spring:
       discovery:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
         namespace: ${NACOS_NAMESPACE:}
-        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        group: ${NACOS_GROUP:ZHICORE-SERVICE}
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
       config:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
         namespace: ${NACOS_NAMESPACE:}
-        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        group: ${NACOS_GROUP:ZHICORE-SERVICE}
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
         file-extension: yml
@@ -22,5 +22,5 @@ spring:
           enabled: false
         shared-configs:
           - data-id: common.yml
-            group: DEFAULT_GROUP
+            group: ZHICORE-SERVICE
             refresh: true

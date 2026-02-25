@@ -4,12 +4,12 @@ server:
 spring:
   config:
     import:
-      - optional:nacos:common.yml?group=ZHICORE_SERVICE&refreshEnabled=true
-      - optional:nacos:zhicore-search.yml?group=ZHICORE_SERVICE&refreshEnabled=true
+      - optional:nacos:common.yml?group=ZHICORE-SERVICE&refreshEnabled=true
+      - optional:nacos:zhicore-search.yml?group=ZHICORE-SERVICE&refreshEnabled=true
   cloud:
     nacos:
       discovery:
-        group: ZHICORE_SERVICE
+        group: ZHICORE-SERVICE
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
 

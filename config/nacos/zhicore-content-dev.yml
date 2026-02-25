@@ -1,6 +1,6 @@
 # ZhiCore Content Service 开发环境配置
 # Data ID: zhicore-content-dev.yml
-# Group: ZHICORE_SERVICE
+# Group: ZHICORE-SERVICE
 
 server:
   port: 8102
