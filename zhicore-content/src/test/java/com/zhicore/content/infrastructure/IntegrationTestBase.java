@@ -1,14 +1,13 @@
 package com.zhicore.content.infrastructure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zhicore.content.domain.repository.PostFavoriteRepository;
-import com.zhicore.content.domain.repository.PostLikeRepository;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
@@ -51,12 +50,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class IntegrationTestBase {
 
     @MockBean
-    private PostFavoriteRepository postFavoriteRepository;
-
-    @MockBean
-    private PostLikeRepository postLikeRepository;
-
-    @MockBean
     private RocketMQTemplate rocketMQTemplate;
     
     // PostgreSQL 容器
@@ -90,6 +83,9 @@ public abstract class IntegrationTestBase {
     
     @Autowired(required = false)
     protected RedisTemplate<String, String> redisTemplate;
+
+    @Autowired(required = false)
+    protected JdbcTemplate jdbcTemplate;
     
     private static void ensureContainersStarted() {
         if (CONTAINERS_STARTED.compareAndSet(false, true)) {
@@ -173,5 +169,34 @@ public abstract class IntegrationTestBase {
                 .serverCommands()
                 .flushDb();
         }
+    }
+
+    /**
+     * 清理 PostgreSQL 主要业务表数据（用于容器复用场景）
+     *
+     * 说明：Testcontainers 容器在同一 JVM 内会被复用，若不清理数据容易导致测试相互污染。
+     */
+    protected void cleanupPostgres() {
+        if (jdbcTemplate == null) {
+            return;
+        }
+
+        // 注意：TRUNCATE + CASCADE 能自动处理外键依赖（如果后续 schema 引入外键也能工作）
+        jdbcTemplate.execute("""
+                TRUNCATE TABLE
+                    post_tags,
+                    post_likes,
+                    post_favorites,
+                    scheduled_publish_event,
+                    outbox_retry_audit,
+                    outbox_event,
+                    consumed_events,
+                    tag_stats,
+                    post_stats,
+                    categories,
+                    tags,
+                    posts
+                RESTART IDENTITY CASCADE
+                """);
     }
 }
