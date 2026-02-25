@@ -51,6 +51,20 @@ public class UserContext {
     }
 
     /**
+     * 是否为管理员。
+     *
+     * <p>约定：UserInfo.role 为 "admin" / "ADMIN" 时视为管理员，其余均为非管理员。
+     * role 缺失时默认非管理员。
+     */
+    public static boolean isAdmin() {
+        UserInfo userInfo = USER_HOLDER.get();
+        if (userInfo == null || userInfo.getRole() == null) {
+            return false;
+        }
+        return "admin".equalsIgnoreCase(userInfo.getRole());
+    }
+
+    /**
      * 清除当前用户
      */
     public static void clear() {
@@ -65,6 +79,7 @@ public class UserContext {
         private String userId;
         private String userName;
         private String email;
+        private String role;
 
         public UserInfo() {
         }

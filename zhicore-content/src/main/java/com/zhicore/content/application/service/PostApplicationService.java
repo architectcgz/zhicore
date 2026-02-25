@@ -1,5 +1,6 @@
 package com.zhicore.content.application.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.api.client.UploadServiceClient;
 import com.zhicore.api.client.UserServiceClient;
@@ -56,17 +57,21 @@ import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.interfaces.dto.request.CreatePostRequest;
 import com.zhicore.content.interfaces.dto.request.UpdatePostRequest;
+import com.zhicore.content.infrastructure.alert.AlertService;
 import com.zhicore.content.infrastructure.persistence.mongo.document.PostContent;
 import com.zhicore.content.interfaces.dto.request.SaveDraftRequest;
 import com.zhicore.content.interfaces.dto.response.DraftVO;
 import com.zhicore.content.infrastructure.config.ScheduledPublishProperties;
+import com.zhicore.content.infrastructure.messaging.OutboxEventTypes;
 import com.zhicore.integration.messaging.post.AuthorInfoCompensationIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostPublishedIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostScheduledIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostTagsUpdatedIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostUpdatedIntegrationEvent;
+import com.zhicore.content.infrastructure.persistence.pg.entity.OutboxEventEntity;
 import com.zhicore.content.infrastructure.persistence.pg.entity.ScheduledPublishEventEntity;
+import com.zhicore.content.infrastructure.persistence.pg.mapper.OutboxEventMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -106,6 +111,7 @@ public class PostApplicationService {
     private final PurgePostHandler purgePostHandler;
     private final PostQuery cacheAsidePostQuery;
     private final PostContentStore postContentStore;
+    private final PostContentImageCleanupService postContentImageCleanupService;
     
     // 事件相关依赖
     private final EventPublisher domainEventPublisher;
@@ -115,6 +121,11 @@ public class PostApplicationService {
     // 定时发布（R1）
     private final ScheduledPublishEventRepository scheduledPublishEventRepository;
     private final ScheduledPublishProperties scheduledPublishProperties;
+
+    // 告警 & DLQ（TASK-01）
+    private final AlertService alertService;
+    private final OutboxEventMapper outboxEventMapper;
+    private final ObjectMapper objectMapper;
 
     /**
      * 创建文章（草稿）
@@ -751,9 +762,63 @@ public class PostApplicationService {
             record.setLastError("发布失败且达到重试上限: " + e.getMessage());
             scheduledPublishEventRepository.update(record);
 
-            // TODO: 投递 DLQ 与告警（Phase 2/3 统一补齐）
+            // 投递 DLQ 与告警（TASK-01）
+            try {
+                alertService.alertScheduledPublishFailedAfterRetries(
+                        record.getPostId(),
+                        record.getLastError(),
+                        record.getPublishRetryCount()
+                );
+            } catch (Exception alertEx) {
+                log.error("Failed to send scheduled publish failure alert: postId={}", record.getPostId(), alertEx);
+            }
+
+            try {
+                emitScheduledPublishDlqEvent(record, scheduledAt, e);
+            } catch (Exception dlqEx) {
+                log.error("Failed to emit scheduled publish DLQ outbox event: postId={}", record.getPostId(), dlqEx);
+            }
+
             log.error("Scheduled publish failed after retries: postId={}, error={}", record.getPostId(), e.getMessage(), e);
         }
+    }
+
+    private void emitScheduledPublishDlqEvent(ScheduledPublishEventEntity record, LocalDateTime scheduledAt, Exception e)
+            throws Exception {
+        if (record == null || record.getPostId() == null) {
+            return;
+        }
+
+        Long postId = record.getPostId();
+        Long aggregateVersion = postRepository.findById(postId)
+                .map(Post::getVersion)
+                .orElse(0L);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("postId", postId);
+        payload.put("scheduledTime", scheduledAt != null
+                ? scheduledAt.atZone(ZoneId.systemDefault()).toInstant().toString()
+                : null);
+        payload.put("failReason", e != null ? e.getMessage() : null);
+        payload.put("retryCount", record.getPublishRetryCount());
+        payload.put("lastError", record.getLastError());
+
+        OutboxEventEntity entity = new OutboxEventEntity();
+        entity.setEventId(newEventId());
+        entity.setEventType(OutboxEventTypes.SCHEDULED_PUBLISH_DLQ);
+        entity.setAggregateId(postId);
+        entity.setAggregateVersion(aggregateVersion);
+        entity.setSchemaVersion(1);
+        entity.setPayload(objectMapper.writeValueAsString(payload));
+        Instant now = Instant.now();
+        entity.setOccurredAt(now);
+        entity.setCreatedAt(now);
+        entity.setUpdatedAt(now);
+        entity.setRetryCount(0);
+        entity.setStatus(OutboxEventEntity.OutboxStatus.PENDING);
+
+        outboxEventMapper.insert(entity);
+        log.warn("Scheduled publish DLQ outbox event created: eventId={}, postId={}", entity.getEventId(), postId);
     }
 
     /**
@@ -779,11 +844,6 @@ public class PostApplicationService {
             }
         }
 
-        // 删除内容中的图片
-        // Note: Content is now in MongoDB, we would need to fetch it to extract image URLs
-        // For now, skip this step as it's not critical for deletion
-        // TODO: Implement content image cleanup by fetching from MongoDB
-
         // 使用 DeletePostHandler 软删除
         DeletePostCommand command = 
             new DeletePostCommand(
@@ -791,6 +851,13 @@ public class PostApplicationService {
                 UserId.of(userId)
             );
         deletePostHandler.handle(command);
+
+        // 异步清理正文图片（best-effort，不阻塞删除主流程）
+        try {
+            postContentImageCleanupService.cleanupContentImagesAsync(postId);
+        } catch (Exception e) {
+            log.warn("Failed to schedule content image cleanup: postId={}", postId, e);
+        }
 
         log.info("Post deleted: postId={}, userId={}", postId, userId);
     }

@@ -1,8 +1,9 @@
 package com.zhicore.content.infrastructure.cache;
 
 import com.zhicore.content.application.port.cache.LockManager;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Component;
@@ -30,10 +31,18 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class RedissonLockManagerImpl implements LockManager {
     
     private final RedissonClient redissonClient;
+    private final Counter lockReleaseFailureCounter;
+
+    public RedissonLockManagerImpl(RedissonClient redissonClient, MeterRegistry meterRegistry) {
+        this.redissonClient = redissonClient;
+        this.lockReleaseFailureCounter = Counter.builder("content.lock.release.failure")
+                .description("分布式锁释放失败次数")
+                .tag("component", "redisson")
+                .register(meterRegistry);
+    }
     
     @Override
     public boolean tryLock(String key, Duration waitTime, Duration leaseTime) {
@@ -138,7 +147,7 @@ public class RedissonLockManagerImpl implements LockManager {
         } catch (Exception e) {
             // 记录错误并增加监控指标
             log.error("Failed to release lock: key={}, error={}", key, e.getMessage(), e);
-            // TODO: 增加监控指标 lockReleaseFailureCounter.increment()
+            lockReleaseFailureCounter.increment();
         }
     }
     

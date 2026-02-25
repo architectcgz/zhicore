@@ -74,6 +74,7 @@ public class UserContextFilter extends OncePerRequestFilter {
             // 优先从请求头中读取用户信息（由网关设置）
             String userId = request.getHeader(CommonConstants.HEADER_USER_ID);
             String userName = request.getHeader(CommonConstants.HEADER_USER_NAME);
+            String userRole = request.getHeader(CommonConstants.HEADER_USER_ROLE);
 
             // 如果没有 X-User-Id 头，尝试从 JWT Token 解析
             if (!StringUtils.hasText(userId)) {
@@ -84,6 +85,9 @@ public class UserContextFilter extends OncePerRequestFilter {
                         Claims claims = parseToken(token);
                         userId = claims.getSubject();
                         userName = claims.get("userName", String.class);
+                        if (!StringUtils.hasText(userRole)) {
+                            userRole = claims.get("role", String.class);
+                        }
                         log.debug("UserContext from JWT: userId={}, userName={}", userId, userName);
                     } catch (Exception e) {
                         log.debug("Failed to parse JWT token: {}", e.getMessage());
@@ -93,6 +97,7 @@ public class UserContextFilter extends OncePerRequestFilter {
 
             if (StringUtils.hasText(userId)) {
                 UserContext.UserInfo userInfo = new UserContext.UserInfo(userId, userName);
+                userInfo.setRole(userRole);
                 UserContext.setUser(userInfo);
                 log.debug("UserContext set: userId={}, userName={}", userId, userName);
             }

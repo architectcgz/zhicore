@@ -1,5 +1,6 @@
 package com.zhicore.content.application.command.handlers;
 
+import com.zhicore.common.context.UserContext;
 import com.zhicore.content.application.command.commands.PurgePostCommand;
 import com.zhicore.content.application.port.cache.CacheRepository;
 import com.zhicore.content.application.port.messaging.EventPublisher;
@@ -52,6 +53,13 @@ public class PurgePostHandler {
         
         // 验证权限
         validatePermission(post, command.getUserId());
+
+        // 审计日志（TASK-03）：操作者、目标文章、操作时间由日志时间戳提供
+        log.warn("AUDIT PurgePost: operatorId={}, postId={}, postDeleted={}, isAdmin={}",
+                command.getUserId(),
+                command.getPostId(),
+                post.isDeleted(),
+                UserContext.isAdmin());
         
         // 删除 MongoDB 内容
         try {
@@ -92,13 +100,15 @@ public class PurgePostHandler {
     private void validatePermission(Post post, UserId userId) {
         // 检查文章是否已软删除
         if (!post.isDeleted()) {
-            // TODO: 实现管理员权限检查
-            // 当前简化实现：未软删除的文章不允许物理删除
-            throw new IllegalStateException("只能物理删除已软删除的文章");
+            // 未软删除的文章，仅管理员可物理删除
+            if (!UserContext.isAdmin()) {
+                throw new IllegalStateException("只有管理员可以物理删除未软删除的文章");
+            }
+            return;
         }
         
-        // 检查是否为文章所有者
-        if (!post.isOwnedBy(userId)) {
+        // 已软删除的文章：所有者或管理员可物理删除
+        if (!post.isOwnedBy(userId) && !UserContext.isAdmin()) {
             throw new PostOwnershipException("无权删除此文章：用户不是文章所有者");
         }
     }

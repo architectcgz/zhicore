@@ -42,7 +42,12 @@ public enum AlertType {
     /**
      * Outbox 投递失败告警（重试耗尽后的失败收敛，通常需要人工介入处理）
      */
-    OUTBOX_DISPATCH_FAILED("Outbox投递失败", AlertLevel.HIGH);
+    OUTBOX_DISPATCH_FAILED("Outbox投递失败", AlertLevel.HIGH),
+
+    /**
+     * 正文图片清理失败告警（删除文章时异步清理正文内图片资源失败）
+     */
+    CONTENT_IMAGE_CLEANUP_FAILED("正文图片清理失败", AlertLevel.MEDIUM);
 
     private final String description;
     private final AlertLevel level;

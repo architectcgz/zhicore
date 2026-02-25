@@ -25,6 +25,13 @@ public class MonitoringProperties {
     @DecimalMin(value = "0.0", message = "存储阈值不能低于 0")
     @DecimalMax(value = "100.0", message = "存储阈值不能超过 100")
     private double storageThreshold = 80.0;
+
+    /**
+     * 存储空间监控配置（TASK-04）。
+     *
+     * <p>用于按“数据库大小（字节）”进行阈值告警。
+     */
+    private Storage storage = new Storage();
     
     /**
      * 查询性能阈值（毫秒）
@@ -44,4 +51,22 @@ public class MonitoringProperties {
      */
     @Min(value = 100, message = "慢查询阈值不能少于 100 毫秒")
     private long slowQueryThresholdMs = 1000;
+
+    @Data
+    public static class Storage {
+        /**
+         * 是否启用存储空间检查
+         */
+        private boolean enabled = true;
+
+        /**
+         * PostgreSQL 数据库大小阈值（字节），默认 10GB
+         */
+        private long postgresThreshold = 10L * 1024 * 1024 * 1024;
+
+        /**
+         * MongoDB 数据库大小阈值（字节），默认 10GB
+         */
+        private long mongoThreshold = 10L * 1024 * 1024 * 1024;
+    }
 }

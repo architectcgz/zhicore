@@ -252,6 +252,73 @@ public class AlertService {
         sendAlert(alert, AlertType.OUTBOX_DISPATCH_FAILED + ":" + safeEventType + ":" + eventId);
     }
 
+    /**
+     * 定时发布失败（重试耗尽）告警。
+     *
+     * <p>目前复用 {@link AlertType#OUTBOX_DISPATCH_FAILED} 类型，语义为“需要人工介入处理的异步投递/执行失败”。
+     * 触发时机：定时发布执行在 publish 重试耗尽后仍失败。
+     */
+    public void alertScheduledPublishFailedAfterRetries(Long postId, String lastError, Integer retryCount) {
+        String safePostId = postId != null ? String.valueOf(postId) : "UNKNOWN";
+        String alertKey = AlertType.OUTBOX_DISPATCH_FAILED + ":SCHEDULED_PUBLISH:" + safePostId;
+
+        if (!shouldSendAlert(alertKey)) {
+            return;
+        }
+
+        Alert alert = Alert.builder()
+                .id(UUID.randomUUID().toString())
+                .type(AlertType.OUTBOX_DISPATCH_FAILED)
+                .level(AlertType.OUTBOX_DISPATCH_FAILED.getLevel())
+                .title("定时发布失败（重试耗尽）")
+                .message("定时发布失败且达到重试上限: postId=" + safePostId)
+                .details(String.format(
+                        "post_id=%s, retry_count=%s, last_error=%s",
+                        safePostId,
+                        retryCount,
+                        lastError
+                ))
+                .timestamp(LocalDateTime.now())
+                .resourceId(safePostId)
+                .sent(false)
+                .build();
+
+        sendAlert(alert, alertKey);
+    }
+
+    /**
+     * 删除文章时正文图片清理失败告警（异步清理，不阻塞主流程）。
+     */
+    public void alertContentImageCleanupFailed(Long postId, String imageUrl, String errorMessage) {
+        String safePostId = postId != null ? String.valueOf(postId) : "UNKNOWN";
+        String safeUrl = imageUrl != null ? imageUrl : "UNKNOWN";
+        String urlHash = Integer.toHexString(safeUrl.hashCode());
+        String alertKey = AlertType.CONTENT_IMAGE_CLEANUP_FAILED + ":" + safePostId + ":" + urlHash;
+
+        if (!shouldSendAlert(alertKey)) {
+            return;
+        }
+
+        Alert alert = Alert.builder()
+                .id(UUID.randomUUID().toString())
+                .type(AlertType.CONTENT_IMAGE_CLEANUP_FAILED)
+                .level(AlertType.CONTENT_IMAGE_CLEANUP_FAILED.getLevel())
+                .title("正文图片清理失败")
+                .message("删除文章时正文图片清理失败: postId=" + safePostId)
+                .details(String.format(
+                        "post_id=%s, image_url=%s, error_message=%s",
+                        safePostId,
+                        safeUrl,
+                        errorMessage
+                ))
+                .timestamp(LocalDateTime.now())
+                .resourceId(safePostId)
+                .sent(false)
+                .build();
+
+        sendAlert(alert, alertKey);
+    }
+
     private boolean tryAcquireOutboxFailureRate(String eventType, int maxPerMinute) {
         long currentMinute = ZonedDateTime.now(ZoneId.systemDefault()).toEpochSecond() / 60;
 
@@ -273,6 +340,41 @@ public class AlertService {
         private MinuteBucket(long minute) {
             this.minute = minute;
         }
+    }
+
+    /**
+     * 触发存储空间不足告警（按“数据库大小（字节）”阈值判断）。
+     *
+     * <p>用于 {@code StorageMonitor} 定期检查数据库大小场景。
+     */
+    public void alertStorageSizeExceeded(String database, long sizeBytes, long thresholdBytes, String extraDetails) {
+        String alertKey = AlertType.STORAGE_SPACE_LOW + ":" + database + ":bytes";
+
+        if (!shouldSendAlert(alertKey)) {
+            return;
+        }
+
+        String details = String.format(
+                "db=%s, db_size_bytes=%s, threshold_bytes=%s%s",
+                database,
+                sizeBytes,
+                thresholdBytes,
+                (extraDetails != null && !extraDetails.isBlank()) ? (", " + extraDetails) : ""
+        );
+
+        Alert alert = Alert.builder()
+                .id(UUID.randomUUID().toString())
+                .type(AlertType.STORAGE_SPACE_LOW)
+                .level(AlertType.STORAGE_SPACE_LOW.getLevel())
+                .title("存储空间不足")
+                .message(String.format("%s 存储空间不足：数据库大小超过阈值", database))
+                .details(details)
+                .timestamp(LocalDateTime.now())
+                .resourceId(database)
+                .sent(false)
+                .build();
+
+        sendAlert(alert, alertKey);
     }
 
     /**
