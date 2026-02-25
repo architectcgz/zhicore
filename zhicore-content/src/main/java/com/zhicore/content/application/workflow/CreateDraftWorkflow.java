@@ -75,7 +75,13 @@ public class CreateDraftWorkflow {
 
             post.setWriteState(WriteState.CONTENT_SAVED);
             postRepository.update(post);
-            post.emitCreatedEvent(domainEventFactory);
+
+            // 重要：创建草稿会经历“插入 + 更新”，乐观锁版本号由数据库/插件推进。
+            // 为保证 Outbox 事件强约束（aggregateVersion 非空且代表事务提交时刻聚合版本），这里取数据库最新版本号传入事件。
+            Long aggregateVersion = postRepository.findById(postId)
+                    .map(Post::getVersion)
+                    .orElse(0L);
+            post.emitCreatedEvent(domainEventFactory, aggregateVersion);
 
             return new ExecutionResult(postId, new ArrayList<>(post.pullDomainEvents()));
         } catch (Exception ex) {

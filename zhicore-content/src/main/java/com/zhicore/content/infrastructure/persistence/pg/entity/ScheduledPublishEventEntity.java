@@ -1,8 +1,10 @@
 package com.zhicore.content.infrastructure.persistence.pg.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -38,8 +40,21 @@ public class ScheduledPublishEventEntity {
 
     private Integer publishRetryCount;
 
+    /**
+     * 上次入队时间（CAS 闸门字段）
+     *
+     * 说明：补扫/重置场景需要把该字段显式更新为 NULL。
+     * MyBatis-Plus 默认会忽略 NULL 值更新，因此这里将 updateStrategy 设为 IGNORED，确保“置空”能落库。
+     */
+    @TableField(updateStrategy = FieldStrategy.IGNORED)
     private LocalDateTime lastEnqueueAt;
 
+    /**
+     * 最近一次错误信息
+     *
+     * 说明：成功收敛时需要清空错误信息（更新为 NULL），同样需要允许 NULL 值更新。
+     */
+    @TableField(updateStrategy = FieldStrategy.IGNORED)
     private String lastError;
 
     private LocalDateTime createdAt;
@@ -65,4 +80,3 @@ public class ScheduledPublishEventEntity {
         FAILED
     }
 }
-

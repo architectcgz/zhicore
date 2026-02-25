@@ -85,15 +85,16 @@ public interface PostEntityMyBatisMapper extends BaseMapper<PostEntity> {
      * 条件：(published_at, id) < (?, ?) 且固定排序 published_at DESC, id DESC
      */
     @Select("""
+            <script>
             SELECT *
             FROM posts
             WHERE status = 1
-              AND (
-                    #{cursorPublishedAt} IS NULL
-                    OR (published_at, id) < (#{cursorPublishedAt}, #{cursorPostId})
-                  )
+            <if test="cursorPublishedAt != null">
+              AND (published_at, id) &lt; (#{cursorPublishedAt,jdbcType=TIMESTAMP}, COALESCE(#{cursorPostId,jdbcType=BIGINT}, 0))
+            </if>
             ORDER BY published_at DESC, id DESC
             LIMIT #{limit}
+            </script>
             """)
     List<PostEntity> selectPublishedCursor(
             @Param("cursorPublishedAt") LocalDateTime cursorPublishedAt,

@@ -222,6 +222,24 @@ public class Post {
      * 发出文章创建事件（在聚合字段初始化完成后调用）
      */
     public void emitCreatedEvent(DomainEventFactory eventFactory) {
+        emitCreatedEvent(eventFactory, this.version);
+    }
+
+    /**
+     * 发出文章创建事件（允许外部显式传入聚合版本号）
+     *
+     * 说明：创建草稿的流程中，文章会经历“插入 + 更新”两次数据库写入（用于两阶段提交/写入状态跟踪）。
+     * MyBatis-Plus 的乐观锁版本号会由数据库/插件在写入时推进，但该版本号不一定会回写到当前内存中的聚合对象。
+     * 为了保证 Outbox 事件的强约束（aggregateVersion 非空且语义正确），这里允许调用方传入“数据库最新版本号”。
+     *
+     * @param eventFactory 领域事件工厂
+     * @param aggregateVersion 聚合根版本号（优先使用该值；为空时回退到当前对象版本；仍为空则使用 0L）
+     */
+    public void emitCreatedEvent(DomainEventFactory eventFactory, Long aggregateVersion) {
+        Long safeAggregateVersion = aggregateVersion != null
+                ? aggregateVersion
+                : (this.version != null ? this.version : 0L);
+
         registerEvent(new PostCreatedDomainEvent(
             eventFactory.generateEventId(),
             eventFactory.now(),
@@ -236,7 +254,7 @@ public class Post {
             this.status.name(),
             null,
             eventFactory.now(),
-            this.version
+            safeAggregateVersion
         ));
     }
 

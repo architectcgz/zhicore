@@ -19,7 +19,9 @@ public interface ScheduledPublishEventMapper extends BaseMapper<ScheduledPublish
     /**
      * 获取数据库当前时间（用于统一时间基准）
      */
-    @Select("SELECT CURRENT_TIMESTAMP")
+    // PostgreSQL 的 CURRENT_TIMESTAMP 返回 TIMESTAMPTZ（带时区），与 LocalDateTime 不匹配；
+    // 这里使用 LOCALTIMESTAMP 返回 timestamp（无时区），避免驱动类型转换异常。
+    @Select("SELECT LOCALTIMESTAMP")
     LocalDateTime selectDbNow();
 
     /**
