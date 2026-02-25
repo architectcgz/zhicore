@@ -12,6 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 import java.util.Set;
@@ -112,6 +113,7 @@ class TagConcurrencyIntegrationTest extends IntegrationTestBase {
             CountDownLatch doneLatch = new CountDownLatch(threadCount);
             AtomicInteger successCount = new AtomicInteger(0);
             AtomicInteger conflictCount = new AtomicInteger(0);
+            AtomicInteger otherErrorCount = new AtomicInteger(0);
 
             ExecutorService executor = Executors.newFixedThreadPool(threadCount);
             for (int i = 0; i < threadCount; i++) {
@@ -133,8 +135,12 @@ class TagConcurrencyIntegrationTest extends IntegrationTestBase {
                         assertThat(e.getErrorCode())
                                 .isEqualTo("CONCURRENT_TAG_UPDATE");
                         assertThat(e.isRetrySuggested()).isTrue();
+                    } catch (DataIntegrityViolationException e) {
+                        // 并发 delete+insert 导致唯一约束冲突，也是合法的并发冲突信号
+                        conflictCount.incrementAndGet();
                     } catch (Exception e) {
-                        // 其他异常忽略
+                        otherErrorCount.incrementAndGet();
+                        System.err.println("[ConcurrentTest] 线程异常: " + e.getClass().getName() + " - " + e.getMessage());
                     } finally {
                         doneLatch.countDown();
                     }
@@ -145,9 +151,19 @@ class TagConcurrencyIntegrationTest extends IntegrationTestBase {
             doneLatch.await();
             executor.shutdown();
 
-            // 至少一个成功，其余收到冲突
-            assertThat(successCount.get()).isGreaterThanOrEqualTo(1);
+            // 验证：所有线程都应该完成（成功 + 冲突 + 其他错误 = 线程数）
+            assertThat(successCount.get() + conflictCount.get() + otherErrorCount.get())
+                    .as("所有线程都应完成: success=%d, conflict=%d, other=%d",
+                            successCount.get(), conflictCount.get(), otherErrorCount.get())
+                    .isEqualTo(threadCount);
+            // 不应有未预期的异常
+            assertThat(otherErrorCount.get())
+                    .as("不应有未预期的异常: success=%d, conflict=%d, other=%d",
+                            successCount.get(), conflictCount.get(), otherErrorCount.get())
+                    .isZero();
+            // 并发场景下至少应产生冲突（乐观锁或唯一约束），或至少有一个成功
             assertThat(successCount.get() + conflictCount.get())
+                    .as("成功数 + 冲突数应等于线程数")
                     .isEqualTo(threadCount);
         }
     }

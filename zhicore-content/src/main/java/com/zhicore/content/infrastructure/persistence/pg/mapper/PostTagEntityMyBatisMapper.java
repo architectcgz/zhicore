@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zhicore.content.infrastructure.persistence.pg.entity.PostTagEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
@@ -19,10 +20,18 @@ public interface PostTagEntityMyBatisMapper extends BaseMapper<PostTagEntity> {
 
     /**
      * 批量插入关联
-     * 
+     *
      * @param postTagList 关联列表
      * @return 插入数量
      */
+    @Insert({
+            "<script>",
+            "INSERT INTO post_tags (post_id, tag_id, created_at) VALUES",
+            "<foreach collection='list' item='item' separator=','>",
+            "(#{item.postId}, #{item.tagId}, #{item.createdAt})",
+            "</foreach>",
+            "</script>"
+    })
     int insertBatch(@Param("list") List<PostTagEntity> postTagList);
 
     /**

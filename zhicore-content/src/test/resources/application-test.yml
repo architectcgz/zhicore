@@ -51,9 +51,10 @@ rocketmq:
 # 缓存配置
 cache:
   ttl:
-    entity-detail: 10m
-    list: 5m
+    entity-detail: 600
+    list: 300
     stats: -1
+    null-value: 60
 
 # Actuator 配置
 management:
@@ -64,6 +65,15 @@ management:
   endpoint:
     health:
       show-details: always
+
+# JWT 测试配置
+jwt:
+  secret: test-jwt-secret-key-for-unit-testing-only-32chars
+
+# File Service 测试配置
+file-service:
+  client:
+    tenant-id: test-app
 
 # 日志配置
 logging:

@@ -48,7 +48,13 @@ public final class ContentImageExtractor {
     private static void extractByPattern(Set<String> urls, String content, Pattern pattern) {
         Matcher matcher = pattern.matcher(content);
         while (matcher.find()) {
-            String url = firstNonBlank(matcher.group(1), matcher.group(2), matcher.group(3));
+            String url = null;
+            for (int i = 1; i <= matcher.groupCount(); i++) {
+                url = matcher.group(i);
+                if (url != null && !url.isBlank()) {
+                    break;
+                }
+            }
             if (url == null) {
                 continue;
             }
