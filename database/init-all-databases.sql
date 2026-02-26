@@ -124,7 +124,8 @@ CREATE TABLE IF NOT EXISTS outbox_events (
     payload TEXT NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     retry_count INT NOT NULL DEFAULT 0,
-    max_retries INT NOT NULL DEFAULT 3,
+    max_retries INT NOT NULL DEFAULT 10,
+    next_retry_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     sent_at TIMESTAMPTZ,
     error_message TEXT
@@ -132,6 +133,8 @@ CREATE TABLE IF NOT EXISTS outbox_events (
 
 CREATE INDEX IF NOT EXISTS idx_outbox_events_status ON outbox_events(status);
 CREATE INDEX IF NOT EXISTS idx_outbox_events_created_at ON outbox_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_outbox_events_retryable ON outbox_events(status, next_retry_at)
+    WHERE status IN ('PENDING', 'FAILED');
 
 COMMENT ON TABLE outbox_events IS 'Transactional Outbox 事件表';
 COMMENT ON COLUMN outbox_events.id IS '事件ID（UUID格式）';
@@ -139,9 +142,10 @@ COMMENT ON COLUMN outbox_events.topic IS 'RocketMQ Topic';
 COMMENT ON COLUMN outbox_events.tag IS 'RocketMQ Tag';
 COMMENT ON COLUMN outbox_events.sharding_key IS '分片键（用于消息路由）';
 COMMENT ON COLUMN outbox_events.payload IS '事件负载（JSON格式）';
-COMMENT ON COLUMN outbox_events.status IS '事件状态：PENDING（待发送）, SENT（已发送）, FAILED（失败）';
+COMMENT ON COLUMN outbox_events.status IS '事件状态：PENDING（待发送）, SENT（已发送）, FAILED（重试中）, DEAD（死信）';
 COMMENT ON COLUMN outbox_events.retry_count IS '重试次数';
-COMMENT ON COLUMN outbox_events.max_retries IS '最大重试次数';
+COMMENT ON COLUMN outbox_events.max_retries IS '最大重试次数（默认10）';
+COMMENT ON COLUMN outbox_events.next_retry_at IS '下次重试时间（指数退避）';
 COMMENT ON COLUMN outbox_events.created_at IS '创建时间';
 COMMENT ON COLUMN outbox_events.sent_at IS '发送时间';
 COMMENT ON COLUMN outbox_events.error_message IS '错误信息';

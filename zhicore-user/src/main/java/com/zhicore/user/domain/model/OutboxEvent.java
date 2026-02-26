@@ -90,7 +90,12 @@ public class OutboxEvent {
      * 默认为 3 次，超过后标记为 FAILED
      */
     private Integer maxRetries;
-    
+
+    /**
+     * 下次重试时间（指数退避计算）
+     */
+    private LocalDateTime nextRetryAt;
+
     /**
      * 创建时间
      * 
@@ -132,9 +137,26 @@ public class OutboxEvent {
         this.payload = payload;
         this.status = status;
         this.retryCount = 0;
-        this.maxRetries = 3;
+        this.maxRetries = 10;
         this.createdAt = createdAt;
+        this.nextRetryAt = createdAt;
         this.sentAt = null;
         this.errorMessage = null;
+    }
+
+    /**
+     * 计算下次重试时间（指数退避：1s→2s→4s→...最大5min）
+     */
+    public void scheduleNextRetry() {
+        this.retryCount++;
+        long delaySeconds = Math.min((long) Math.pow(2, this.retryCount - 1), 300);
+        this.nextRetryAt = LocalDateTime.now().plusSeconds(delaySeconds);
+    }
+
+    /**
+     * 是否超过最大重试次数
+     */
+    public boolean isExhausted() {
+        return this.retryCount >= this.maxRetries;
     }
 }

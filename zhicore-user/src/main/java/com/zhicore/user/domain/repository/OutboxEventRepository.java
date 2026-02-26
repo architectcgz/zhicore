@@ -120,4 +120,14 @@ public interface OutboxEventRepository {
      * @return 事件数量
      */
     long countByStatus(OutboxEventStatus status);
+
+    /**
+     * 查询可重试的事件（PENDING/FAILED 且 next_retry_at <= NOW）
+     *
+     * <p>使用 FOR UPDATE SKIP LOCKED 避免多实例重复投递</p>
+     *
+     * @param limit 最大返回数量
+     * @return 可投递的事件列表
+     */
+    List<OutboxEvent> findRetryableEvents(int limit);
 }

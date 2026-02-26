@@ -67,8 +67,13 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
                 event.setSentAt(sentAt.toLocalDateTime());
             }
             
+            Timestamp nextRetryAt = rs.getTimestamp("next_retry_at");
+            if (nextRetryAt != null) {
+                event.setNextRetryAt(nextRetryAt.toLocalDateTime());
+            }
+
             event.setErrorMessage(rs.getString("error_message"));
-            
+
             return event;
         }
     };
@@ -81,11 +86,11 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
         
         String sql = """
             INSERT INTO outbox_events (
-                id, topic, tag, sharding_key, payload, status, 
-                retry_count, max_retries, created_at, sent_at, error_message
+                id, topic, tag, sharding_key, payload, status,
+                retry_count, max_retries, next_retry_at, created_at, sent_at, error_message
             ) VALUES (
                 :id, :topic, :tag, :shardingKey, :payload, :status,
-                :retryCount, :maxRetries, :createdAt, :sentAt, :errorMessage
+                :retryCount, :maxRetries, :nextRetryAt, :createdAt, :sentAt, :errorMessage
             )
             """;
         
@@ -98,6 +103,8 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
             .addValue("status", event.getStatus().name())
             .addValue("retryCount", event.getRetryCount())
             .addValue("maxRetries", event.getMaxRetries())
+            .addValue("nextRetryAt", event.getNextRetryAt() != null ?
+                Timestamp.valueOf(event.getNextRetryAt()) : null)
             .addValue("createdAt", Timestamp.valueOf(event.getCreatedAt()))
             .addValue("sentAt", event.getSentAt() != null ? 
                 Timestamp.valueOf(event.getSentAt()) : null)
@@ -123,9 +130,10 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
         }
         
         String sql = """
-            UPDATE outbox_events 
+            UPDATE outbox_events
             SET status = :status,
                 retry_count = :retryCount,
+                next_retry_at = :nextRetryAt,
                 sent_at = :sentAt,
                 error_message = :errorMessage
             WHERE id = :id
@@ -135,7 +143,9 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
             .addValue("id", event.getId())
             .addValue("status", event.getStatus().name())
             .addValue("retryCount", event.getRetryCount())
-            .addValue("sentAt", event.getSentAt() != null ? 
+            .addValue("nextRetryAt", event.getNextRetryAt() != null ?
+                Timestamp.valueOf(event.getNextRetryAt()) : null)
+            .addValue("sentAt", event.getSentAt() != null ?
                 Timestamp.valueOf(event.getSentAt()) : null)
             .addValue("errorMessage", event.getErrorMessage());
         
@@ -153,7 +163,7 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
     public Optional<OutboxEvent> findById(String id) {
         String sql = """
             SELECT id, topic, tag, sharding_key, payload, status,
-                   retry_count, max_retries, created_at, sent_at, error_message
+                   retry_count, max_retries, next_retry_at, created_at, sent_at, error_message
             FROM outbox_events
             WHERE id = :id
             """;
@@ -170,7 +180,7 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
     public List<OutboxEvent> findByStatusOrderByCreatedAtAsc(OutboxEventStatus status, int limit) {
         String sql = """
             SELECT id, topic, tag, sharding_key, payload, status,
-                   retry_count, max_retries, created_at, sent_at, error_message
+                   retry_count, max_retries, next_retry_at, created_at, sent_at, error_message
             FROM outbox_events
             WHERE status = :status
             ORDER BY created_at ASC
@@ -193,7 +203,7 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
     public List<OutboxEvent> findByStatus(OutboxEventStatus status) {
         String sql = """
             SELECT id, topic, tag, sharding_key, payload, status,
-                   retry_count, max_retries, created_at, sent_at, error_message
+                   retry_count, max_retries, next_retry_at, created_at, sent_at, error_message
             FROM outbox_events
             WHERE status = :status
             ORDER BY created_at ASC
@@ -209,6 +219,29 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
         return events;
     }
     
+    @Override
+    public List<OutboxEvent> findRetryableEvents(int limit) {
+        String sql = """
+            SELECT id, topic, tag, sharding_key, payload, status,
+                   retry_count, max_retries, next_retry_at, created_at, sent_at, error_message
+            FROM outbox_events
+            WHERE status IN ('PENDING', 'FAILED')
+              AND (next_retry_at IS NULL OR next_retry_at <= NOW())
+            ORDER BY created_at ASC
+            LIMIT :limit
+            FOR UPDATE SKIP LOCKED
+            """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("limit", limit);
+
+        List<OutboxEvent> events = namedParameterJdbcTemplate.query(sql, params, ROW_MAPPER);
+
+        log.debug("查询可重试 Outbox 事件: limit={}, found={}", limit, events.size());
+
+        return events;
+    }
+
     @Override
     public long countByStatus(OutboxEventStatus status) {
         String sql = """

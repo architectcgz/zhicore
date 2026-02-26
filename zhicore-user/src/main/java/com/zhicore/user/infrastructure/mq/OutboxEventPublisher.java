@@ -39,12 +39,12 @@ import java.util.List;
  *   <li>批量处理时不会因为一条失败导致全部回滚</li>
  * </ul>
  * 
- * <h3>重试策略</h3>
+ * <h3>重试策略（指数退避）</h3>
  * <ul>
- *   <li>默认最大重试次数：3 次</li>
- *   <li>每次失败后递增 retry_count</li>
- *   <li>超过最大重试次数后标记为 FAILED</li>
- *   <li>FAILED 事件需要人工介入或手动重试</li>
+ *   <li>默认最大重试次数：10 次</li>
+ *   <li>退避间隔：1s → 2s → 4s → ... → 最大 5min</li>
+ *   <li>失败后标记为 FAILED，等待 next_retry_at 到达后重试</li>
+ *   <li>超过最大重试次数后标记为 DEAD，需人工介入</li>
  * </ul>
  * 
  * @author System
@@ -61,26 +61,23 @@ public class OutboxEventPublisher {
     private final RocketMQTemplate rocketMQTemplate;
     
     /**
-     * 定时扫描 outbox_events 表并发送到 RocketMQ
-     * 
-     * <p>执行频率：每 5 秒一次</p>
-     * <p>批量大小：每次最多处理 100 条</p>
-     * 
-     * <p><strong>注意：</strong>每条事件使用独立事务，避免批量回滚</p>
+     * 定时扫描待投递事件（PENDING/FAILED 且 next_retry_at <= NOW）
+     *
+     * <p>执行频率：每 5 秒一次，每次最多处理 100 条</p>
+     * <p>使用 FOR UPDATE SKIP LOCKED 支持多实例并行投递</p>
      */
     @Scheduled(fixedDelay = 5000)
     public void publishPendingEvents() {
         List<OutboxEvent> pendingEvents = outboxEventRepository
-            .findByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING, 100);
-        
+            .findRetryableEvents(100);
+
         if (pendingEvents.isEmpty()) {
             return;
         }
-        
+
         log.info("Publishing {} pending outbox events", pendingEvents.size());
-        
+
         for (OutboxEvent event : pendingEvents) {
-            // 【关键】每条事件使用独立事务
             publishSingleEvent(event);
         }
     }
@@ -115,57 +112,50 @@ public class OutboxEventPublisher {
                 event.getId(), result.getMsgId(), event.getTopic(), event.getTag());
             
         } catch (Exception e) {
-            log.error("Failed to publish outbox event: eventId={}, topic={}, tag={}", 
+            log.error("Failed to publish outbox event: eventId={}, topic={}, tag={}",
                 event.getId(), event.getTopic(), event.getTag(), e);
-            
-            // 增加重试次数
-            event.setRetryCount(event.getRetryCount() + 1);
+
             event.setErrorMessage(e.getMessage());
-            
-            // 如果超过最大重试次数，标记为失败
-            if (event.getRetryCount() >= event.getMaxRetries()) {
-                event.setStatus(OutboxEventStatus.FAILED);
-                log.error("Outbox event failed after {} retries: eventId={}, topic={}, tag={}", 
+            event.scheduleNextRetry();
+
+            if (event.isExhausted()) {
+                event.setStatus(OutboxEventStatus.DEAD);
+                log.error("Outbox event dead after {} retries: eventId={}, topic={}, tag={}",
                     event.getMaxRetries(), event.getId(), event.getTopic(), event.getTag());
-                
-                // TODO: 发送告警（通过监控系统）
-                // alertService.sendAlert("Outbox Event Failed", 
-                //     String.format("Event %s failed after %d retries", event.getId(), event.getMaxRetries()));
+            } else {
+                event.setStatus(OutboxEventStatus.FAILED);
+                log.warn("Outbox event will retry (attempt {}/{}): eventId={}, nextRetryAt={}",
+                    event.getRetryCount(), event.getMaxRetries(), event.getId(), event.getNextRetryAt());
             }
-            
+
             outboxEventRepository.update(event);
         }
     }
     
     /**
-     * 重试失败的事件（手动触发或定时任务）
-     * 
-     * <p>将 FAILED 状态的事件重置为 PENDING，重新尝试发送</p>
-     * 
-     * <p><strong>使用场景：</strong></p>
-     * <ul>
-     *   <li>RocketMQ 恢复后手动重试</li>
-     *   <li>修复问题后批量重试</li>
-     *   <li>定期清理失败事件</li>
-     * </ul>
+     * 重试死信事件（手动触发）
+     *
+     * <p>将 DEAD 状态的事件重置为 PENDING，重新尝试发送</p>
+     *
+     * <p>使用场景：RocketMQ 恢复后手动重投、修复问题后批量重试</p>
      */
-    public void retryFailedEvents() {
-        List<OutboxEvent> failedEvents = outboxEventRepository
-            .findByStatus(OutboxEventStatus.FAILED);
-        
-        if (failedEvents.isEmpty()) {
-            log.info("No failed events to retry");
+    public void retryDeadEvents() {
+        List<OutboxEvent> deadEvents = outboxEventRepository
+            .findByStatus(OutboxEventStatus.DEAD);
+
+        if (deadEvents.isEmpty()) {
+            log.info("No dead events to retry");
             return;
         }
-        
-        for (OutboxEvent event : failedEvents) {
-            // 重置状态为 PENDING，重新尝试发送
+
+        for (OutboxEvent event : deadEvents) {
             event.setStatus(OutboxEventStatus.PENDING);
             event.setRetryCount(0);
             event.setErrorMessage(null);
+            event.setNextRetryAt(LocalDateTime.now());
             outboxEventRepository.update(event);
         }
-        
-        log.info("Reset {} failed events to PENDING for retry", failedEvents.size());
+
+        log.info("Reset {} dead events to PENDING for retry", deadEvents.size());
     }
 }
