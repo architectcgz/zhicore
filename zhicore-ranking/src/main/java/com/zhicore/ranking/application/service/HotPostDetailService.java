@@ -91,6 +91,7 @@ public class HotPostDetailService {
                 .coverImageUrl(post.getCoverImage())
                 .ownerId(post.getOwnerId() != null ? post.getOwnerId().toString() : null)
                 .ownerName(post.getAuthor() != null ? post.getAuthor().getNickname() : null)
+                // avatarId 而非 avatarUrl：UserSimpleDTO 返回的是资源 ID，前端需拼接 CDN 地址
                 .ownerAvatar(post.getAuthor() != null ? post.getAuthor().getAvatarId() : null)
                 .topicId(post.getTags() != null && !post.getTags().isEmpty() 
                         ? post.getTags().get(0).getId() 

@@ -29,7 +29,7 @@ public class RankingRefreshScheduler {
     private final CreatorRankingService creatorRankingService;
     private final RankingRedisRepository rankingRepository;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final Timer snapshotTimer;
+    private final MeterRegistry meterRegistry;
 
     public RankingRefreshScheduler(PostRankingService postRankingService,
                                    CreatorRankingService creatorRankingService,
@@ -40,8 +40,12 @@ public class RankingRefreshScheduler {
         this.creatorRankingService = creatorRankingService;
         this.rankingRepository = rankingRepository;
         this.redisTemplate = redisTemplate;
-        this.snapshotTimer = Timer.builder("ranking.snapshot.duration")
-                .description("快照生成耗时")
+        this.meterRegistry = meterRegistry;
+    }
+
+    private Timer snapshotTimer(String type) {
+        return Timer.builder("ranking.snapshot.duration")
+                .tag("type", type)
                 .register(meterRegistry);
     }
 
@@ -51,7 +55,7 @@ public class RankingRefreshScheduler {
     @Scheduled(cron = "0 0 * * * ?")
     public void refreshHotPosts() {
         log.info("开始每小时热门文章刷新任务...");
-        snapshotTimer.record(() -> {
+        snapshotTimer("post").record(() -> {
             try {
                 cleanupExpiredDailyRankings();
                 cleanupExpiredWeeklyRankings();
@@ -62,36 +66,30 @@ public class RankingRefreshScheduler {
         });
     }
 
-    /**
-     * 每天凌晨2点刷新创作者排行
-     */
     @Scheduled(cron = "0 0 2 * * ?")
     public void refreshCreatorRanking() {
         log.info("开始每日创作者排行刷新任务...");
-        long startTime = System.currentTimeMillis();
-        try {
-            cleanupExpiredCreatorDailyRankings();
-            long duration = System.currentTimeMillis() - startTime;
-            log.info("每日创作者排行刷新任务完成: 耗时={}ms", duration);
-        } catch (Exception e) {
-            log.error("创作者排行刷新失败", e);
-        }
+        snapshotTimer("creator").record(() -> {
+            try {
+                cleanupExpiredCreatorDailyRankings();
+                log.info("每日创作者排行刷新任务完成");
+            } catch (Exception e) {
+                log.error("创作者排行刷新失败", e);
+            }
+        });
     }
 
-    /**
-     * 每天凌晨3点刷新话题排行
-     */
     @Scheduled(cron = "0 0 3 * * ?")
     public void refreshTopicRanking() {
         log.info("开始每日话题排行刷新任务...");
-        long startTime = System.currentTimeMillis();
-        try {
-            cleanupExpiredTopicDailyRankings();
-            long duration = System.currentTimeMillis() - startTime;
-            log.info("每日话题排行刷新任务完成: 耗时={}ms", duration);
-        } catch (Exception e) {
-            log.error("话题排行刷新失败", e);
-        }
+        snapshotTimer("topic").record(() -> {
+            try {
+                cleanupExpiredTopicDailyRankings();
+                log.info("每日话题排行刷新任务完成");
+            } catch (Exception e) {
+                log.error("话题排行刷新失败", e);
+            }
+        });
     }
 
     private void cleanupExpiredDailyRankings() {

@@ -40,7 +40,7 @@ class ScoreBufferServiceTest {
     void setUp() {
         bufferProperties = new RankingBufferProperties();
         bufferProperties.setFlushInterval(5000L);
-        bufferProperties.setBatchSize(1000);
+        bufferProperties.setBatchSize(Integer.MAX_VALUE);
         scoreBufferService = new ScoreBufferService(
                 rankingRedisRepository, bufferProperties, new SimpleMeterRegistry());
     }

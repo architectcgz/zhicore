@@ -2,8 +2,9 @@ package com.zhicore.ranking.domain.service;
 
 import com.zhicore.ranking.domain.model.CreatorStats;
 import com.zhicore.ranking.domain.model.PostStats;
+import com.zhicore.ranking.infrastructure.config.RankingWeightProperties;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -12,20 +13,16 @@ import java.time.temporal.ChronoUnit;
 /**
  * 热度分数计算器
  *
- * 文章热度公式：score = (views * viewWeight + likes * likeWeight + comments * commentWeight + favorites * favoriteWeight) * timeDecay
- * 权重从配置读取，支持 Nacos 动态调整
+ * <p>权重从 RankingWeightProperties 实时读取，支持 Nacos 动态刷新（无需重启）</p>
  *
  * @author ZhiCore Team
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class HotScoreCalculator {
 
-    // 文章热度权重（从配置读取）
-    private final double viewWeight;
-    private final double likeWeight;
-    private final double commentWeight;
-    private final double favoriteWeight;
+    private final RankingWeightProperties weightProperties;
 
     // 创作者热度权重
     private static final double FOLLOWER_WEIGHT = 2.0;
@@ -33,34 +30,11 @@ public class HotScoreCalculator {
     private static final double CREATOR_COMMENT_WEIGHT = 1.5;
     private static final double POST_COUNT_WEIGHT = 3.0;
 
-    // 时间衰减半衰期（从配置读取）
-    private final double halfLifeDays;
-
-    public HotScoreCalculator(
-            @Value("${ranking.weight.view:1.0}") double viewWeight,
-            @Value("${ranking.weight.like:5.0}") double likeWeight,
-            @Value("${ranking.weight.comment:10.0}") double commentWeight,
-            @Value("${ranking.weight.favorite:8.0}") double favoriteWeight,
-            @Value("${ranking.half-life-days:7}") double halfLifeDays) {
-        this.viewWeight = viewWeight;
-        this.likeWeight = likeWeight;
-        this.commentWeight = commentWeight;
-        this.favoriteWeight = favoriteWeight;
-        this.halfLifeDays = halfLifeDays;
-    }
-
-    /**
-     * 计算文章热度分数
-     *
-     * @param stats       文章统计数据
-     * @param publishedAt 发布时间
-     * @return 热度分数
-     */
     public double calculatePostHotScore(PostStats stats, LocalDateTime publishedAt) {
-        double baseScore = stats.getViewCount() * viewWeight
-                + stats.getLikeCount() * likeWeight
-                + stats.getCommentCount() * commentWeight
-                + stats.getFavoriteCount() * favoriteWeight;
+        double baseScore = stats.getViewCount() * weightProperties.getView()
+                + stats.getLikeCount() * weightProperties.getLike()
+                + stats.getCommentCount() * weightProperties.getComment()
+                + stats.getFavoriteCount() * weightProperties.getFavorite();
 
         double timeDecay = calculateTimeDecay(publishedAt);
         return baseScore * timeDecay;
@@ -93,22 +67,22 @@ public class HotScoreCalculator {
         if (daysSincePublish < 0) {
             daysSincePublish = 0;
         }
-        return Math.pow(0.5, daysSincePublish / halfLifeDays);
+        return Math.pow(0.5, daysSincePublish / weightProperties.getHalfLifeDays());
     }
 
     public double getViewDelta() {
-        return viewWeight;
+        return weightProperties.getView();
     }
 
     public double getLikeDelta() {
-        return likeWeight;
+        return weightProperties.getLike();
     }
 
     public double getCommentDelta() {
-        return commentWeight;
+        return weightProperties.getComment();
     }
 
     public double getFavoriteDelta() {
-        return favoriteWeight;
+        return weightProperties.getFavorite();
     }
 }

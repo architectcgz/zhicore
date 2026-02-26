@@ -11,10 +11,10 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.DoubleAdder;
-import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -25,10 +25,16 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p>核心设计：</p>
  * <ul>
  *   <li>AtomicReference + ConcurrentHashMap：swap-and-flush 原子替换，消除竞态窗口</li>
- *   <li>ReentrantLock + Condition：单线程刷写协调，阈值触发仅唤醒刷写线程</li>
+ *   <li>ReentrantLock：保证同一时刻只有一个刷写操作，阈值触发直接调用 flush()</li>
  *   <li>AtomicLong 事件计数器：记录累计事件数（非去重），阈值触发后重置</li>
- *   <li>刷写失败补偿：失败批次 merge 回当前活跃缓冲区，确保数据不丢失</li>
+ *   <li>刷写失败补偿：失败批次 merge 回当前活跃缓冲区，连续失败计数告警</li>
  * </ul>
+ *
+ * <p>TODO: 当前刷写目标为 Redis（ZINCRBY），架构文档要求刷写到 MongoDB（权威数据源），
+ * Redis 排行数据由快照任务全量刷新。待 MongoDB 持久化层就绪后迁移（见架构文档 2.3 节）</p>
+ *
+ * <p>TODO: WAL 兜底机制（见架构文档 2.3 节）——连续失败 3 次后写入本地磁盘 WAL 文件，
+ * 服务启动时自动恢复未完成的刷写</p>
  *
  * @author ZhiCore Team
  */
@@ -38,6 +44,7 @@ public class ScoreBufferService {
 
     private final RankingRedisRepository rankingRedisRepository;
     private final RankingBufferProperties bufferProperties;
+    private final MeterRegistry meterRegistry;
 
     /** 缓冲区引用，通过 AtomicReference.getAndSet 实现原子 swap */
     private final AtomicReference<ConcurrentHashMap<String, DoubleAdder>> bufferRef =
@@ -48,7 +55,9 @@ public class ScoreBufferService {
 
     /** 刷写锁，保证同一时刻只有一个刷写操作在执行 */
     private final ReentrantLock flushLock = new ReentrantLock();
-    private final Condition flushCondition = flushLock.newCondition();
+
+    /** 连续刷写失败计数器，用于告警和未来 WAL 触发 */
+    private final AtomicInteger consecutiveFailureCount = new AtomicInteger(0);
 
     /** 是否已停止接收新事件（优雅停机用） */
     private volatile boolean stopped = false;
@@ -56,7 +65,6 @@ public class ScoreBufferService {
     // Micrometer 指标
     private final Counter flushSuccessCounter;
     private final Counter flushFailureCounter;
-    private final Counter eventConsumeCounter;
     private final Timer flushTimer;
 
     public ScoreBufferService(RankingRedisRepository rankingRedisRepository,
@@ -64,24 +72,20 @@ public class ScoreBufferService {
                               MeterRegistry meterRegistry) {
         this.rankingRedisRepository = rankingRedisRepository;
         this.bufferProperties = bufferProperties;
+        this.meterRegistry = meterRegistry;
 
-        // 注册 Micrometer 指标
-        this.flushSuccessCounter = Counter.builder("ranking.buffer.flush.total")
+        this.flushSuccessCounter = Counter.builder("ranking.buffer.flush")
                 .tag("result", "success")
                 .description("缓冲区刷写成功次数")
                 .register(meterRegistry);
-        this.flushFailureCounter = Counter.builder("ranking.buffer.flush.total")
+        this.flushFailureCounter = Counter.builder("ranking.buffer.flush")
                 .tag("result", "failure")
                 .description("缓冲区刷写失败次数")
-                .register(meterRegistry);
-        this.eventConsumeCounter = Counter.builder("ranking.event.consume.total")
-                .description("事件消费总数")
                 .register(meterRegistry);
         this.flushTimer = Timer.builder("ranking.buffer.flush.duration")
                 .description("缓冲区刷写耗时")
                 .register(meterRegistry);
 
-        // 注册缓冲区大小 Gauge
         meterRegistry.gauge("ranking.buffer.size", this, ScoreBufferService::getBufferSize);
     }
 
@@ -90,7 +94,7 @@ public class ScoreBufferService {
      *
      * @param entityType 实体类型（post, creator, topic）
      * @param entityId   实体ID
-     * @param delta      分数增量（支持负值）
+     * @param delta      分数增量
      */
     public void addScore(String entityType, String entityId, double delta) {
         if (stopped) {
@@ -100,39 +104,25 @@ public class ScoreBufferService {
 
         String key = buildKey(entityType, entityId);
         bufferRef.get().computeIfAbsent(key, k -> new DoubleAdder()).add(delta);
-        eventConsumeCounter.increment();
+
+        // 按 entityType 打标签的事件消费计数
+        Counter.builder("ranking.event.consume")
+                .tag("entityType", entityType)
+                .register(meterRegistry)
+                .increment();
 
         long count = eventCounter.incrementAndGet();
-        if (log.isDebugEnabled()) {
-            log.debug("添加分数到缓冲区: key={}, delta={}, eventCount={}", key, delta, count);
-        }
 
-        // 阈值触发：唤醒刷写线程
+        // 阈值触发：直接调用 flush()（flushLock 保证互斥）
         if (count >= bufferProperties.getBatchSize()) {
-            signalFlush();
-        }
-    }
-
-    /**
-     * 唤醒刷写线程（阈值触发时调用）
-     */
-    private void signalFlush() {
-        if (flushLock.tryLock()) {
-            try {
-                flushCondition.signal();
-            } finally {
-                flushLock.unlock();
-            }
+            flush();
         }
     }
 
     /**
      * 执行 swap-and-flush
      *
-     * <p>通过 AtomicReference.getAndSet 原子替换缓冲区，新事件写入新 Map，不阻塞消费。
-     * 刷写失败时将失败批次 merge 回当前活跃缓冲区。</p>
-     *
-     * @return 刷写的记录数
+     * @return 成功刷写的记录数
      */
     public int flush() {
         flushLock.lock();
@@ -143,11 +133,7 @@ public class ScoreBufferService {
         }
     }
 
-    /**
-     * 实际刷写逻辑（必须在持有 flushLock 时调用）
-     */
     private int doFlush() {
-        // 原子 swap：取出旧 Map，替换为新的空 Map
         ConcurrentHashMap<String, DoubleAdder> oldBuffer = bufferRef.getAndSet(new ConcurrentHashMap<>());
         eventCounter.set(0);
 
@@ -155,7 +141,6 @@ public class ScoreBufferService {
             return 0;
         }
 
-        // 将 DoubleAdder 转为 snapshot Map
         Map<String, Double> snapshot = new HashMap<>();
         oldBuffer.forEach((key, adder) -> {
             double value = adder.sum();
@@ -173,6 +158,8 @@ public class ScoreBufferService {
 
     /**
      * 将 snapshot 数据刷写到 Redis，失败时 merge 回缓冲区
+     *
+     * <p>TODO: 架构文档要求刷写到 MongoDB，当前暂写 Redis（见类注释）</p>
      */
     private int doFlushSnapshot(Map<String, Double> snapshot) {
         int flushedCount = 0;
@@ -208,13 +195,21 @@ public class ScoreBufferService {
             }
         }
 
-        // 刷写失败补偿：将失败的条目 merge 回当前活跃缓冲区
+        // 失败补偿：merge 回当前活跃缓冲区
         if (!failedEntries.isEmpty()) {
-            log.warn("刷写部分失败，将 {} 条记录 merge 回缓冲区", failedEntries.size());
+            int failures = consecutiveFailureCount.incrementAndGet();
+            log.warn("刷写部分失败，将 {} 条记录 merge 回缓冲区（连续失败 {} 次）",
+                    failedEntries.size(), failures);
+            if (failures >= 3) {
+                log.error("连续刷写失败已达 {} 次，请检查 Redis 连接状态！" +
+                        "（TODO: 触发 WAL 写入，见架构文档 2.3 节）", failures);
+            }
             ConcurrentHashMap<String, DoubleAdder> currentBuffer = bufferRef.get();
-            failedEntries.forEach((key, delta) ->
-                    currentBuffer.computeIfAbsent(key, k -> new DoubleAdder()).add(delta));
+            failedEntries.forEach((k, d) ->
+                    currentBuffer.computeIfAbsent(k, x -> new DoubleAdder()).add(d));
             flushFailureCounter.increment();
+        } else {
+            consecutiveFailureCount.set(0);
         }
 
         if (flushedCount > 0) {
@@ -225,38 +220,23 @@ public class ScoreBufferService {
         return flushedCount;
     }
 
-    /**
-     * 停止接收新事件（优雅停机第一步）
-     */
     public void stopAccepting() {
         this.stopped = true;
         log.info("缓冲区已停止接收新事件");
     }
 
-    /**
-     * 是否已停止
-     */
     public boolean isStopped() {
         return stopped;
     }
 
-    /**
-     * 获取当前缓冲区大小（用于监控）
-     */
     public int getBufferSize() {
         return bufferRef.get().size();
     }
 
-    /**
-     * 获取累计事件数
-     */
     public long getEventCount() {
         return eventCounter.get();
     }
 
-    /**
-     * 清空缓冲区（用于测试）
-     */
     public void clearBuffer() {
         bufferRef.set(new ConcurrentHashMap<>());
         eventCounter.set(0);

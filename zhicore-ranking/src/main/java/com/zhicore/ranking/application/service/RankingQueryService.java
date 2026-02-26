@@ -38,11 +38,11 @@ public class RankingQueryService {
         this.postRankingService = postRankingService;
         this.archiveService = archiveService;
 
-        this.cacheHitCounter = Counter.builder("ranking.cache.hit.total")
+        this.cacheHitCounter = Counter.builder("ranking.cache.hit")
                 .tag("type", "monthly")
                 .description("排行榜缓存命中次数")
                 .register(meterRegistry);
-        this.cacheMissCounter = Counter.builder("ranking.cache.miss.total")
+        this.cacheMissCounter = Counter.builder("ranking.cache.miss")
                 .tag("type", "monthly")
                 .description("排行榜缓存未命中次数")
                 .register(meterRegistry);
@@ -50,6 +50,9 @@ public class RankingQueryService {
 
     /**
      * 查询月榜（自动路由到 Redis 或 MongoDB）
+     *
+     * <p>路由逻辑：TTL 范围内先查 Redis，有数据为 hit，无数据回源 MongoDB 为 miss。
+     * TTL 范围外直接查 MongoDB。</p>
      */
     public List<HotScore> getMonthlyRanking(int year, int month, int limit) {
         LocalDate now = LocalDate.now();
@@ -57,11 +60,17 @@ public class RankingQueryService {
         boolean inRedisRange = queryDate.isAfter(now.minusDays(MONTHLY_REDIS_TTL_DAYS));
 
         if (inRedisRange) {
-            log.debug("查询月榜（Redis）: year={}, month={}, limit={}", year, month, limit);
-            cacheHitCounter.increment();
-            return postRankingService.getMonthlyHotPostsWithScore(year, month, limit);
+            List<HotScore> result = postRankingService.getMonthlyHotPostsWithScore(year, month, limit);
+            if (result != null && !result.isEmpty()) {
+                cacheHitCounter.increment();
+                return result;
+            }
+            // Redis 无数据，回源 MongoDB
+            log.debug("月榜 Redis 未命中，回源 MongoDB: year={}, month={}", year, month);
+            cacheMissCounter.increment();
+            List<RankingArchive> archives = archiveService.getMonthlyArchive("post", year, month, limit);
+            return convertToHotScores(archives);
         } else {
-            log.debug("查询月榜（MongoDB）: year={}, month={}, limit={}", year, month, limit);
             cacheMissCounter.increment();
             List<RankingArchive> archives = archiveService.getMonthlyArchive("post", year, month, limit);
             return convertToHotScores(archives);

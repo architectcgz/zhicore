@@ -2,6 +2,7 @@ package com.zhicore.ranking.domain.service;
 
 import com.zhicore.ranking.domain.model.CreatorStats;
 import com.zhicore.ranking.domain.model.PostStats;
+import com.zhicore.ranking.infrastructure.config.RankingWeightProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,8 +23,13 @@ class HotScoreCalculatorTest {
 
     @BeforeEach
     void setUp() {
-        // 使用默认权重构造（与 application.yml 一致）
-        calculator = new HotScoreCalculator(1.0, 5.0, 10.0, 8.0, 7.0);
+        RankingWeightProperties props = new RankingWeightProperties();
+        props.setView(1.0);
+        props.setLike(5.0);
+        props.setComment(10.0);
+        props.setFavorite(8.0);
+        props.setHalfLifeDays(7.0);
+        calculator = new HotScoreCalculator(props);
     }
 
     // ==================== 文章热度计算测试 ====================
@@ -141,7 +147,13 @@ class HotScoreCalculatorTest {
     @Test
     @DisplayName("自定义权重 - 权重从配置读取")
     void customWeights() {
-        HotScoreCalculator custom = new HotScoreCalculator(2.0, 10.0, 20.0, 16.0, 7.0);
+        RankingWeightProperties customProps = new RankingWeightProperties();
+        customProps.setView(2.0);
+        customProps.setLike(10.0);
+        customProps.setComment(20.0);
+        customProps.setFavorite(16.0);
+        customProps.setHalfLifeDays(7.0);
+        HotScoreCalculator custom = new HotScoreCalculator(customProps);
         PostStats stats = PostStats.builder()
                 .viewCount(100).likeCount(10).commentCount(5).favoriteCount(3).build();
 
