@@ -29,7 +29,10 @@ public class RankingRefreshScheduler {
     private final CreatorRankingService creatorRankingService;
     private final RankingRedisRepository rankingRepository;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final MeterRegistry meterRegistry;
+
+    private final Timer postSnapshotTimer;
+    private final Timer creatorSnapshotTimer;
+    private final Timer topicSnapshotTimer;
 
     public RankingRefreshScheduler(PostRankingService postRankingService,
                                    CreatorRankingService creatorRankingService,
@@ -40,13 +43,13 @@ public class RankingRefreshScheduler {
         this.creatorRankingService = creatorRankingService;
         this.rankingRepository = rankingRepository;
         this.redisTemplate = redisTemplate;
-        this.meterRegistry = meterRegistry;
-    }
 
-    private Timer snapshotTimer(String type) {
-        return Timer.builder("ranking.snapshot.duration")
-                .tag("type", type)
-                .register(meterRegistry);
+        this.postSnapshotTimer = Timer.builder("ranking.snapshot.duration")
+                .tag("type", "post").register(meterRegistry);
+        this.creatorSnapshotTimer = Timer.builder("ranking.snapshot.duration")
+                .tag("type", "creator").register(meterRegistry);
+        this.topicSnapshotTimer = Timer.builder("ranking.snapshot.duration")
+                .tag("type", "topic").register(meterRegistry);
     }
 
     /**
@@ -55,7 +58,7 @@ public class RankingRefreshScheduler {
     @Scheduled(cron = "0 0 * * * ?")
     public void refreshHotPosts() {
         log.info("开始每小时热门文章刷新任务...");
-        snapshotTimer("post").record(() -> {
+        postSnapshotTimer.record(() -> {
             try {
                 cleanupExpiredDailyRankings();
                 cleanupExpiredWeeklyRankings();
@@ -69,7 +72,7 @@ public class RankingRefreshScheduler {
     @Scheduled(cron = "0 0 2 * * ?")
     public void refreshCreatorRanking() {
         log.info("开始每日创作者排行刷新任务...");
-        snapshotTimer("creator").record(() -> {
+        creatorSnapshotTimer.record(() -> {
             try {
                 cleanupExpiredCreatorDailyRankings();
                 log.info("每日创作者排行刷新任务完成");
@@ -82,7 +85,7 @@ public class RankingRefreshScheduler {
     @Scheduled(cron = "0 0 3 * * ?")
     public void refreshTopicRanking() {
         log.info("开始每日话题排行刷新任务...");
-        snapshotTimer("topic").record(() -> {
+        topicSnapshotTimer.record(() -> {
             try {
                 cleanupExpiredTopicDailyRankings();
                 log.info("每日话题排行刷新任务完成");

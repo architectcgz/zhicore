@@ -25,7 +25,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p>核心设计：</p>
  * <ul>
  *   <li>AtomicReference + ConcurrentHashMap：swap-and-flush 原子替换，消除竞态窗口</li>
- *   <li>ReentrantLock：保证同一时刻只有一个刷写操作，阈值触发直接调用 flush()</li>
+ *   <li>ReentrantLock：保证同一时刻只有一个刷写操作，阈值触发使用 tryLock 非阻塞尝试</li>
  *   <li>AtomicLong 事件计数器：记录累计事件数（非去重），阈值触发后重置</li>
  *   <li>刷写失败补偿：失败批次 merge 回当前活跃缓冲区，连续失败计数告警</li>
  * </ul>
@@ -61,6 +61,9 @@ public class ScoreBufferService {
 
     /** 是否已停止接收新事件（优雅停机用） */
     private volatile boolean stopped = false;
+
+    /** 按 entityType 缓存的事件消费计数器，避免热路径上重复 builder().register() */
+    private final Map<String, Counter> eventCounters = new ConcurrentHashMap<>();
 
     // Micrometer 指标
     private final Counter flushSuccessCounter;
@@ -105,17 +108,25 @@ public class ScoreBufferService {
         String key = buildKey(entityType, entityId);
         bufferRef.get().computeIfAbsent(key, k -> new DoubleAdder()).add(delta);
 
-        // 按 entityType 打标签的事件消费计数
-        Counter.builder("ranking.event.consume")
-                .tag("entityType", entityType)
-                .register(meterRegistry)
-                .increment();
+        // 按 entityType 打标签的事件消费计数（本地缓存 Counter 实例，避免热路径重复 register）
+        eventCounters.computeIfAbsent(entityType, type ->
+                Counter.builder("ranking.event.consume")
+                        .tag("entityType", type)
+                        .register(meterRegistry)
+        ).increment();
 
         long count = eventCounter.incrementAndGet();
 
-        // 阈值触发：直接调用 flush()（flushLock 保证互斥）
+        // 阈值触发：tryLock 非阻塞尝试，避免阻塞 MQ 消费线程
         if (count >= bufferProperties.getBatchSize()) {
-            flush();
+            if (flushLock.tryLock()) {
+                try {
+                    doFlush();
+                } finally {
+                    flushLock.unlock();
+                }
+            }
+            // 获取不到锁说明已有刷写在执行，跳过即可
         }
     }
 

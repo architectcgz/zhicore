@@ -277,4 +277,26 @@ class ScoreBufferServiceTest {
         double expectedTotal = threadCount * incrementsPerThread * deltaPerIncrement;
         verify(rankingRedisRepository, times(1)).incrementPostScore("123", expectedTotal);
     }
+
+    // ==================== 阈值触发 flush 测试 ====================
+
+    @Test
+    @DisplayName("事件数达到 batchSize 时自动触发 flush")
+    void testThresholdTrigger_ShouldAutoFlush() {
+        // 设置小 batchSize 触发阈值
+        bufferProperties.setBatchSize(3);
+        ScoreBufferService svc = new ScoreBufferService(
+                rankingRedisRepository, bufferProperties, new SimpleMeterRegistry());
+
+        svc.addScore("post", "111", 1.0);
+        svc.addScore("post", "222", 2.0);
+        // 第 3 次 addScore 达到阈值，应自动触发 flush
+        svc.addScore("post", "333", 3.0);
+
+        // flush 后缓冲区应为空
+        assertEquals(0, svc.getBufferSize());
+        verify(rankingRedisRepository).incrementPostScore("111", 1.0);
+        verify(rankingRedisRepository).incrementPostScore("222", 2.0);
+        verify(rankingRedisRepository).incrementPostScore("333", 3.0);
+    }
 }

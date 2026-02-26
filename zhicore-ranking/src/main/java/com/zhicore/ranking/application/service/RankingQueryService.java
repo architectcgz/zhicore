@@ -2,6 +2,8 @@ package com.zhicore.ranking.application.service;
 
 import com.zhicore.ranking.domain.model.HotScore;
 import com.zhicore.ranking.infrastructure.mongodb.RankingArchive;
+import com.zhicore.ranking.infrastructure.redis.RankingRedisKeys;
+import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,7 @@ public class RankingQueryService {
 
     private final PostRankingService postRankingService;
     private final RankingArchiveService archiveService;
+    private final RankingRedisRepository rankingRedisRepository;
 
     private final Counter cacheHitCounter;
     private final Counter cacheMissCounter;
@@ -34,9 +37,11 @@ public class RankingQueryService {
 
     public RankingQueryService(PostRankingService postRankingService,
                                RankingArchiveService archiveService,
+                               RankingRedisRepository rankingRedisRepository,
                                MeterRegistry meterRegistry) {
         this.postRankingService = postRankingService;
         this.archiveService = archiveService;
+        this.rankingRedisRepository = rankingRedisRepository;
 
         this.cacheHitCounter = Counter.builder("ranking.cache.hit")
                 .tag("type", "monthly")
@@ -65,11 +70,13 @@ public class RankingQueryService {
                 cacheHitCounter.increment();
                 return result;
             }
-            // Redis 无数据，回源 MongoDB
+            // Redis 无数据，回源 MongoDB 并回填缓存
             log.debug("月榜 Redis 未命中，回源 MongoDB: year={}, month={}", year, month);
             cacheMissCounter.increment();
             List<RankingArchive> archives = archiveService.getMonthlyArchive("post", year, month, limit);
-            return convertToHotScores(archives);
+            List<HotScore> hotScores = convertToHotScores(archives);
+            backfillRedis(year, month, hotScores);
+            return hotScores;
         } else {
             cacheMissCounter.increment();
             List<RankingArchive> archives = archiveService.getMonthlyArchive("post", year, month, limit);
@@ -86,5 +93,23 @@ public class RankingQueryService {
                         .updatedAt(archive.getArchivedAt())
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 回填 Redis 缓存，避免后续相同查询持续穿透到 MongoDB
+     */
+    private void backfillRedis(int year, int month, List<HotScore> hotScores) {
+        if (hotScores == null || hotScores.isEmpty()) {
+            return;
+        }
+        try {
+            String key = RankingRedisKeys.monthlyPosts(year, month);
+            for (HotScore score : hotScores) {
+                rankingRedisRepository.setScore(key, score.getEntityId(), score.getScore());
+            }
+            log.debug("月榜回填 Redis 完成: year={}, month={}, count={}", year, month, hotScores.size());
+        } catch (Exception e) {
+            log.warn("月榜回填 Redis 失败（不影响本次查询结果）: year={}, month={}", year, month, e);
+        }
     }
 }

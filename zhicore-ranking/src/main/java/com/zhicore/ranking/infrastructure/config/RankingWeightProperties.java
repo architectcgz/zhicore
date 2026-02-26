@@ -7,7 +7,8 @@ import org.springframework.stereotype.Component;
 /**
  * 热度计算权重配置
  *
- * <p>使用 @ConfigurationProperties 绑定，支持 Nacos 动态刷新（无需 @RefreshScope）</p>
+ * <p>使用 @ConfigurationProperties 绑定，支持 Nacos 动态刷新（无需 @RefreshScope）。
+ * 项目使用 Spring Cloud Alibaba 2023.0.1.0，原生支持 @ConfigurationProperties 自动刷新。</p>
  *
  * @author ZhiCore Team
  */
