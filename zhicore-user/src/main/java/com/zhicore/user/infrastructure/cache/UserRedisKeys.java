@@ -93,11 +93,29 @@ public final class UserRedisKeys {
     }
 
     /**
-     * 用户刷新令牌缓存键
+     * 用户刷新令牌缓存键（旧格式，保留兼容）
      * Key: user:{userId}:token:refresh
      */
     public static String refreshToken(Long userId) {
         return PREFIX + ":" + userId + ":token:refresh";
+    }
+
+    /**
+     * Refresh Token 白名单键
+     * Key: refresh_token:{userId}:{tokenId}
+     * 每个 Refresh Token 独立存储，支持多设备登录和单独吊销
+     */
+    public static String refreshTokenWhitelist(Long userId, String tokenId) {
+        return "refresh_token:" + userId + ":" + tokenId;
+    }
+
+    /**
+     * Refresh Token 白名单模式匹配键
+     * Key: refresh_token:{userId}:*
+     * 用于清除用户所有 Refresh Token（禁用/修改密码/强制下线）
+     */
+    public static String refreshTokenPattern(Long userId) {
+        return "refresh_token:" + userId + ":*";
     }
 
     /**
@@ -106,5 +124,18 @@ public final class UserRedisKeys {
      */
     public static String userTokenPattern(Long userId) {
         return PREFIX + ":" + userId + ":token:*";
+    }
+
+    // ==================== 拉黑操作锁 ====================
+
+    /**
+     * 拉黑操作锁
+     * Key: lock:block:{minId}:{maxId}
+     * 按 userId 大小排序，防止死锁
+     */
+    public static String blockLock(Long userIdA, Long userIdB) {
+        long minId = Math.min(userIdA, userIdB);
+        long maxId = Math.max(userIdA, userIdB);
+        return "lock:block:" + minId + ":" + maxId;
     }
 }

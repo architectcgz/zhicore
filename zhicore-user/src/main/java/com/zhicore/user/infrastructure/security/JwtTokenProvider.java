@@ -9,10 +9,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -80,7 +81,7 @@ public class JwtTokenProvider {
     }
 
     /**
-     * 生成刷新令牌
+     * 生成刷新令牌（含 tokenId，用于白名单管理）
      *
      * @param user 用户
      * @return 刷新令牌
@@ -88,15 +89,36 @@ public class JwtTokenProvider {
     public String generateRefreshToken(User user) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtProperties.getRefreshTokenExpiration() * 1000);
+        String tokenId = UUID.randomUUID().toString().replace("-", "");
 
-        // 使用预创建的 SecretKey
         return Jwts.builder()
                 .subject(String.valueOf(user.getId()))
                 .claim("type", "refresh")
+                .claim("tokenId", tokenId)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
                 .compact();
+    }
+
+    /**
+     * 从 Refresh Token 中提取 tokenId
+     *
+     * @param token Refresh Token
+     * @return tokenId
+     */
+    public String getTokenIdFromRefreshToken(String token) {
+        Claims claims = parseToken(token);
+        return claims.get("tokenId", String.class);
+    }
+
+    /**
+     * 获取 Refresh Token 过期时间（秒）
+     *
+     * @return 过期时间
+     */
+    public Long getRefreshTokenExpiration() {
+        return jwtProperties.getRefreshTokenExpiration();
     }
 
     /**
