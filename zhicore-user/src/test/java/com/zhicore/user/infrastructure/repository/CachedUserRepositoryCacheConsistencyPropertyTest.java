@@ -292,10 +292,11 @@ class CachedUserRepositoryCacheConsistencyPropertyTest {
             UserStatus.ACTIVE,
             false,
             new java.util.HashSet<>(),
+            0L,
             LocalDateTime.now(),
             LocalDateTime.now()
         );
-        
+
         // 用于存储写入缓存的数据
         AtomicReference<Object> cachedData = new AtomicReference<>();
         
@@ -361,6 +362,7 @@ class CachedUserRepositoryCacheConsistencyPropertyTest {
             UserStatus.ACTIVE,
             false,
             new java.util.HashSet<>(),
+            0L,
             LocalDateTime.now(),
             LocalDateTime.now()
         );

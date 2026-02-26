@@ -105,10 +105,11 @@ class CachedUserRepositoryTTLJitterPropertyTest {
             UserStatus.ACTIVE,
             false,
             new java.util.HashSet<>(),
+            0L,
             LocalDateTime.now(),
             LocalDateTime.now()
         );
-        
+
         when(delegate.findById(userId)).thenReturn(Optional.of(mockUser));
         
         // When: Find user (will cache with TTL)
@@ -163,6 +164,7 @@ class CachedUserRepositoryTTLJitterPropertyTest {
             UserStatus.ACTIVE,
             false,
             new java.util.HashSet<>(),
+            0L,
             LocalDateTime.now(),
             LocalDateTime.now()
         );
@@ -178,6 +180,7 @@ class CachedUserRepositoryTTLJitterPropertyTest {
             UserStatus.ACTIVE,
             false,
             new java.util.HashSet<>(),
+            0L,
             LocalDateTime.now(),
             LocalDateTime.now()
         );

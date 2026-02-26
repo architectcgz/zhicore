@@ -12,10 +12,12 @@ import com.zhicore.user.domain.model.UserStatus;
 import com.zhicore.user.domain.repository.RoleRepository;
 import com.zhicore.user.domain.repository.UserFollowRepository;
 import com.zhicore.user.domain.repository.UserRepository;
+import com.zhicore.user.domain.repository.OutboxEventRepository;
 import com.zhicore.user.domain.service.UserDomainService;
-import com.zhicore.user.infrastructure.mq.EventPublisher;
+import com.zhicore.user.infrastructure.feign.ZhiCoreUploadClient;
 import com.zhicore.user.interfaces.dto.request.RegisterRequest;
 import com.zhicore.user.interfaces.dto.request.UpdateProfileRequest;
+import com.zhicore.user.domain.model.OutboxEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -57,10 +59,16 @@ class UserApplicationServiceTest {
     private UserDomainService userDomainService;
 
     @Mock
-    private EventPublisher eventPublisher;
+    private IdGeneratorFeignClient idGeneratorFeignClient;
 
     @Mock
-    private IdGeneratorFeignClient idGeneratorFeignClient;
+    private OutboxEventRepository outboxEventRepository;
+
+    @Mock
+    private ZhiCoreUploadClient zhiCoreUploadClient;
+
+    @Mock
+    private AuthApplicationService authApplicationService;
 
     @InjectMocks
     private UserApplicationService userApplicationService;
@@ -85,6 +93,7 @@ class UserApplicationServiceTest {
                 UserStatus.ACTIVE,
                 true,
                 roles,
+                0L,
                 LocalDateTime.now(),
                 LocalDateTime.now()
         );
@@ -187,13 +196,14 @@ class UserApplicationServiceTest {
             request.setBio("新的个人简介");
 
             when(userRepository.findById(123L)).thenReturn(Optional.of(testUser));
+            when(userRepository.updateWithOptimisticLock(any(User.class))).thenReturn(testUser);
 
             // When
             userApplicationService.updateProfile(123L, request);
 
             // Then
-            verify(userRepository).update(any(User.class));
-            verify(eventPublisher).publish(any());
+            verify(userRepository).updateWithOptimisticLock(any(User.class));
+            verify(outboxEventRepository).save(any(OutboxEvent.class));
         }
 
         @Test

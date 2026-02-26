@@ -464,6 +464,7 @@ class CachedUserRepositoryLockFairnessTest {
                 UserStatus.ACTIVE,
                 false,
                 new HashSet<>(),
+                0L,
                 LocalDateTime.now(),
                 LocalDateTime.now()
         );

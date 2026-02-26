@@ -298,6 +298,7 @@ class CachedUserRepositoryDCLPropertyTest {
                 UserStatus.ACTIVE,
                 false,
                 new java.util.HashSet<>(),
+                0L,
                 LocalDateTime.now(),
                 LocalDateTime.now()
         );

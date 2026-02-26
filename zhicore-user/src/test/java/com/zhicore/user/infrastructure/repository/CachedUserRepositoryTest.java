@@ -525,6 +525,7 @@ class CachedUserRepositoryTest {
                 UserStatus.ACTIVE,
                 false,
                 new java.util.HashSet<>(),
+                0L,
                 java.time.LocalDateTime.now(),
                 java.time.LocalDateTime.now()
         );

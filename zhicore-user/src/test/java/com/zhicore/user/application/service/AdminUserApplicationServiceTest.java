@@ -62,6 +62,7 @@ class AdminUserApplicationServiceTest {
                 UserStatus.ACTIVE,
                 true,
                 testRoles,
+                0L,
                 LocalDateTime.now(),
                 LocalDateTime.now()
         );
@@ -324,7 +325,7 @@ class AdminUserApplicationServiceTest {
             assertEquals(testUser.getId(), dto.getId());
             assertEquals(testUser.getUserName(), dto.getUsername());
             assertEquals(testUser.getEmail(), dto.getEmail());
-            assertEquals(testUser.getNickName(), dto.getNickName());
+            assertEquals(testUser.getNickName(), dto.getNickname());
             assertEquals(testUser.getAvatarId(), dto.getAvatar());
             assertEquals(testUser.getStatus().name(), dto.getStatus());
             assertNotNull(dto.getCreatedAt());
@@ -348,10 +349,11 @@ class AdminUserApplicationServiceTest {
                     UserStatus.ACTIVE,
                     true,
                     testRoles,
+                    0L,
                     LocalDateTime.now(),
                     LocalDateTime.now()
             );
-            
+
             List<User> mockUsers = Arrays.asList(testUser, user2);
             when(userRepository.findByConditions(isNull(), isNull(), eq(0), eq(20)))
                     .thenReturn(mockUsers);
