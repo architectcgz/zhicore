@@ -67,8 +67,8 @@ public class UserAssembler {
         UserSimpleDTO dto = new UserSimpleDTO();
         dto.setId(user.getId());
         dto.setUserName(user.getUserName());
-        dto.setNickName(user.getNickName());  // 使用别名方法
-        dto.setAvatarUrl(user.getAvatarId());  // 使用别名方法
+        dto.setNickname(user.getNickName());
+        dto.setAvatarId(user.getAvatarId());
         return dto;
     }
 }
