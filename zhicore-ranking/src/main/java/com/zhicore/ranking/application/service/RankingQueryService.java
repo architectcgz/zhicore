@@ -7,10 +7,13 @@ import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -29,19 +32,24 @@ public class RankingQueryService {
     private final PostRankingService postRankingService;
     private final RankingArchiveService archiveService;
     private final RankingRedisRepository rankingRedisRepository;
+    private final RedissonClient redissonClient;
 
     private final Counter cacheHitCounter;
     private final Counter cacheMissCounter;
 
     private static final int MONTHLY_REDIS_TTL_DAYS = 365;
+    /** 回填 Redis 时从 MongoDB 拉取的上限，不受查询 limit 限制 */
+    private static final int BACKFILL_MAX_SIZE = 1000;
 
     public RankingQueryService(PostRankingService postRankingService,
                                RankingArchiveService archiveService,
                                RankingRedisRepository rankingRedisRepository,
+                               RedissonClient redissonClient,
                                MeterRegistry meterRegistry) {
         this.postRankingService = postRankingService;
         this.archiveService = archiveService;
         this.rankingRedisRepository = rankingRedisRepository;
+        this.redissonClient = redissonClient;
 
         this.cacheHitCounter = Counter.builder("ranking.cache.hit")
                 .tag("type", "monthly")
@@ -70,13 +78,9 @@ public class RankingQueryService {
                 cacheHitCounter.increment();
                 return result;
             }
-            // Redis 无数据，回源 MongoDB 并回填缓存
-            log.debug("月榜 Redis 未命中，回源 MongoDB: year={}, month={}", year, month);
+            // Redis 无数据，加分布式锁防击穿，回源 MongoDB 并回填缓存
             cacheMissCounter.increment();
-            List<RankingArchive> archives = archiveService.getMonthlyArchive("post", year, month, limit);
-            List<HotScore> hotScores = convertToHotScores(archives);
-            backfillRedis(year, month, hotScores);
-            return hotScores;
+            return loadAndBackfill(year, month, limit);
         } else {
             cacheMissCounter.increment();
             List<RankingArchive> archives = archiveService.getMonthlyArchive("post", year, month, limit);
@@ -96,7 +100,58 @@ public class RankingQueryService {
     }
 
     /**
-     * 回填 Redis 缓存，避免后续相同查询持续穿透到 MongoDB
+     * 加分布式锁回源 MongoDB 并回填 Redis
+     *
+     * <p>防击穿：同一月份维度只允许一个请求回源，其余等待锁释放后读 Redis。
+     * 回填拉取完整月榜（上限 BACKFILL_MAX_SIZE），不受查询 limit 限制。
+     * 使用 Pipeline + RENAME 保证回填原子可见性。</p>
+     */
+    private List<HotScore> loadAndBackfill(int year, int month, int limit) {
+        String lockKey = "ranking:lock:load:monthly:" + year + "-" + month;
+        RLock lock = redissonClient.getLock(lockKey);
+
+        try {
+            // 尝试获取锁，最多等待 5 秒，持有 30 秒自动释放
+            boolean acquired = lock.tryLock(5, 30, TimeUnit.SECONDS);
+            if (acquired) {
+                try {
+                    // double-check：获取锁后再查一次 Redis，可能已被其他线程回填
+                    List<HotScore> cached = postRankingService.getMonthlyHotPostsWithScore(year, month, limit);
+                    if (cached != null && !cached.isEmpty()) {
+                        return cached;
+                    }
+                    // 回源 MongoDB，拉取完整月榜（不受查询 limit 限制）
+                    log.debug("月榜 Redis 未命中，回源 MongoDB: year={}, month={}", year, month);
+                    List<RankingArchive> fullArchives = archiveService.getMonthlyArchive(
+                            "post", year, month, BACKFILL_MAX_SIZE);
+                    List<HotScore> fullScores = convertToHotScores(fullArchives);
+                    backfillRedis(year, month, fullScores);
+                    // 按请求 limit 截断返回
+                    return fullScores.size() > limit ? fullScores.subList(0, limit) : fullScores;
+                } finally {
+                    lock.unlock();
+                }
+            } else {
+                // 等锁超时，尝试读 Redis（大概率已被回填）
+                List<HotScore> cached = postRankingService.getMonthlyHotPostsWithScore(year, month, limit);
+                if (cached != null && !cached.isEmpty()) {
+                    return cached;
+                }
+                // 兜底：直接查 MongoDB 返回，不回填
+                log.warn("月榜回填锁等待超时，直接查 MongoDB: year={}, month={}", year, month);
+                List<RankingArchive> archives = archiveService.getMonthlyArchive("post", year, month, limit);
+                return convertToHotScores(archives);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("月榜回填锁被中断，直接查 MongoDB: year={}, month={}", year, month);
+            List<RankingArchive> archives = archiveService.getMonthlyArchive("post", year, month, limit);
+            return convertToHotScores(archives);
+        }
+    }
+
+    /**
+     * 回填 Redis 缓存（Pipeline + RENAME 原子写入）
      */
     private void backfillRedis(int year, int month, List<HotScore> hotScores) {
         if (hotScores == null || hotScores.isEmpty()) {
@@ -104,9 +159,7 @@ public class RankingQueryService {
         }
         try {
             String key = RankingRedisKeys.monthlyPosts(year, month);
-            for (HotScore score : hotScores) {
-                rankingRedisRepository.setScore(key, score.getEntityId(), score.getScore());
-            }
+            rankingRedisRepository.batchSetScoreAtomic(key, hotScores);
             log.debug("月榜回填 Redis 完成: year={}, month={}, count={}", year, month, hotScores.size());
         } catch (Exception e) {
             log.warn("月榜回填 Redis 失败（不影响本次查询结果）: year={}, month={}", year, month, e);

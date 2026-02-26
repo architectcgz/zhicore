@@ -81,6 +81,36 @@ public class RankingRedisRepository {
     }
 
     /**
+     * 批量写入 Sorted Set（Pipeline + RENAME 保证原子可见性）
+     *
+     * <p>先写入临时 key，再 RENAME 覆盖目标 key，避免回填窗口期读到部分数据</p>
+     *
+     * @param key     目标 Redis Key
+     * @param entries 成员-分数列表
+     */
+    public void batchSetScoreAtomic(String key, List<HotScore> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        String tmpKey = key + ":tmp:" + System.currentTimeMillis();
+        try {
+            redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+                byte[] rawTmpKey = redisTemplate.getStringSerializer().serialize(tmpKey);
+                for (HotScore entry : entries) {
+                    byte[] rawMember = redisTemplate.getStringSerializer().serialize(entry.getEntityId());
+                    connection.zSetCommands().zAdd(rawTmpKey, entry.getScore(), rawMember);
+                }
+                return null;
+            });
+            redisTemplate.rename(tmpKey, key);
+        } catch (Exception e) {
+            // 清理临时 key，避免残留
+            redisTemplate.delete(tmpKey);
+            throw e;
+        }
+    }
+
+    /**
      * 增量更新分数
      *
      * @param key Redis Key
