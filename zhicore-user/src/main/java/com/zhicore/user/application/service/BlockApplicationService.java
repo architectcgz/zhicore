@@ -4,19 +4,29 @@ import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.user.application.assembler.UserAssembler;
 import com.zhicore.user.application.dto.UserVO;
+import com.zhicore.user.domain.model.OutboxEvent;
+import com.zhicore.user.domain.model.OutboxEventStatus;
 import com.zhicore.user.domain.model.UserBlock;
+import com.zhicore.user.domain.repository.OutboxEventRepository;
 import com.zhicore.user.domain.repository.UserBlockRepository;
 import com.zhicore.user.domain.repository.UserFollowRepository;
 import com.zhicore.user.domain.repository.UserRepository;
 import com.zhicore.user.domain.service.BlockDomainService;
+import com.zhicore.user.infrastructure.cache.UserRedisKeys;
+import com.alibaba.fastjson.JSON;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -34,41 +44,39 @@ public class BlockApplicationService {
     private final UserBlockRepository userBlockRepository;
     private final UserFollowRepository userFollowRepository;
     private final BlockDomainService blockDomainService;
+    private final OutboxEventRepository outboxEventRepository;
     private final RedissonClient redissonClient;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final TransactionTemplate transactionTemplate;
 
     /**
      * 拉黑用户
      *
+     * 按 userId 大小排序获取锁防死锁，同一事务内完成拉黑+取消双向关注+写入 Outbox 事件
+     *
      * @param blockerId 拉黑者ID
      * @param blockedId 被拉黑者ID
      */
     public void block(Long blockerId, Long blockedId) {
-        // 1. 业务验证
         blockDomainService.validateBlock(blockerId, blockedId);
 
-        // 2. 分布式锁防止并发
-        String lockKey = "block:" + blockerId + ":" + blockedId;
-        RLock lock = redissonClient.getLock(lockKey);
+        // 按 userId 大小排序获取锁，防止死锁
+        String blockLockKey = UserRedisKeys.blockLock(blockerId, blockedId);
+        RLock lock = redissonClient.getLock(blockLockKey);
 
         try {
-            if (!lock.tryLock(5, 10, TimeUnit.SECONDS)) {
+            if (!lock.tryLock(3, 10, TimeUnit.SECONDS)) {
                 throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
             }
 
-            // 3. 幂等性检查
             if (userBlockRepository.exists(blockerId, blockedId)) {
-                log.debug("Already blocked: blockerId={}, blockedId={}", blockerId, blockedId);
                 return;
             }
 
-            // 4. 数据库操作在事务中执行
             transactionTemplate.executeWithoutResult(status -> {
-                // 保存拉黑关系
-                UserBlock block = UserBlock.create(blockerId, blockedId);
-                userBlockRepository.save(block);
+                userBlockRepository.save(UserBlock.create(blockerId, blockedId));
 
-                // 如果存在关注关系，自动取消
+                // 自动取消双向关注
                 if (userFollowRepository.exists(blockerId, blockedId)) {
                     userFollowRepository.delete(blockerId, blockedId);
                     userFollowRepository.decrementFollowing(blockerId);
@@ -79,8 +87,19 @@ public class BlockApplicationService {
                     userFollowRepository.decrementFollowing(blockedId);
                     userFollowRepository.decrementFollowers(blockerId);
                 }
+
+                // 写入 Outbox 事件
+                outboxEventRepository.save(new OutboxEvent(
+                    UUID.randomUUID().toString(),
+                    "user-blocked", "blocked",
+                    String.valueOf(blockerId),
+                    JSON.toJSONString(Map.of("blockerId", blockerId, "blockedId", blockedId)),
+                    OutboxEventStatus.PENDING, LocalDateTime.now()
+                ));
             });
 
+            // 删除相关缓存
+            evictFollowCaches(blockerId, blockedId);
             log.info("User blocked: blockerId={}, blockedId={}", blockerId, blockedId);
 
         } catch (InterruptedException e) {
@@ -100,25 +119,20 @@ public class BlockApplicationService {
      * @param blockedId 被拉黑者ID
      */
     public void unblock(Long blockerId, Long blockedId) {
-        // 1. 业务验证
         blockDomainService.validateUnblock(blockerId, blockedId);
 
-        // 2. 分布式锁防止并发
-        String lockKey = "block:" + blockerId + ":" + blockedId;
-        RLock lock = redissonClient.getLock(lockKey);
+        String blockLockKey = UserRedisKeys.blockLock(blockerId, blockedId);
+        RLock lock = redissonClient.getLock(blockLockKey);
 
         try {
-            if (!lock.tryLock(5, 10, TimeUnit.SECONDS)) {
+            if (!lock.tryLock(3, 10, TimeUnit.SECONDS)) {
                 throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
             }
 
-            // 3. 幂等性检查
             if (!userBlockRepository.exists(blockerId, blockedId)) {
-                log.debug("Not blocked: blockerId={}, blockedId={}", blockerId, blockedId);
                 return;
             }
 
-            // 4. 数据库操作在事务中执行
             transactionTemplate.executeWithoutResult(status -> {
                 userBlockRepository.delete(blockerId, blockedId);
             });
@@ -166,5 +180,19 @@ public class BlockApplicationService {
      */
     public boolean isBlocked(Long blockerId, Long blockedId) {
         return userBlockRepository.exists(blockerId, blockedId);
+    }
+
+    /**
+     * 清除双方关注计数缓存
+     */
+    private void evictFollowCaches(Long userIdA, Long userIdB) {
+        try {
+            redisTemplate.delete(UserRedisKeys.followingCount(userIdA));
+            redisTemplate.delete(UserRedisKeys.followersCount(userIdA));
+            redisTemplate.delete(UserRedisKeys.followingCount(userIdB));
+            redisTemplate.delete(UserRedisKeys.followersCount(userIdB));
+        } catch (Exception e) {
+            log.warn("清除关注缓存失败: {}", e.getMessage());
+        }
     }
 }

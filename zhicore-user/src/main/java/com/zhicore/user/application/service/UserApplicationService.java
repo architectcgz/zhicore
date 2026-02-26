@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.api.event.user.UserProfileUpdatedEvent;
+import com.zhicore.api.event.user.UserRegisteredEvent;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
@@ -50,6 +51,7 @@ public class UserApplicationService {
     private final OutboxEventRepository outboxEventRepository;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
     private final ZhiCoreUploadClient ZhiCoreUploadClient;
+    private final AuthApplicationService authApplicationService;
 
     /**
      * 用户注册
@@ -83,7 +85,20 @@ public class UserApplicationService {
         // 6. 保存用户
         userRepository.save(user);
 
-        log.info("User registered successfully: userId={}, userName={}", userId, request.getUserName());
+        // 7. 写入 Outbox 事件（UserRegisteredEvent）
+        OutboxEvent outboxEvent = new OutboxEvent(
+            UUID.randomUUID().toString(),
+            "user-registered",
+            "registered",
+            String.valueOf(userId),
+            JSON.toJSONString(new UserRegisteredEvent(userId, request.getUserName(), request.getEmail())),
+            OutboxEventStatus.PENDING,
+            LocalDateTime.now()
+        );
+        outboxEventRepository.save(outboxEvent);
+
+        log.info("User registered successfully: userId={}, userName={}, eventId={}",
+            userId, request.getUserName(), outboxEvent.getId());
         return userId;
     }
 
@@ -197,7 +212,7 @@ public class UserApplicationService {
     }
 
     /**
-     * 禁用用户
+     * 禁用用户（同时吊销所有 Refresh Token + 写入 Outbox 事件）
      *
      * @param userId 用户ID
      */
@@ -209,11 +224,26 @@ public class UserApplicationService {
         user.disable();
         userRepository.update(user);
 
+        // 写入 Outbox 事件（UserDeactivatedEvent）
+        OutboxEvent outboxEvent = new OutboxEvent(
+            UUID.randomUUID().toString(),
+            "user-deactivated",
+            "deactivated",
+            String.valueOf(userId),
+            JSON.toJSONString(Map.of("userId", userId)),
+            OutboxEventStatus.PENDING,
+            LocalDateTime.now()
+        );
+        outboxEventRepository.save(outboxEvent);
+
+        // 吊销所有 Refresh Token（事务提交后生效）
+        authApplicationService.revokeAllRefreshTokens(userId);
+
         log.info("User disabled: userId={}", userId);
     }
 
     /**
-     * 启用用户
+     * 启用用户（写入 Outbox 事件）
      *
      * @param userId 用户ID
      */
@@ -224,6 +254,18 @@ public class UserApplicationService {
 
         user.enable();
         userRepository.update(user);
+
+        // 写入 Outbox 事件（UserActivatedEvent）
+        OutboxEvent outboxEvent = new OutboxEvent(
+            UUID.randomUUID().toString(),
+            "user-activated",
+            "activated",
+            String.valueOf(userId),
+            JSON.toJSONString(Map.of("userId", userId)),
+            OutboxEventStatus.PENDING,
+            LocalDateTime.now()
+        );
+        outboxEventRepository.save(outboxEvent);
 
         log.info("User enabled: userId={}", userId);
     }
