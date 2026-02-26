@@ -2,6 +2,8 @@ package com.zhicore.ranking.domain.service;
 
 import com.zhicore.ranking.domain.model.CreatorStats;
 import com.zhicore.ranking.domain.model.PostStats;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -9,20 +11,21 @@ import java.time.temporal.ChronoUnit;
 
 /**
  * 热度分数计算器
- * 
- * 文章热度公式：score = (views * 1 + likes * 5 + comments * 10 + favorites * 8) * timeDecay
- * 创作者热度公式：score = followers * 2 + totalLikes * 1 + totalComments * 1.5 + postCount * 3
+ *
+ * 文章热度公式：score = (views * viewWeight + likes * likeWeight + comments * commentWeight + favorites * favoriteWeight) * timeDecay
+ * 权重从配置读取，支持 Nacos 动态调整
  *
  * @author ZhiCore Team
  */
+@Slf4j
 @Service
 public class HotScoreCalculator {
 
-    // 热度权重配置
-    private static final double VIEW_WEIGHT = 1.0;
-    private static final double LIKE_WEIGHT = 5.0;
-    private static final double COMMENT_WEIGHT = 10.0;
-    private static final double FAVORITE_WEIGHT = 8.0;
+    // 文章热度权重（从配置读取）
+    private final double viewWeight;
+    private final double likeWeight;
+    private final double commentWeight;
+    private final double favoriteWeight;
 
     // 创作者热度权重
     private static final double FOLLOWER_WEIGHT = 2.0;
@@ -30,22 +33,34 @@ public class HotScoreCalculator {
     private static final double CREATOR_COMMENT_WEIGHT = 1.5;
     private static final double POST_COUNT_WEIGHT = 3.0;
 
-    // 时间衰减因子（半衰期：7天）
-    private static final double HALF_LIFE_DAYS = 7.0;
+    // 时间衰减半衰期（从配置读取）
+    private final double halfLifeDays;
+
+    public HotScoreCalculator(
+            @Value("${ranking.weight.view:1.0}") double viewWeight,
+            @Value("${ranking.weight.like:5.0}") double likeWeight,
+            @Value("${ranking.weight.comment:10.0}") double commentWeight,
+            @Value("${ranking.weight.favorite:8.0}") double favoriteWeight,
+            @Value("${ranking.half-life-days:7}") double halfLifeDays) {
+        this.viewWeight = viewWeight;
+        this.likeWeight = likeWeight;
+        this.commentWeight = commentWeight;
+        this.favoriteWeight = favoriteWeight;
+        this.halfLifeDays = halfLifeDays;
+    }
 
     /**
      * 计算文章热度分数
-     * 公式：score = (views * 1 + likes * 5 + comments * 10 + favorites * 8) * timeDecay
      *
-     * @param stats 文章统计数据
+     * @param stats       文章统计数据
      * @param publishedAt 发布时间
      * @return 热度分数
      */
     public double calculatePostHotScore(PostStats stats, LocalDateTime publishedAt) {
-        double baseScore = stats.getViewCount() * VIEW_WEIGHT
-                + stats.getLikeCount() * LIKE_WEIGHT
-                + stats.getCommentCount() * COMMENT_WEIGHT
-                + stats.getFavoriteCount() * FAVORITE_WEIGHT;
+        double baseScore = stats.getViewCount() * viewWeight
+                + stats.getLikeCount() * likeWeight
+                + stats.getCommentCount() * commentWeight
+                + stats.getFavoriteCount() * favoriteWeight;
 
         double timeDecay = calculateTimeDecay(publishedAt);
         return baseScore * timeDecay;
@@ -53,7 +68,6 @@ public class HotScoreCalculator {
 
     /**
      * 计算创作者热度分数
-     * 公式：score = followers * 2 + totalLikes * 1 + totalComments * 1.5 + postCount * 3
      *
      * @param stats 创作者统计数据
      * @return 热度分数
@@ -67,7 +81,6 @@ public class HotScoreCalculator {
 
     /**
      * 时间衰减函数（指数衰减）
-     * 使用半衰期模型：每过7天，热度衰减为原来的一半
      *
      * @param publishedAt 发布时间
      * @return 衰减因子（0-1之间）
@@ -80,34 +93,22 @@ public class HotScoreCalculator {
         if (daysSincePublish < 0) {
             daysSincePublish = 0;
         }
-        return Math.pow(0.5, daysSincePublish / HALF_LIFE_DAYS);
+        return Math.pow(0.5, daysSincePublish / halfLifeDays);
     }
 
-    /**
-     * 获取浏览增量权重
-     */
     public double getViewDelta() {
-        return VIEW_WEIGHT;
+        return viewWeight;
     }
 
-    /**
-     * 获取点赞增量权重
-     */
     public double getLikeDelta() {
-        return LIKE_WEIGHT;
+        return likeWeight;
     }
 
-    /**
-     * 获取评论增量权重
-     */
     public double getCommentDelta() {
-        return COMMENT_WEIGHT;
+        return commentWeight;
     }
 
-    /**
-     * 获取收藏增量权重
-     */
     public double getFavoriteDelta() {
-        return FAVORITE_WEIGHT;
+        return favoriteWeight;
     }
 }
