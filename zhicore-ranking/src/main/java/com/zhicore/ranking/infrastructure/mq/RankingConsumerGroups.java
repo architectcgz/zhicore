@@ -39,4 +39,9 @@ public final class RankingConsumerGroups {
      * 文章取消收藏热度消费者组
      */
     public static final String POST_UNFAVORITED_CONSUMER = "ranking-post-unfavorited-consumer";
+
+    /**
+     * 评论删除热度消费者组
+     */
+    public static final String COMMENT_DELETED_CONSUMER = "ranking-comment-deleted-consumer";
 }

@@ -75,6 +75,11 @@ public final class TopicConstants {
     public static final String TAG_POST_FAVORITED = "favorited";
 
     /**
+     * 文章取消收藏
+     */
+    public static final String TAG_POST_UNFAVORITED = "unfavorited";
+
+    /**
      * 文章浏览
      */
     public static final String TAG_POST_VIEWED = "viewed";
