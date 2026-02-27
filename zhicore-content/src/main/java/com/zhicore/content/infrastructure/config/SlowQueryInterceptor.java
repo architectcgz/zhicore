@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.sql.Statement;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 /**
  * 慢查询拦截器
@@ -35,6 +36,8 @@ import java.util.Properties;
     )
 })
 public class SlowQueryInterceptor implements Interceptor {
+
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     private final PerformanceProperties performanceProperties;
 
@@ -86,6 +89,6 @@ public class SlowQueryInterceptor implements Interceptor {
         if (sql == null) {
             return "";
         }
-        return sql.replaceAll("\\s+", " ").trim();
+        return WHITESPACE.matcher(sql).replaceAll(" ").trim();
     }
 }
