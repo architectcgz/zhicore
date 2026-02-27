@@ -14,13 +14,19 @@ import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+
 /**
  * 文章浏览热度消费者
  *
  * <p>消费 PostViewedEvent 事件，增量更新文章热度分数。</p>
  * <p>防刷策略：</p>
  * <ul>
- *   <li>同一用户同一文章 30 分钟内只计一次浏览（Redis SET 去重）</li>
+ *   <li>登录用户：同一用户同一文章 30 分钟内只计一次浏览（Redis SET 去重）</li>
+ *   <li>匿名用户：按 IP+UserAgent 指纹去重，同一指纹同一文章 30 分钟内只计一次</li>
  *   <li>单篇文章浏览累计分数上限 5000 分</li>
  * </ul>
  *
@@ -68,15 +74,13 @@ public class PostViewedRankingConsumer extends BaseRankingConsumer
             try {
                 String postId = String.valueOf(event.getPostId());
 
-                // 用户级去重：同一用户同一文章 30 分钟内只计一次
-                if (event.getUserId() != null) {
-                    String userId = String.valueOf(event.getUserId());
-                    if (!rankingRepository.tryAcquireViewDedup(postId, userId)) {
-                        viewDedupCounter.increment();
-                        log.debug("浏览去重拦截: postId={}, userId={}", postId, userId);
-                        markCompleted(messageId);
-                        return;
-                    }
+                // 浏览去重：登录用户按 userId，匿名用户按 IP+UA 指纹
+                String dedupId = resolveDedupId(event);
+                if (dedupId != null && !rankingRepository.tryAcquireViewDedup(postId, dedupId)) {
+                    viewDedupCounter.increment();
+                    log.debug("浏览去重拦截: postId={}, dedupId={}", postId, dedupId);
+                    markCompleted(messageId);
+                    return;
                 }
 
                 // 使用基础权重（不应用时间衰减，衰减统一在快照重建时处理）
@@ -103,6 +107,39 @@ public class PostViewedRankingConsumer extends BaseRankingConsumer
         } catch (Exception e) {
             log.error("Failed to process post viewed event: {}", message, e);
             throw new RuntimeException("Failed to process post viewed event", e);
+        }
+    }
+
+    /**
+     * 解析去重标识：登录用户用 userId，匿名用户用 IP+UA 的 SHA-256 指纹
+     *
+     * @return 去重 ID，无法生成时返回 null（跳过去重）
+     */
+    private String resolveDedupId(PostViewedEvent event) {
+        if (event.getUserId() != null) {
+            return String.valueOf(event.getUserId());
+        }
+        // 匿名用户：IP + UserAgent 生成指纹
+        String ip = event.getClientIp();
+        String ua = event.getUserAgent();
+        if (ip == null || ip.isEmpty()) {
+            return null;
+        }
+        String raw = ip + "|" + (ua != null ? ua : "");
+        return "anon:" + sha256Short(raw);
+    }
+
+    /**
+     * SHA-256 取前 16 位十六进制，足够去重使用
+     */
+    private static String sha256Short(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash, 0, 8);
+        } catch (NoSuchAlgorithmException e) {
+            // SHA-256 guaranteed by JDK
+            throw new RuntimeException(e);
         }
     }
 }

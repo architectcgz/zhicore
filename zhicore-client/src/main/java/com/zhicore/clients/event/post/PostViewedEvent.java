@@ -35,12 +35,25 @@ public class PostViewedEvent extends DomainEvent {
      */
     private final LocalDateTime publishedAt;
 
-    public PostViewedEvent(Long postId, Long userId, Long authorId, LocalDateTime publishedAt) {
+    /**
+     * 客户端 IP（用于匿名用户浏览去重）
+     */
+    private final String clientIp;
+
+    /**
+     * User-Agent（用于匿名用户浏览去重指纹）
+     */
+    private final String userAgent;
+
+    public PostViewedEvent(Long postId, Long userId, Long authorId,
+                           LocalDateTime publishedAt, String clientIp, String userAgent) {
         super();
         this.postId = postId;
         this.userId = userId;
         this.authorId = authorId;
         this.publishedAt = publishedAt;
+        this.clientIp = clientIp;
+        this.userAgent = userAgent;
     }
 
     @Override
