@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Outbox 事件实体
@@ -86,8 +87,8 @@ public class OutboxEvent {
     
     /**
      * 最大重试次数
-     * 
-     * 默认为 3 次，超过后标记为 FAILED
+     *
+     * 默认为 10 次，超过后标记为 DEAD
      */
     private Integer maxRetries;
 
@@ -117,6 +118,25 @@ public class OutboxEvent {
      */
     private String errorMessage;
     
+    /**
+     * 创建 Outbox 事件的工厂方法
+     *
+     * <p>封装默认值（UUID、PENDING 状态、当前时间），减少调用方重复代码</p>
+     *
+     * @param topic RocketMQ Topic
+     * @param tag RocketMQ Tag
+     * @param shardingKey 分片键（通常为 userId）
+     * @param payload 事件负载（JSON 格式）
+     * @return 新的 OutboxEvent 实例
+     */
+    public static OutboxEvent of(String topic, String tag, String shardingKey, String payload) {
+        return new OutboxEvent(
+            UUID.randomUUID().toString(),
+            topic, tag, shardingKey, payload,
+            OutboxEventStatus.PENDING, LocalDateTime.now()
+        );
+    }
+
     /**
      * 创建新的 Outbox 事件（使用默认配置）
      * 
