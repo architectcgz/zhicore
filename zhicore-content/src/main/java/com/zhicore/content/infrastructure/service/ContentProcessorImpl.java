@@ -50,6 +50,19 @@ public class ContentProcessorImpl implements ContentProcessor {
             "<video[^>]+src=[\"']([^\"']+)[\"']|<source[^>]+src=[\"']([^\"']+)[\"']"
     );
 
+    // ==================== 文本处理正则 ====================
+
+    /** HTML 标签 */
+    private static final Pattern HTML_TAG = Pattern.compile("<[^>]+>");
+    /** Markdown 图片语法 */
+    private static final Pattern MD_IMAGE = Pattern.compile("!\\[([^\\]]*)\\]\\(([^)]+)\\)");
+    /** Markdown 链接语法 */
+    private static final Pattern MD_LINK = Pattern.compile("\\[([^\\]]+)\\]\\(([^)]+)\\)");
+    /** Markdown 格式符号 */
+    private static final Pattern MD_SYMBOLS = Pattern.compile("[#*`_~\\-]");
+    /** 连续空白字符 */
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
+
     @Override
     public List<ContentBlock> processContentBlocks(List<ContentBlock> blocks) {
         if (blocks == null || blocks.isEmpty()) {
@@ -128,15 +141,15 @@ public class ContentProcessorImpl implements ContentProcessor {
         }
 
         // 移除HTML标签
-        String textOnly = content.replaceAll("<[^>]+>", "");
-        
+        String textOnly = HTML_TAG.matcher(content).replaceAll("");
+
         // 移除Markdown语法
-        textOnly = textOnly.replaceAll("!\\[([^\\]]*)\\]\\(([^)]+)\\)", ""); // 图片
-        textOnly = textOnly.replaceAll("\\[([^\\]]+)\\]\\(([^)]+)\\)", "$1"); // 链接
-        textOnly = textOnly.replaceAll("[#*`_~\\-]", ""); // Markdown符号
-        
+        textOnly = MD_IMAGE.matcher(textOnly).replaceAll(""); // 图片
+        textOnly = MD_LINK.matcher(textOnly).replaceAll("$1"); // 链接
+        textOnly = MD_SYMBOLS.matcher(textOnly).replaceAll(""); // Markdown符号
+
         // 移除多余空白
-        textOnly = textOnly.replaceAll("\\s+", " ").trim();
+        textOnly = WHITESPACE.matcher(textOnly).replaceAll(" ").trim();
 
         // 统计字数
         // 对于中文，每个字符算一个字
@@ -151,7 +164,7 @@ public class ContentProcessorImpl implements ContentProcessor {
         }
 
         // 统计英文单词（按空格分隔）
-        String[] words = textOnly.split("\\s+");
+        String[] words = WHITESPACE.split(textOnly);
         for (String word : words) {
             if (!word.isEmpty() && !isChinese(word.charAt(0))) {
                 englishCount++;

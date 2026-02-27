@@ -1,5 +1,7 @@
 package com.zhicore.user.infrastructure.cache;
 
+import com.zhicore.common.cache.CacheConstants;
+
 import java.time.YearMonth;
 
 /**
@@ -12,7 +14,9 @@ import java.time.YearMonth;
  */
 public final class UserRedisKeys {
 
-    private static final String PREFIX = "user";
+    private static String prefix() {
+        return CacheConstants.withNamespace("user");
+    }
 
     private UserRedisKeys() {
         // 工具类，禁止实例化
@@ -25,7 +29,7 @@ public final class UserRedisKeys {
      * Key: user:{userId}:detail
      */
     public static String userDetail(Long userId) {
-        return PREFIX + ":" + userId + ":detail";
+        return prefix() + ":" + userId + ":detail";
     }
 
     /**
@@ -33,7 +37,7 @@ public final class UserRedisKeys {
      * Key: user:{userId}:simple
      */
     public static String userSimple(Long userId) {
-        return PREFIX + ":" + userId + ":simple";
+        return prefix() + ":" + userId + ":simple";
     }
 
     /**
@@ -51,7 +55,7 @@ public final class UserRedisKeys {
      * Key: user:{userId}:stats:following
      */
     public static String followingCount(Long userId) {
-        return PREFIX + ":" + userId + ":stats:following";
+        return prefix() + ":" + userId + ":stats:following";
     }
 
     /**
@@ -59,7 +63,7 @@ public final class UserRedisKeys {
      * Key: user:{userId}:stats:followers
      */
     public static String followersCount(Long userId) {
-        return PREFIX + ":" + userId + ":stats:followers";
+        return prefix() + ":" + userId + ":stats:followers";
     }
 
     // ==================== 签到 ====================
@@ -69,7 +73,7 @@ public final class UserRedisKeys {
      * Key: user:{userId}:checkin:{yearMonth}
      */
     public static String checkInBitmap(Long userId, YearMonth yearMonth) {
-        return PREFIX + ":" + userId + ":checkin:" + yearMonth.toString();
+        return prefix() + ":" + userId + ":checkin:" + yearMonth.toString();
     }
 
     // ==================== 分布式锁 ====================
@@ -79,7 +83,7 @@ public final class UserRedisKeys {
      * Key: user:lock:detail:{userId}
      */
     public static String lockDetail(Long userId) {
-        return PREFIX + ":lock:detail:" + userId;
+        return prefix() + ":lock:detail:" + userId;
     }
 
     /**
@@ -87,7 +91,7 @@ public final class UserRedisKeys {
      * Key: user:{followerId}:lock:follow:{followingId}
      */
     public static String followLock(Long followerId, Long followingId) {
-        return PREFIX + ":" + followerId + ":lock:follow:" + followingId;
+        return prefix() + ":" + followerId + ":lock:follow:" + followingId;
     }
 
     /**
@@ -95,7 +99,7 @@ public final class UserRedisKeys {
      * Key: user:{userId}:lock:checkin:{date}
      */
     public static String checkInLock(Long userId, String date) {
-        return PREFIX + ":" + userId + ":lock:checkin:" + date;
+        return prefix() + ":" + userId + ":lock:checkin:" + date;
     }
 
     // ==================== Token 缓存 ====================
@@ -105,7 +109,7 @@ public final class UserRedisKeys {
      * Key: user:{userId}:token:access
      */
     public static String accessToken(Long userId) {
-        return PREFIX + ":" + userId + ":token:access";
+        return prefix() + ":" + userId + ":token:access";
     }
 
     /**
@@ -114,7 +118,7 @@ public final class UserRedisKeys {
      * 每个 Refresh Token 独立存储，支持多设备登录和单独吊销
      */
     public static String refreshTokenWhitelist(Long userId, String tokenId) {
-        return PREFIX + ":" + userId + ":token:refresh:" + tokenId;
+        return prefix() + ":" + userId + ":token:refresh:" + tokenId;
     }
 
     /**
@@ -123,7 +127,7 @@ public final class UserRedisKeys {
      * 用于清除用户所有 Refresh Token（禁用/修改密码/强制下线）
      */
     public static String refreshTokenPattern(Long userId) {
-        return PREFIX + ":" + userId + ":token:refresh:*";
+        return prefix() + ":" + userId + ":token:refresh:*";
     }
 
     /**
@@ -131,7 +135,7 @@ public final class UserRedisKeys {
      * Key: user:{userId}:token:*
      */
     public static String userTokenPattern(Long userId) {
-        return PREFIX + ":" + userId + ":token:*";
+        return prefix() + ":" + userId + ":token:*";
     }
 
     // ==================== 拉黑操作锁 ====================
@@ -144,6 +148,6 @@ public final class UserRedisKeys {
     public static String blockLock(Long userIdA, Long userIdB) {
         long minId = Math.min(userIdA, userIdB);
         long maxId = Math.max(userIdA, userIdB);
-        return "lock:block:" + minId + ":" + maxId;
+        return prefix() + ":lock:block:" + minId + ":" + maxId;
     }
 }

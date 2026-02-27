@@ -6,6 +6,7 @@ import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.event.DomainEventFactory;
 import com.zhicore.content.domain.event.PostMetadataUpdatedEvent;
+import com.zhicore.content.domain.exception.PostErrorMessages;
 import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
@@ -47,12 +48,12 @@ public class UpdatePostMetaHandler {
         
         // 验证权限
         if (!post.isOwnedBy(command.getUserId())) {
-            throw new PostOwnershipException("无权更新此文章：用户不是文章所有者");
+            throw new PostOwnershipException(PostErrorMessages.NOT_OWNER_UPDATE);
         }
         
         // 验证状态
         if (post.getStatus() == PostStatus.DELETED) {
-            throw new IllegalStateException("Cannot update deleted post");
+            throw new IllegalStateException(PostErrorMessages.CANNOT_UPDATE_DELETED);
         }
         
         // 更新元数据

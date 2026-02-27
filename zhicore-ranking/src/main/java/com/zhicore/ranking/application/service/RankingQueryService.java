@@ -1,6 +1,7 @@
 package com.zhicore.ranking.application.service;
 
 import com.zhicore.ranking.domain.model.HotScore;
+import com.zhicore.ranking.infrastructure.config.RankingCacheProperties;
 import com.zhicore.ranking.infrastructure.mongodb.RankingArchive;
 import com.zhicore.ranking.infrastructure.redis.RankingRedisKeys;
 import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
@@ -38,27 +39,24 @@ public class RankingQueryService {
     private final RankingRedisRepository rankingRedisRepository;
     private final RedissonClient redissonClient;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final RankingCacheProperties cacheProperties;
 
     private final Counter cacheHitCounter;
     private final Counter cacheMissCounter;
-
-    private static final int MONTHLY_REDIS_TTL_DAYS = 365;
-    /** 回填 Redis 时从 MongoDB 拉取的上限，不受查询 limit 限制 */
-    private static final int BACKFILL_MAX_SIZE = 1000;
-    /** 空结果缓存时长，防止缓存穿透 */
-    private static final Duration EMPTY_CACHE_TTL = Duration.ofSeconds(30);
 
     public RankingQueryService(PostRankingService postRankingService,
                                RankingArchiveService archiveService,
                                RankingRedisRepository rankingRedisRepository,
                                RedissonClient redissonClient,
                                RedisTemplate<String, Object> redisTemplate,
+                               RankingCacheProperties cacheProperties,
                                MeterRegistry meterRegistry) {
         this.postRankingService = postRankingService;
         this.archiveService = archiveService;
         this.rankingRedisRepository = rankingRedisRepository;
         this.redissonClient = redissonClient;
         this.redisTemplate = redisTemplate;
+        this.cacheProperties = cacheProperties;
 
         this.cacheHitCounter = Counter.builder("ranking.cache.hit")
                 .tag("type", "monthly")
@@ -79,7 +77,7 @@ public class RankingQueryService {
     public List<HotScore> getMonthlyRanking(int year, int month, int limit) {
         LocalDate now = LocalDate.now();
         LocalDate queryDate = LocalDate.of(year, month, 1);
-        boolean inRedisRange = queryDate.isAfter(now.minusDays(MONTHLY_REDIS_TTL_DAYS));
+        boolean inRedisRange = queryDate.isAfter(now.minusDays(cacheProperties.getMonthlyRedisTtlDays()));
 
         if (inRedisRange) {
             // 先检查空结果缓存标记，防止穿透
@@ -123,12 +121,14 @@ public class RankingQueryService {
      * 使用 Pipeline + RENAME 保证回填原子可见性。</p>
      */
     private List<HotScore> loadAndBackfill(int year, int month, int limit) {
-        String lockKey = "ranking:lock:load:monthly:" + year + "-" + month;
+        String lockKey = RankingRedisKeys.monthlyLoadLock(year, month);
         RLock lock = redissonClient.getLock(lockKey);
 
         try {
-            // 尝试获取锁，最多等待 5 秒，持有 30 秒自动释放
-            boolean acquired = lock.tryLock(5, 30, TimeUnit.SECONDS);
+            boolean acquired = lock.tryLock(
+                    cacheProperties.getLockWaitSeconds(),
+                    cacheProperties.getLockLeaseSeconds(),
+                    TimeUnit.SECONDS);
             if (acquired) {
                 try {
                     // double-check：获取锁后再查一次 Redis，可能已被其他线程回填
@@ -139,7 +139,7 @@ public class RankingQueryService {
                     // 回源 MongoDB，拉取完整月榜（不受查询 limit 限制）
                     log.debug("月榜 Redis 未命中，回源 MongoDB: year={}, month={}", year, month);
                     List<RankingArchive> fullArchives = archiveService.getMonthlyArchive(
-                            "post", year, month, BACKFILL_MAX_SIZE);
+                            "post", year, month, cacheProperties.getBackfillMaxSize());
                     List<HotScore> fullScores = convertToHotScores(fullArchives);
 
                     // MongoDB 也无数据，缓存空标记 30s 防穿透
@@ -196,8 +196,9 @@ public class RankingQueryService {
     private void cacheEmptyResult(int year, int month) {
         try {
             String emptyKey = RankingRedisKeys.emptyCache("monthly", year, month);
-            redisTemplate.opsForValue().set(emptyKey, "1", EMPTY_CACHE_TTL);
-            log.debug("缓存空结果标记: year={}, month={}, ttl={}s", year, month, EMPTY_CACHE_TTL.getSeconds());
+            Duration emptyCacheTtl = Duration.ofSeconds(cacheProperties.getEmptyCacheTtlSeconds());
+            redisTemplate.opsForValue().set(emptyKey, "1", emptyCacheTtl);
+            log.debug("缓存空结果标记: year={}, month={}, ttl={}s", year, month, emptyCacheTtl.getSeconds());
         } catch (Exception e) {
             log.warn("缓存空结果标记失败: year={}, month={}", year, month, e);
         }

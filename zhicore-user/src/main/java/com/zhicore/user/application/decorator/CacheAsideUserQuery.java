@@ -40,10 +40,6 @@ public class CacheAsideUserQuery implements UserQueryPort {
     private final LockManager lockManager;
     private final CacheProperties cacheProperties;
 
-    private static final Duration DEFAULT_DETAIL_TTL = Duration.ofMinutes(10);
-    private static final Duration DEFAULT_NULL_TTL = Duration.ofSeconds(60);
-    private static final Duration LOCK_TTL = Duration.ofSeconds(10);
-    private static final Duration LOCK_WAIT_TIME = Duration.ofMillis(200);
 
     public CacheAsideUserQuery(
             @Qualifier("userApplicationService") UserQueryPort delegate,
@@ -73,7 +69,7 @@ public class CacheAsideUserQuery implements UserQueryPort {
         }
 
         // 2. 缓存未命中，获取锁防止击穿
-        boolean lockAcquired = lockManager.tryLock(lockKey, LOCK_WAIT_TIME, LOCK_TTL);
+        boolean lockAcquired = lockManager.tryLock(lockKey, getLockWaitTime(), getLockLeaseTime());
 
         if (!lockAcquired) {
             log.debug("Failed to acquire lock, fallback to source: userId={}", userId);
@@ -190,17 +186,22 @@ public class CacheAsideUserQuery implements UserQueryPort {
     }
 
     private Duration getDetailTtl() {
-        long seconds = cacheProperties.getTtl().getEntityDetail();
-        return seconds > 0 ? Duration.ofSeconds(seconds) : DEFAULT_DETAIL_TTL;
+        return Duration.ofSeconds(cacheProperties.getTtl().getEntityDetail());
     }
 
     private Duration getNullTtl() {
-        long seconds = cacheProperties.getTtl().getNullValue();
-        return seconds > 0 ? Duration.ofSeconds(seconds) : DEFAULT_NULL_TTL;
+        return Duration.ofSeconds(cacheProperties.getTtl().getNullValue());
+    }
+
+    private Duration getLockWaitTime() {
+        return Duration.ofSeconds(cacheProperties.getLock().getWaitTime());
+    }
+
+    private Duration getLockLeaseTime() {
+        return Duration.ofSeconds(cacheProperties.getLock().getLeaseTime());
     }
 
     private int getJitterMaxSeconds() {
-        int max = cacheProperties.getJitter().getMaxSeconds();
-        return max > 0 ? max : 60;
+        return cacheProperties.getJitter().getMaxSeconds();
     }
 }

@@ -1,5 +1,7 @@
 package com.zhicore.ranking.infrastructure.redis;
 
+import com.zhicore.common.cache.CacheConstants;
+
 import java.time.LocalDate;
 import java.time.temporal.WeekFields;
 import java.util.Locale;
@@ -15,7 +17,9 @@ import java.util.Locale;
  */
 public final class RankingRedisKeys {
 
-    private static final String PREFIX = "ranking";
+    private static String prefix() {
+        return CacheConstants.withNamespace("ranking");
+    }
 
     private RankingRedisKeys() {
         // 工具类，禁止实例化
@@ -30,7 +34,7 @@ public final class RankingRedisKeys {
      * @return Redis key
      */
     public static String hotPosts() {
-        return PREFIX + ":posts:hot";
+        return prefix() + ":posts:hot";
     }
 
     /**
@@ -41,7 +45,7 @@ public final class RankingRedisKeys {
      * @return Redis key
      */
     public static String dailyPosts(LocalDate date) {
-        return PREFIX + ":posts:daily:" + date.toString();
+        return prefix() + ":posts:daily:" + date.toString();
     }
 
     /**
@@ -62,7 +66,7 @@ public final class RankingRedisKeys {
      * @return Redis key
      */
     public static String weeklyPosts(int weekNumber) {
-        return PREFIX + ":posts:weekly:" + weekNumber;
+        return prefix() + ":posts:weekly:" + weekNumber;
     }
 
     /**
@@ -84,7 +88,7 @@ public final class RankingRedisKeys {
      * @return Redis key
      */
     public static String monthlyPosts(int year, int month) {
-        return PREFIX + ":posts:monthly:" + year + ":" + String.format("%02d", month);
+        return prefix() + ":posts:monthly:" + year + ":" + String.format("%02d", month);
     }
 
     /**
@@ -107,7 +111,7 @@ public final class RankingRedisKeys {
      * @return Redis key
      */
     public static String hotCreators() {
-        return PREFIX + ":creators:hot";
+        return prefix() + ":creators:hot";
     }
 
     /**
@@ -118,7 +122,7 @@ public final class RankingRedisKeys {
      * @return Redis key
      */
     public static String dailyCreators(LocalDate date) {
-        return PREFIX + ":creators:daily:" + date.toString();
+        return prefix() + ":creators:daily:" + date.toString();
     }
 
     // ==================== 话题排行榜 ====================
@@ -130,7 +134,7 @@ public final class RankingRedisKeys {
      * @return Redis key
      */
     public static String hotTopics() {
-        return PREFIX + ":topics:hot";
+        return prefix() + ":topics:hot";
     }
 
     /**
@@ -141,7 +145,7 @@ public final class RankingRedisKeys {
      * @return Redis key
      */
     public static String dailyTopics(LocalDate date) {
-        return PREFIX + ":topics:daily:" + date.toString();
+        return prefix() + ":topics:daily:" + date.toString();
     }
 
     // ==================== 防刷去重 ====================
@@ -155,7 +159,7 @@ public final class RankingRedisKeys {
      * @return Redis key
      */
     public static String viewDedup(String postId, String userId) {
-        return PREFIX + ":dedup:view:" + postId + ":" + userId;
+        return prefix() + ":dedup:view:" + postId + ":" + userId;
     }
 
     /**
@@ -166,7 +170,7 @@ public final class RankingRedisKeys {
      * @return Redis key
      */
     public static String viewScoreCap(String postId) {
-        return PREFIX + ":view:cap:" + postId;
+        return prefix() + ":view:cap:" + postId;
     }
 
     // ==================== 空结果缓存 ====================
@@ -181,7 +185,43 @@ public final class RankingRedisKeys {
      * @return Redis key
      */
     public static String emptyCache(String type, int year, int month) {
-        return PREFIX + ":empty:" + type + ":" + year + ":" + String.format("%02d", month);
+        return prefix() + ":empty:" + type + ":" + year + ":" + String.format("%02d", month);
+    }
+
+    // ==================== 分布式锁 ====================
+
+    /**
+     * 归档任务分布式锁
+     * Key: ranking:lock:archive:{lockSuffix}
+     *
+     * @param lockSuffix 锁后缀（如 daily、weekly、monthly）
+     * @return Redis key
+     */
+    public static String archiveLock(String lockSuffix) {
+        return prefix() + ":lock:archive:" + lockSuffix;
+    }
+
+    /**
+     * 定时刷新任务分布式锁
+     * Key: ranking:lock:scheduler:{lockSuffix}
+     *
+     * @param lockSuffix 锁后缀（如 post-snapshot、creator-snapshot）
+     * @return Redis key
+     */
+    public static String schedulerLock(String lockSuffix) {
+        return prefix() + ":lock:scheduler:" + lockSuffix;
+    }
+
+    /**
+     * 月榜回填加载锁
+     * Key: ranking:lock:load:monthly:{year}-{month}
+     *
+     * @param year 年份
+     * @param month 月份
+     * @return Redis key
+     */
+    public static String monthlyLoadLock(int year, int month) {
+        return prefix() + ":lock:load:monthly:" + year + "-" + month;
     }
 
     // ==================== 工具方法 ====================

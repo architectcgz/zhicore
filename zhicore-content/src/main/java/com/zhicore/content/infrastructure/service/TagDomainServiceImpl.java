@@ -22,6 +22,7 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +38,19 @@ public class TagDomainServiceImpl implements TagDomainService {
 
     private final TagRepository tagRepository;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
+
+    /** 连续空白字符 */
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
+    /** 连续连字符 */
+    private static final Pattern MULTI_DASH = Pattern.compile("-+");
+    /** 首尾连字符 */
+    private static final Pattern LEADING_TRAILING_DASH = Pattern.compile("^-+|-+$");
+    /** 非法 slug 字符（仅保留 a-z0-9-） */
+    private static final Pattern ILLEGAL_SLUG_CHARS = Pattern.compile("[^a-z0-9-]");
+    /** 合法标签名称字符 */
+    private static final Pattern VALID_TAG_NAME = Pattern.compile("^[\\u4e00-\\u9fa5a-zA-Z0-9\\s\\-_]+$");
+    /** 中文字符 */
+    private static final Pattern CHINESE_CHAR = Pattern.compile("[\\u4e00-\\u9fa5]");
 
     /**
      * 规范化标签名称为 slug
@@ -66,16 +80,16 @@ public class TagDomainServiceImpl implements TagDomainService {
         result = result.toLowerCase();
 
         // Step 4: 将所有空白字符统一替换为 `-`
-        result = result.replaceAll("\\s+", "-");
+        result = WHITESPACE.matcher(result).replaceAll("-");
 
         // Step 5: 合并连续的 `-` 为单个 `-`
-        result = result.replaceAll("-+", "-");
+        result = MULTI_DASH.matcher(result).replaceAll("-");
 
         // Step 6: 移除首尾的 `-`
-        result = result.replaceAll("^-+|-+$", "");
+        result = LEADING_TRAILING_DASH.matcher(result).replaceAll("");
 
         // Step 7: 过滤非法字符，仅保留 `[a-z0-9-]`
-        result = result.replaceAll("[^a-z0-9-]", "");
+        result = ILLEGAL_SLUG_CHARS.matcher(result).replaceAll("");
 
         // 验证结果不为空
         if (!StringUtils.hasText(result)) {
@@ -101,7 +115,7 @@ public class TagDomainServiceImpl implements TagDomainService {
         }
 
         // 验证名称只能包含中文、英文、数字、空格、连字符和下划线
-        if (!trimmedName.matches("^[\\u4e00-\\u9fa5a-zA-Z0-9\\s\\-_]+$")) {
+        if (!VALID_TAG_NAME.matcher(trimmedName).matches()) {
             throw new IllegalArgumentException("标签名称只能包含中文、英文、数字、空格、连字符和下划线");
         }
     }
@@ -206,7 +220,7 @@ public class TagDomainServiceImpl implements TagDomainService {
         char[] chars = text.toCharArray();
 
         for (char c : chars) {
-            if (Character.toString(c).matches("[\\u4e00-\\u9fa5]")) {
+            if (CHINESE_CHAR.matcher(Character.toString(c)).matches()) {
                 // 中文字符，转换为拼音
                 try {
                     String[] pinyinArray = PinyinHelper.toHanyuPinyinStringArray(c, format);

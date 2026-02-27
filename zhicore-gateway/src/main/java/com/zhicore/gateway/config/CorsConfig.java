@@ -24,9 +24,15 @@ public class CorsConfig {
     
     @Value("${cors.allowed-origins:}")
     private List<String> allowedOrigins;
-    
+
     @Value("${cors.allowed-origin-patterns:}")
     private List<String> allowedOriginPatterns;
+
+    @Value("${cors.dev-origin-patterns:http://localhost:[*],http://127.0.0.1:[*]}")
+    private List<String> devOriginPatterns;
+
+    @Value("${cors.max-age:3600}")
+    private long maxAge;
 
     public CorsConfig(Environment environment) {
         this.environment = environment;
@@ -40,9 +46,8 @@ public class CorsConfig {
         boolean isDevelopment = isDevelopmentEnvironment();
         
         if (isDevelopment) {
-            // 开发环境：使用 origin patterns 允许任意 localhost 端口
-            config.addAllowedOriginPattern("http://localhost:[*]");
-            config.addAllowedOriginPattern("http://127.0.0.1:[*]");
+            // 开发环境：使用配置的 dev origin patterns
+            devOriginPatterns.forEach(config::addAllowedOriginPattern);
         } else {
             // 生产环境：使用配置的具体 origins
             if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
@@ -70,7 +75,7 @@ public class CorsConfig {
         config.setAllowCredentials(true);
         
         // 预检请求的有效期（秒）
-        config.setMaxAge(3600L);
+        config.setMaxAge(maxAge);
         
         // 暴露的响应头
         config.addExposedHeader("Authorization");

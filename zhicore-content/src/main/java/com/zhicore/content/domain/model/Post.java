@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * 文章聚合根（充血模型）
@@ -31,6 +32,11 @@ import java.util.Set;
  */
 @Getter
 public class Post {
+
+    /** HTML 标签 */
+    private static final Pattern HTML_TAG = Pattern.compile("<[^>]+>");
+    /** 连续空白字符 */
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     /**
      * 文章ID（值对象）
@@ -636,9 +642,9 @@ public class Post {
             return "";
         }
         // 移除HTML标签和多余空白
-        String plainText = content.replaceAll("<[^>]+>", "")
-                .replaceAll("\\s+", " ")
-                .trim();
+        String plainText = WHITESPACE.matcher(
+                HTML_TAG.matcher(content).replaceAll("")
+        ).replaceAll(" ").trim();
         if (plainText.length() <= maxLength) {
             return plainText;
         }

@@ -5,6 +5,7 @@ import lombok.Getter;
 import org.springframework.util.Assert;
 
 import java.time.LocalDateTime;
+import java.util.regex.Pattern;
 
 /**
  * 分类实体
@@ -13,6 +14,9 @@ import java.time.LocalDateTime;
  */
 @Getter
 public class Category {
+
+    /** 合法 slug 格式：小写字母、数字、连字符 */
+    private static final Pattern VALID_SLUG = Pattern.compile("^[a-z0-9-]+$");
 
     /**
      * 分类ID
@@ -164,7 +168,7 @@ public class Category {
         if (slug.length() > 50) {
             throw new DomainException("分类标识不能超过50个字符");
         }
-        if (!slug.matches("^[a-z0-9-]+$")) {
+        if (!VALID_SLUG.matcher(slug).matches()) {
             throw new DomainException("分类标识只能包含小写字母、数字和连字符");
         }
     }

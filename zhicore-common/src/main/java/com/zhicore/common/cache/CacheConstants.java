@@ -12,6 +12,38 @@ public final class CacheConstants {
     private CacheConstants() {
     }
 
+    // ==================== 全局命名空间 ====================
+
+    /**
+     * 全局 Redis Key 命名空间前缀
+     * 用于多环境隔离（如 dev/staging/prod 共用同一 Redis 集群时）
+     * 可通过 cache.key-namespace 配置覆盖
+     */
+    private static String globalNamespace = "zhicore";
+
+    /**
+     * 获取全局命名空间前缀
+     */
+    public static String getGlobalNamespace() {
+        return globalNamespace;
+    }
+
+    /**
+     * 设置全局命名空间前缀（由 CacheNamespaceInitializer 在启动时调用）
+     */
+    public static void setGlobalNamespace(String namespace) {
+        if (namespace != null && !namespace.isBlank()) {
+            globalNamespace = namespace;
+        }
+    }
+
+    /**
+     * 拼接全局前缀和服务前缀
+     */
+    public static String withNamespace(String servicePrefix) {
+        return globalNamespace + SEPARATOR + servicePrefix;
+    }
+
     // ==================== Key 前缀 ====================
 
     /**

@@ -57,7 +57,7 @@ class RankingRedisRepositoryTest {
     @BeforeEach
     void setUp() {
         // 清理所有测试数据
-        Set<String> keys = redisTemplate.keys("ranking:*");
+        Set<String> keys = redisTemplate.keys("*:ranking:*");
         if (keys != null && !keys.isEmpty()) {
             redisTemplate.delete(keys);
         }
@@ -66,7 +66,7 @@ class RankingRedisRepositoryTest {
     @AfterEach
     void tearDown() {
         // 清理所有测试数据
-        Set<String> keys = redisTemplate.keys("ranking:*");
+        Set<String> keys = redisTemplate.keys("*:ranking:*");
         if (keys != null && !keys.isEmpty()) {
             redisTemplate.delete(keys);
         }

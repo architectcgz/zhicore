@@ -1,5 +1,7 @@
 package com.zhicore.content.infrastructure.cache;
 
+import com.zhicore.common.cache.CacheConstants;
+
 /**
  * Tag Service Redis Key 定义
  * 
@@ -10,13 +12,17 @@ package com.zhicore.content.infrastructure.cache;
  */
 public final class TagRedisKeys {
 
-    private static final String PREFIX = "tag";
+    private static String prefix() {
+        return CacheConstants.withNamespace("tag");
+    }
     
     /**
      * 热门标签缓存键前缀
      * 用于批量清除所有热门标签缓存
      */
-    public static final String HOT_TAGS_PREFIX = "tags:hot:";
+    private static String hotTagsPrefix() {
+        return CacheConstants.withNamespace("tags") + ":hot:";
+    }
 
     private TagRedisKeys() {
     }
@@ -27,7 +33,7 @@ public final class TagRedisKeys {
      * TTL: 1 hour
      */
     public static String bySlug(String slug) {
-        return PREFIX + ":slug:" + slug;
+        return prefix() + ":slug:" + slug;
     }
 
     /**
@@ -36,7 +42,7 @@ public final class TagRedisKeys {
      * TTL: 1 hour
      */
     public static String byId(Long tagId) {
-        return PREFIX + ":id:" + tagId;
+        return prefix() + ":id:" + tagId;
     }
 
     /**
@@ -45,7 +51,7 @@ public final class TagRedisKeys {
      * TTL: 30 minutes
      */
     public static String postTags(Long postId) {
-        return "post:tags:" + postId;
+        return CacheConstants.withNamespace("post") + ":tags:" + postId;
     }
 
     /**
@@ -54,7 +60,7 @@ public final class TagRedisKeys {
      * TTL: 30 minutes
      */
     public static String tagPosts(Long tagId, int page, int size) {
-        return PREFIX + ":posts:" + tagId + ":page:" + page + ":" + size;
+        return prefix() + ":posts:" + tagId + ":page:" + page + ":" + size;
     }
 
     /**
@@ -63,7 +69,7 @@ public final class TagRedisKeys {
      * TTL: 1 hour
      */
     public static String hotTags(int limit) {
-        return HOT_TAGS_PREFIX + limit;
+        return hotTagsPrefix() + limit;
     }
 
     /**
@@ -72,7 +78,7 @@ public final class TagRedisKeys {
      * TTL: 1 hour
      */
     public static String tagStats(Long tagId) {
-        return PREFIX + ":stats:" + tagId;
+        return prefix() + ":stats:" + tagId;
     }
 
     // ==================== 分布式锁 ====================
@@ -82,7 +88,7 @@ public final class TagRedisKeys {
      * Key: tag:lock:slug:{slug}
      */
     public static String lockBySlug(String slug) {
-        return PREFIX + ":lock:slug:" + slug;
+        return prefix() + ":lock:slug:" + slug;
     }
 
     /**
@@ -90,6 +96,6 @@ public final class TagRedisKeys {
      * Key: tag:lock:hot:{limit}
      */
     public static String lockHotTags(int limit) {
-        return PREFIX + ":lock:hot:" + limit;
+        return prefix() + ":lock:hot:" + limit;
     }
 }

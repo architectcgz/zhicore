@@ -4,6 +4,8 @@ import com.zhicore.content.application.command.commands.CancelScheduleCommand;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.event.PostScheduleCancelledEvent;
+import com.zhicore.content.domain.exception.PostErrorMessages;
+import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostStatus;
 import lombok.RequiredArgsConstructor;
@@ -42,12 +44,12 @@ public class CancelScheduleHandler {
         
         // 验证权限
         if (!post.isOwnedBy(command.getUserId())) {
-            throw new IllegalStateException("User does not own this post");
+            throw new PostOwnershipException(PostErrorMessages.NOT_OWNER_CANCEL_SCHEDULE);
         }
         
         // 验证状态
         if (post.getStatus() != PostStatus.SCHEDULED) {
-            throw new IllegalStateException("Post is not in SCHEDULED status: " + post.getStatus());
+            throw new IllegalStateException(PostErrorMessages.NOT_SCHEDULED_STATUS + post.getStatus());
         }
         
         // 取消定时发布

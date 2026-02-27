@@ -7,6 +7,7 @@ import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.domain.event.DomainEventFactory;
 import com.zhicore.content.domain.event.PostContentUpdatedEvent;
+import com.zhicore.content.domain.exception.PostErrorMessages;
 import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.*;
 import com.zhicore.content.infrastructure.cache.PostRedisKeys;
@@ -47,12 +48,12 @@ public class UpdatePostContentHandler {
         
         // 2. 验证权限（用户是否拥有文章）
         if (!post.isOwnedBy(command.getUserId())) {
-            throw new PostOwnershipException("无权更新此文章内容：用户不是文章所有者");
+            throw new PostOwnershipException(PostErrorMessages.NOT_OWNER_UPDATE_CONTENT);
         }
         
         // 3. 验证状态（不能更新已删除的文章）
         if (post.getStatus() == PostStatus.DELETED) {
-            throw new IllegalStateException("Cannot update deleted post");
+            throw new IllegalStateException(PostErrorMessages.CANNOT_UPDATE_DELETED);
         }
         
         // 4. 更新 MongoDB 内容
@@ -64,7 +65,7 @@ public class UpdatePostContentHandler {
             log.info("Post content updated in MongoDB: postId={}", command.getPostId());
         } catch (Exception e) {
             log.error("Failed to update post content in MongoDB: postId={}", command.getPostId(), e);
-            throw new RuntimeException("Failed to update post content", e);
+            throw new RuntimeException(PostErrorMessages.UPDATE_CONTENT_FAILED, e);
         }
         
         // 5. 更新 PostgreSQL 的 updatedAt 时间戳

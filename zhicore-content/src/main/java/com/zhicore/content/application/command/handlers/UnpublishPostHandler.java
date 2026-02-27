@@ -5,6 +5,8 @@ import com.zhicore.common.cache.port.CacheRepository;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.event.PostUnpublishedEvent;
+import com.zhicore.content.domain.exception.PostErrorMessages;
+import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.PostStatus;
@@ -46,12 +48,12 @@ public class UnpublishPostHandler {
         
         // 验证权限
         if (!post.isOwnedBy(command.getUserId())) {
-            throw new IllegalStateException("User does not own this post");
+            throw new PostOwnershipException(PostErrorMessages.NOT_OWNER_UNPUBLISH);
         }
         
         // 验证状态
         if (post.getStatus() != PostStatus.PUBLISHED) {
-            throw new IllegalStateException("Post is not in PUBLISHED status: " + post.getStatus());
+            throw new IllegalStateException(PostErrorMessages.NOT_PUBLISHED_STATUS + post.getStatus());
         }
         
         // 撤回

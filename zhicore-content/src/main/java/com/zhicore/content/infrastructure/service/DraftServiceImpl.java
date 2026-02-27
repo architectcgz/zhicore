@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * 草稿管理器实现
@@ -24,6 +25,8 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class DraftServiceImpl implements DraftService {
+
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     private final PostDraftRepository draftRepository;
 
@@ -188,7 +191,7 @@ public class DraftServiceImpl implements DraftService {
         }
         
         // 移除空白字符并计算字符数
-        String trimmed = content.replaceAll("\\s+", "");
+        String trimmed = WHITESPACE.matcher(content).replaceAll("");
         return trimmed.length();
     }
 

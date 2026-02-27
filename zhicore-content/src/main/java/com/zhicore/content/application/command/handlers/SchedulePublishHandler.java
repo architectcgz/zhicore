@@ -4,6 +4,7 @@ import com.zhicore.content.application.command.commands.SchedulePublishCommand;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.event.PostScheduledEvent;
+import com.zhicore.content.domain.exception.PostErrorMessages;
 import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
 import lombok.RequiredArgsConstructor;
@@ -46,12 +47,12 @@ public class SchedulePublishHandler {
         
         // 验证权限
         if (!post.isOwnedBy(command.getUserId())) {
-            throw new PostOwnershipException("无权设置定时发布：用户不是文章所有者");
+            throw new PostOwnershipException(PostErrorMessages.NOT_OWNER_SCHEDULE);
         }
         
         // 验证时间
         if (command.getScheduledAt().isBefore(LocalDateTime.now(clock))) {
-            throw new IllegalArgumentException("Scheduled time must be in the future");
+            throw new IllegalArgumentException(PostErrorMessages.SCHEDULE_TIME_MUST_FUTURE);
         }
         
         // 设置定时发布

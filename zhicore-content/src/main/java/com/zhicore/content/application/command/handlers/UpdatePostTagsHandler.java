@@ -6,6 +6,7 @@ import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.common.exception.OptimisticLockException;
 import com.zhicore.content.domain.event.PostTagsUpdatedDomainEvent;
+import com.zhicore.content.domain.exception.PostErrorMessages;
 import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
@@ -50,7 +51,7 @@ public class UpdatePostTagsHandler {
         
         // 验证权限
         if (!post.isOwnedBy(command.getUserId())) {
-            throw new PostOwnershipException("无权更新此文章：用户不是文章所有者");
+            throw new PostOwnershipException(PostErrorMessages.NOT_OWNER_UPDATE_TAGS);
         }
         
         // 保存旧标签用于事件和缓存失效
