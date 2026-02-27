@@ -1,9 +1,10 @@
 package com.zhicore.content.application.decorator;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.zhicore.content.application.port.cache.CacheRepository;
-import com.zhicore.content.application.port.cache.CacheResult;
-import com.zhicore.content.application.port.cache.LockManager;
+import com.zhicore.common.cache.port.CacheRepository;
+import com.zhicore.common.cache.port.CacheResult;
+import com.zhicore.common.cache.port.LockManager;
+import com.zhicore.common.config.CacheProperties;
 import com.zhicore.content.application.query.PostQuery;
 import com.zhicore.content.application.query.view.PostDetailView;
 import com.zhicore.content.application.query.view.PostListItemView;
@@ -39,51 +40,42 @@ import java.util.function.Supplier;
 @Service
 @Primary
 public class CacheAsidePostQuery implements PostQuery {
-    
+
     private final PostQuery delegate;
     private final CacheRepository cacheRepository;
     private final LockManager lockManager;
-    
-    /**
-     * 详情缓存 TTL（30 分钟）
-     */
-    private static final Duration DETAIL_TTL = Duration.ofMinutes(30);
-    
-    /**
-     * 列表缓存 TTL（10 分钟）
-     */
-    private static final Duration LIST_TTL = Duration.ofMinutes(10);
-    
-    /**
-     * 空值缓存 TTL（5 分钟）
-     */
-    private static final Duration NULL_TTL = Duration.ofMinutes(5);
-    
-    /**
-     * 降级结果缓存 TTL（5 分钟）
-     */
+    private final CacheProperties cacheProperties;
+
+    /** 详情缓存 TTL 默认值（30 分钟） */
+    private static final Duration DEFAULT_DETAIL_TTL = Duration.ofMinutes(30);
+    /** 列表缓存 TTL 默认值（10 分钟） */
+    private static final Duration DEFAULT_LIST_TTL = Duration.ofMinutes(10);
+    /** 空值缓存 TTL 默认值（5 分钟） */
+    private static final Duration DEFAULT_NULL_TTL = Duration.ofMinutes(5);
+    /** 降级结果缓存 TTL（5 分钟） */
     private static final Duration DEGRADED_TTL = Duration.ofMinutes(5);
-    
-    /**
-     * 分布式锁 TTL（10 秒）
-     */
+    /** 分布式锁 TTL（10 秒） */
     private static final Duration LOCK_TTL = Duration.ofSeconds(10);
-    
+    /** 锁等待时间（200 毫秒） */
+    private static final Duration LOCK_WAIT_TIME = Duration.ofMillis(200);
+
     public CacheAsidePostQuery(
             @Qualifier("postQueryService") PostQuery delegate,
             CacheRepository cacheRepository,
-            LockManager lockManager
+            LockManager lockManager,
+            CacheProperties cacheProperties
     ) {
         this.delegate = delegate;
         this.cacheRepository = cacheRepository;
         this.lockManager = lockManager;
+        this.cacheProperties = cacheProperties;
     }
     
     @Override
     public PostDetailView getDetail(PostId postId) {
         String cacheKey = PostRedisKeys.detail(postId);
         String lockKey = PostRedisKeys.lockDetail(postId);
-        
+
         // 1. 尝试从缓存获取
         CacheResult<PostDetailView> cached = cacheRepository.get(cacheKey, PostDetailView.class);
         if (cached.isHit()) {
@@ -93,60 +85,45 @@ public class CacheAsidePostQuery implements PostQuery {
         if (cached.isNull()) {
             return null;
         }
-        
-        // 2. 缓存未命中，获取锁防止击穿
-        // waitTime=0 表示不等待，leaseTime=10s 防止死锁
-        boolean lockAcquired = lockManager.tryLock(
-                lockKey,
-                Duration.ZERO,      // 不等待
-                LOCK_TTL            // 锁租期 10 秒
-        );
-        
+
+        // 2. 缓存未命中，获取锁防止击穿（等待 200ms 让 Redisson 排队）
+        boolean lockAcquired = lockManager.tryLock(lockKey, LOCK_WAIT_TIME, LOCK_TTL);
+
         if (!lockAcquired) {
-            // 未获取到锁，等待后重试缓存
-            log.debug("Failed to acquire lock, waiting for cache: {}", postId);
-            try {
-                Thread.sleep(100);
-                CacheResult<PostDetailView> retried = cacheRepository.get(cacheKey, PostDetailView.class);
-                if (retried.isHit()) {
-                    return retried.getValue();
-                }
-                if (retried.isNull()) {
-                    return null;
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.warn("Interrupted while waiting for cache: {}", postId);
-            }
+            // 未获取到锁，降级直接查数据源
+            log.debug("Failed to acquire lock, fallback to source: {}", postId);
+            return delegate.getDetail(postId);
         }
-        
+
         try {
-            // 3. 从数据源获取
+            // 3. DCL：获取锁后再次检查缓存
+            CacheResult<PostDetailView> retried = cacheRepository.get(cacheKey, PostDetailView.class);
+            if (retried.isHit()) {
+                return retried.getValue();
+            }
+            if (retried.isNull()) {
+                return null;
+            }
+
+            // 4. 从数据源获取
             log.debug("Cache miss for post detail, fetching from source: {}", postId);
             PostDetailView view = delegate.getDetail(postId);
-            
-            // 4. 缓存结果
+
+            // 5. 缓存结果
             if (view == null) {
-                // 空值缓存
-                log.debug("Caching null value for post: {}", postId);
-                cacheRepository.setIfAbsent(cacheKey, null, NULL_TTL);
+                cacheRepository.setIfAbsent(cacheKey, null, getNullTtl());
             } else if (view.isContentDegraded()) {
-                // 降级结果使用短 TTL
-                log.debug("Caching degraded result for post: {}", postId);
                 cacheRepository.set(cacheKey, view, DEGRADED_TTL);
             } else {
-                // 正常结果使用标准 TTL + jitter
-                Duration ttl = DETAIL_TTL.plus(Duration.ofSeconds(ThreadLocalRandom.current().nextInt(60)));
-                log.debug("Caching normal result for post: {}, ttl: {}", postId, ttl);
+                Duration ttl = getDetailTtl().plus(Duration.ofSeconds(
+                        ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
                 cacheRepository.set(cacheKey, view, ttl);
             }
-            
+
             return view;
-            
+
         } finally {
-            if (lockAcquired) {
-                lockManager.unlock(lockKey);
-            }
+            lockManager.unlock(lockKey);
         }
     }
     
@@ -184,10 +161,9 @@ public class CacheAsidePostQuery implements PostQuery {
      * @return 列表数据
      */
     private List<PostListItemView> getCachedList(String cacheKey, Supplier<List<PostListItemView>> supplier) {
-        // 使用 TypeReference 处理泛型类型
         CacheResult<List<PostListItemView>> cached =
                 cacheRepository.get(cacheKey, new TypeReference<List<PostListItemView>>() {});
-        
+
         if (cached.isHit()) {
             log.debug("Cache hit for list: {}", cacheKey);
             return cached.getValue();
@@ -195,14 +171,34 @@ public class CacheAsidePostQuery implements PostQuery {
         if (cached.isNull()) {
             return List.of();
         }
-        
+
         log.debug("Cache miss for list, fetching from source: {}", cacheKey);
         List<PostListItemView> result = supplier.get();
-        
-        // 缓存结果，使用 TTL + jitter
-        Duration ttl = LIST_TTL.plus(Duration.ofSeconds(ThreadLocalRandom.current().nextInt(60)));
+
+        Duration ttl = getListTtl().plus(Duration.ofSeconds(
+                ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
         cacheRepository.set(cacheKey, result, ttl);
-        
+
         return result;
+    }
+
+    private Duration getDetailTtl() {
+        long seconds = cacheProperties.getTtl().getEntityDetail();
+        return seconds > 0 ? Duration.ofSeconds(seconds) : DEFAULT_DETAIL_TTL;
+    }
+
+    private Duration getListTtl() {
+        long seconds = cacheProperties.getTtl().getList();
+        return seconds > 0 ? Duration.ofSeconds(seconds) : DEFAULT_LIST_TTL;
+    }
+
+    private Duration getNullTtl() {
+        long seconds = cacheProperties.getTtl().getNullValue();
+        return seconds > 0 ? Duration.ofSeconds(seconds) : DEFAULT_NULL_TTL;
+    }
+
+    private int getJitterMaxSeconds() {
+        int max = cacheProperties.getJitter().getMaxSeconds();
+        return max > 0 ? max : 60;
     }
 }
