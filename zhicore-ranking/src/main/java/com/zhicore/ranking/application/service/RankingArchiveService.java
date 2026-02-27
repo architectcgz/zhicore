@@ -6,9 +6,8 @@ import com.zhicore.ranking.infrastructure.mongodb.RankingArchive;
 import com.zhicore.ranking.infrastructure.mongodb.RankingArchiveRepository;
 import com.zhicore.ranking.infrastructure.redis.RankingRedisKeys;
 import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
+import com.zhicore.ranking.infrastructure.scheduler.DistributedLockExecutor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +17,6 @@ import java.time.temporal.WeekFields;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 排行榜归档服务
@@ -52,7 +50,7 @@ public class RankingArchiveService {
     private final RankingRedisRepository redisRepository;
     private final RankingArchiveRepository archiveRepository;
     private final RankingArchiveProperties archiveProperties;
-    private final RedissonClient redissonClient;
+    private final DistributedLockExecutor lockExecutor;
 
     /** 分布式锁 key 前缀 */
     private static final String LOCK_PREFIX = "ranking:lock:archive:";
@@ -60,11 +58,11 @@ public class RankingArchiveService {
     public RankingArchiveService(RankingRedisRepository redisRepository,
                                   RankingArchiveRepository archiveRepository,
                                   RankingArchiveProperties archiveProperties,
-                                  RedissonClient redissonClient) {
+                                  DistributedLockExecutor lockExecutor) {
         this.redisRepository = redisRepository;
         this.archiveRepository = archiveRepository;
         this.archiveProperties = archiveProperties;
-        this.redissonClient = redissonClient;
+        this.lockExecutor = lockExecutor;
     }
     
     // ==================== 日榜归档 ====================
@@ -77,7 +75,7 @@ public class RankingArchiveService {
      */
     @Scheduled(cron = "0 0 2 * * ?")
     public void archiveDailyRanking() {
-        executeWithLock("archive-daily", () -> {
+        lockExecutor.executeWithLock(LOCK_PREFIX + "archive-daily", () -> {
             LocalDate yesterday = LocalDate.now().minusDays(1);
             log.info("开始归档日榜: date={}", yesterday);
             try {
@@ -179,7 +177,7 @@ public class RankingArchiveService {
      */
     @Scheduled(cron = "0 0 3 ? * MON")
     public void archiveWeeklyRanking() {
-        executeWithLock("archive-weekly", () -> {
+        lockExecutor.executeWithLock(LOCK_PREFIX + "archive-weekly", () -> {
             LocalDate lastWeek = LocalDate.now().minusWeeks(1);
             int year = lastWeek.getYear();
             int weekNumber = getWeekNumber(lastWeek);
@@ -285,7 +283,7 @@ public class RankingArchiveService {
      */
     @Scheduled(cron = "0 0 4 1 * ?")
     public void archiveMonthlyRanking() {
-        executeWithLock("archive-monthly", () -> {
+        lockExecutor.executeWithLock(LOCK_PREFIX + "archive-monthly", () -> {
             LocalDate lastMonth = LocalDate.now().minusMonths(1);
             int year = lastMonth.getYear();
             int month = lastMonth.getMonthValue();
@@ -381,34 +379,6 @@ public class RankingArchiveService {
         }
     }
     
-    // ==================== 分布式锁 ====================
-
-    /**
-     * 使用分布式锁执行归档任务，确保多实例部署时只有一个实例执行
-     *
-     * @param taskName 任务名称（用于锁 key 和日志）
-     * @param task     要执行的任务
-     */
-    private void executeWithLock(String taskName, Runnable task) {
-        RLock lock = redissonClient.getLock(LOCK_PREFIX + taskName);
-        try {
-            // tryLock(0, ...) 非阻塞：拿不到锁立即跳过，避免多实例重复执行
-            if (lock.tryLock(0, 30, TimeUnit.MINUTES)) {
-                try {
-                    log.info("获取分布式锁成功，开始执行归档任务: {}", taskName);
-                    task.run();
-                } finally {
-                    lock.unlock();
-                }
-            } else {
-                log.debug("归档任务已被其他实例执行，跳过: {}", taskName);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.warn("获取归档分布式锁被中断: {}", taskName);
-        }
-    }
-
     // ==================== 通用方法 ====================
     
     /**

@@ -9,15 +9,12 @@ import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 排行榜定时刷新任务
@@ -34,7 +31,7 @@ public class RankingRefreshScheduler {
     private final CreatorRankingService creatorRankingService;
     private final RankingRedisRepository rankingRepository;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final RedissonClient redissonClient;
+    private final DistributedLockExecutor lockExecutor;
 
     private final Timer postSnapshotTimer;
     private final Timer creatorSnapshotTimer;
@@ -49,13 +46,13 @@ public class RankingRefreshScheduler {
                                    CreatorRankingService creatorRankingService,
                                    RankingRedisRepository rankingRepository,
                                    RedisTemplate<String, Object> redisTemplate,
-                                   RedissonClient redissonClient,
+                                   DistributedLockExecutor lockExecutor,
                                    MeterRegistry meterRegistry) {
         this.postRankingService = postRankingService;
         this.creatorRankingService = creatorRankingService;
         this.rankingRepository = rankingRepository;
         this.redisTemplate = redisTemplate;
-        this.redissonClient = redissonClient;
+        this.lockExecutor = lockExecutor;
 
         this.postSnapshotTimer = Timer.builder("ranking.snapshot.duration")
                 .tag("type", "post").register(meterRegistry);
@@ -70,7 +67,7 @@ public class RankingRefreshScheduler {
      */
     @Scheduled(cron = "0 0 * * * ?")
     public void refreshHotPosts() {
-        executeWithLock("refresh-hot-posts", () ->
+        lockExecutor.executeWithLock(LOCK_PREFIX + "refresh-hot-posts", () ->
             postSnapshotTimer.record(() -> {
                 try {
                     cleanupExpiredDailyRankings();
@@ -86,7 +83,7 @@ public class RankingRefreshScheduler {
 
     @Scheduled(cron = "0 0 2 * * ?")
     public void refreshCreatorRanking() {
-        executeWithLock("refresh-creator", () ->
+        lockExecutor.executeWithLock(LOCK_PREFIX + "refresh-creator", () ->
             creatorSnapshotTimer.record(() -> {
                 try {
                     cleanupExpiredCreatorDailyRankings();
@@ -100,7 +97,7 @@ public class RankingRefreshScheduler {
 
     @Scheduled(cron = "0 0 3 * * ?")
     public void refreshTopicRanking() {
-        executeWithLock("refresh-topic", () ->
+        lockExecutor.executeWithLock(LOCK_PREFIX + "refresh-topic", () ->
             topicSnapshotTimer.record(() -> {
                 try {
                     cleanupExpiredTopicDailyRankings();
@@ -110,32 +107,6 @@ public class RankingRefreshScheduler {
                 }
             })
         );
-    }
-
-    /**
-     * 使用分布式锁执行任务，确保多实例部署时只有一个实例执行
-     *
-     * @param taskName 任务名称（用于锁 key 和日志）
-     * @param task     要执行的任务
-     */
-    private void executeWithLock(String taskName, Runnable task) {
-        RLock lock = redissonClient.getLock(LOCK_PREFIX + taskName);
-        try {
-            // tryLock(0, ...) 非阻塞：拿不到锁立即跳过，避免多实例重复执行
-            if (lock.tryLock(0, 30, TimeUnit.MINUTES)) {
-                try {
-                    log.info("获取分布式锁成功，开始执行定时任务: {}", taskName);
-                    task.run();
-                } finally {
-                    lock.unlock();
-                }
-            } else {
-                log.debug("定时任务已被其他实例执行，跳过: {}", taskName);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.warn("获取分布式锁被中断: {}", taskName);
-        }
     }
 
     /**
