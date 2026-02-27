@@ -22,4 +22,10 @@ public class RankingWeightProperties {
     private double comment = 10.0;
     private double favorite = 8.0;
     private double halfLifeDays = 7.0;
+
+    // 创作者热度权重
+    private double follower = 2.0;
+    private double creatorLike = 1.0;
+    private double creatorComment = 1.5;
+    private double postCount = 3.0;
 }

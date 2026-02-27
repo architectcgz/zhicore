@@ -29,6 +29,11 @@ class HotScoreCalculatorTest {
         props.setComment(10.0);
         props.setFavorite(8.0);
         props.setHalfLifeDays(7.0);
+        // 创作者权重
+        props.setFollower(2.0);
+        props.setCreatorLike(1.0);
+        props.setCreatorComment(1.5);
+        props.setPostCount(3.0);
         calculator = new HotScoreCalculator(props);
     }
 
