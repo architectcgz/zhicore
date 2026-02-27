@@ -6,7 +6,7 @@ import com.zhicore.ranking.infrastructure.mongodb.RankingArchive;
 import com.zhicore.ranking.infrastructure.mongodb.RankingArchiveRepository;
 import com.zhicore.ranking.infrastructure.redis.RankingRedisKeys;
 import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
-import lombok.RequiredArgsConstructor;
+import com.zhicore.common.cache.DistributedLockExecutor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -45,12 +45,25 @@ import java.util.Locale;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class RankingArchiveService {
-    
+
     private final RankingRedisRepository redisRepository;
     private final RankingArchiveRepository archiveRepository;
     private final RankingArchiveProperties archiveProperties;
+    private final DistributedLockExecutor lockExecutor;
+
+    /** 分布式锁 key 前缀 */
+    private static final String LOCK_PREFIX = "ranking:lock:archive:";
+
+    public RankingArchiveService(RankingRedisRepository redisRepository,
+                                  RankingArchiveRepository archiveRepository,
+                                  RankingArchiveProperties archiveProperties,
+                                  DistributedLockExecutor lockExecutor) {
+        this.redisRepository = redisRepository;
+        this.archiveRepository = archiveRepository;
+        this.archiveProperties = archiveProperties;
+        this.lockExecutor = lockExecutor;
+    }
     
     // ==================== 日榜归档 ====================
     
@@ -62,23 +75,18 @@ public class RankingArchiveService {
      */
     @Scheduled(cron = "0 0 2 * * ?")
     public void archiveDailyRanking() {
-        LocalDate yesterday = LocalDate.now().minusDays(1);
-        log.info("开始归档日榜: date={}", yesterday);
-        
-        try {
-            // 归档文章日榜
-            archiveDailyPosts(yesterday);
-            
-            // 归档创作者总榜快照（作为日榜）
-            archiveDailyCreators(yesterday);
-            
-            // 归档话题总榜快照（作为日榜）
-            archiveDailyTopics(yesterday);
-            
-            log.info("日榜归档完成: date={}", yesterday);
-        } catch (Exception e) {
-            log.error("日榜归档失败: date={}", yesterday, e);
-        }
+        lockExecutor.executeWithLock(LOCK_PREFIX + "archive-daily", () -> {
+            LocalDate yesterday = LocalDate.now().minusDays(1);
+            log.info("开始归档日榜: date={}", yesterday);
+            try {
+                archiveDailyPosts(yesterday);
+                archiveDailyCreators(yesterday);
+                archiveDailyTopics(yesterday);
+                log.info("日榜归档完成: date={}", yesterday);
+            } catch (Exception e) {
+                log.error("日榜归档失败: date={}", yesterday, e);
+            }
+        });
     }
     
     /**
@@ -169,26 +177,20 @@ public class RankingArchiveService {
      */
     @Scheduled(cron = "0 0 3 ? * MON")
     public void archiveWeeklyRanking() {
-        // 使用上周的日期来计算正确的年份和周数（处理跨年情况）
-        LocalDate lastWeek = LocalDate.now().minusWeeks(1);
-        int year = lastWeek.getYear();
-        int weekNumber = getWeekNumber(lastWeek);
-        log.info("开始归档周榜: year={}, week={}", year, weekNumber);
-        
-        try {
-            // 归档文章周榜
-            archiveWeeklyPosts(year, weekNumber);
-            
-            // 归档创作者总榜快照（作为周榜）
-            archiveWeeklyCreators(year, weekNumber);
-            
-            // 归档话题总榜快照（作为周榜）
-            archiveWeeklyTopics(year, weekNumber);
-            
-            log.info("周榜归档完成: year={}, week={}", year, weekNumber);
-        } catch (Exception e) {
-            log.error("周榜归档失败: year={}, week={}", year, weekNumber, e);
-        }
+        lockExecutor.executeWithLock(LOCK_PREFIX + "archive-weekly", () -> {
+            LocalDate lastWeek = LocalDate.now().minusWeeks(1);
+            int year = lastWeek.getYear();
+            int weekNumber = getWeekNumber(lastWeek);
+            log.info("开始归档周榜: year={}, week={}", year, weekNumber);
+            try {
+                archiveWeeklyPosts(year, weekNumber);
+                archiveWeeklyCreators(year, weekNumber);
+                archiveWeeklyTopics(year, weekNumber);
+                log.info("周榜归档完成: year={}, week={}", year, weekNumber);
+            } catch (Exception e) {
+                log.error("周榜归档失败: year={}, week={}", year, weekNumber, e);
+            }
+        });
     }
     
     /**
@@ -281,25 +283,20 @@ public class RankingArchiveService {
      */
     @Scheduled(cron = "0 0 4 1 * ?")
     public void archiveMonthlyRanking() {
-        LocalDate lastMonth = LocalDate.now().minusMonths(1);
-        int year = lastMonth.getYear();
-        int month = lastMonth.getMonthValue();
-        log.info("开始归档月榜: year={}, month={}", year, month);
-        
-        try {
-            // 归档文章月榜
-            archiveMonthlyPosts(year, month);
-            
-            // 归档创作者总榜快照（作为月榜）
-            archiveMonthlyCreators(year, month);
-            
-            // 归档话题总榜快照（作为月榜）
-            archiveMonthlyTopics(year, month);
-            
-            log.info("月榜归档完成: year={}, month={}", year, month);
-        } catch (Exception e) {
-            log.error("月榜归档失败: year={}, month={}", year, month, e);
-        }
+        lockExecutor.executeWithLock(LOCK_PREFIX + "archive-monthly", () -> {
+            LocalDate lastMonth = LocalDate.now().minusMonths(1);
+            int year = lastMonth.getYear();
+            int month = lastMonth.getMonthValue();
+            log.info("开始归档月榜: year={}, month={}", year, month);
+            try {
+                archiveMonthlyPosts(year, month);
+                archiveMonthlyCreators(year, month);
+                archiveMonthlyTopics(year, month);
+                log.info("月榜归档完成: year={}, month={}", year, month);
+            } catch (Exception e) {
+                log.error("月榜归档失败: year={}, month={}", year, month, e);
+            }
+        });
     }
     
     /**

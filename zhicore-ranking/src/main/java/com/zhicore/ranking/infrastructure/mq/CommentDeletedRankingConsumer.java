@@ -1,6 +1,6 @@
 package com.zhicore.ranking.infrastructure.mq;
 
-import com.zhicore.api.event.comment.CommentCreatedEvent;
+import com.zhicore.api.event.comment.CommentDeletedEvent;
 import com.zhicore.common.mq.StatefulIdempotentHandler;
 import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.ranking.application.service.ScoreBufferService;
@@ -13,9 +13,9 @@ import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.stereotype.Component;
 
 /**
- * 评论创建热度消费者
- * 
- * 消费 CommentCreatedEvent 事件，增量更新文章热度分数
+ * 评论删除热度消费者
+ *
+ * 消费 CommentDeletedEvent 事件，减少文章热度分数（-10）
  *
  * @author ZhiCore Team
  */
@@ -23,13 +23,13 @@ import org.springframework.stereotype.Component;
 @Component
 @RocketMQMessageListener(
         topic = TopicConstants.TOPIC_COMMENT_EVENTS,
-        selectorExpression = TopicConstants.TAG_COMMENT_CREATED,
-        consumerGroup = RankingConsumerGroups.COMMENT_CREATED_CONSUMER
+        selectorExpression = TopicConstants.TAG_COMMENT_DELETED,
+        consumerGroup = RankingConsumerGroups.COMMENT_DELETED_CONSUMER
 )
-public class CommentCreatedRankingConsumer extends BaseRankingConsumer
+public class CommentDeletedRankingConsumer extends BaseRankingConsumer
         implements RocketMQListener<String> {
 
-    public CommentCreatedRankingConsumer(RankingRedisRepository rankingRepository,
+    public CommentDeletedRankingConsumer(RankingRedisRepository rankingRepository,
                                          HotScoreCalculator scoreCalculator,
                                          StatefulIdempotentHandler idempotentHandler,
                                          ObjectMapper objectMapper,
@@ -40,37 +40,39 @@ public class CommentCreatedRankingConsumer extends BaseRankingConsumer
     @Override
     public void onMessage(String message) {
         try {
-            CommentCreatedEvent event = objectMapper.readValue(message, CommentCreatedEvent.class);
+            CommentDeletedEvent event = objectMapper.readValue(message, CommentDeletedEvent.class);
             String messageId = event.getEventId();
 
-            // 幂等性检查
             if (!tryProcess(messageId)) {
                 log.debug("Message already processed: {}", messageId);
                 return;
             }
 
             try {
-                // 增量更新文章热度分数（不应用时间衰减，衰减统一在快照重建时处理）
+                // 减少文章热度分数（负增量，与评论权重对称）
                 incrementPostScore(
                         String.valueOf(event.getPostId()),
-                        scoreCalculator.getCommentDelta()
+                        -scoreCalculator.getCommentDelta()
                 );
 
-                // 同时更新文章作者的创作者热度
-                if (event.getPostOwnerId() != null) {
-                    incrementCreatorScore(String.valueOf(event.getPostOwnerId()), scoreCalculator.getCommentDelta());
+                // 同时减少作者的创作者热度
+                if (event.getAuthorId() != null) {
+                    incrementCreatorScore(
+                            String.valueOf(event.getAuthorId()),
+                            -scoreCalculator.getCommentDelta()
+                    );
                 }
 
                 markCompleted(messageId);
-                log.info("Processed comment created event: postId={}, commentId={}",
+                log.info("Processed comment deleted event: postId={}, commentId={}",
                         event.getPostId(), event.getCommentId());
             } catch (Exception e) {
                 markFailed(messageId);
                 throw e;
             }
         } catch (Exception e) {
-            log.error("Failed to process comment created event: {}", message, e);
-            throw new RuntimeException("Failed to process comment created event", e);
+            log.error("Failed to process comment deleted event: {}", message, e);
+            throw new RuntimeException("Failed to process comment deleted event", e);
         }
     }
 }
