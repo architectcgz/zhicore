@@ -3,7 +3,7 @@ package com.zhicore.content.infrastructure.scheduler;
 import com.zhicore.api.client.UserServiceClient;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.result.ApiResponse;
-import com.zhicore.content.application.port.cache.LockManager;
+import com.zhicore.common.cache.port.LockManager;
 import com.zhicore.content.domain.constant.PostConstants;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.application.port.repo.PostRepository;

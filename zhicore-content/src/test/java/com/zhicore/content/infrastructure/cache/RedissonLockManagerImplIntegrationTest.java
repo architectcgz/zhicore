@@ -1,6 +1,6 @@
 package com.zhicore.content.infrastructure.cache;
 
-import com.zhicore.content.application.port.cache.LockManager;
+import com.zhicore.common.cache.port.LockManager;
 import com.zhicore.content.infrastructure.IntegrationTestBase;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

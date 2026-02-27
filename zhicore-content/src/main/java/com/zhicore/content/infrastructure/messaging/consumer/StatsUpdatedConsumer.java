@@ -2,7 +2,7 @@ package com.zhicore.content.infrastructure.messaging.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.integration.messaging.post.PostStatsUpdatedIntegrationEvent;
-import com.zhicore.content.application.port.cache.CacheRepository;
+import com.zhicore.common.cache.port.CacheRepository;
 import com.zhicore.content.application.port.repo.ConsumedEventRepository;
 import com.zhicore.content.application.port.repo.PostStatsRepository;
 import com.zhicore.content.domain.model.PostId;
