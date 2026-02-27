@@ -221,7 +221,7 @@ public class NotificationAggregationService {
             return getActionText(type);
         }
 
-        String firstActorName = actors.get(0).getNickName();
+        String firstActorName = actors.get(0).getNickname();
         if (firstActorName == null || firstActorName.isEmpty()) {
             firstActorName = actors.get(0).getUserName();
         }

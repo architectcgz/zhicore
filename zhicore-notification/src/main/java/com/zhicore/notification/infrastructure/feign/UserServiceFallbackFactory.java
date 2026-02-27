@@ -43,7 +43,7 @@ public class UserServiceFallbackFactory extends AbstractFallbackFactory<UserServ
     private UserSimpleDTO createDefaultUser(String userId) {
         UserSimpleDTO user = new UserSimpleDTO();
         user.setId(Long.valueOf(userId));
-        user.setNickName("用户");
+        user.setNickname("用户");
         user.setUserName("user");
         return user;
     }

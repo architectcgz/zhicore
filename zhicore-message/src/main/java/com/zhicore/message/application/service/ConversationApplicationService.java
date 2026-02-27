@@ -142,7 +142,7 @@ public class ConversationApplicationService {
         // 降级处理：返回默认用户信息
         UserSimpleDTO defaultUser = new UserSimpleDTO();
         defaultUser.setId(userId);
-        defaultUser.setNickName("用户" + userId);
+        defaultUser.setNickname("用户" + userId);
         return defaultUser;
     }
 
@@ -166,8 +166,8 @@ public class ConversationApplicationService {
         return ConversationVO.builder()
                 .id(conversation.getId())
                 .otherUserId(otherUserId)
-                .otherUserNickName(otherUser != null ? otherUser.getNickName() : null)
-                .otherUserAvatarUrl(otherUser != null ? otherUser.getAvatarUrl() : null)
+                .otherUserNickName(otherUser != null ? otherUser.getNickname() : null)
+                .otherUserAvatarUrl(otherUser != null ? otherUser.getAvatarId() : null)
                 .lastMessageContent(conversation.getLastMessageContent())
                 .lastMessageAt(conversation.getLastMessageAt())
                 .unreadCount(conversation.getUnreadCount(userId))

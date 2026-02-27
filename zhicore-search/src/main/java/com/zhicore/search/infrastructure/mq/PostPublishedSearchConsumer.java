@@ -77,7 +77,7 @@ public class PostPublishedSearchConsumer extends AbstractEventConsumer<PostPubli
                 .content(post.getRaw()) // 使用原始内容进行索引
                 .excerpt(post.getExcerpt())
                 .authorId(post.getAuthor() != null ? String.valueOf(post.getAuthor().getId()) : null)
-                .authorName(post.getAuthor() != null ? post.getAuthor().getNickName() : null)
+                .authorName(post.getAuthor() != null ? post.getAuthor().getNickname() : null)
                 .tags(tagInfos)
                 .categoryName(post.getCategories() != null && !post.getCategories().isEmpty() 
                     ? post.getCategories().get(0) : null)

@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * PostServiceClient 降级工厂
@@ -55,6 +57,27 @@ public class PostServiceFallbackFactory extends AbstractFallbackFactory<PostServ
                 log.warn("PostServiceClient.getPostAuthorId fallback triggered: postId={}, cause={}",
                         postId, cause.getMessage());
                 return ApiResponse.fail(ResultCode.SERVICE_UNAVAILABLE, "文章服务暂时不可用");
+            }
+
+            @Override
+            public ApiResponse<Boolean> postExists(Long postId) {
+                log.warn("PostServiceClient.postExists fallback triggered: postId={}, cause={}",
+                        postId, cause.getMessage());
+                return ApiResponse.fail(ResultCode.SERVICE_UNAVAILABLE, "文章服务暂时不可用");
+            }
+
+            @Override
+            public ApiResponse<PostDTO> getPost(Long postId) {
+                log.warn("PostServiceClient.getPost fallback triggered: postId={}, cause={}",
+                        postId, cause.getMessage());
+                return ApiResponse.fail(ResultCode.SERVICE_UNAVAILABLE, "文章服务暂时不可用");
+            }
+
+            @Override
+            public ApiResponse<Map<Long, PostDTO>> batchGetPosts(Set<Long> postIds) {
+                log.warn("PostServiceClient.batchGetPosts fallback triggered: postIds={}, cause={}",
+                        postIds, cause.getMessage());
+                return ApiResponse.success(Collections.emptyMap());
             }
         };
     }
