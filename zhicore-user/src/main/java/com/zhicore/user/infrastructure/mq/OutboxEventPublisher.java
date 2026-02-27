@@ -67,6 +67,7 @@ public class OutboxEventPublisher {
      * <p>使用 FOR UPDATE SKIP LOCKED 支持多实例并行投递</p>
      */
     @Scheduled(fixedDelay = 5000)
+    @Transactional
     public void publishPendingEvents() {
         List<OutboxEvent> pendingEvents = outboxEventRepository
             .findRetryableEvents(100);

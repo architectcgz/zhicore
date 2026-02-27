@@ -4,8 +4,8 @@ import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.user.application.assembler.UserAssembler;
 import com.zhicore.user.application.dto.UserVO;
+import com.zhicore.user.domain.event.UserBlockedEvent;
 import com.zhicore.user.domain.model.OutboxEvent;
-import com.zhicore.user.domain.model.OutboxEventStatus;
 import com.zhicore.user.domain.model.UserBlock;
 import com.zhicore.user.domain.repository.OutboxEventRepository;
 import com.zhicore.user.domain.repository.UserBlockRepository;
@@ -22,11 +22,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -60,56 +56,75 @@ public class BlockApplicationService {
     public void block(Long blockerId, Long blockedId) {
         blockDomainService.validateBlock(blockerId, blockedId);
 
-        // 按 userId 大小排序获取锁，防止死锁
+        // 按 userId 大小排序依次获取拉黑锁和关注锁，防止死锁
+        // 拉黑操作涉及级联删除关注关系，必须同时持有两把锁
         String blockLockKey = UserRedisKeys.blockLock(blockerId, blockedId);
-        RLock lock = redissonClient.getLock(blockLockKey);
+        String followLockKey = UserRedisKeys.blockFollowLock(blockerId, blockedId);
+        RLock blockLock = redissonClient.getLock(blockLockKey);
+        RLock followLock = redissonClient.getLock(followLockKey);
 
         try {
-            if (!lock.tryLock(3, 10, TimeUnit.SECONDS)) {
+            // 先获取拉黑锁
+            if (!blockLock.tryLock(3, 10, TimeUnit.SECONDS)) {
                 throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
             }
-
-            if (userBlockRepository.exists(blockerId, blockedId)) {
-                return;
+            try {
+                // 再获取关注锁
+                if (!followLock.tryLock(3, 10, TimeUnit.SECONDS)) {
+                    throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
+                }
+                try {
+                    doBlock(blockerId, blockedId);
+                } finally {
+                    if (followLock.isHeldByCurrentThread()) {
+                        followLock.unlock();
+                    }
+                }
+            } finally {
+                if (blockLock.isHeldByCurrentThread()) {
+                    blockLock.unlock();
+                }
             }
-
-            transactionTemplate.executeWithoutResult(status -> {
-                userBlockRepository.save(UserBlock.create(blockerId, blockedId));
-
-                // 自动取消双向关注
-                if (userFollowRepository.exists(blockerId, blockedId)) {
-                    userFollowRepository.delete(blockerId, blockedId);
-                    userFollowRepository.decrementFollowing(blockerId);
-                    userFollowRepository.decrementFollowers(blockedId);
-                }
-                if (userFollowRepository.exists(blockedId, blockerId)) {
-                    userFollowRepository.delete(blockedId, blockerId);
-                    userFollowRepository.decrementFollowing(blockedId);
-                    userFollowRepository.decrementFollowers(blockerId);
-                }
-
-                // 写入 Outbox 事件
-                outboxEventRepository.save(new OutboxEvent(
-                    UUID.randomUUID().toString(),
-                    "user-blocked", "blocked",
-                    String.valueOf(blockerId),
-                    JSON.toJSONString(Map.of("blockerId", blockerId, "blockedId", blockedId)),
-                    OutboxEventStatus.PENDING, LocalDateTime.now()
-                ));
-            });
-
-            // 删除相关缓存
-            evictFollowCaches(blockerId, blockedId);
-            log.info("User blocked: blockerId={}, blockedId={}", blockerId, blockedId);
-
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new BusinessException("操作被中断");
-        } finally {
-            if (lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
         }
+    }
+
+    /**
+     * 拉黑核心逻辑（已持有 blockLock + followLock）
+     */
+    private void doBlock(Long blockerId, Long blockedId) {
+        if (userBlockRepository.exists(blockerId, blockedId)) {
+            return;
+        }
+
+        transactionTemplate.executeWithoutResult(status -> {
+            userBlockRepository.save(UserBlock.create(blockerId, blockedId));
+
+            // 自动取消双向关注
+            if (userFollowRepository.exists(blockerId, blockedId)) {
+                userFollowRepository.delete(blockerId, blockedId);
+                userFollowRepository.decrementFollowing(blockerId);
+                userFollowRepository.decrementFollowers(blockedId);
+            }
+            if (userFollowRepository.exists(blockedId, blockerId)) {
+                userFollowRepository.delete(blockedId, blockerId);
+                userFollowRepository.decrementFollowing(blockedId);
+                userFollowRepository.decrementFollowers(blockerId);
+            }
+
+            // 写入 Outbox 事件
+            outboxEventRepository.save(OutboxEvent.of(
+                "user-blocked", "blocked",
+                String.valueOf(blockerId),
+                JSON.toJSONString(new UserBlockedEvent(blockerId, blockedId))
+            ));
+        });
+
+        // 删除相关缓存
+        evictFollowCaches(blockerId, blockedId);
+        log.info("User blocked: blockerId={}, blockedId={}", blockerId, blockedId);
     }
 
     /**

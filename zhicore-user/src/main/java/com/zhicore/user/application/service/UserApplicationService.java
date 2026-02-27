@@ -10,8 +10,9 @@ import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.user.application.assembler.UserAssembler;
 import com.zhicore.user.application.dto.UserVO;
+import com.zhicore.user.domain.event.UserActivatedEvent;
+import com.zhicore.user.domain.event.UserDeactivatedEvent;
 import com.zhicore.user.domain.model.OutboxEvent;
-import com.zhicore.user.domain.model.OutboxEventStatus;
 import com.zhicore.user.domain.model.Role;
 import com.zhicore.user.domain.model.User;
 import com.zhicore.user.domain.repository.OutboxEventRepository;
@@ -26,13 +27,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * 用户应用服务
@@ -50,7 +52,7 @@ public class UserApplicationService {
     private final UserDomainService userDomainService;
     private final OutboxEventRepository outboxEventRepository;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
-    private final ZhiCoreUploadClient ZhiCoreUploadClient;
+    private final ZhiCoreUploadClient zhiCoreUploadClient;
     private final AuthApplicationService authApplicationService;
 
     /**
@@ -86,14 +88,11 @@ public class UserApplicationService {
         userRepository.save(user);
 
         // 7. 写入 Outbox 事件（UserRegisteredEvent）
-        OutboxEvent outboxEvent = new OutboxEvent(
-            UUID.randomUUID().toString(),
+        OutboxEvent outboxEvent = OutboxEvent.of(
             "user-registered",
             "registered",
             String.valueOf(userId),
-            JSON.toJSONString(new UserRegisteredEvent(userId, request.getUserName(), request.getEmail())),
-            OutboxEventStatus.PENDING,
-            LocalDateTime.now()
+            JSON.toJSONString(new UserRegisteredEvent(userId, request.getUserName(), request.getEmail()))
         );
         outboxEventRepository.save(outboxEvent);
 
@@ -189,22 +188,19 @@ public class UserApplicationService {
 
         // 【关键】使用 Transactional Outbox 模式
         // 在同一事务中写入 outbox_events 表，而不是直接发送 MQ
-        OutboxEvent outboxEvent = new OutboxEvent(
-            UUID.randomUUID().toString(),
-            "user-profile-changed",
+        OutboxEvent outboxEvent = OutboxEvent.of(
+            "user-profile-updated",
             "profile-updated",
-            String.valueOf(userId),  // sharding key
+            String.valueOf(userId),
             JSON.toJSONString(new UserProfileUpdatedEvent(
-                userId, 
-                updatedUser.getNickName(), 
+                userId,
+                updatedUser.getNickName(),
                 updatedUser.getAvatarId(),
-                updatedUser.getProfileVersion(),  // 使用 DB 返回的版本号
+                updatedUser.getProfileVersion(),
                 LocalDateTime.now()
-            )),
-            OutboxEventStatus.PENDING,
-            LocalDateTime.now()
+            ))
         );
-        
+
         outboxEventRepository.save(outboxEvent);
 
         log.info("User profile updated and outbox event created: userId={}, version={}, eventId={}", 
@@ -225,19 +221,22 @@ public class UserApplicationService {
         userRepository.update(user);
 
         // 写入 Outbox 事件（UserDeactivatedEvent）
-        OutboxEvent outboxEvent = new OutboxEvent(
-            UUID.randomUUID().toString(),
+        OutboxEvent outboxEvent = OutboxEvent.of(
             "user-deactivated",
             "deactivated",
             String.valueOf(userId),
-            JSON.toJSONString(Map.of("userId", userId)),
-            OutboxEventStatus.PENDING,
-            LocalDateTime.now()
+            JSON.toJSONString(new UserDeactivatedEvent(userId))
         );
         outboxEventRepository.save(outboxEvent);
 
-        // 吊销所有 Refresh Token（事务提交后生效）
-        authApplicationService.revokeAllRefreshTokens(userId);
+        // 吊销所有 Refresh Token——必须在事务提交后执行，
+        // 避免事务回滚但 Redis Token 已被清除的不一致
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                authApplicationService.revokeAllRefreshTokens(userId);
+            }
+        });
 
         log.info("User disabled: userId={}", userId);
     }
@@ -256,14 +255,11 @@ public class UserApplicationService {
         userRepository.update(user);
 
         // 写入 Outbox 事件（UserActivatedEvent）
-        OutboxEvent outboxEvent = new OutboxEvent(
-            UUID.randomUUID().toString(),
+        OutboxEvent outboxEvent = OutboxEvent.of(
             "user-activated",
             "activated",
             String.valueOf(userId),
-            JSON.toJSONString(Map.of("userId", userId)),
-            OutboxEventStatus.PENDING,
-            LocalDateTime.now()
+            JSON.toJSONString(new UserActivatedEvent(userId))
         );
         outboxEventRepository.save(outboxEvent);
 
@@ -311,7 +307,7 @@ public class UserApplicationService {
         // 删除旧头像文件（如果存在）
         if (oldAvatarId != null && !oldAvatarId.isEmpty()) {
             try {
-                ZhiCoreUploadClient.deleteFile(oldAvatarId);
+                zhiCoreUploadClient.deleteFile(oldAvatarId);
                 log.info("旧头像已删除: userId={}, oldFileId={}", userId, oldAvatarId);
             } catch (Exception e) {
                 log.warn("删除旧头像失败: userId={}, oldAvatarId={}, error={}", 
@@ -342,7 +338,7 @@ public class UserApplicationService {
         // 删除头像文件（如果存在）
         if (avatarId != null && !avatarId.isEmpty()) {
             try {
-                ZhiCoreUploadClient.deleteFile(avatarId);
+                zhiCoreUploadClient.deleteFile(avatarId);
                 log.info("头像文件已删除: userId={}, fileId={}", userId, avatarId);
             } catch (Exception e) {
                 log.warn("删除头像文件失败: userId={}, avatarId={}, error={}", 

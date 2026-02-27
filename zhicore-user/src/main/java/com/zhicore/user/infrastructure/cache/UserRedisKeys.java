@@ -93,29 +93,21 @@ public final class UserRedisKeys {
     }
 
     /**
-     * 用户刷新令牌缓存键（旧格式，保留兼容）
-     * Key: user:{userId}:token:refresh
-     */
-    public static String refreshToken(Long userId) {
-        return PREFIX + ":" + userId + ":token:refresh";
-    }
-
-    /**
      * Refresh Token 白名单键
-     * Key: refresh_token:{userId}:{tokenId}
+     * Key: user:{userId}:token:refresh:{tokenId}
      * 每个 Refresh Token 独立存储，支持多设备登录和单独吊销
      */
     public static String refreshTokenWhitelist(Long userId, String tokenId) {
-        return "refresh_token:" + userId + ":" + tokenId;
+        return PREFIX + ":" + userId + ":token:refresh:" + tokenId;
     }
 
     /**
      * Refresh Token 白名单模式匹配键
-     * Key: refresh_token:{userId}:*
+     * Key: user:{userId}:token:refresh:*
      * 用于清除用户所有 Refresh Token（禁用/修改密码/强制下线）
      */
     public static String refreshTokenPattern(Long userId) {
-        return "refresh_token:" + userId + ":*";
+        return PREFIX + ":" + userId + ":token:refresh:*";
     }
 
     /**
@@ -137,5 +129,16 @@ public final class UserRedisKeys {
         long minId = Math.min(userIdA, userIdB);
         long maxId = Math.max(userIdA, userIdB);
         return "lock:block:" + minId + ":" + maxId;
+    }
+
+    /**
+     * 拉黑场景的关注锁（按 userId 排序）
+     * Key: lock:follow:{minId}:{maxId}
+     * 拉黑操作涉及级联删除关注关系，需同时持有此锁防止与关注操作并发冲突
+     */
+    public static String blockFollowLock(Long userIdA, Long userIdB) {
+        long minId = Math.min(userIdA, userIdB);
+        long maxId = Math.max(userIdA, userIdB);
+        return "lock:follow:" + minId + ":" + maxId;
     }
 }
