@@ -43,18 +43,6 @@ public class CacheAsideTagQuery implements TagQuery {
     private final LockManager lockManager;
     private final CacheProperties cacheProperties;
 
-    /** 详情缓存 TTL 默认值（30 分钟） */
-    private static final Duration DEFAULT_DETAIL_TTL = Duration.ofMinutes(30);
-    /** 列表缓存 TTL 默认值（10 分钟） */
-    private static final Duration DEFAULT_LIST_TTL = Duration.ofMinutes(10);
-    /** 热门标签缓存 TTL 默认值（1 小时） */
-    private static final Duration DEFAULT_HOT_TAGS_TTL = Duration.ofHours(1);
-    /** 空值缓存 TTL 默认值（5 分钟） */
-    private static final Duration DEFAULT_NULL_TTL = Duration.ofMinutes(5);
-    /** 分布式锁 TTL（10 秒） */
-    private static final Duration LOCK_TTL = Duration.ofSeconds(10);
-    /** 锁等待时间（200 毫秒） */
-    private static final Duration LOCK_WAIT_TIME = Duration.ofMillis(200);
 
     public CacheAsideTagQuery(
             @Qualifier("tagQueryService") TagQuery delegate,
@@ -91,7 +79,7 @@ public class CacheAsideTagQuery implements TagQuery {
         return getCachedList(
                 cacheKey,
                 () -> delegate.getList(limit),
-                LIST_TTL
+                getListTtl()
         );
     }
     
@@ -119,8 +107,8 @@ public class CacheAsideTagQuery implements TagQuery {
             return List.of();
         }
 
-        // 2. 缓存未命中，获取锁防止击穿（等待 200ms 让 Redisson 排队）
-        boolean lockAcquired = lockManager.tryLock(lockKey, LOCK_WAIT_TIME, LOCK_TTL);
+        // 2. 缓存未命中，获取锁防止击穿
+        boolean lockAcquired = lockManager.tryLock(lockKey, getLockWaitTime(), getLockLeaseTime());
 
         if (!lockAcquired) {
             // 未获取到锁，降级直接查数据源
@@ -147,7 +135,7 @@ public class CacheAsideTagQuery implements TagQuery {
             if (result == null || result.isEmpty()) {
                 cacheRepository.setIfAbsent(cacheKey, result, getNullTtl());
             } else {
-                Duration ttl = DEFAULT_HOT_TAGS_TTL.plus(Duration.ofSeconds(
+                Duration ttl = getHotTagsTtl().plus(Duration.ofSeconds(
                         ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
                 cacheRepository.set(cacheKey, result, ttl);
             }
@@ -180,8 +168,8 @@ public class CacheAsideTagQuery implements TagQuery {
             return null;
         }
 
-        // 2. 缓存未命中，获取锁防止击穿（等待 200ms 让 Redisson 排队）
-        boolean lockAcquired = lockManager.tryLock(lockKey, LOCK_WAIT_TIME, LOCK_TTL);
+        // 2. 缓存未命中，获取锁防止击穿
+        boolean lockAcquired = lockManager.tryLock(lockKey, getLockWaitTime(), getLockLeaseTime());
 
         if (!lockAcquired) {
             // 未获取到锁，降级直接查数据源
@@ -252,17 +240,30 @@ public class CacheAsideTagQuery implements TagQuery {
     }
 
     private Duration getDetailTtl() {
-        long seconds = cacheProperties.getTtl().getEntityDetail();
-        return seconds > 0 ? Duration.ofSeconds(seconds) : DEFAULT_DETAIL_TTL;
+        return Duration.ofSeconds(cacheProperties.getTtl().getEntityDetail());
+    }
+
+    private Duration getListTtl() {
+        return Duration.ofSeconds(cacheProperties.getTtl().getList());
+    }
+
+    private Duration getHotTagsTtl() {
+        return Duration.ofSeconds(cacheProperties.getTtl().getStats());
     }
 
     private Duration getNullTtl() {
-        long seconds = cacheProperties.getTtl().getNullValue();
-        return seconds > 0 ? Duration.ofSeconds(seconds) : DEFAULT_NULL_TTL;
+        return Duration.ofSeconds(cacheProperties.getTtl().getNullValue());
+    }
+
+    private Duration getLockWaitTime() {
+        return Duration.ofSeconds(cacheProperties.getLock().getWaitTime());
+    }
+
+    private Duration getLockLeaseTime() {
+        return Duration.ofSeconds(cacheProperties.getLock().getLeaseTime());
     }
 
     private int getJitterMaxSeconds() {
-        int max = cacheProperties.getJitter().getMaxSeconds();
-        return max > 0 ? max : 60;
+        return cacheProperties.getJitter().getMaxSeconds();
     }
 }
