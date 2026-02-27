@@ -3,6 +3,7 @@ package com.zhicore.ranking.infrastructure.config;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
+import com.zhicore.ranking.infrastructure.sentinel.RankingRoutes;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
@@ -30,35 +31,47 @@ public class RankingSentinelConfig {
 
     @PostConstruct
     public void initFlowRules() {
+        String p = RankingRoutes.PREFIX;
         List<FlowRule> rankingRules = new ArrayList<>();
 
-        // Sentinel Web Filter 自动将请求 URL 注册为资源名
-        // 文章排行榜相关接口
+        // 文章排行榜：固定路径接口
         for (String url : List.of(
-                "/api/v1/ranking/posts/hot",
-                "/api/v1/ranking/posts/hot/details",
-                "/api/v1/ranking/posts/hot/scores",
-                "/api/v1/ranking/posts/daily",
-                "/api/v1/ranking/posts/daily/scores",
-                "/api/v1/ranking/posts/weekly",
-                "/api/v1/ranking/posts/weekly/scores",
-                "/api/v1/ranking/posts/monthly",
-                "/api/v1/ranking/posts/monthly/scores")) {
+                p + "/posts/hot",
+                p + "/posts/hot/details",
+                p + "/posts/hot/scores",
+                p + "/posts/daily",
+                p + "/posts/daily/scores",
+                p + "/posts/weekly",
+                p + "/posts/weekly/scores",
+                p + "/posts/monthly",
+                p + "/posts/monthly/scores")) {
             rankingRules.add(buildQpsRule(url, properties.getHotPostsQps()));
         }
-
-        // 创作者排行榜相关接口
-        for (String url : List.of(
-                "/api/v1/ranking/creators/hot",
-                "/api/v1/ranking/creators/hot/scores")) {
-            rankingRules.add(buildQpsRule(url, properties.getCreatorQps()));
+        // 文章排行榜：路径变量接口（UrlCleaner 归一化后的模式路径）
+        for (String suffix : List.of("/rank", "/score")) {
+            rankingRules.add(buildQpsRule(RankingRoutes.POSTS_ID + suffix, properties.getHotPostsQps()));
         }
 
-        // 话题排行榜相关接口
+        // 创作者排行榜：固定路径接口
         for (String url : List.of(
-                "/api/v1/ranking/topics/hot",
-                "/api/v1/ranking/topics/hot/scores")) {
+                p + "/creators/hot",
+                p + "/creators/hot/scores")) {
+            rankingRules.add(buildQpsRule(url, properties.getCreatorQps()));
+        }
+        // 创作者排行榜：路径变量接口
+        for (String suffix : List.of("/rank", "/score")) {
+            rankingRules.add(buildQpsRule(RankingRoutes.CREATORS_ID + suffix, properties.getCreatorQps()));
+        }
+
+        // 话题排行榜：固定路径接口
+        for (String url : List.of(
+                p + "/topics/hot",
+                p + "/topics/hot/scores")) {
             rankingRules.add(buildQpsRule(url, properties.getTopicQps()));
+        }
+        // 话题排行榜：路径变量接口
+        for (String suffix : List.of("/rank", "/score")) {
+            rankingRules.add(buildQpsRule(RankingRoutes.TOPICS_ID + suffix, properties.getTopicQps()));
         }
 
         // 增量合并：保留其他模块已注册的规则

@@ -74,6 +74,7 @@ ranking.sentinel:
   hot-posts-qps: 1000    # 热榜查询 QPS 限制
   creator-qps: 500       # 创作者排行 QPS 限制
   topic-qps: 500         # 话题排行 QPS 限制
+  warm-up-period-sec: 30  # Warm Up 预热时间（秒），QPS 从 count/3 线性爬升到 count
 
 # 排行榜配置
 ranking:
