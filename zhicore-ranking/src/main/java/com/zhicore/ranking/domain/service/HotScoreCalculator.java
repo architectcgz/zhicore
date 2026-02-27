@@ -24,12 +24,6 @@ public class HotScoreCalculator {
 
     private final RankingWeightProperties weightProperties;
 
-    // 创作者热度权重
-    private static final double FOLLOWER_WEIGHT = 2.0;
-    private static final double CREATOR_LIKE_WEIGHT = 1.0;
-    private static final double CREATOR_COMMENT_WEIGHT = 1.5;
-    private static final double POST_COUNT_WEIGHT = 3.0;
-
     public double calculatePostHotScore(PostStats stats, LocalDateTime publishedAt) {
         double baseScore = stats.getViewCount() * weightProperties.getView()
                 + stats.getLikeCount() * weightProperties.getLike()
@@ -47,10 +41,10 @@ public class HotScoreCalculator {
      * @return 热度分数
      */
     public double calculateCreatorHotScore(CreatorStats stats) {
-        return stats.getFollowersCount() * FOLLOWER_WEIGHT
-                + stats.getTotalLikes() * CREATOR_LIKE_WEIGHT
-                + stats.getTotalComments() * CREATOR_COMMENT_WEIGHT
-                + stats.getPostCount() * POST_COUNT_WEIGHT;
+        return stats.getFollowersCount() * weightProperties.getFollower()
+                + stats.getTotalLikes() * weightProperties.getCreatorLike()
+                + stats.getTotalComments() * weightProperties.getCreatorComment()
+                + stats.getPostCount() * weightProperties.getPostCount();
     }
 
     /**
