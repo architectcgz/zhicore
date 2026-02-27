@@ -62,31 +62,33 @@ public class RankingRefreshScheduler {
     }
 
     /**
-     * 每小时刷新热门文章排行
+     * 定时清理过期排行数据并淘汰总榜低分成员（默认每小时）
+     *
+     * <p>该任务只做清理/淘汰操作，排行榜数据更新依赖事件驱动（缓冲区刷写）。</p>
      */
-    @Scheduled(cron = "0 0 * * * ?")
-    public void refreshHotPosts() {
-        lockExecutor.executeWithLock(RankingRedisKeys.schedulerLock("refresh-hot-posts"), () ->
+    @Scheduled(cron = "${ranking.scheduler.hot-posts-cron:0 0 * * * ?}")
+    public void cleanupAndTrimHotPosts() {
+        lockExecutor.executeWithLock(RankingRedisKeys.schedulerLock("cleanup-hot-posts"), () ->
             postSnapshotTimer.record(() -> {
                 try {
                     cleanupExpiredDailyRankings();
                     cleanupExpiredWeeklyRankings();
                     trimTotalBoards();
-                    log.info("每小时热门文章刷新任务完成");
+                    log.info("热榜清理与淘汰任务完成");
                 } catch (Exception e) {
-                    log.error("热门文章刷新失败", e);
+                    log.error("热榜清理与淘汰任务失败", e);
                 }
             })
         );
     }
 
-    @Scheduled(cron = "0 0 2 * * ?")
+    @Scheduled(cron = "${ranking.scheduler.creator-cron:0 30 2 * * ?}")
     public void refreshCreatorRanking() {
         lockExecutor.executeWithLock(RankingRedisKeys.schedulerLock("refresh-creator"), () ->
             creatorSnapshotTimer.record(() -> {
                 try {
                     cleanupExpiredCreatorDailyRankings();
-                    log.info("每日创作者排行刷新任务完成");
+                    log.info("创作者排行刷新任务完成");
                 } catch (Exception e) {
                     log.error("创作者排行刷新失败", e);
                 }
@@ -94,13 +96,13 @@ public class RankingRefreshScheduler {
         );
     }
 
-    @Scheduled(cron = "0 0 3 * * ?")
+    @Scheduled(cron = "${ranking.scheduler.topic-cron:0 0 3 * * ?}")
     public void refreshTopicRanking() {
         lockExecutor.executeWithLock(RankingRedisKeys.schedulerLock("refresh-topic"), () ->
             topicSnapshotTimer.record(() -> {
                 try {
                     cleanupExpiredTopicDailyRankings();
-                    log.info("每日话题排行刷新任务完成");
+                    log.info("话题排行刷新任务完成");
                 } catch (Exception e) {
                     log.error("话题排行刷新失败", e);
                 }

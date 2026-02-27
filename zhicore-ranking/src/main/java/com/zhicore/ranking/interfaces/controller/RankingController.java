@@ -8,6 +8,7 @@ import com.zhicore.ranking.application.service.PostRankingService;
 import com.zhicore.ranking.application.service.TopicRankingService;
 import com.zhicore.ranking.domain.model.HotScore;
 import com.zhicore.ranking.infrastructure.config.RankingProperties;
+import com.zhicore.ranking.infrastructure.sentinel.RankingRoutes;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -27,7 +28,7 @@ import java.util.List;
  */
 @Tag(name = "排行榜管理", description = "文章、创作者、话题的热度排行相关接口")
 @RestController
-@RequestMapping("/api/v1/ranking")
+@RequestMapping(RankingRoutes.PREFIX)
 @RequiredArgsConstructor
 public class RankingController {
 

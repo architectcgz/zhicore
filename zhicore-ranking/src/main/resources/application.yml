@@ -69,6 +69,13 @@ spring.cloud.sentinel:
     dashboard: ${SENTINEL_DASHBOARD:localhost:8080}
   eager: true
 
+# 排行榜 Sentinel 限流配置
+ranking.sentinel:
+  hot-posts-qps: 1000    # 热榜查询 QPS 限制
+  creator-qps: 500       # 创作者排行 QPS 限制
+  topic-qps: 500         # 话题排行 QPS 限制
+  warm-up-period-sec: 30  # Warm Up 预热时间（秒），QPS 从 count/3 线性爬升到 count
+
 # 排行榜配置
 ranking:
   # 热度计算权重
@@ -93,6 +100,14 @@ ranking:
     flush-interval: 5000
     # 批量刷写大小，默认 1000
     batch-size: 1000
+  # 定时任务调度配置（修改后需重启生效）
+  scheduler:
+    hot-posts-cron: "0 0 * * * ?"         # 热榜清理与淘汰，每小时
+    creator-cron: "0 30 2 * * ?"          # 创作者排行刷新，每日 02:30
+    topic-cron: "0 0 3 * * ?"             # 话题排行刷新，每日 03:00
+    daily-archive-cron: "0 0 2 * * ?"     # 日榜归档，每日 02:00
+    weekly-archive-cron: "0 0 3 ? * MON"  # 周榜归档，每周一 03:00
+    monthly-archive-cron: "0 0 4 1 * ?"   # 月榜归档，每月 1 日 04:00
 
 # 分页配置
 ZhiCore:
