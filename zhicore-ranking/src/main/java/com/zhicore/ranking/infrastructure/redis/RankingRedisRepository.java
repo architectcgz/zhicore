@@ -64,8 +64,12 @@ public class RankingRedisRepository {
         return 1
         """;
     
-    private final RedisScript<Long> incrementScript = 
+    private final RedisScript<Long> incrementScript =
         new DefaultRedisScript<>(INCREMENT_SCRIPT, Long.class);
+    private final RedisScript<String> viewScoreCapScript =
+        new DefaultRedisScript<>(VIEW_SCORE_CAP_SCRIPT, String.class);
+    private final RedisScript<Long> trimSortedSetScript =
+        new DefaultRedisScript<>(TRIM_SORTED_SET_SCRIPT, Long.class);
 
     // ==================== 通用操作 ====================
 
@@ -479,9 +483,8 @@ public class RankingRedisRepository {
      */
     public double incrementViewScoreWithCap(String postId, double delta, double capScore) {
         String key = RankingRedisKeys.viewScoreCap(postId);
-        RedisScript<String> script = new DefaultRedisScript<>(VIEW_SCORE_CAP_SCRIPT, String.class);
         long ttlSeconds = Duration.ofDays(30).getSeconds();
-        String result = redisTemplate.execute(script,
+        String result = redisTemplate.execute(viewScoreCapScript,
                 Collections.singletonList(key),
                 String.valueOf(delta), String.valueOf(capScore), String.valueOf(ttlSeconds));
         return result != null ? Double.parseDouble(result) : 0.0;
@@ -510,8 +513,7 @@ public class RankingRedisRepository {
      * @return 被淘汰的成员数
      */
     public long trimSortedSet(String key, long topN) {
-        RedisScript<Long> script = new DefaultRedisScript<>(TRIM_SORTED_SET_SCRIPT, Long.class);
-        Long removed = redisTemplate.execute(script,
+        Long removed = redisTemplate.execute(trimSortedSetScript,
                 Collections.singletonList(key),
                 String.valueOf(topN));
         return removed != null ? removed : 0;
