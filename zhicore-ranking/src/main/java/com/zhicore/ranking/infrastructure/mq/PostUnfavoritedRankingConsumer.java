@@ -55,6 +55,14 @@ public class PostUnfavoritedRankingConsumer extends BaseRankingConsumer
                         -scoreCalculator.getFavoriteDelta()
                 );
 
+                // 同时减少作者的创作者热度（与 PostFavoritedRankingConsumer 对称）
+                if (event.getAuthorId() != null) {
+                    incrementCreatorScore(
+                            String.valueOf(event.getAuthorId()),
+                            -scoreCalculator.getFavoriteDelta()
+                    );
+                }
+
                 markCompleted(messageId);
                 log.info("Processed post unfavorited event: postId={}, userId={}",
                         event.getPostId(), event.getUserId());
