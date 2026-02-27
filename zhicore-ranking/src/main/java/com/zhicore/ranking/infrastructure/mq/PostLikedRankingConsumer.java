@@ -53,8 +53,7 @@ public class PostLikedRankingConsumer extends BaseRankingConsumer
                 // 增量更新文章热度分数（事件使用 Long ID，Redis 使用 String）
                 incrementPostScore(
                         String.valueOf(event.getPostId()),
-                        scoreCalculator.getLikeDelta(),
-                        event.getPublishedAt()
+                        scoreCalculator.getLikeDelta()
                 );
 
                 // 同时更新作者的创作者热度

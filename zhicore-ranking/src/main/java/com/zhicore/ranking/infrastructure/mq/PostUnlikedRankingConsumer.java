@@ -53,8 +53,7 @@ public class PostUnlikedRankingConsumer extends BaseRankingConsumer
                 // 减少文章热度分数（负增量）（事件使用 Long ID，Redis 使用 String）
                 incrementPostScore(
                         String.valueOf(event.getPostId()),
-                        -scoreCalculator.getLikeDelta(),
-                        null
+                        -scoreCalculator.getLikeDelta()
                 );
 
                 // 同时减少作者的创作者热度

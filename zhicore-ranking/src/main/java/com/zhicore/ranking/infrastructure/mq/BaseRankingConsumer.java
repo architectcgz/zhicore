@@ -7,8 +7,6 @@ import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
-import java.time.LocalDateTime;
-
 /**
  * 排行榜事件消费基类
  *
@@ -39,20 +37,15 @@ public abstract class BaseRankingConsumer {
      * 增量更新文章热度分数
      * 使用本地聚合缓冲，定时批量刷写到 Redis
      *
-     * @param postId 文章ID
-     * @param baseDelta 基础增量
-     * @param publishedAt 发布时间（用于时间衰减）
+     * <p>增量事件不应用时间衰减，保证正向/负向事件对称（加多少就能减多少）。
+     * 时间衰减统一在快照全量重建时应用，与架构文档设计一致（见 02 文档 3.1 节）。</p>
+     *
+     * @param postId    文章ID
+     * @param baseDelta 基础增量（正值为加分，负值为扣分）
      */
-    protected void incrementPostScore(String postId, double baseDelta, LocalDateTime publishedAt) {
-        // 应用时间衰减因子
-        double timeDecay = scoreCalculator.calculateTimeDecay(publishedAt);
-        double scoreDelta = baseDelta * timeDecay;
-
-        // 使用本地聚合缓冲，而不是直接调用 Redis
-        scoreBufferService.addScore("post", postId, scoreDelta);
-
-        log.debug("Buffered post score update: postId={}, baseDelta={}, timeDecay={}, scoreDelta={}",
-                postId, baseDelta, timeDecay, scoreDelta);
+    protected void incrementPostScore(String postId, double baseDelta) {
+        scoreBufferService.addScore("post", postId, baseDelta);
+        log.debug("Buffered post score update: postId={}, delta={}", postId, baseDelta);
     }
 
     /**

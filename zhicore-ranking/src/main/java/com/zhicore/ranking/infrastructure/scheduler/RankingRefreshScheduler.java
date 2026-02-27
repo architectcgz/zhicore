@@ -1,5 +1,6 @@
 package com.zhicore.ranking.infrastructure.scheduler;
 
+import com.zhicore.common.cache.DistributedLockExecutor;
 import com.zhicore.ranking.application.service.CreatorRankingService;
 import com.zhicore.ranking.application.service.PostRankingService;
 import com.zhicore.ranking.domain.model.CreatorStats;
@@ -19,6 +20,8 @@ import java.time.LocalDateTime;
 /**
  * 排行榜定时刷新任务
  *
+ * <p>所有定时任务使用 Redisson 分布式锁，确保多实例部署时只有一个实例执行。</p>
+ *
  * @author ZhiCore Team
  */
 @Slf4j
@@ -29,20 +32,28 @@ public class RankingRefreshScheduler {
     private final CreatorRankingService creatorRankingService;
     private final RankingRedisRepository rankingRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final DistributedLockExecutor lockExecutor;
 
     private final Timer postSnapshotTimer;
     private final Timer creatorSnapshotTimer;
     private final Timer topicSnapshotTimer;
 
+    /** 分布式锁 key 前缀 */
+    private static final String LOCK_PREFIX = "ranking:lock:scheduler:";
+    /** 总榜保留的最大成员数 */
+    private static final long TOTAL_BOARD_MAX_SIZE = 10000;
+
     public RankingRefreshScheduler(PostRankingService postRankingService,
                                    CreatorRankingService creatorRankingService,
                                    RankingRedisRepository rankingRepository,
                                    RedisTemplate<String, Object> redisTemplate,
+                                   DistributedLockExecutor lockExecutor,
                                    MeterRegistry meterRegistry) {
         this.postRankingService = postRankingService;
         this.creatorRankingService = creatorRankingService;
         this.rankingRepository = rankingRepository;
         this.redisTemplate = redisTemplate;
+        this.lockExecutor = lockExecutor;
 
         this.postSnapshotTimer = Timer.builder("ranking.snapshot.duration")
                 .tag("type", "post").register(meterRegistry);
@@ -57,42 +68,63 @@ public class RankingRefreshScheduler {
      */
     @Scheduled(cron = "0 0 * * * ?")
     public void refreshHotPosts() {
-        log.info("开始每小时热门文章刷新任务...");
-        postSnapshotTimer.record(() -> {
-            try {
-                cleanupExpiredDailyRankings();
-                cleanupExpiredWeeklyRankings();
-                log.info("每小时热门文章刷新任务完成");
-            } catch (Exception e) {
-                log.error("热门文章刷新失败", e);
-            }
-        });
+        lockExecutor.executeWithLock(LOCK_PREFIX + "refresh-hot-posts", () ->
+            postSnapshotTimer.record(() -> {
+                try {
+                    cleanupExpiredDailyRankings();
+                    cleanupExpiredWeeklyRankings();
+                    trimTotalBoards();
+                    log.info("每小时热门文章刷新任务完成");
+                } catch (Exception e) {
+                    log.error("热门文章刷新失败", e);
+                }
+            })
+        );
     }
 
     @Scheduled(cron = "0 0 2 * * ?")
     public void refreshCreatorRanking() {
-        log.info("开始每日创作者排行刷新任务...");
-        creatorSnapshotTimer.record(() -> {
-            try {
-                cleanupExpiredCreatorDailyRankings();
-                log.info("每日创作者排行刷新任务完成");
-            } catch (Exception e) {
-                log.error("创作者排行刷新失败", e);
-            }
-        });
+        lockExecutor.executeWithLock(LOCK_PREFIX + "refresh-creator", () ->
+            creatorSnapshotTimer.record(() -> {
+                try {
+                    cleanupExpiredCreatorDailyRankings();
+                    log.info("每日创作者排行刷新任务完成");
+                } catch (Exception e) {
+                    log.error("创作者排行刷新失败", e);
+                }
+            })
+        );
     }
 
     @Scheduled(cron = "0 0 3 * * ?")
     public void refreshTopicRanking() {
-        log.info("开始每日话题排行刷新任务...");
-        topicSnapshotTimer.record(() -> {
-            try {
-                cleanupExpiredTopicDailyRankings();
-                log.info("每日话题排行刷新任务完成");
-            } catch (Exception e) {
-                log.error("话题排行刷新失败", e);
-            }
-        });
+        lockExecutor.executeWithLock(LOCK_PREFIX + "refresh-topic", () ->
+            topicSnapshotTimer.record(() -> {
+                try {
+                    cleanupExpiredTopicDailyRankings();
+                    log.info("每日话题排行刷新任务完成");
+                } catch (Exception e) {
+                    log.error("话题排行刷新失败", e);
+                }
+            })
+        );
+    }
+
+    /**
+     * 淘汰总榜低分成员，防止 Sorted Set 无限膨胀
+     * <p>保留 Top {@value TOTAL_BOARD_MAX_SIZE}，移除分数最低的成员。</p>
+     */
+    private void trimTotalBoards() {
+        long postTrimmed = rankingRepository.trimSortedSet(
+                RankingRedisKeys.hotPosts(), TOTAL_BOARD_MAX_SIZE);
+        long creatorTrimmed = rankingRepository.trimSortedSet(
+                RankingRedisKeys.hotCreators(), TOTAL_BOARD_MAX_SIZE);
+        long topicTrimmed = rankingRepository.trimSortedSet(
+                RankingRedisKeys.hotTopics(), TOTAL_BOARD_MAX_SIZE);
+        if (postTrimmed + creatorTrimmed + topicTrimmed > 0) {
+            log.info("总榜淘汰完成: post={}, creator={}, topic={}",
+                    postTrimmed, creatorTrimmed, topicTrimmed);
+        }
     }
 
     private void cleanupExpiredDailyRankings() {

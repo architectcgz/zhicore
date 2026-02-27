@@ -11,7 +11,11 @@ import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 
+import org.springframework.data.redis.core.RedisTemplate;
+
+import java.time.Duration;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -33,6 +37,7 @@ public class RankingQueryService {
     private final RankingArchiveService archiveService;
     private final RankingRedisRepository rankingRedisRepository;
     private final RedissonClient redissonClient;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     private final Counter cacheHitCounter;
     private final Counter cacheMissCounter;
@@ -40,16 +45,20 @@ public class RankingQueryService {
     private static final int MONTHLY_REDIS_TTL_DAYS = 365;
     /** 回填 Redis 时从 MongoDB 拉取的上限，不受查询 limit 限制 */
     private static final int BACKFILL_MAX_SIZE = 1000;
+    /** 空结果缓存时长，防止缓存穿透 */
+    private static final Duration EMPTY_CACHE_TTL = Duration.ofSeconds(30);
 
     public RankingQueryService(PostRankingService postRankingService,
                                RankingArchiveService archiveService,
                                RankingRedisRepository rankingRedisRepository,
                                RedissonClient redissonClient,
+                               RedisTemplate<String, Object> redisTemplate,
                                MeterRegistry meterRegistry) {
         this.postRankingService = postRankingService;
         this.archiveService = archiveService;
         this.rankingRedisRepository = rankingRedisRepository;
         this.redissonClient = redissonClient;
+        this.redisTemplate = redisTemplate;
 
         this.cacheHitCounter = Counter.builder("ranking.cache.hit")
                 .tag("type", "monthly")
@@ -73,6 +82,13 @@ public class RankingQueryService {
         boolean inRedisRange = queryDate.isAfter(now.minusDays(MONTHLY_REDIS_TTL_DAYS));
 
         if (inRedisRange) {
+            // 先检查空结果缓存标记，防止穿透
+            String emptyKey = RankingRedisKeys.emptyCache("monthly", year, month);
+            if (Boolean.TRUE.equals(redisTemplate.hasKey(emptyKey))) {
+                cacheHitCounter.increment();
+                return Collections.emptyList();
+            }
+
             List<HotScore> result = postRankingService.getMonthlyHotPostsWithScore(year, month, limit);
             if (result != null && !result.isEmpty()) {
                 cacheHitCounter.increment();
@@ -125,6 +141,13 @@ public class RankingQueryService {
                     List<RankingArchive> fullArchives = archiveService.getMonthlyArchive(
                             "post", year, month, BACKFILL_MAX_SIZE);
                     List<HotScore> fullScores = convertToHotScores(fullArchives);
+
+                    // MongoDB 也无数据，缓存空标记 30s 防穿透
+                    if (fullScores.isEmpty()) {
+                        cacheEmptyResult(year, month);
+                        return Collections.emptyList();
+                    }
+
                     backfillRedis(year, month, fullScores);
                     // 按请求 limit 截断返回
                     return fullScores.size() > limit ? fullScores.subList(0, limit) : fullScores;
@@ -163,6 +186,20 @@ public class RankingQueryService {
             log.debug("月榜回填 Redis 完成: year={}, month={}, count={}", year, month, hotScores.size());
         } catch (Exception e) {
             log.warn("月榜回填 Redis 失败（不影响本次查询结果）: year={}, month={}", year, month, e);
+        }
+    }
+
+    /**
+     * 缓存空结果标记，防止缓存穿透
+     * 不存在的月份被反复查询时，30s 内直接返回空，不穿透到 MongoDB
+     */
+    private void cacheEmptyResult(int year, int month) {
+        try {
+            String emptyKey = RankingRedisKeys.emptyCache("monthly", year, month);
+            redisTemplate.opsForValue().set(emptyKey, "1", EMPTY_CACHE_TTL);
+            log.debug("缓存空结果标记: year={}, month={}, ttl={}s", year, month, EMPTY_CACHE_TTL.getSeconds());
+        } catch (Exception e) {
+            log.warn("缓存空结果标记失败: year={}, month={}", year, month, e);
         }
     }
 }

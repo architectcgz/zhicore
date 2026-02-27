@@ -10,17 +10,20 @@ import java.util.function.Supplier;
 
 /**
  * 缓存仓储装饰器基类
- * 
+ *
  * 实现 Cache-Aside 模式：
  * - 读：先查缓存，未命中再查数据库，然后写缓存
  * - 写：先更新数据库，再删除缓存
- * 
+ *
  * 提供缓存穿透、雪崩、击穿防护
  *
  * @param <T> 实体类型
  * @param <ID> ID 类型
  * @author ZhiCore Team
+ * @deprecated 请使用 application 层的 CacheAside 装饰器 + {@link com.zhicore.common.cache.port.CacheRepository} 端口替代。
+ *             该基类将缓存逻辑耦合在 infrastructure 层，不符合统一缓存架构规范。
  */
+@Deprecated
 @Slf4j
 public abstract class AbstractCachedRepository<T, ID> {
 

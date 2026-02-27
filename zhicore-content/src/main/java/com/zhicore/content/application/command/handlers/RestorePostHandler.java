@@ -1,7 +1,7 @@
 package com.zhicore.content.application.command.handlers;
 
 import com.zhicore.content.application.command.commands.RestorePostCommand;
-import com.zhicore.content.application.port.cache.CacheRepository;
+import com.zhicore.common.cache.port.CacheRepository;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.event.PostRestoredEvent;

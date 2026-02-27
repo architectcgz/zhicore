@@ -1,6 +1,6 @@
 package com.zhicore.content.application.scheduler;
 
-import com.zhicore.content.application.port.cache.LockManager;
+import com.zhicore.common.cache.port.LockManager;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.domain.model.Post;

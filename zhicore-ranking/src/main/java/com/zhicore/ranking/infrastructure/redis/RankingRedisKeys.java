@@ -144,6 +144,46 @@ public final class RankingRedisKeys {
         return PREFIX + ":topics:daily:" + date.toString();
     }
 
+    // ==================== 防刷去重 ====================
+
+    /**
+     * 浏览去重 key（同一用户同一文章 30 分钟内只计一次）
+     * Key: ranking:dedup:view:{postId}:{userId}
+     *
+     * @param postId 文章ID
+     * @param userId 用户ID
+     * @return Redis key
+     */
+    public static String viewDedup(String postId, String userId) {
+        return PREFIX + ":dedup:view:" + postId + ":" + userId;
+    }
+
+    /**
+     * 单篇文章浏览累计分数 key（用于分数上限检查）
+     * Key: ranking:view:cap:{postId}
+     *
+     * @param postId 文章ID
+     * @return Redis key
+     */
+    public static String viewScoreCap(String postId) {
+        return PREFIX + ":view:cap:" + postId;
+    }
+
+    // ==================== 空结果缓存 ====================
+
+    /**
+     * 空结果缓存标记 key（防缓存穿透）
+     * Key: ranking:empty:{type}:{year}:{month}
+     *
+     * @param type 排行榜类型
+     * @param year 年份
+     * @param month 月份
+     * @return Redis key
+     */
+    public static String emptyCache(String type, int year, int month) {
+        return PREFIX + ":empty:" + type + ":" + year + ":" + String.format("%02d", month);
+    }
+
     // ==================== 工具方法 ====================
 
     /**

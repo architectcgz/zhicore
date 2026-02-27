@@ -1,6 +1,6 @@
 package com.zhicore.content.application.scheduler;
 
-import com.zhicore.content.application.port.cache.LockManager;
+import com.zhicore.common.cache.port.LockManager;
 import com.zhicore.content.application.port.repo.ConsumedEventRepository;
 import com.zhicore.content.infrastructure.cache.LockKeys;
 import lombok.RequiredArgsConstructor;

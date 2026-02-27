@@ -27,7 +27,7 @@ import java.util.Set;
  * @author ZhiCore Team
  */
 @Slf4j
-@Repository("userRepositoryImpl")
+@Repository
 @RequiredArgsConstructor
 public class UserRepositoryImpl implements UserRepository {
 

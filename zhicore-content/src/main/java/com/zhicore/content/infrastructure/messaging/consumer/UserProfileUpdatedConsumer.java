@@ -2,7 +2,7 @@ package com.zhicore.content.infrastructure.messaging.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.integration.messaging.user.UserProfileUpdatedIntegrationEvent;
-import com.zhicore.content.application.port.cache.CacheRepository;
+import com.zhicore.common.cache.port.CacheRepository;
 import com.zhicore.content.application.port.repo.ConsumedEventRepository;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.model.OwnerSnapshot;

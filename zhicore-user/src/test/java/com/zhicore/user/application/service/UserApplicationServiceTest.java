@@ -1,6 +1,7 @@
 package com.zhicore.user.application.service;
 
 import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.common.cache.port.CacheRepository;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
@@ -71,6 +72,9 @@ class UserApplicationServiceTest {
 
     @Mock
     private AuthApplicationService authApplicationService;
+
+    @Mock
+    private CacheRepository cacheRepository;
 
     @InjectMocks
     private UserApplicationService userApplicationService;
@@ -187,6 +191,18 @@ class UserApplicationServiceTest {
     @Nested
     @DisplayName("更新资料")
     class UpdateProfile {
+
+        @BeforeEach
+        void initSynchronization() {
+            TransactionSynchronizationManager.initSynchronization();
+        }
+
+        @AfterEach
+        void clearSynchronization() {
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.clearSynchronization();
+            }
+        }
 
         @Test
         @DisplayName("应该成功更新用户资料")

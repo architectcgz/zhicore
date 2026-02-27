@@ -1,6 +1,6 @@
 package com.zhicore.content.infrastructure.cache;
 
-import com.zhicore.content.application.port.cache.CacheRepository;
+import com.zhicore.common.cache.port.CacheRepository;
 import com.zhicore.content.infrastructure.IntegrationTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

@@ -23,10 +23,16 @@ public class PostUnfavoritedEvent extends DomainEvent {
      */
     private final Long userId;
 
-    public PostUnfavoritedEvent(Long postId, Long userId) {
+    /**
+     * 文章作者ID（用于对称扣减创作者热度）
+     */
+    private final Long authorId;
+
+    public PostUnfavoritedEvent(Long postId, Long userId, Long authorId) {
         super();
         this.postId = postId;
         this.userId = userId;
+        this.authorId = authorId;
     }
 
     @Override
