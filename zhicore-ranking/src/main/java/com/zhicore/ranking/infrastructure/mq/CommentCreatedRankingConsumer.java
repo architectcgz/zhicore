@@ -50,12 +50,10 @@ public class CommentCreatedRankingConsumer extends BaseRankingConsumer
             }
 
             try {
-                // 增量更新文章热度分数（事件使用 Long ID，Redis 使用 String）
-                // 注意：CommentCreatedEvent 没有 publishedAt，使用 null 表示不应用时间衰减
+                // 增量更新文章热度分数（不应用时间衰减，衰减统一在快照重建时处理）
                 incrementPostScore(
                         String.valueOf(event.getPostId()),
-                        scoreCalculator.getCommentDelta(),
-                        null  // 评论事件不应用时间衰减，因为评论本身就是新鲜的互动
+                        scoreCalculator.getCommentDelta()
                 );
 
                 // 同时更新文章作者的创作者热度

@@ -52,8 +52,7 @@ public class PostUnfavoritedRankingConsumer extends BaseRankingConsumer
                 // 减少文章热度分数（负增量，与收藏权重对称）
                 incrementPostScore(
                         String.valueOf(event.getPostId()),
-                        -scoreCalculator.getFavoriteDelta(),
-                        null
+                        -scoreCalculator.getFavoriteDelta()
                 );
 
                 markCompleted(messageId);

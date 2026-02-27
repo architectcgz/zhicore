@@ -79,10 +79,8 @@ public class PostViewedRankingConsumer extends BaseRankingConsumer
                     }
                 }
 
-                // 计算衰减后的分数增量
-                double baseDelta = scoreCalculator.getViewDelta();
-                double timeDecay = scoreCalculator.calculateTimeDecay(event.getPublishedAt());
-                double scoreDelta = baseDelta * timeDecay;
+                // 使用基础权重（不应用时间衰减，衰减统一在快照重建时处理）
+                double scoreDelta = scoreCalculator.getViewDelta();
 
                 // 单篇浏览分数上限检查
                 double allowedDelta = rankingRepository.incrementViewScoreWithCap(

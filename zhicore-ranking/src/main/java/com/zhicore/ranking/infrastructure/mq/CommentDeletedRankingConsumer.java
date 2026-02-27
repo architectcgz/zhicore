@@ -52,8 +52,7 @@ public class CommentDeletedRankingConsumer extends BaseRankingConsumer
                 // 减少文章热度分数（负增量，与评论权重对称）
                 incrementPostScore(
                         String.valueOf(event.getPostId()),
-                        -scoreCalculator.getCommentDelta(),
-                        null
+                        -scoreCalculator.getCommentDelta()
                 );
 
                 // 同时减少作者的创作者热度
