@@ -13,11 +13,14 @@ import java.util.function.Supplier;
 
 /**
  * 缓存辅助工具类
- * 
+ *
  * 提供缓存穿透、雪崩、击穿防护功能
  *
  * @author ZhiCore Team
+ * @deprecated 请使用 {@link com.zhicore.common.cache.port.CacheRepository} 端口替代。
+ *             新代码应通过 CacheAside 装饰器模式实现缓存策略。
  */
+@Deprecated
 @Slf4j
 @Component
 @RequiredArgsConstructor

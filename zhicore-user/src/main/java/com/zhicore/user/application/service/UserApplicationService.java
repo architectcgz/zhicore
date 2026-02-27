@@ -5,6 +5,7 @@ import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.api.event.user.UserProfileUpdatedEvent;
 import com.zhicore.api.event.user.UserRegisteredEvent;
+import com.zhicore.common.cache.port.CacheRepository;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
@@ -21,6 +22,7 @@ import com.zhicore.user.domain.repository.UserFollowRepository;
 import com.zhicore.user.domain.repository.UserRepository;
 import com.zhicore.user.domain.service.UserDomainService;
 import com.zhicore.user.infrastructure.feign.ZhiCoreUploadClient;
+import com.zhicore.user.infrastructure.cache.UserRedisKeys;
 import com.zhicore.user.interfaces.dto.request.RegisterRequest;
 import com.zhicore.user.interfaces.dto.request.UpdateProfileRequest;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +56,7 @@ public class UserApplicationService {
     private final IdGeneratorFeignClient idGeneratorFeignClient;
     private final ZhiCoreUploadClient zhiCoreUploadClient;
     private final AuthApplicationService authApplicationService;
+    private final CacheRepository cacheRepository;
 
     /**
      * 用户注册
@@ -203,7 +206,10 @@ public class UserApplicationService {
 
         outboxEventRepository.save(outboxEvent);
 
-        log.info("User profile updated and outbox event created: userId={}, version={}, eventId={}", 
+        // 失效缓存
+        evictUserCache(userId);
+
+        log.info("User profile updated and outbox event created: userId={}, version={}, eventId={}",
             userId, updatedUser.getProfileVersion(), outboxEvent.getId());
     }
 
@@ -228,6 +234,9 @@ public class UserApplicationService {
             JSON.toJSONString(new UserDeactivatedEvent(userId))
         );
         outboxEventRepository.save(outboxEvent);
+
+        // 失效缓存
+        evictUserCache(userId);
 
         // 吊销所有 Refresh Token——必须在事务提交后执行，
         // 避免事务回滚但 Redis Token 已被清除的不一致
@@ -262,6 +271,9 @@ public class UserApplicationService {
             JSON.toJSONString(new UserActivatedEvent(userId))
         );
         outboxEventRepository.save(outboxEvent);
+
+        // 失效缓存
+        evictUserCache(userId);
 
         log.info("User enabled: userId={}", userId);
     }
@@ -304,6 +316,9 @@ public class UserApplicationService {
         user.updateProfile(null, avatarUrl, null);
         userRepository.update(user);
 
+        // 失效缓存
+        evictUserCache(userId);
+
         // 删除旧头像文件（如果存在）
         if (oldAvatarId != null && !oldAvatarId.isEmpty()) {
             try {
@@ -335,6 +350,9 @@ public class UserApplicationService {
         user.updateProfile(null, "", null);
         userRepository.update(user);
 
+        // 失效缓存
+        evictUserCache(userId);
+
         // 删除头像文件（如果存在）
         if (avatarId != null && !avatarId.isEmpty()) {
             try {
@@ -348,5 +366,20 @@ public class UserApplicationService {
         }
 
         log.info("用户头像删除成功: userId={}", userId);
+    }
+
+    /**
+     * 失效用户缓存（写操作后调用）
+     */
+    private void evictUserCache(Long userId) {
+        try {
+            cacheRepository.delete(
+                    UserRedisKeys.userDetail(userId),
+                    UserRedisKeys.userDetail(userId) + ":simple"
+            );
+            log.debug("Evicted user cache: userId={}", userId);
+        } catch (Exception e) {
+            log.warn("Failed to evict user cache: userId={}, error={}", userId, e.getMessage());
+        }
     }
 }
