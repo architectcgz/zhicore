@@ -81,6 +81,46 @@ public class RankingRedisRepository {
     }
 
     /**
+     * 批量写入 Sorted Set（Pipeline + RENAME 保证原子可见性）
+     *
+     * <p>先写入临时 key，再 RENAME 覆盖目标 key，最后恢复目标 key 的 TTL。
+     * 临时 key 使用 UUID 避免碰撞。</p>
+     *
+     * @param key     目标 Redis Key
+     * @param entries 成员-分数列表
+     */
+    public void batchSetScoreAtomic(String key, List<HotScore> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        // 使用 UUID 彻底消除临时 key 碰撞可能
+        String tmpKey = key + ":tmp:" + java.util.UUID.randomUUID();
+        try {
+            // RENAME 前记录目标 key 的剩余 TTL，用于恢复
+            Long ttlSeconds = redisTemplate.getExpire(key, java.util.concurrent.TimeUnit.SECONDS);
+
+            redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+                byte[] rawTmpKey = redisTemplate.getStringSerializer().serialize(tmpKey);
+                for (HotScore entry : entries) {
+                    byte[] rawMember = redisTemplate.getStringSerializer().serialize(entry.getEntityId());
+                    connection.zSetCommands().zAdd(rawTmpKey, entry.getScore(), rawMember);
+                }
+                return null;
+            });
+            redisTemplate.rename(tmpKey, key);
+
+            // RENAME 后恢复原有 TTL（ttlSeconds > 0 表示原 key 有过期时间）
+            if (ttlSeconds != null && ttlSeconds > 0) {
+                redisTemplate.expire(key, java.time.Duration.ofSeconds(ttlSeconds));
+            }
+        } catch (Exception e) {
+            // 清理临时 key，避免残留
+            redisTemplate.delete(tmpKey);
+            throw e;
+        }
+    }
+
+    /**
      * 增量更新分数
      *
      * @param key Redis Key
