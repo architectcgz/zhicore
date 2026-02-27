@@ -18,6 +18,7 @@ import com.zhicore.user.infrastructure.feign.ZhiCoreUploadClient;
 import com.zhicore.user.interfaces.dto.request.RegisterRequest;
 import com.zhicore.user.interfaces.dto.request.UpdateProfileRequest;
 import com.zhicore.user.domain.model.OutboxEvent;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -224,6 +226,18 @@ class UserApplicationServiceTest {
     @Nested
     @DisplayName("用户状态管理")
     class StatusManagement {
+
+        @BeforeEach
+        void initSynchronization() {
+            TransactionSynchronizationManager.initSynchronization();
+        }
+
+        @AfterEach
+        void clearSynchronization() {
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.clearSynchronization();
+            }
+        }
 
         @Test
         @DisplayName("应该成功禁用用户")

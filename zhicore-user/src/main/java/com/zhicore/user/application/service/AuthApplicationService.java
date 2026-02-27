@@ -12,11 +12,12 @@ import com.zhicore.user.interfaces.dto.request.LoginRequest;
 import com.zhicore.user.interfaces.dto.request.RefreshTokenRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -58,8 +59,13 @@ public class AuthApplicationService {
         String accessToken = jwtTokenProvider.generateAccessToken(user);
         String refreshToken = jwtTokenProvider.generateRefreshToken(user);
 
-        // 5. 将 Refresh Token 加入白名单
-        storeRefreshToken(user.getId(), refreshToken);
+        // 5. 将 Refresh Token 加入白名单（Redis 不可用时中止登录，避免发出不可用的 Token）
+        try {
+            storeRefreshToken(user.getId(), refreshToken);
+        } catch (Exception e) {
+            log.error("Redis 写入 Refresh Token 失败，登录中止: userId={}", user.getId(), e);
+            throw new BusinessException(ResultCode.INTERNAL_ERROR, "系统繁忙，请稍后重试");
+        }
 
         log.info("User logged in: userId={}, email={}", user.getId(), user.getEmail());
 
@@ -153,10 +159,18 @@ public class AuthApplicationService {
      */
     public void revokeAllRefreshTokens(Long userId) {
         try {
-            Set<String> keys = redisTemplate.keys(UserRedisKeys.refreshTokenPattern(userId));
-            if (keys != null && !keys.isEmpty()) {
-                redisTemplate.delete(keys);
-                log.info("Revoked all refresh tokens: userId={}, count={}", userId, keys.size());
+            // 使用 SCAN 替代 KEYS，避免 O(N) 全库扫描阻塞 Redis
+            String pattern = UserRedisKeys.refreshTokenPattern(userId);
+            ScanOptions options = ScanOptions.scanOptions().match(pattern).count(100).build();
+            int deleted = 0;
+            try (Cursor<String> cursor = redisTemplate.scan(options)) {
+                while (cursor.hasNext()) {
+                    redisTemplate.delete(cursor.next());
+                    deleted++;
+                }
+            }
+            if (deleted > 0) {
+                log.info("Revoked all refresh tokens: userId={}, count={}", userId, deleted);
             }
         } catch (Exception e) {
             log.error("Failed to revoke refresh tokens: userId={}", userId, e);
@@ -165,15 +179,14 @@ public class AuthApplicationService {
 
     /**
      * 将 Refresh Token 存入白名单
+     *
+     * <p>写入失败时抛出异常，确保 login/refreshToken 不会返回一个实际不可用的 Token。
+     * 否则客户端拿到 Token 后刷新时会被判定为重放攻击，导致所有设备被强制下线。</p>
      */
     private void storeRefreshToken(Long userId, String refreshToken) {
-        try {
-            String tokenId = jwtTokenProvider.getTokenIdFromRefreshToken(refreshToken);
-            String key = UserRedisKeys.refreshTokenWhitelist(userId, tokenId);
-            long ttl = jwtTokenProvider.getRefreshTokenExpiration();
-            redisTemplate.opsForValue().set(key, "1", ttl, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.error("Failed to store refresh token in whitelist: userId=", userId, e);
-        }
+        String tokenId = jwtTokenProvider.getTokenIdFromRefreshToken(refreshToken);
+        String key = UserRedisKeys.refreshTokenWhitelist(userId, tokenId);
+        long ttl = jwtTokenProvider.getRefreshTokenExpiration();
+        redisTemplate.opsForValue().set(key, "1", ttl, TimeUnit.SECONDS);
     }
 }

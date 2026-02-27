@@ -25,7 +25,7 @@ import java.util.List;
  * <h3>工作原理</h3>
  * <ol>
  *   <li>每 5 秒扫描一次 outbox_events 表</li>
- *   <li>查询 status=PENDING 的事件（最多 100 条）</li>
+ *   <li>查询 status=PENDING 的事件（最多 50 条）</li>
  *   <li>每条事件使用独立事务发送到 RocketMQ</li>
  *   <li>发送成功后更新 status=SENT</li>
  *   <li>发送失败后递增 retry_count，超过最大重试次数标记为 FAILED</li>
@@ -63,13 +63,15 @@ public class OutboxEventPublisher {
     /**
      * 定时扫描待投递事件（PENDING/FAILED 且 next_retry_at <= NOW）
      *
-     * <p>执行频率：每 5 秒一次，每次最多处理 100 条</p>
+     * <p>执行频率：每 5 秒一次，每次最多处理 50 条</p>
      * <p>使用 FOR UPDATE SKIP LOCKED 支持多实例并行投递</p>
+     * <p>设置事务超时 30s，防止 RocketMQ 响应慢时连接长时间被占用</p>
      */
     @Scheduled(fixedDelay = 5000)
+    @Transactional(timeout = 30)
     public void publishPendingEvents() {
         List<OutboxEvent> pendingEvents = outboxEventRepository
-            .findRetryableEvents(100);
+            .findRetryableEvents(50);
 
         if (pendingEvents.isEmpty()) {
             return;

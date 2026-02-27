@@ -465,13 +465,15 @@ class AdminUserApplicationServiceTest {
         void shouldInvalidateUserTokensSuccessfully() {
             // Given
             when(userRepository.existsById(123L)).thenReturn(true);
-            when(stringRedisTemplate.keys(anyString())).thenReturn(new HashSet<>());
+            Set<String> tokenKeys = new HashSet<>(Arrays.asList("user:123:token:access", "user:123:token:refresh:abc"));
+            when(stringRedisTemplate.keys("user:123:token:*")).thenReturn(tokenKeys);
 
             // When
             adminUserApplicationService.invalidateUserTokens(123L);
 
             // Then
-            verify(stringRedisTemplate, atLeastOnce()).delete(anyString());
+            verify(stringRedisTemplate).keys("user:123:token:*");
+            verify(stringRedisTemplate).delete(tokenKeys);
         }
 
         @Test

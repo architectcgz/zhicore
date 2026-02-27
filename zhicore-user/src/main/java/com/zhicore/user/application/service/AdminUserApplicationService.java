@@ -117,14 +117,7 @@ public class AdminUserApplicationService {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
 
-        // 删除用户的所有 Token 缓存
-        String accessTokenKey = UserRedisKeys.accessToken(userId);
-        String refreshTokenKey = UserRedisKeys.refreshToken(userId);
-        
-        stringRedisTemplate.delete(accessTokenKey);
-        stringRedisTemplate.delete(refreshTokenKey);
-        
-        // 删除用户相关的所有 Token 键
+        // 删除用户相关的所有 Token 键（包括 access token 和所有 refresh token 白名单）
         Set<String> tokenKeys = stringRedisTemplate.keys(UserRedisKeys.userTokenPattern(userId));
         if (tokenKeys != null && !tokenKeys.isEmpty()) {
             stringRedisTemplate.delete(tokenKeys);

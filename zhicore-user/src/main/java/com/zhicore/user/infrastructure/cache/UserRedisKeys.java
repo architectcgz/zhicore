@@ -93,29 +93,21 @@ public final class UserRedisKeys {
     }
 
     /**
-     * 用户刷新令牌缓存键（旧格式，保留兼容）
-     * Key: user:{userId}:token:refresh
-     */
-    public static String refreshToken(Long userId) {
-        return PREFIX + ":" + userId + ":token:refresh";
-    }
-
-    /**
      * Refresh Token 白名单键
-     * Key: refresh_token:{userId}:{tokenId}
+     * Key: user:{userId}:token:refresh:{tokenId}
      * 每个 Refresh Token 独立存储，支持多设备登录和单独吊销
      */
     public static String refreshTokenWhitelist(Long userId, String tokenId) {
-        return "refresh_token:" + userId + ":" + tokenId;
+        return PREFIX + ":" + userId + ":token:refresh:" + tokenId;
     }
 
     /**
      * Refresh Token 白名单模式匹配键
-     * Key: refresh_token:{userId}:*
+     * Key: user:{userId}:token:refresh:*
      * 用于清除用户所有 Refresh Token（禁用/修改密码/强制下线）
      */
     public static String refreshTokenPattern(Long userId) {
-        return "refresh_token:" + userId + ":*";
+        return PREFIX + ":" + userId + ":token:refresh:*";
     }
 
     /**
