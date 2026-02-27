@@ -16,6 +16,7 @@ import com.zhicore.user.infrastructure.cache.UserRedisKeys;
 import com.alibaba.fastjson.JSON;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.RedissonMultiLock;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -56,46 +57,27 @@ public class BlockApplicationService {
     public void block(Long blockerId, Long blockedId) {
         blockDomainService.validateBlock(blockerId, blockedId);
 
-        // 拉黑操作涉及级联删除双向关注关系，需同时持有：
-        // 1. 拉黑锁（blockLock）
-        // 2. 两把关注锁（followLock(A→B) 和 followLock(B→A)），与正常关注操作使用相同格式的锁键
-        // 按 userId 大小排序确定获取顺序，防止死锁
+        // 拉黑操作涉及级联删除双向关注关系，需同时持有 3 把锁：
+        // 1. blockLock —— 防止同一对用户并发拉黑/取消拉黑
+        // 2. followLock(A→B) —— 与 A 关注 B 的操作互斥
+        // 3. followLock(B→A) —— 与 B 关注 A 的操作互斥
+        // 使用 RedissonMultiLock 一次性获取，内部按锁名排序，避免死锁
         long minId = Math.min(blockerId, blockedId);
         long maxId = Math.max(blockerId, blockedId);
 
         RLock blockLock = redissonClient.getLock(UserRedisKeys.blockLock(blockerId, blockedId));
-        // 按 min→max 顺序获取两把关注锁，与正常关注操作的锁键格式完全一致
         RLock followLock1 = redissonClient.getLock(UserRedisKeys.followLock(minId, maxId));
         RLock followLock2 = redissonClient.getLock(UserRedisKeys.followLock(maxId, minId));
+        RedissonMultiLock multiLock = new RedissonMultiLock(blockLock, followLock1, followLock2);
 
         try {
-            if (!blockLock.tryLock(3, 10, TimeUnit.SECONDS)) {
+            if (!multiLock.tryLock(3, 10, TimeUnit.SECONDS)) {
                 throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
             }
             try {
-                if (!followLock1.tryLock(3, 10, TimeUnit.SECONDS)) {
-                    throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
-                }
-                try {
-                    if (!followLock2.tryLock(3, 10, TimeUnit.SECONDS)) {
-                        throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
-                    }
-                    try {
-                        doBlock(blockerId, blockedId);
-                    } finally {
-                        if (followLock2.isHeldByCurrentThread()) {
-                            followLock2.unlock();
-                        }
-                    }
-                } finally {
-                    if (followLock1.isHeldByCurrentThread()) {
-                        followLock1.unlock();
-                    }
-                }
+                doBlock(blockerId, blockedId);
             } finally {
-                if (blockLock.isHeldByCurrentThread()) {
-                    blockLock.unlock();
-                }
+                multiLock.unlock();
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
