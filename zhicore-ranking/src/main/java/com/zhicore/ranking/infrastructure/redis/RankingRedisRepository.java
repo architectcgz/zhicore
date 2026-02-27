@@ -114,6 +114,7 @@ public class RankingRedisRepository {
                 redisTemplate.expire(key, java.time.Duration.ofSeconds(ttlSeconds));
             }
         } catch (Exception e) {
+            // 清理临时 key，避免残留
             redisTemplate.delete(tmpKey);
             throw e;
         }
