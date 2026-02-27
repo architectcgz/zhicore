@@ -448,7 +448,29 @@ public class RankingRedisRepository {
     }
 
     /**
-     * 累加单篇文章浏览分数并检查是否超过上限
+     * Lua 脚本：原子累加浏览分数并检查上限
+     *
+     * <p>解决 check-then-act 竞态条件，同时设置 30 天 TTL 防止内存泄漏。</p>
+     */
+    private static final String VIEW_SCORE_CAP_SCRIPT = """
+        local key = KEYS[1]
+        local delta = tonumber(ARGV[1])
+        local cap = tonumber(ARGV[2])
+        local ttl = tonumber(ARGV[3])
+        local current = tonumber(redis.call('GET', key) or '0')
+        if current >= cap then return '0' end
+        local allowed = math.min(delta, cap - current)
+        redis.call('SET', key, tostring(current + allowed))
+        if redis.call('TTL', key) == -1 then
+            redis.call('EXPIRE', key, ttl)
+        end
+        return tostring(allowed)
+        """;
+
+    /**
+     * 原子累加单篇文章浏览分数并检查是否超过上限
+     *
+     * <p>使用 Lua 脚本保证 check-and-increment 原子性，同时设置 30 天 TTL。</p>
      *
      * @param postId   文章ID
      * @param delta    本次增量
@@ -457,34 +479,41 @@ public class RankingRedisRepository {
      */
     public double incrementViewScoreWithCap(String postId, double delta, double capScore) {
         String key = RankingRedisKeys.viewScoreCap(postId);
-        Double current = (Double) redisTemplate.opsForValue().get(key);
-        double currentScore = current != null ? current : 0.0;
-
-        if (currentScore >= capScore) {
-            return 0.0;
-        }
-
-        double allowedDelta = Math.min(delta, capScore - currentScore);
-        redisTemplate.opsForValue().set(key, currentScore + allowedDelta);
-        return allowedDelta;
+        RedisScript<String> script = new DefaultRedisScript<>(VIEW_SCORE_CAP_SCRIPT, String.class);
+        long ttlSeconds = Duration.ofDays(30).getSeconds();
+        String result = redisTemplate.execute(script,
+                Collections.singletonList(key),
+                String.valueOf(delta), String.valueOf(capScore), String.valueOf(ttlSeconds));
+        return result != null ? Double.parseDouble(result) : 0.0;
     }
 
     // ==================== 总榜淘汰操作 ====================
 
     /**
-     * 淘汰 Sorted Set 中排名靠后的成员，只保留 Top N
+     * Lua 脚本：原子淘汰 Sorted Set 中排名靠后的成员
+     *
+     * <p>合并 ZCARD + ZREMRANGEBYRANK 为原子操作，避免并发写入导致误删。</p>
+     */
+    private static final String TRIM_SORTED_SET_SCRIPT = """
+        local key = KEYS[1]
+        local topN = tonumber(ARGV[1])
+        local size = redis.call('ZCARD', key)
+        if size <= topN then return 0 end
+        return redis.call('ZREMRANGEBYRANK', key, 0, size - topN - 1)
+        """;
+
+    /**
+     * 原子淘汰 Sorted Set 中排名靠后的成员，只保留 Top N
      *
      * @param key    Redis Key
      * @param topN   保留的最大成员数
      * @return 被淘汰的成员数
      */
     public long trimSortedSet(String key, long topN) {
-        Long size = redisTemplate.opsForZSet().zCard(key);
-        if (size == null || size <= topN) {
-            return 0;
-        }
-        // ZREMRANGEBYRANK key 0 (size - topN - 1)：移除分数最低的成员
-        Long removed = redisTemplate.opsForZSet().removeRange(key, 0, size - topN - 1);
+        RedisScript<Long> script = new DefaultRedisScript<>(TRIM_SORTED_SET_SCRIPT, Long.class);
+        Long removed = redisTemplate.execute(script,
+                Collections.singletonList(key),
+                String.valueOf(topN));
         return removed != null ? removed : 0;
     }
 }
