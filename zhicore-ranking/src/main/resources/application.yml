@@ -93,6 +93,14 @@ ranking:
     flush-interval: 5000
     # 批量刷写大小，默认 1000
     batch-size: 1000
+  # 定时任务调度配置（修改后需重启生效）
+  scheduler:
+    hot-posts-cron: "0 */5 * * * ?"      # 热榜刷新，每 5 分钟
+    creator-cron: "0 0 2 * * ?"           # 创作者排行刷新，每日 02:00
+    topic-cron: "0 0 3 * * ?"             # 话题排行刷新，每日 03:00
+    daily-archive-cron: "0 0 2 * * ?"     # 日榜归档，每日 02:00
+    weekly-archive-cron: "0 0 3 ? * MON"  # 周榜归档，每周一 03:00
+    monthly-archive-cron: "0 0 4 1 * ?"   # 月榜归档，每月 1 日 04:00
 
 # 分页配置
 ZhiCore:

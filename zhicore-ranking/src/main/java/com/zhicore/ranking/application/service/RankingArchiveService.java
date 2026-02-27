@@ -73,7 +73,7 @@ public class RankingArchiveService {
      * 归档文章、创作者、话题的日榜数据。
      * </p>
      */
-    @Scheduled(cron = "0 0 2 * * ?")
+    @Scheduled(cron = "${ranking.scheduler.daily-archive-cron:0 0 2 * * ?}")
     public void archiveDailyRanking() {
         lockExecutor.executeWithLock(LOCK_PREFIX + "archive-daily", () -> {
             LocalDate yesterday = LocalDate.now().minusDays(1);
@@ -175,7 +175,7 @@ public class RankingArchiveService {
      * 使用 LocalDate.now().minusWeeks(1) 计算上周的年份和周数，正确处理跨年情况。
      * </p>
      */
-    @Scheduled(cron = "0 0 3 ? * MON")
+    @Scheduled(cron = "${ranking.scheduler.weekly-archive-cron:0 0 3 ? * MON}")
     public void archiveWeeklyRanking() {
         lockExecutor.executeWithLock(LOCK_PREFIX + "archive-weekly", () -> {
             LocalDate lastWeek = LocalDate.now().minusWeeks(1);
@@ -281,7 +281,7 @@ public class RankingArchiveService {
      * 归档文章、创作者、话题的月榜数据。
      * </p>
      */
-    @Scheduled(cron = "0 0 4 1 * ?")
+    @Scheduled(cron = "${ranking.scheduler.monthly-archive-cron:0 0 4 1 * ?}")
     public void archiveMonthlyRanking() {
         lockExecutor.executeWithLock(LOCK_PREFIX + "archive-monthly", () -> {
             LocalDate lastMonth = LocalDate.now().minusMonths(1);

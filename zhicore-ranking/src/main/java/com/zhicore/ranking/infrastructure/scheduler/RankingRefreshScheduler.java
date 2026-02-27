@@ -64,47 +64,50 @@ public class RankingRefreshScheduler {
     }
 
     /**
-     * 每小时刷新热门文章排行
+     * 定时刷新热门文章排行（默认每 5 分钟）
      */
-    @Scheduled(cron = "0 0 * * * ?")
+    @Scheduled(cron = "${ranking.scheduler.hot-posts-cron:0 */5 * * * ?}")
     public void refreshHotPosts() {
         lockExecutor.executeWithLock(LOCK_PREFIX + "refresh-hot-posts", () ->
             postSnapshotTimer.record(() -> {
+                long start = System.currentTimeMillis();
                 try {
                     cleanupExpiredDailyRankings();
                     cleanupExpiredWeeklyRankings();
                     trimTotalBoards();
-                    log.info("每小时热门文章刷新任务完成");
+                    log.info("热门文章刷新任务完成, 耗时={}ms", System.currentTimeMillis() - start);
                 } catch (Exception e) {
-                    log.error("热门文章刷新失败", e);
+                    log.error("热门文章刷新失败, 耗时={}ms", System.currentTimeMillis() - start, e);
                 }
             })
         );
     }
 
-    @Scheduled(cron = "0 0 2 * * ?")
+    @Scheduled(cron = "${ranking.scheduler.creator-cron:0 0 2 * * ?}")
     public void refreshCreatorRanking() {
         lockExecutor.executeWithLock(LOCK_PREFIX + "refresh-creator", () ->
             creatorSnapshotTimer.record(() -> {
+                long start = System.currentTimeMillis();
                 try {
                     cleanupExpiredCreatorDailyRankings();
-                    log.info("每日创作者排行刷新任务完成");
+                    log.info("创作者排行刷新任务完成, 耗时={}ms", System.currentTimeMillis() - start);
                 } catch (Exception e) {
-                    log.error("创作者排行刷新失败", e);
+                    log.error("创作者排行刷新失败, 耗时={}ms", System.currentTimeMillis() - start, e);
                 }
             })
         );
     }
 
-    @Scheduled(cron = "0 0 3 * * ?")
+    @Scheduled(cron = "${ranking.scheduler.topic-cron:0 0 3 * * ?}")
     public void refreshTopicRanking() {
         lockExecutor.executeWithLock(LOCK_PREFIX + "refresh-topic", () ->
             topicSnapshotTimer.record(() -> {
+                long start = System.currentTimeMillis();
                 try {
                     cleanupExpiredTopicDailyRankings();
-                    log.info("每日话题排行刷新任务完成");
+                    log.info("话题排行刷新任务完成, 耗时={}ms", System.currentTimeMillis() - start);
                 } catch (Exception e) {
-                    log.error("话题排行刷新失败", e);
+                    log.error("话题排行刷新失败, 耗时={}ms", System.currentTimeMillis() - start, e);
                 }
             })
         );
