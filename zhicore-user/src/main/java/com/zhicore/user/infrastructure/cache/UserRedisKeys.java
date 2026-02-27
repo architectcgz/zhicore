@@ -36,6 +36,14 @@ public final class UserRedisKeys {
         return PREFIX + ":" + userId + ":simple";
     }
 
+    /**
+     * 用户所有业务缓存键（用于写操作后统一失效）
+     * 包含：detail、simple
+     */
+    public static String[] allCacheKeys(Long userId) {
+        return new String[] { userDetail(userId), userSimple(userId) };
+    }
+
     // ==================== 关注统计 ====================
 
     /**

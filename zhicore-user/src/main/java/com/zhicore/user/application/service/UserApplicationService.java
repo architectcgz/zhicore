@@ -383,10 +383,7 @@ public class UserApplicationService implements UserQueryPort {
      */
     private void evictUserCache(Long userId) {
         try {
-            cacheRepository.delete(
-                    UserRedisKeys.userDetail(userId),
-                    UserRedisKeys.userSimple(userId)
-            );
+            cacheRepository.delete(UserRedisKeys.allCacheKeys(userId));
             log.debug("Evicted user cache: userId={}", userId);
         } catch (Exception e) {
             log.warn("Failed to evict user cache: userId={}, error={}", userId, e.getMessage());

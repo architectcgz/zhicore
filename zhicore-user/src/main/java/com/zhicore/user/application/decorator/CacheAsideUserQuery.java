@@ -156,13 +156,14 @@ public class CacheAsideUserQuery implements UserQueryPort {
         // 2. 批量查库回填 miss 的 ID
         if (!missedIds.isEmpty()) {
             Map<Long, UserSimpleDTO> fromDb = delegate.batchGetUsersSimple(missedIds);
-            Duration ttl = getDetailTtl().plus(Duration.ofSeconds(
-                    ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
 
             for (Long missedId : missedIds) {
                 UserSimpleDTO dto = fromDb.get(missedId);
                 String cacheKey = UserRedisKeys.userSimple(missedId);
                 if (dto != null) {
+                    // 每个 key 独立计算 jitter，避免批量回填同时过期引发雪崩
+                    Duration ttl = getDetailTtl().plus(Duration.ofSeconds(
+                            ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
                     cacheRepository.setIfAbsent(cacheKey, dto, ttl);
                     result.put(missedId, dto);
                 } else {
@@ -174,6 +175,10 @@ public class CacheAsideUserQuery implements UserQueryPort {
         return result;
     }
 
+    /**
+     * 缓存回填（仅供持锁场景使用，非 null 值用 set 覆盖写）
+     * 无锁场景应直接使用 setIfAbsent 防止并发覆盖
+     */
     private void cacheValue(String key, Object value) {
         if (value == null) {
             cacheRepository.setIfAbsent(key, null, getNullTtl());
