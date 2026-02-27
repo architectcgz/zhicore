@@ -59,8 +59,13 @@ public class AuthApplicationService {
         String accessToken = jwtTokenProvider.generateAccessToken(user);
         String refreshToken = jwtTokenProvider.generateRefreshToken(user);
 
-        // 5. 将 Refresh Token 加入白名单
-        storeRefreshToken(user.getId(), refreshToken);
+        // 5. 将 Refresh Token 加入白名单（Redis 不可用时中止登录，避免发出不可用的 Token）
+        try {
+            storeRefreshToken(user.getId(), refreshToken);
+        } catch (Exception e) {
+            log.error("Redis 写入 Refresh Token 失败，登录中止: userId={}", user.getId(), e);
+            throw new BusinessException(ResultCode.INTERNAL_ERROR, "系统繁忙，请稍后重试");
+        }
 
         log.info("User logged in: userId={}, email={}", user.getId(), user.getEmail());
 
@@ -172,9 +177,6 @@ public class AuthApplicationService {
         }
     }
 
-    /**
-     * 将 Refresh Token 存入白名单
-     */
     /**
      * 将 Refresh Token 存入白名单
      *

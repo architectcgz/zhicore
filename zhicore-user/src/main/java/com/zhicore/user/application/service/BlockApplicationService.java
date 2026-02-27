@@ -56,28 +56,40 @@ public class BlockApplicationService {
     public void block(Long blockerId, Long blockedId) {
         blockDomainService.validateBlock(blockerId, blockedId);
 
-        // 按 userId 大小排序依次获取拉黑锁和关注锁，防止死锁
-        // 拉黑操作涉及级联删除关注关系，必须同时持有两把锁
-        String blockLockKey = UserRedisKeys.blockLock(blockerId, blockedId);
-        String followLockKey = UserRedisKeys.blockFollowLock(blockerId, blockedId);
-        RLock blockLock = redissonClient.getLock(blockLockKey);
-        RLock followLock = redissonClient.getLock(followLockKey);
+        // 拉黑操作涉及级联删除双向关注关系，需同时持有：
+        // 1. 拉黑锁（blockLock）
+        // 2. 两把关注锁（followLock(A→B) 和 followLock(B→A)），与正常关注操作使用相同格式的锁键
+        // 按 userId 大小排序确定获取顺序，防止死锁
+        long minId = Math.min(blockerId, blockedId);
+        long maxId = Math.max(blockerId, blockedId);
+
+        RLock blockLock = redissonClient.getLock(UserRedisKeys.blockLock(blockerId, blockedId));
+        // 按 min→max 顺序获取两把关注锁，与正常关注操作的锁键格式完全一致
+        RLock followLock1 = redissonClient.getLock(UserRedisKeys.followLock(minId, maxId));
+        RLock followLock2 = redissonClient.getLock(UserRedisKeys.followLock(maxId, minId));
 
         try {
-            // 先获取拉黑锁
             if (!blockLock.tryLock(3, 10, TimeUnit.SECONDS)) {
                 throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
             }
             try {
-                // 再获取关注锁
-                if (!followLock.tryLock(3, 10, TimeUnit.SECONDS)) {
+                if (!followLock1.tryLock(3, 10, TimeUnit.SECONDS)) {
                     throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
                 }
                 try {
-                    doBlock(blockerId, blockedId);
+                    if (!followLock2.tryLock(3, 10, TimeUnit.SECONDS)) {
+                        throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
+                    }
+                    try {
+                        doBlock(blockerId, blockedId);
+                    } finally {
+                        if (followLock2.isHeldByCurrentThread()) {
+                            followLock2.unlock();
+                        }
+                    }
                 } finally {
-                    if (followLock.isHeldByCurrentThread()) {
-                        followLock.unlock();
+                    if (followLock1.isHeldByCurrentThread()) {
+                        followLock1.unlock();
                     }
                 }
             } finally {

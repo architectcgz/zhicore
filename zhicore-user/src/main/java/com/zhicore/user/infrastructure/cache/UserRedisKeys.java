@@ -130,15 +130,4 @@ public final class UserRedisKeys {
         long maxId = Math.max(userIdA, userIdB);
         return "lock:block:" + minId + ":" + maxId;
     }
-
-    /**
-     * 拉黑场景的关注锁（按 userId 排序）
-     * Key: lock:follow:{minId}:{maxId}
-     * 拉黑操作涉及级联删除关注关系，需同时持有此锁防止与关注操作并发冲突
-     */
-    public static String blockFollowLock(Long userIdA, Long userIdB) {
-        long minId = Math.min(userIdA, userIdB);
-        long maxId = Math.max(userIdA, userIdB);
-        return "lock:follow:" + minId + ":" + maxId;
-    }
 }
