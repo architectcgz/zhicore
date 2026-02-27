@@ -42,6 +42,8 @@ public class RankingRefreshScheduler {
 
     /** 分布式锁 key 前缀 */
     private static final String LOCK_PREFIX = "ranking:lock:scheduler:";
+    /** 总榜保留的最大成员数 */
+    private static final long TOTAL_BOARD_MAX_SIZE = 10000;
 
     public RankingRefreshScheduler(PostRankingService postRankingService,
                                    CreatorRankingService creatorRankingService,
@@ -73,6 +75,7 @@ public class RankingRefreshScheduler {
                 try {
                     cleanupExpiredDailyRankings();
                     cleanupExpiredWeeklyRankings();
+                    trimTotalBoards();
                     log.info("每小时热门文章刷新任务完成");
                 } catch (Exception e) {
                     log.error("热门文章刷新失败", e);
@@ -132,6 +135,23 @@ public class RankingRefreshScheduler {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.warn("获取分布式锁被中断: {}", taskName);
+        }
+    }
+
+    /**
+     * 淘汰总榜低分成员，防止 Sorted Set 无限膨胀
+     * <p>保留 Top {@value TOTAL_BOARD_MAX_SIZE}，移除分数最低的成员。</p>
+     */
+    private void trimTotalBoards() {
+        long postTrimmed = rankingRepository.trimSortedSet(
+                RankingRedisKeys.hotPosts(), TOTAL_BOARD_MAX_SIZE);
+        long creatorTrimmed = rankingRepository.trimSortedSet(
+                RankingRedisKeys.hotCreators(), TOTAL_BOARD_MAX_SIZE);
+        long topicTrimmed = rankingRepository.trimSortedSet(
+                RankingRedisKeys.hotTopics(), TOTAL_BOARD_MAX_SIZE);
+        if (postTrimmed + creatorTrimmed + topicTrimmed > 0) {
+            log.info("总榜淘汰完成: post={}, creator={}, topic={}",
+                    postTrimmed, creatorTrimmed, topicTrimmed);
         }
     }
 
