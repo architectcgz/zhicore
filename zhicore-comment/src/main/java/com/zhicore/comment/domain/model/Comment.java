@@ -22,6 +22,11 @@ import java.time.LocalDateTime;
 @Getter
 public class Comment {
 
+    /** 评论内容最大字数 */
+    private static final int MAX_CONTENT_LENGTH = 2000;
+    /** 评论最大图片数 */
+    private static final int MAX_IMAGE_COUNT = 9;
+
     /**
      * 评论ID（雪花ID）
      */
@@ -301,12 +306,12 @@ public class Comment {
             throw new DomainException("评论内容、图片、语音至少需要一项");
         }
 
-        if (hasText && content.length() > 2000) {
-            throw new DomainException("评论内容不能超过2000字");
+        if (hasText && content.length() > MAX_CONTENT_LENGTH) {
+            throw new DomainException("评论内容不能超过" + MAX_CONTENT_LENGTH + "字");
         }
 
-        if (hasImages && imageIds.length > 9) {
-            throw new DomainException("评论图片不能超过9张");
+        if (hasImages && imageIds.length > MAX_IMAGE_COUNT) {
+            throw new DomainException("评论图片不能超过" + MAX_IMAGE_COUNT + "张");
         }
 
         if (hasVoice && voiceId != null) {

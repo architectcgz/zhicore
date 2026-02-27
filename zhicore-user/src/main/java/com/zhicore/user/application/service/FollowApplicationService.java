@@ -35,6 +35,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class FollowApplicationService {
 
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final UserRepository userRepository;
     private final UserFollowRepository userFollowRepository;
     private final FollowDomainService followDomainService;
@@ -166,9 +169,9 @@ public class FollowApplicationService {
     public List<UserVO> getFollowers(Long userId, int page, int size) {
         // 参数验证
         if (page < 1) page = 1;
-        if (size < 1) size = 20;
-        if (size > 100) size = 100;
-        
+        if (size < 1) size = DEFAULT_PAGE_SIZE;
+        if (size > MAX_PAGE_SIZE) size = MAX_PAGE_SIZE;
+
         List<UserFollow> followers = userFollowRepository.findFollowers(userId, page, size);
         return followers.stream()
                 .map(follow -> userRepository.findById(follow.getFollowerId()).orElse(null))
@@ -188,9 +191,9 @@ public class FollowApplicationService {
     public List<UserVO> getFollowings(Long userId, int page, int size) {
         // 参数验证
         if (page < 1) page = 1;
-        if (size < 1) size = 20;
-        if (size > 100) size = 100;
-        
+        if (size < 1) size = DEFAULT_PAGE_SIZE;
+        if (size > MAX_PAGE_SIZE) size = MAX_PAGE_SIZE;
+
         List<UserFollow> followings = userFollowRepository.findFollowings(userId, page, size);
         return followings.stream()
                 .map(follow -> userRepository.findById(follow.getFollowingId()).orElse(null))

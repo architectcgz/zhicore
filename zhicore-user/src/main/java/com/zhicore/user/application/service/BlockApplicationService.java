@@ -37,6 +37,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BlockApplicationService {
 
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final UserRepository userRepository;
     private final UserBlockRepository userBlockRepository;
     private final UserFollowRepository userFollowRepository;
@@ -169,8 +172,8 @@ public class BlockApplicationService {
     public List<UserVO> getBlockedUsers(Long blockerId, int page, int size) {
         // 参数验证
         if (page < 1) page = 1;
-        if (size < 1) size = 20;
-        if (size > 100) size = 100;
+        if (size < 1) size = DEFAULT_PAGE_SIZE;
+        if (size > MAX_PAGE_SIZE) size = MAX_PAGE_SIZE;
         
         List<UserBlock> blocks = userBlockRepository.findByBlockerId(blockerId, page, size);
         return blocks.stream()

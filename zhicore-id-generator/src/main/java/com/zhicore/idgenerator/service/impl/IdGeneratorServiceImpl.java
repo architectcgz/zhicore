@@ -18,7 +18,10 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class IdGeneratorServiceImpl implements IdGeneratorService {
-    
+
+    /** 批量生成 ID 的最大数量 */
+    private static final int MAX_BATCH_SIZE = 1000;
+
     private final IdGeneratorClient idGeneratorClient;
     
     @Override
@@ -39,8 +42,8 @@ public class IdGeneratorServiceImpl implements IdGeneratorService {
     @Override
     public List<Long> generateBatchSnowflakeIds(int count) {
         // 参数验证
-        if (count <= 0 || count > 1000) {
-            throw new IllegalArgumentException("生成数量必须在1-1000之间");
+        if (count <= 0 || count > MAX_BATCH_SIZE) {
+            throw new IllegalArgumentException("生成数量必须在1-" + MAX_BATCH_SIZE + "之间");
         }
         
         try {
