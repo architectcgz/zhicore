@@ -51,15 +51,8 @@ public class OutboxEventDispatcher implements SchedulingConfigurer {
     
     private static final Duration LOCK_WAIT_TIME = Duration.ZERO;  // 不等待，获取不到直接返回
 
-    /**
-     * RocketMQ 内置 DLQ topic 前缀：%DLQ%{consumerGroup}
-     *
-     * <p>本项目的“定时发布执行”消费者组为 post-schedule-consumer-group，
-     * 定时发布失败会以 DLQ 事件形式写入 Outbox，并由投递器发送到该 DLQ topic。
-     */
-    private static final String ROCKETMQ_DLQ_PREFIX = "%DLQ%";
-    private static final String POST_SCHEDULE_CONSUMER_GROUP = "post-schedule-consumer-group";
-    private static final String TAG_SCHEDULED_PUBLISH_DLQ = "scheduled-publish-dlq";
+    /** RocketMQ 内置 DLQ topic 前缀：%DLQ%{consumerGroup} */
+    private static final String ROCKETMQ_DLQ_PREFIX = “%DLQ%”;
     
     private final OutboxEventMapper outboxEventMapper;
     private final RocketMQTemplate rocketMQTemplate;
@@ -185,8 +178,8 @@ public class OutboxEventDispatcher implements SchedulingConfigurer {
 
     @Transactional
     protected void dispatchScheduledPublishDlq(OutboxEventEntity entity) {
-        String dlqTopic = ROCKETMQ_DLQ_PREFIX + POST_SCHEDULE_CONSUMER_GROUP;
-        String destination = dlqTopic + ":" + TAG_SCHEDULED_PUBLISH_DLQ;
+        String dlqTopic = ROCKETMQ_DLQ_PREFIX + rocketMqProperties.getPostScheduleConsumerGroup();
+        String destination = dlqTopic + ":" + rocketMqProperties.getScheduledPublishDlqTag();
 
         Message<String> message = MessageBuilder
                 .withPayload(entity.getPayload())

@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 @RocketMQMessageListener(
         topic = TopicConstants.TOPIC_POST_EVENTS,
         selectorExpression = "schedule-execute",
-        consumerGroup = "post-schedule-consumer-group"
+        consumerGroup = "${rocketmq.topic.post-schedule-consumer-group:post-schedule-consumer-group}"
 )
 public class PostScheduleConsumer implements RocketMQListener<String> {
 
