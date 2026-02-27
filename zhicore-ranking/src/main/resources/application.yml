@@ -69,6 +69,12 @@ spring.cloud.sentinel:
     dashboard: ${SENTINEL_DASHBOARD:localhost:8080}
   eager: true
 
+# 排行榜 Sentinel 限流配置
+ranking.sentinel:
+  hot-posts-qps: 1000    # 热榜查询 QPS 限制
+  creator-qps: 500       # 创作者排行 QPS 限制
+  topic-qps: 500         # 话题排行 QPS 限制
+
 # 排行榜配置
 ranking:
   # 热度计算权重
