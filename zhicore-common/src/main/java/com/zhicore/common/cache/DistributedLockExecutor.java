@@ -1,19 +1,18 @@
 package com.zhicore.common.cache;
 
+import com.zhicore.common.cache.port.LockManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 分布式锁执行器
  *
- * <p>封装 Redisson 分布式锁的常见使用模式，供定时任务、归档任务等场景复用。</p>
+ * <p>封装分布式锁的常见使用模式，供定时任务、归档任务等场景复用。</p>
  * <p>默认非阻塞模式（waitTime=0），拿不到锁立即跳过，避免多实例重复执行。</p>
+ * <p>通过 {@link LockManager} 端口解耦，不直接依赖 Redisson。</p>
  *
  * @author ZhiCore Team
  */
@@ -22,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class DistributedLockExecutor {
 
-    private final RedissonClient redissonClient;
+    private final LockManager lockManager;
 
     /** 默认锁持有时间 */
     private static final Duration DEFAULT_LEASE_TIME = Duration.ofMinutes(30);
@@ -46,23 +45,15 @@ public class DistributedLockExecutor {
      * @param task      要执行的任务
      */
     public void executeWithLock(String lockKey, Duration waitTime, Duration leaseTime, Runnable task) {
-        RLock lock = redissonClient.getLock(lockKey);
-        try {
-            if (lock.tryLock(waitTime.toMillis(), leaseTime.toMillis(), TimeUnit.MILLISECONDS)) {
-                try {
-                    log.info("获取分布式锁成功，开始执行任务: {}", lockKey);
-                    task.run();
-                } finally {
-                    if (lock.isHeldByCurrentThread()) {
-                        lock.unlock();
-                    }
-                }
-            } else {
-                log.debug("任务已被其他实例执行，跳过: {}", lockKey);
+        if (lockManager.tryLock(lockKey, waitTime, leaseTime)) {
+            try {
+                log.info("获取分布式锁成功，开始执行任务: {}", lockKey);
+                task.run();
+            } finally {
+                lockManager.unlock(lockKey);
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.warn("获取分布式锁被中断: {}", lockKey);
+        } else {
+            log.debug("任务已被其他实例执行，跳过: {}", lockKey);
         }
     }
 }
