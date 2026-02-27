@@ -1,5 +1,7 @@
 package com.zhicore.ranking.infrastructure.redis;
 
+import com.zhicore.common.cache.CacheConstants;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +17,13 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("RankingRedisKeys Tests")
 class RankingRedisKeysTest {
 
+    private static final String NS = "zhicore";
+
+    @BeforeAll
+    static void setUp() {
+        CacheConstants.setGlobalNamespace(NS);
+    }
+
     @Test
     @DisplayName("生成文章日榜Key")
     void dailyPostsKey() {
@@ -25,7 +34,7 @@ class RankingRedisKeysTest {
         String key = RankingRedisKeys.dailyPosts(date);
 
         // Then
-        assertEquals("ranking:posts:daily:2024-01-15", key);
+        assertEquals(NS + ":ranking:posts:daily:2024-01-15", key);
     }
 
     @Test
@@ -35,7 +44,7 @@ class RankingRedisKeysTest {
         String key = RankingRedisKeys.todayPosts();
 
         // Then
-        assertTrue(key.startsWith("ranking:posts:daily:"));
+        assertTrue(key.startsWith(NS + ":ranking:posts:daily:"));
         assertTrue(key.contains(LocalDate.now().toString()));
     }
 
@@ -49,7 +58,7 @@ class RankingRedisKeysTest {
         String key = RankingRedisKeys.weeklyPosts(weekNumber);
 
         // Then
-        assertEquals("ranking:posts:weekly:5", key);
+        assertEquals(NS + ":ranking:posts:weekly:5", key);
     }
 
     @Test
@@ -59,7 +68,7 @@ class RankingRedisKeysTest {
         String key = RankingRedisKeys.currentWeekPosts();
 
         // Then
-        assertTrue(key.startsWith("ranking:posts:weekly:"));
+        assertTrue(key.startsWith(NS + ":ranking:posts:weekly:"));
     }
 
     @Test
@@ -72,7 +81,7 @@ class RankingRedisKeysTest {
         String key = RankingRedisKeys.dailyCreators(date);
 
         // Then
-        assertEquals("ranking:creators:daily:2024-01-15", key);
+        assertEquals(NS + ":ranking:creators:daily:2024-01-15", key);
     }
 
     @Test
@@ -85,7 +94,7 @@ class RankingRedisKeysTest {
         String key = RankingRedisKeys.dailyTopics(date);
 
         // Then
-        assertEquals("ranking:topics:daily:2024-01-15", key);
+        assertEquals(NS + ":ranking:topics:daily:2024-01-15", key);
     }
 
     @Test
@@ -101,9 +110,9 @@ class RankingRedisKeysTest {
     @Test
     @DisplayName("常量Key值正确")
     void constantKeys() {
-        assertEquals("ranking:posts:hot", RankingRedisKeys.hotPosts());
-        assertEquals("ranking:creators:hot", RankingRedisKeys.hotCreators());
-        assertEquals("ranking:topics:hot", RankingRedisKeys.hotTopics());
+        assertEquals(NS + ":ranking:posts:hot", RankingRedisKeys.hotPosts());
+        assertEquals(NS + ":ranking:creators:hot", RankingRedisKeys.hotCreators());
+        assertEquals(NS + ":ranking:topics:hot", RankingRedisKeys.hotTopics());
     }
 
     @Test
@@ -117,7 +126,7 @@ class RankingRedisKeysTest {
         String key = RankingRedisKeys.monthlyPosts(year, month);
 
         // Then
-        assertEquals("ranking:posts:monthly:2024:01", key, "单数月份应该格式化为两位数");
+        assertEquals(NS + ":ranking:posts:monthly:2024:01", key, "单数月份应该格式化为两位数");
     }
 
     @Test
@@ -131,7 +140,7 @@ class RankingRedisKeysTest {
         String key = RankingRedisKeys.monthlyPosts(year, month);
 
         // Then
-        assertEquals("ranking:posts:monthly:2024:12", key);
+        assertEquals(NS + ":ranking:posts:monthly:2024:12", key);
     }
 
     @Test
@@ -147,7 +156,7 @@ class RankingRedisKeysTest {
         // When & Then
         for (int month = 1; month <= 12; month++) {
             String key = RankingRedisKeys.monthlyPosts(year, month);
-            String expectedKey = "ranking:posts:monthly:2024:" + expectedMonths[month - 1];
+            String expectedKey = NS + ":ranking:posts:monthly:2024:" + expectedMonths[month - 1];
             assertEquals(expectedKey, key, 
                 String.format("月份 %d 应该格式化为 %s", month, expectedMonths[month - 1]));
         }
@@ -166,8 +175,8 @@ class RankingRedisKeysTest {
         String key = RankingRedisKeys.currentMonthPosts();
 
         // Then
-        String expectedKey = "ranking:posts:monthly:" + year + ":" + expectedMonth;
+        String expectedKey = NS + ":ranking:posts:monthly:" + year + ":" + expectedMonth;
         assertEquals(expectedKey, key);
-        assertTrue(key.startsWith("ranking:posts:monthly:"));
+        assertTrue(key.startsWith(NS + ":ranking:posts:monthly:"));
     }
 }

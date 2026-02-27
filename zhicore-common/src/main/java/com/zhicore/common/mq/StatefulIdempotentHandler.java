@@ -1,5 +1,6 @@
 package com.zhicore.common.mq;
 
+import com.zhicore.common.cache.CacheConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -20,7 +21,9 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class StatefulIdempotentHandler {
 
-    private static final String KEY_PREFIX = "mq:idempotent:";
+    private static String keyPrefix() {
+        return CacheConstants.withNamespace("mq") + ":idempotent:";
+    }
     private static final String STATUS_PROCESSING = "processing";
     private static final String STATUS_COMPLETED = "completed";
     private static final Duration DEFAULT_EXPIRE = Duration.ofHours(24);
@@ -34,7 +37,7 @@ public class StatefulIdempotentHandler {
      * @return true 表示获取成功，可以处理；false 表示消息正在处理或已处理
      */
     public boolean tryAcquire(String messageId) {
-        String key = KEY_PREFIX + messageId;
+        String key = keyPrefix() + messageId;
         
         // 使用 SETNX 尝试设置状态为 processing
         Boolean success = redisTemplate.opsForValue()
@@ -63,7 +66,7 @@ public class StatefulIdempotentHandler {
      * @param messageId 消息ID
      */
     public void markCompleted(String messageId) {
-        String key = KEY_PREFIX + messageId;
+        String key = keyPrefix() + messageId;
         redisTemplate.opsForValue().set(key, STATUS_COMPLETED, DEFAULT_EXPIRE);
         log.debug("Marked message as completed: {}", messageId);
     }
@@ -74,7 +77,7 @@ public class StatefulIdempotentHandler {
      * @param messageId 消息ID
      */
     public void release(String messageId) {
-        String key = KEY_PREFIX + messageId;
+        String key = keyPrefix() + messageId;
         redisTemplate.delete(key);
         log.debug("Released processing lock for message: {}", messageId);
     }
@@ -86,7 +89,7 @@ public class StatefulIdempotentHandler {
      * @return true 表示已处理
      */
     public boolean isProcessed(String messageId) {
-        String key = KEY_PREFIX + messageId;
+        String key = keyPrefix() + messageId;
         String status = redisTemplate.opsForValue().get(key);
         return STATUS_COMPLETED.equals(status);
     }

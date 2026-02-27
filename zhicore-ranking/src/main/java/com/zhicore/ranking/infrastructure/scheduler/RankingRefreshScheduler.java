@@ -38,8 +38,6 @@ public class RankingRefreshScheduler {
     private final Timer creatorSnapshotTimer;
     private final Timer topicSnapshotTimer;
 
-    /** 分布式锁 key 前缀 */
-    private static final String LOCK_PREFIX = "ranking:lock:scheduler:";
     /** 总榜保留的最大成员数 */
     private static final long TOTAL_BOARD_MAX_SIZE = 10000;
 
@@ -68,7 +66,7 @@ public class RankingRefreshScheduler {
      */
     @Scheduled(cron = "0 0 * * * ?")
     public void refreshHotPosts() {
-        lockExecutor.executeWithLock(LOCK_PREFIX + "refresh-hot-posts", () ->
+        lockExecutor.executeWithLock(RankingRedisKeys.schedulerLock("refresh-hot-posts"), () ->
             postSnapshotTimer.record(() -> {
                 try {
                     cleanupExpiredDailyRankings();
@@ -84,7 +82,7 @@ public class RankingRefreshScheduler {
 
     @Scheduled(cron = "0 0 2 * * ?")
     public void refreshCreatorRanking() {
-        lockExecutor.executeWithLock(LOCK_PREFIX + "refresh-creator", () ->
+        lockExecutor.executeWithLock(RankingRedisKeys.schedulerLock("refresh-creator"), () ->
             creatorSnapshotTimer.record(() -> {
                 try {
                     cleanupExpiredCreatorDailyRankings();
@@ -98,7 +96,7 @@ public class RankingRefreshScheduler {
 
     @Scheduled(cron = "0 0 3 * * ?")
     public void refreshTopicRanking() {
-        lockExecutor.executeWithLock(LOCK_PREFIX + "refresh-topic", () ->
+        lockExecutor.executeWithLock(RankingRedisKeys.schedulerLock("refresh-topic"), () ->
             topicSnapshotTimer.record(() -> {
                 try {
                     cleanupExpiredTopicDailyRankings();

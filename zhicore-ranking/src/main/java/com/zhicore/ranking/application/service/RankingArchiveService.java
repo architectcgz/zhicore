@@ -52,9 +52,6 @@ public class RankingArchiveService {
     private final RankingArchiveProperties archiveProperties;
     private final DistributedLockExecutor lockExecutor;
 
-    /** 分布式锁 key 前缀 */
-    private static final String LOCK_PREFIX = "ranking:lock:archive:";
-
     public RankingArchiveService(RankingRedisRepository redisRepository,
                                   RankingArchiveRepository archiveRepository,
                                   RankingArchiveProperties archiveProperties,
@@ -75,7 +72,7 @@ public class RankingArchiveService {
      */
     @Scheduled(cron = "0 0 2 * * ?")
     public void archiveDailyRanking() {
-        lockExecutor.executeWithLock(LOCK_PREFIX + "archive-daily", () -> {
+        lockExecutor.executeWithLock(RankingRedisKeys.archiveLock("archive-daily"), () -> {
             LocalDate yesterday = LocalDate.now().minusDays(1);
             log.info("开始归档日榜: date={}", yesterday);
             try {
@@ -177,7 +174,7 @@ public class RankingArchiveService {
      */
     @Scheduled(cron = "0 0 3 ? * MON")
     public void archiveWeeklyRanking() {
-        lockExecutor.executeWithLock(LOCK_PREFIX + "archive-weekly", () -> {
+        lockExecutor.executeWithLock(RankingRedisKeys.archiveLock("archive-weekly"), () -> {
             LocalDate lastWeek = LocalDate.now().minusWeeks(1);
             int year = lastWeek.getYear();
             int weekNumber = getWeekNumber(lastWeek);
@@ -283,7 +280,7 @@ public class RankingArchiveService {
      */
     @Scheduled(cron = "0 0 4 1 * ?")
     public void archiveMonthlyRanking() {
-        lockExecutor.executeWithLock(LOCK_PREFIX + "archive-monthly", () -> {
+        lockExecutor.executeWithLock(RankingRedisKeys.archiveLock("archive-monthly"), () -> {
             LocalDate lastMonth = LocalDate.now().minusMonths(1);
             int year = lastMonth.getYear();
             int month = lastMonth.getMonthValue();

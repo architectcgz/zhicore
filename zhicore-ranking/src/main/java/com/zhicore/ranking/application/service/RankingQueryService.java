@@ -121,7 +121,7 @@ public class RankingQueryService {
      * 使用 Pipeline + RENAME 保证回填原子可见性。</p>
      */
     private List<HotScore> loadAndBackfill(int year, int month, int limit) {
-        String lockKey = "ranking:lock:load:monthly:" + year + "-" + month;
+        String lockKey = RankingRedisKeys.monthlyLoadLock(year, month);
         RLock lock = redissonClient.getLock(lockKey);
 
         try {

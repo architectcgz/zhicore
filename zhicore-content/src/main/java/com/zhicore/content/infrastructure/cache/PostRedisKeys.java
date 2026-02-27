@@ -1,5 +1,6 @@
 package com.zhicore.content.infrastructure.cache;
 
+import com.zhicore.common.cache.CacheConstants;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.model.UserId;
@@ -21,7 +22,9 @@ public final class PostRedisKeys {
         // 工具类，禁止实例化
     }
 
-    private static final String PREFIX = "post";
+    private static String prefix() {
+        return CacheConstants.withNamespace("post");
+    }
 
     /**
      * 列表缓存 Key 版本前缀（需要升级结构或维度时 bump）
@@ -38,7 +41,7 @@ public final class PostRedisKeys {
      * @return Redis key
      */
     public static String detail(PostId postId) {
-        return PREFIX + ":detail:" + postId.getValue();
+        return prefix() + ":detail:" + postId.getValue();
     }
 
     public static String detail(Long postId) {
@@ -53,7 +56,7 @@ public final class PostRedisKeys {
      * @return Redis key
      */
     public static String content(PostId postId) {
-        return PREFIX + ":content:" + postId.getValue();
+        return prefix() + ":content:" + postId.getValue();
     }
 
     public static String content(Long postId) {
@@ -61,7 +64,7 @@ public final class PostRedisKeys {
     }
 
     private static String listLatestPrefix() {
-        return PREFIX + ":list:" + LIST_VERSION + ":status:PUBLISHED:sort:LATEST";
+        return prefix() + ":list:" + LIST_VERSION + ":status:PUBLISHED:sort:LATEST";
     }
 
     /**
@@ -96,7 +99,7 @@ public final class PostRedisKeys {
     }
 
     private static String listAuthorPrefix(UserId authorId) {
-        return PREFIX + ":list:" + LIST_VERSION + ":author:" + authorId.getValue() + ":status:ALL:sort:LATEST";
+        return prefix() + ":list:" + LIST_VERSION + ":author:" + authorId.getValue() + ":status:ALL:sort:LATEST";
     }
 
     /**
@@ -125,7 +128,7 @@ public final class PostRedisKeys {
     }
 
     private static String listTagPrefix(TagId tagId) {
-        return PREFIX + ":list:" + LIST_VERSION + ":tag:" + tagId.getValue() + ":status:PUBLISHED:sort:LATEST";
+        return prefix() + ":list:" + LIST_VERSION + ":tag:" + tagId.getValue() + ":status:PUBLISHED:sort:LATEST";
     }
 
     /**
@@ -163,7 +166,7 @@ public final class PostRedisKeys {
      * @return Redis key
      */
     public static String viewCount(PostId postId) {
-        return PREFIX + ":" + postId.getValue() + ":stats:views";
+        return prefix() + ":" + postId.getValue() + ":stats:views";
     }
 
     public static String viewCount(Long postId) {
@@ -178,7 +181,7 @@ public final class PostRedisKeys {
      * @return Redis key
      */
     public static String likeCount(PostId postId) {
-        return PREFIX + ":" + postId.getValue() + ":stats:likes";
+        return prefix() + ":" + postId.getValue() + ":stats:likes";
     }
 
     public static String likeCount(Long postId) {
@@ -193,7 +196,7 @@ public final class PostRedisKeys {
      * @return Redis key
      */
     public static String commentCount(PostId postId) {
-        return PREFIX + ":" + postId.getValue() + ":stats:comments";
+        return prefix() + ":" + postId.getValue() + ":stats:comments";
     }
 
     public static String commentCount(Long postId) {
@@ -208,7 +211,7 @@ public final class PostRedisKeys {
      * @return Redis key
      */
     public static String favoriteCount(PostId postId) {
-        return PREFIX + ":" + postId.getValue() + ":stats:favorites";
+        return prefix() + ":" + postId.getValue() + ":stats:favorites";
     }
 
     public static String favoriteCount(Long postId) {
@@ -225,7 +228,7 @@ public final class PostRedisKeys {
      * @return Redis key
      */
     public static String lockDetail(PostId postId) {
-        return PREFIX + ":lock:detail:" + postId.getValue();
+        return prefix() + ":lock:detail:" + postId.getValue();
     }
 
     /**
@@ -236,7 +239,7 @@ public final class PostRedisKeys {
      * @return Redis key
      */
     public static String lockPublish(PostId postId) {
-        return PREFIX + ":lock:publish:" + postId.getValue();
+        return prefix() + ":lock:publish:" + postId.getValue();
     }
 
     // ==================== 模式匹配 ====================
@@ -249,7 +252,7 @@ public final class PostRedisKeys {
      * @return Redis key 模式
      */
     public static String allRelatedPattern(PostId postId) {
-        return PREFIX + ":*:" + postId.getValue();
+        return prefix() + ":*:" + postId.getValue();
     }
 
     public static String allRelatedPattern(Long postId) {
@@ -267,7 +270,7 @@ public final class PostRedisKeys {
      * @return Redis key
      */
     public static String userLiked(Long userId, Long postId) {
-        return PREFIX + ":user:" + userId + ":liked:" + postId;
+        return prefix() + ":user:" + userId + ":liked:" + postId;
     }
 
     /**
@@ -279,7 +282,7 @@ public final class PostRedisKeys {
      * @return Redis key
      */
     public static String userFavorited(Long userId, Long postId) {
-        return PREFIX + ":user:" + userId + ":favorited:" + postId;
+        return prefix() + ":user:" + userId + ":favorited:" + postId;
     }
 
     // ==================== 草稿缓存 ====================
@@ -293,7 +296,7 @@ public final class PostRedisKeys {
      * @return Redis key
      */
     public static String draft(Long postId, Long userId) {
-        return PREFIX + ":draft:" + postId + ":" + userId;
+        return prefix() + ":draft:" + postId + ":" + userId;
     }
 
     /**
@@ -304,6 +307,6 @@ public final class PostRedisKeys {
      * @return Redis key
      */
     public static String userDrafts(Long userId) {
-        return PREFIX + ":drafts:user:" + userId;
+        return prefix() + ":drafts:user:" + userId;
     }
 }

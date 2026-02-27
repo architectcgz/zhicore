@@ -26,13 +26,17 @@ public class HotDataIdentifier {
      * 热点数据计数器前缀
      * Key: hotdata:counter:{entityType}:{entityId}
      */
-    private static final String COUNTER_PREFIX = "hotdata:counter";
+    private static String counterPrefix() {
+        return CacheConstants.withNamespace("hotdata") + ":counter";
+    }
 
     /**
      * 手动标记热点数据前缀
      * Key: hotdata:manual:{entityType}:{entityId}
      */
-    private static final String MANUAL_PREFIX = "hotdata:manual";
+    private static String manualPrefix() {
+        return CacheConstants.withNamespace("hotdata") + ":manual";
+    }
 
     /**
      * 计数器过期时间（1小时）
@@ -256,7 +260,7 @@ public class HotDataIdentifier {
      * @return Redis Key
      */
     private String buildCounterKey(String entityType, Long entityId) {
-        return COUNTER_PREFIX + CacheConstants.SEPARATOR + entityType + CacheConstants.SEPARATOR + entityId;
+        return counterPrefix() + CacheConstants.SEPARATOR + entityType + CacheConstants.SEPARATOR + entityId;
     }
 
     /**
@@ -267,6 +271,6 @@ public class HotDataIdentifier {
      * @return Redis Key
      */
     private String buildManualKey(String entityType, Long entityId) {
-        return MANUAL_PREFIX + CacheConstants.SEPARATOR + entityType + CacheConstants.SEPARATOR + entityId;
+        return manualPrefix() + CacheConstants.SEPARATOR + entityType + CacheConstants.SEPARATOR + entityId;
     }
 }

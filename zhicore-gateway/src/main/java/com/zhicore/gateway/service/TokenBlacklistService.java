@@ -1,5 +1,6 @@
 package com.zhicore.gateway.service;
 
+import com.zhicore.common.cache.CacheConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
@@ -20,7 +21,9 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class TokenBlacklistService {
 
-    private static final String BLACKLIST_KEY_PREFIX = "token:blacklist:";
+    private static String blacklistKeyPrefix() {
+        return CacheConstants.withNamespace("token") + ":blacklist:";
+    }
 
     private final ReactiveStringRedisTemplate redisTemplate;
 
@@ -31,7 +34,7 @@ public class TokenBlacklistService {
      * @return 是否在黑名单中
      */
     public Mono<Boolean> isBlacklisted(String token) {
-        String key = BLACKLIST_KEY_PREFIX + hashToken(token);
+        String key = blacklistKeyPrefix() + hashToken(token);
         return redisTemplate.hasKey(key)
                 .onErrorResume(e -> {
                     log.error("Failed to check token blacklist", e);
@@ -48,7 +51,7 @@ public class TokenBlacklistService {
      * @return 操作结果
      */
     public Mono<Boolean> addToBlacklist(String token, Duration ttl) {
-        String key = BLACKLIST_KEY_PREFIX + hashToken(token);
+        String key = blacklistKeyPrefix() + hashToken(token);
         return redisTemplate.opsForValue()
                 .set(key, "1", ttl)
                 .doOnSuccess(result -> log.info("Token added to blacklist"))

@@ -18,6 +18,12 @@ import org.springframework.stereotype.Component;
 public class CacheProperties {
 
     /**
+     * Redis Key 全局命名空间前缀
+     * 用于多环境隔离，默认：zhicore
+     */
+    private String keyNamespace = "zhicore";
+
+    /**
      * TTL 配置
      */
     private Ttl ttl = new Ttl();
