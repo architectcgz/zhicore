@@ -26,13 +26,13 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * AdminUserApplicationService 单元测试
+ * UserManageInternalService 单元测试
  *
  * @author ZhiCore Team
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("AdminUserApplicationService 测试")
-class AdminUserApplicationServiceTest {
+@DisplayName("UserManageInternalService 测试")
+class UserManageInternalServiceTest {
 
     @Mock
     private UserRepository userRepository;
@@ -41,7 +41,7 @@ class AdminUserApplicationServiceTest {
     private StringRedisTemplate stringRedisTemplate;
 
     @InjectMocks
-    private AdminUserApplicationService adminUserApplicationService;
+    private UserManageInternalService userManageInternalService;
 
     private User testUser;
     private Set<Role> testRoles;
@@ -88,7 +88,7 @@ class AdminUserApplicationServiceTest {
                     .thenReturn(1L);
 
             // When
-            PageResult<UserManageDTO> result = adminUserApplicationService.queryUsers(keyword, status, page, size);
+            PageResult<UserManageDTO> result = userManageInternalService.queryUsers(keyword, status, page, size);
 
             // Then
             assertNotNull(result);
@@ -116,7 +116,7 @@ class AdminUserApplicationServiceTest {
                     .thenReturn(1L);
 
             // When
-            PageResult<UserManageDTO> result = adminUserApplicationService.queryUsers(null, null, invalidPage, size);
+            PageResult<UserManageDTO> result = userManageInternalService.queryUsers(null, null, invalidPage, size);
 
             // Then
             assertNotNull(result);
@@ -138,7 +138,7 @@ class AdminUserApplicationServiceTest {
                     .thenReturn(1L);
 
             // When
-            PageResult<UserManageDTO> result = adminUserApplicationService.queryUsers(null, null, page, invalidSize);
+            PageResult<UserManageDTO> result = userManageInternalService.queryUsers(null, null, page, invalidSize);
 
             // Then
             assertNotNull(result);
@@ -160,7 +160,7 @@ class AdminUserApplicationServiceTest {
                     .thenReturn(1L);
 
             // When
-            PageResult<UserManageDTO> result = adminUserApplicationService.queryUsers(null, null, page, oversizedSize);
+            PageResult<UserManageDTO> result = userManageInternalService.queryUsers(null, null, page, oversizedSize);
 
             // Then
             assertNotNull(result);
@@ -179,7 +179,7 @@ class AdminUserApplicationServiceTest {
             // When & Then
             // ValidationException 会被 catch 块捕获并包装成 BusinessException
             assertThrows(BusinessException.class, () ->
-                    adminUserApplicationService.queryUsers(longKeyword, null, page, size));
+                    userManageInternalService.queryUsers(longKeyword, null, page, size));
             
             verify(userRepository, never()).findByConditions(anyString(), any(), anyInt(), anyInt());
         }
@@ -198,7 +198,7 @@ class AdminUserApplicationServiceTest {
                     .thenReturn(0L);
 
             // When
-            PageResult<UserManageDTO> result = adminUserApplicationService.queryUsers(keyword, null, page, size);
+            PageResult<UserManageDTO> result = userManageInternalService.queryUsers(keyword, null, page, size);
 
             // Then
             assertNotNull(result);
@@ -217,7 +217,7 @@ class AdminUserApplicationServiceTest {
                     .thenReturn(1L);
 
             // When
-            PageResult<UserManageDTO> result = adminUserApplicationService.queryUsers(null, null, 1, 20);
+            PageResult<UserManageDTO> result = userManageInternalService.queryUsers(null, null, 1, 20);
 
             // Then
             assertNotNull(result);
@@ -236,7 +236,7 @@ class AdminUserApplicationServiceTest {
                     .thenReturn(1L);
 
             // When
-            PageResult<UserManageDTO> result = adminUserApplicationService.queryUsers("", null, 1, 20);
+            PageResult<UserManageDTO> result = userManageInternalService.queryUsers("", null, 1, 20);
 
             // Then
             assertNotNull(result);
@@ -255,7 +255,7 @@ class AdminUserApplicationServiceTest {
                     .thenReturn(1L);
 
             // When
-            PageResult<UserManageDTO> result = adminUserApplicationService.queryUsers("   ", null, 1, 20);
+            PageResult<UserManageDTO> result = userManageInternalService.queryUsers("   ", null, 1, 20);
 
             // Then
             assertNotNull(result);
@@ -275,7 +275,7 @@ class AdminUserApplicationServiceTest {
                     .thenReturn(1L);
 
             // When
-            PageResult<UserManageDTO> result = adminUserApplicationService.queryUsers(null, status, 1, 20);
+            PageResult<UserManageDTO> result = userManageInternalService.queryUsers(null, status, 1, 20);
 
             // Then
             assertNotNull(result);
@@ -297,7 +297,7 @@ class AdminUserApplicationServiceTest {
                     .thenReturn(100L);
 
             // When
-            PageResult<UserManageDTO> result = adminUserApplicationService.queryUsers(null, null, page, size);
+            PageResult<UserManageDTO> result = userManageInternalService.queryUsers(null, null, page, size);
 
             // Then
             assertNotNull(result);
@@ -315,7 +315,7 @@ class AdminUserApplicationServiceTest {
                     .thenReturn(1L);
 
             // When
-            PageResult<UserManageDTO> result = adminUserApplicationService.queryUsers(null, null, 1, 20);
+            PageResult<UserManageDTO> result = userManageInternalService.queryUsers(null, null, 1, 20);
 
             // Then
             assertNotNull(result);
@@ -361,7 +361,7 @@ class AdminUserApplicationServiceTest {
                     .thenReturn(2L);
 
             // When
-            PageResult<UserManageDTO> result = adminUserApplicationService.queryUsers(null, null, 1, 20);
+            PageResult<UserManageDTO> result = userManageInternalService.queryUsers(null, null, 1, 20);
 
             // Then
             assertNotNull(result);
@@ -383,7 +383,7 @@ class AdminUserApplicationServiceTest {
 
             // When & Then
             BusinessException exception = assertThrows(BusinessException.class, () ->
-                    adminUserApplicationService.queryUsers("test", null, 1, 20));
+                    userManageInternalService.queryUsers("test", null, 1, 20));
             
             assertEquals(ResultCode.INTERNAL_ERROR.getCode(), exception.getCode());
             assertTrue(exception.getMessage().contains("查询用户列表失败"));
@@ -401,7 +401,7 @@ class AdminUserApplicationServiceTest {
 
             // When & Then
             BusinessException exception = assertThrows(BusinessException.class, () ->
-                    adminUserApplicationService.queryUsers("test", null, 1, 20));
+                    userManageInternalService.queryUsers("test", null, 1, 20));
             
             assertEquals(ResultCode.INTERNAL_ERROR.getCode(), exception.getCode());
         }
@@ -418,7 +418,7 @@ class AdminUserApplicationServiceTest {
             when(userRepository.findById(123L)).thenReturn(Optional.of(testUser));
 
             // When
-            adminUserApplicationService.disableUser(123L);
+            userManageInternalService.disableUser(123L);
 
             // Then
             verify(userRepository).update(argThat(user -> 
@@ -434,7 +434,7 @@ class AdminUserApplicationServiceTest {
             when(userRepository.findById(123L)).thenReturn(Optional.of(testUser));
 
             // When
-            adminUserApplicationService.enableUser(123L);
+            userManageInternalService.enableUser(123L);
 
             // Then
             verify(userRepository).update(argThat(user -> 
@@ -450,7 +450,7 @@ class AdminUserApplicationServiceTest {
 
             // When & Then
             BusinessException exception = assertThrows(BusinessException.class, () ->
-                    adminUserApplicationService.disableUser(999L));
+                    userManageInternalService.disableUser(999L));
             
             assertEquals(ResultCode.USER_NOT_FOUND.getCode(), exception.getCode());
         }
@@ -469,7 +469,7 @@ class AdminUserApplicationServiceTest {
             when(stringRedisTemplate.keys("user:123:token:*")).thenReturn(tokenKeys);
 
             // When
-            adminUserApplicationService.invalidateUserTokens(123L);
+            userManageInternalService.invalidateUserTokens(123L);
 
             // Then
             verify(stringRedisTemplate).keys("user:123:token:*");
@@ -484,7 +484,7 @@ class AdminUserApplicationServiceTest {
 
             // When & Then
             BusinessException exception = assertThrows(BusinessException.class, () ->
-                    adminUserApplicationService.invalidateUserTokens(999L));
+                    userManageInternalService.invalidateUserTokens(999L));
             
             assertEquals(ResultCode.USER_NOT_FOUND.getCode(), exception.getCode());
         }

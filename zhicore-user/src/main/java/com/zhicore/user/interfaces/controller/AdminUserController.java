@@ -2,7 +2,7 @@ package com.zhicore.user.interfaces.controller;
 
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
-import com.zhicore.user.application.service.AdminUserApplicationService;
+import com.zhicore.user.application.service.UserManageInternalService;
 import com.zhicore.user.interfaces.dto.response.UserManageDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AdminUserController {
 
-    private final AdminUserApplicationService adminUserApplicationService;
+    private final UserManageInternalService userManageInternalService;
 
     /**
      * 查询用户列表
@@ -46,7 +46,7 @@ public class AdminUserController {
         
         log.info("Admin query users: keyword={}, status={}, page={}, size={}", keyword, status, page, size);
         
-        PageResult<UserManageDTO> result = adminUserApplicationService.queryUsers(keyword, status, page, size);
+        PageResult<UserManageDTO> result = userManageInternalService.queryUsers(keyword, status, page, size);
         return ApiResponse.success(result);
     }
 
@@ -63,7 +63,7 @@ public class AdminUserController {
             @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId) {
         log.info("Admin disable user: userId={}", userId);
         
-        adminUserApplicationService.disableUser(userId);
+        userManageInternalService.disableUser(userId);
         return ApiResponse.success();
     }
 
@@ -80,7 +80,7 @@ public class AdminUserController {
             @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId) {
         log.info("Admin enable user: userId={}", userId);
         
-        adminUserApplicationService.enableUser(userId);
+        userManageInternalService.enableUser(userId);
         return ApiResponse.success();
     }
 
@@ -97,7 +97,7 @@ public class AdminUserController {
             @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId) {
         log.info("Admin invalidate user tokens: userId={}", userId);
         
-        adminUserApplicationService.invalidateUserTokens(userId);
+        userManageInternalService.invalidateUserTokens(userId);
         return ApiResponse.success();
     }
 }

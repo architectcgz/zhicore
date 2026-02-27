@@ -19,14 +19,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 管理员用户管理应用服务
+ * 用户管理内部服务（供 admin 服务通过 Feign 调用）
  *
  * @author ZhiCore Team
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AdminUserApplicationService {
+public class UserManageInternalService {
 
     private final UserRepository userRepository;
     private final StringRedisTemplate stringRedisTemplate;
