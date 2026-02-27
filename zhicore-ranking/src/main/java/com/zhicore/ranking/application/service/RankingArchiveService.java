@@ -6,7 +6,7 @@ import com.zhicore.ranking.infrastructure.mongodb.RankingArchive;
 import com.zhicore.ranking.infrastructure.mongodb.RankingArchiveRepository;
 import com.zhicore.ranking.infrastructure.redis.RankingRedisKeys;
 import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
-import com.zhicore.ranking.infrastructure.scheduler.DistributedLockExecutor;
+import com.zhicore.common.cache.DistributedLockExecutor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
