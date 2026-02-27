@@ -6,6 +6,7 @@ import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.event.DomainEventFactory;
 import com.zhicore.content.domain.event.PostDeletedEvent;
+import com.zhicore.content.domain.exception.PostErrorMessages;
 import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
@@ -46,7 +47,7 @@ public class DeletePostHandler {
         
         // 验证权限
         if (!post.isOwnedBy(command.getUserId())) {
-            throw new PostOwnershipException("无权删除此文章：用户不是文章所有者");
+            throw new PostOwnershipException(PostErrorMessages.NOT_OWNER_DELETE);
         }
         
         // 软删除

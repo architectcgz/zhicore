@@ -7,6 +7,7 @@ import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.domain.event.PostPurgedEvent;
+import com.zhicore.content.domain.exception.PostErrorMessages;
 import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
@@ -67,7 +68,7 @@ public class PurgePostHandler {
             log.info("Deleted MongoDB content for post: postId={}", command.getPostId());
         } catch (Exception e) {
             log.error("Failed to delete MongoDB content: postId={}", command.getPostId(), e);
-            throw new RuntimeException("删除文章内容失败", e);
+            throw new RuntimeException(PostErrorMessages.DELETE_CONTENT_FAILED, e);
         }
         
         // 删除 PostgreSQL 记录
@@ -102,14 +103,14 @@ public class PurgePostHandler {
         if (!post.isDeleted()) {
             // 未软删除的文章，仅管理员可物理删除
             if (!UserContext.isAdmin()) {
-                throw new IllegalStateException("只有管理员可以物理删除未软删除的文章");
+                throw new IllegalStateException(PostErrorMessages.ONLY_ADMIN_PURGE_NOT_DELETED);
             }
             return;
         }
         
         // 已软删除的文章：所有者或管理员可物理删除
         if (!post.isOwnedBy(userId) && !UserContext.isAdmin()) {
-            throw new PostOwnershipException("无权删除此文章：用户不是文章所有者");
+            throw new PostOwnershipException(PostErrorMessages.NOT_OWNER_DELETE);
         }
     }
     
