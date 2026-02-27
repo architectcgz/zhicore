@@ -91,7 +91,7 @@ public class CacheAsideTagQuery implements TagQuery {
         return getCachedList(
                 cacheKey,
                 () -> delegate.getList(limit),
-                LIST_TTL
+                DEFAULT_LIST_TTL
         );
     }
     
