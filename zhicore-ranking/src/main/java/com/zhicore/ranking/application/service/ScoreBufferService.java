@@ -77,11 +77,11 @@ public class ScoreBufferService {
         this.bufferProperties = bufferProperties;
         this.meterRegistry = meterRegistry;
 
-        this.flushSuccessCounter = Counter.builder("ranking.buffer.flush")
+        this.flushSuccessCounter = Counter.builder("ranking.buffer.flush.count")
                 .tag("result", "success")
                 .description("缓冲区刷写成功次数")
                 .register(meterRegistry);
-        this.flushFailureCounter = Counter.builder("ranking.buffer.flush")
+        this.flushFailureCounter = Counter.builder("ranking.buffer.flush.count")
                 .tag("result", "failure")
                 .description("缓冲区刷写失败次数")
                 .register(meterRegistry);
