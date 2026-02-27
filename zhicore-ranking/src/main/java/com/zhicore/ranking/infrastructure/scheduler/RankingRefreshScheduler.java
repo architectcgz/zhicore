@@ -9,15 +9,20 @@ import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 排行榜定时刷新任务
+ *
+ * <p>所有定时任务使用 Redisson 分布式锁，确保多实例部署时只有一个实例执行。</p>
  *
  * @author ZhiCore Team
  */
@@ -29,20 +34,26 @@ public class RankingRefreshScheduler {
     private final CreatorRankingService creatorRankingService;
     private final RankingRedisRepository rankingRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final RedissonClient redissonClient;
 
     private final Timer postSnapshotTimer;
     private final Timer creatorSnapshotTimer;
     private final Timer topicSnapshotTimer;
 
+    /** 分布式锁 key 前缀 */
+    private static final String LOCK_PREFIX = "ranking:lock:scheduler:";
+
     public RankingRefreshScheduler(PostRankingService postRankingService,
                                    CreatorRankingService creatorRankingService,
                                    RankingRedisRepository rankingRepository,
                                    RedisTemplate<String, Object> redisTemplate,
+                                   RedissonClient redissonClient,
                                    MeterRegistry meterRegistry) {
         this.postRankingService = postRankingService;
         this.creatorRankingService = creatorRankingService;
         this.rankingRepository = rankingRepository;
         this.redisTemplate = redisTemplate;
+        this.redissonClient = redissonClient;
 
         this.postSnapshotTimer = Timer.builder("ranking.snapshot.duration")
                 .tag("type", "post").register(meterRegistry);
@@ -57,42 +68,71 @@ public class RankingRefreshScheduler {
      */
     @Scheduled(cron = "0 0 * * * ?")
     public void refreshHotPosts() {
-        log.info("开始每小时热门文章刷新任务...");
-        postSnapshotTimer.record(() -> {
-            try {
-                cleanupExpiredDailyRankings();
-                cleanupExpiredWeeklyRankings();
-                log.info("每小时热门文章刷新任务完成");
-            } catch (Exception e) {
-                log.error("热门文章刷新失败", e);
-            }
-        });
+        executeWithLock("refresh-hot-posts", () ->
+            postSnapshotTimer.record(() -> {
+                try {
+                    cleanupExpiredDailyRankings();
+                    cleanupExpiredWeeklyRankings();
+                    log.info("每小时热门文章刷新任务完成");
+                } catch (Exception e) {
+                    log.error("热门文章刷新失败", e);
+                }
+            })
+        );
     }
 
     @Scheduled(cron = "0 0 2 * * ?")
     public void refreshCreatorRanking() {
-        log.info("开始每日创作者排行刷新任务...");
-        creatorSnapshotTimer.record(() -> {
-            try {
-                cleanupExpiredCreatorDailyRankings();
-                log.info("每日创作者排行刷新任务完成");
-            } catch (Exception e) {
-                log.error("创作者排行刷新失败", e);
-            }
-        });
+        executeWithLock("refresh-creator", () ->
+            creatorSnapshotTimer.record(() -> {
+                try {
+                    cleanupExpiredCreatorDailyRankings();
+                    log.info("每日创作者排行刷新任务完成");
+                } catch (Exception e) {
+                    log.error("创作者排行刷新失败", e);
+                }
+            })
+        );
     }
 
     @Scheduled(cron = "0 0 3 * * ?")
     public void refreshTopicRanking() {
-        log.info("开始每日话题排行刷新任务...");
-        topicSnapshotTimer.record(() -> {
-            try {
-                cleanupExpiredTopicDailyRankings();
-                log.info("每日话题排行刷新任务完成");
-            } catch (Exception e) {
-                log.error("话题排行刷新失败", e);
+        executeWithLock("refresh-topic", () ->
+            topicSnapshotTimer.record(() -> {
+                try {
+                    cleanupExpiredTopicDailyRankings();
+                    log.info("每日话题排行刷新任务完成");
+                } catch (Exception e) {
+                    log.error("话题排行刷新失败", e);
+                }
+            })
+        );
+    }
+
+    /**
+     * 使用分布式锁执行任务，确保多实例部署时只有一个实例执行
+     *
+     * @param taskName 任务名称（用于锁 key 和日志）
+     * @param task     要执行的任务
+     */
+    private void executeWithLock(String taskName, Runnable task) {
+        RLock lock = redissonClient.getLock(LOCK_PREFIX + taskName);
+        try {
+            // tryLock(0, ...) 非阻塞：拿不到锁立即跳过，避免多实例重复执行
+            if (lock.tryLock(0, 30, TimeUnit.MINUTES)) {
+                try {
+                    log.info("获取分布式锁成功，开始执行定时任务: {}", taskName);
+                    task.run();
+                } finally {
+                    lock.unlock();
+                }
+            } else {
+                log.debug("定时任务已被其他实例执行，跳过: {}", taskName);
             }
-        });
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("获取分布式锁被中断: {}", taskName);
+        }
     }
 
     private void cleanupExpiredDailyRankings() {
