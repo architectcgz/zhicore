@@ -28,6 +28,14 @@ public final class UserRedisKeys {
         return PREFIX + ":" + userId + ":detail";
     }
 
+    /**
+     * 用户简要信息缓存
+     * Key: user:{userId}:simple
+     */
+    public static String userSimple(Long userId) {
+        return PREFIX + ":" + userId + ":simple";
+    }
+
     // ==================== 关注统计 ====================
 
     /**

@@ -6,18 +6,24 @@ import com.zhicore.common.cache.port.CacheResult;
 import com.zhicore.common.cache.port.LockManager;
 import com.zhicore.common.config.CacheProperties;
 import com.zhicore.user.application.dto.UserVO;
-import com.zhicore.user.application.service.UserApplicationService;
+import com.zhicore.user.application.port.UserQueryPort;
 import com.zhicore.user.infrastructure.cache.UserRedisKeys;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Primary;
+import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 用户查询缓存装饰器
  *
- * 装饰 UserApplicationService 的查询方法，实现缓存策略：
+ * 装饰 UserQueryPort 的查询方法，实现缓存策略：
  * - Cache-Aside 模式
  * - 分布式锁防击穿（200ms 等待 + DCL）
  * - 空值缓存防穿透
@@ -25,13 +31,14 @@ import java.util.concurrent.ThreadLocalRandom;
  * - TTL 从 CacheProperties 配置读取
  */
 @Slf4j
-@Component
-public class CacheAsideUserQuery {
+@Service
+@Primary
+public class CacheAsideUserQuery implements UserQueryPort {
 
+    private final UserQueryPort delegate;
     private final CacheRepository cacheRepository;
     private final LockManager lockManager;
     private final CacheProperties cacheProperties;
-    private final UserApplicationService userApplicationService;
 
     private static final Duration DEFAULT_DETAIL_TTL = Duration.ofMinutes(10);
     private static final Duration DEFAULT_NULL_TTL = Duration.ofSeconds(60);
@@ -39,23 +46,18 @@ public class CacheAsideUserQuery {
     private static final Duration LOCK_WAIT_TIME = Duration.ofMillis(200);
 
     public CacheAsideUserQuery(
+            @Qualifier("userApplicationService") UserQueryPort delegate,
             CacheRepository cacheRepository,
             LockManager lockManager,
-            CacheProperties cacheProperties,
-            UserApplicationService userApplicationService
+            CacheProperties cacheProperties
     ) {
+        this.delegate = delegate;
         this.cacheRepository = cacheRepository;
         this.lockManager = lockManager;
         this.cacheProperties = cacheProperties;
-        this.userApplicationService = userApplicationService;
     }
 
-    /**
-     * 获取用户详情（带缓存）
-     *
-     * @param userId 用户ID
-     * @return 用户视图对象
-     */
+    @Override
     public UserVO getUserById(Long userId) {
         String cacheKey = UserRedisKeys.userDetail(userId);
         String lockKey = UserRedisKeys.lockDetail(userId);
@@ -74,9 +76,8 @@ public class CacheAsideUserQuery {
         boolean lockAcquired = lockManager.tryLock(lockKey, LOCK_WAIT_TIME, LOCK_TTL);
 
         if (!lockAcquired) {
-            // 未获取到锁，降级直接查数据源
             log.debug("Failed to acquire lock, fallback to source: userId={}", userId);
-            return userApplicationService.getUserById(userId);
+            return delegate.getUserById(userId);
         }
 
         try {
@@ -91,7 +92,7 @@ public class CacheAsideUserQuery {
 
             // 4. 从数据源获取
             log.debug("Cache miss for user detail, fetching from source: userId={}", userId);
-            UserVO userVO = userApplicationService.getUserById(userId);
+            UserVO userVO = delegate.getUserById(userId);
 
             // 5. 缓存结果
             cacheValue(cacheKey, userVO);
@@ -102,14 +103,9 @@ public class CacheAsideUserQuery {
         }
     }
 
-    /**
-     * 获取用户简要信息（带缓存）
-     *
-     * @param userId 用户ID
-     * @return 用户简要信息DTO
-     */
+    @Override
     public UserSimpleDTO getUserSimpleById(Long userId) {
-        String cacheKey = UserRedisKeys.userDetail(userId) + ":simple";
+        String cacheKey = UserRedisKeys.userSimple(userId);
 
         // 1. 尝试从缓存获取
         CacheResult<UserSimpleDTO> cached = cacheRepository.get(cacheKey, UserSimpleDTO.class);
@@ -121,27 +117,61 @@ public class CacheAsideUserQuery {
             return null;
         }
 
-        // 2. 缓存未命中，直接查数据源（简要信息不需要锁保护）
-        log.debug("Cache miss for user simple, fetching from source: userId=", userId);
-        UserSimpleDTO dto = userApplicationService.getUserSimpleById(userId);
+        // 2. 缓存未命中，查数据源
+        log.debug("Cache miss for user simple, fetching from source: userId={}", userId);
+        UserSimpleDTO dto = delegate.getUserSimpleById(userId);
 
-        cacheValue(cacheKey, dto);
+        // 使用 setIfAbsent 防止并发回填覆盖
+        if (dto == null) {
+            cacheRepository.setIfAbsent(cacheKey, null, getNullTtl());
+        } else {
+            Duration ttl = getDetailTtl().plus(Duration.ofSeconds(
+                    ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
+            cacheRepository.setIfAbsent(cacheKey, dto, ttl);
+        }
         return dto;
     }
 
-    /**
-     * 失效用户缓存（写操作后调用）
-     */
-    public void evictUserCache(Long userId) {
-        try {
-            cacheRepository.delete(
-                    UserRedisKeys.userDetail(userId),
-                    UserRedisKeys.userDetail(userId) + ":simple"
-            );
-            log.debug("Evicted user cache: userId={}", userId);
-        } catch (Exception e) {
-            log.warn("Failed to evict user cache: userId={}, error={}", userId, e.getMessage());
+    @Override
+    public Map<Long, UserSimpleDTO> batchGetUsersSimple(Set<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return new HashMap<>();
         }
+
+        Map<Long, UserSimpleDTO> result = new HashMap<>();
+        Set<Long> missedIds = new HashSet<>();
+
+        // 1. 逐个查缓存
+        for (Long userId : userIds) {
+            String cacheKey = UserRedisKeys.userSimple(userId);
+            CacheResult<UserSimpleDTO> cached = cacheRepository.get(cacheKey, UserSimpleDTO.class);
+            if (cached.isHit()) {
+                result.put(userId, cached.getValue());
+            } else if (!cached.isNull()) {
+                missedIds.add(userId);
+            }
+            // isNull → 防穿透，跳过该 ID
+        }
+
+        // 2. 批量查库回填 miss 的 ID
+        if (!missedIds.isEmpty()) {
+            Map<Long, UserSimpleDTO> fromDb = delegate.batchGetUsersSimple(missedIds);
+            Duration ttl = getDetailTtl().plus(Duration.ofSeconds(
+                    ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
+
+            for (Long missedId : missedIds) {
+                UserSimpleDTO dto = fromDb.get(missedId);
+                String cacheKey = UserRedisKeys.userSimple(missedId);
+                if (dto != null) {
+                    cacheRepository.setIfAbsent(cacheKey, dto, ttl);
+                    result.put(missedId, dto);
+                } else {
+                    cacheRepository.setIfAbsent(cacheKey, null, getNullTtl());
+                }
+            }
+        }
+
+        return result;
     }
 
     private void cacheValue(String key, Object value) {

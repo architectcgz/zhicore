@@ -11,6 +11,7 @@ import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.user.application.assembler.UserAssembler;
 import com.zhicore.user.application.dto.UserVO;
+import com.zhicore.user.application.port.UserQueryPort;
 import com.zhicore.user.domain.event.UserActivatedEvent;
 import com.zhicore.user.domain.event.UserDeactivatedEvent;
 import com.zhicore.user.domain.model.OutboxEvent;
@@ -46,7 +47,7 @@ import java.util.Set;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UserApplicationService {
+public class UserApplicationService implements UserQueryPort {
 
     private final UserRepository userRepository;
     private final UserFollowRepository userFollowRepository;
@@ -206,8 +207,8 @@ public class UserApplicationService {
 
         outboxEventRepository.save(outboxEvent);
 
-        // 失效缓存
-        evictUserCache(userId);
+        // 缓存失效延迟到事务提交后，避免事务回滚但缓存已被清除的不一致
+        registerCacheEviction(userId);
 
         log.info("User profile updated and outbox event created: userId={}, version={}, eventId={}",
             userId, updatedUser.getProfileVersion(), outboxEvent.getId());
@@ -235,14 +236,11 @@ public class UserApplicationService {
         );
         outboxEventRepository.save(outboxEvent);
 
-        // 失效缓存
-        evictUserCache(userId);
-
-        // 吊销所有 Refresh Token——必须在事务提交后执行，
-        // 避免事务回滚但 Redis Token 已被清除的不一致
+        // 缓存失效 + 吊销 Token 均延迟到事务提交后执行
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
+                evictUserCache(userId);
                 authApplicationService.revokeAllRefreshTokens(userId);
             }
         });
@@ -272,8 +270,8 @@ public class UserApplicationService {
         );
         outboxEventRepository.save(outboxEvent);
 
-        // 失效缓存
-        evictUserCache(userId);
+        // 缓存失效延迟到事务提交后
+        registerCacheEviction(userId);
 
         log.info("User enabled: userId={}", userId);
     }
@@ -316,8 +314,8 @@ public class UserApplicationService {
         user.updateProfile(null, avatarUrl, null);
         userRepository.update(user);
 
-        // 失效缓存
-        evictUserCache(userId);
+        // 缓存失效延迟到事务提交后
+        registerCacheEviction(userId);
 
         // 删除旧头像文件（如果存在）
         if (oldAvatarId != null && !oldAvatarId.isEmpty()) {
@@ -350,8 +348,8 @@ public class UserApplicationService {
         user.updateProfile(null, "", null);
         userRepository.update(user);
 
-        // 失效缓存
-        evictUserCache(userId);
+        // 缓存失效延迟到事务提交后
+        registerCacheEviction(userId);
 
         // 删除头像文件（如果存在）
         if (avatarId != null && !avatarId.isEmpty()) {
@@ -369,13 +367,25 @@ public class UserApplicationService {
     }
 
     /**
-     * 失效用户缓存（写操作后调用）
+     * 注册事务提交后的缓存失效回调
+     */
+    private void registerCacheEviction(Long userId) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                evictUserCache(userId);
+            }
+        });
+    }
+
+    /**
+     * 失效用户缓存
      */
     private void evictUserCache(Long userId) {
         try {
             cacheRepository.delete(
                     UserRedisKeys.userDetail(userId),
-                    UserRedisKeys.userDetail(userId) + ":simple"
+                    UserRedisKeys.userSimple(userId)
             );
             log.debug("Evicted user cache: userId={}", userId);
         } catch (Exception e) {

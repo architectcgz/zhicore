@@ -3,6 +3,7 @@ package com.zhicore.user.interfaces.controller;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.user.application.dto.UserVO;
+import com.zhicore.user.application.port.UserQueryPort;
 import com.zhicore.user.application.service.UserApplicationService;
 import com.zhicore.user.interfaces.dto.request.UpdateProfileRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,6 +31,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UserController {
 
+    private final UserQueryPort userQueryPort;
     private final UserApplicationService userApplicationService;
 
     /**
@@ -57,7 +59,7 @@ public class UserController {
     public ApiResponse<UserVO> getUser(
             @Parameter(description = "用户ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId) {
-        UserVO user = userApplicationService.getUserById(userId);
+        UserVO user = userQueryPort.getUserById(userId);
         return ApiResponse.success(user);
     }
 
@@ -86,7 +88,7 @@ public class UserController {
     public ApiResponse<UserSimpleDTO> getUserSimple(
             @Parameter(description = "用户ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId) {
-        UserSimpleDTO user = userApplicationService.getUserSimpleById(userId);
+        UserSimpleDTO user = userQueryPort.getUserSimpleById(userId);
         return ApiResponse.success(user);
     }
 
@@ -110,7 +112,7 @@ public class UserController {
     public ApiResponse<Map<Long, UserSimpleDTO>> batchGetUsers(
             @Parameter(description = "用户ID集合", required = true)
             @RequestBody Set<Long> userIds) {
-        Map<Long, UserSimpleDTO> users = userApplicationService.batchGetUsersSimple(userIds);
+        Map<Long, UserSimpleDTO> users = userQueryPort.batchGetUsersSimple(userIds);
         return ApiResponse.success(users);
     }
 
