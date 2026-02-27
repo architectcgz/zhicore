@@ -1,6 +1,5 @@
 package com.zhicore.ranking.interfaces.controller;
 
-import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.ranking.application.dto.HotPostDTO;
 import com.zhicore.ranking.application.service.CreatorRankingService;
@@ -9,7 +8,6 @@ import com.zhicore.ranking.application.service.PostRankingService;
 import com.zhicore.ranking.application.service.TopicRankingService;
 import com.zhicore.ranking.domain.model.HotScore;
 import com.zhicore.ranking.infrastructure.config.RankingProperties;
-import com.zhicore.ranking.infrastructure.config.RankingSentinelConfig;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -60,7 +58,6 @@ public class RankingController {
             )
     })
     @GetMapping("/posts/hot")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_HOT_POSTS)
     public ApiResponse<List<String>> getHotPosts(
             @Parameter(description = "页码（从0开始）", example = "0")
             @RequestParam(defaultValue = "0") int page,
@@ -93,7 +90,6 @@ public class RankingController {
             )
     })
     @GetMapping("/posts/hot/details")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_HOT_POSTS)
     public ApiResponse<List<HotPostDTO>> getHotPostsWithDetails(
             @Parameter(description = "页码（从0开始）", example = "0")
             @RequestParam(defaultValue = "0") int page,
@@ -126,7 +122,6 @@ public class RankingController {
             )
     })
     @GetMapping("/posts/hot/scores")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_HOT_POSTS)
     public ApiResponse<List<HotScore>> getHotPostsWithScore(
             @Parameter(description = "页码（从0开始）", example = "0")
             @RequestParam(defaultValue = "0") int page,
@@ -159,7 +154,6 @@ public class RankingController {
             )
     })
     @GetMapping("/posts/daily")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_HOT_POSTS)
     public ApiResponse<List<String>> getDailyHotPosts(
             @Parameter(description = "日期（格式：yyyy-MM-dd），默认今天", example = "2024-01-28")
             @RequestParam(required = false) LocalDate date,
@@ -195,7 +189,6 @@ public class RankingController {
             )
     })
     @GetMapping("/posts/weekly")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_HOT_POSTS)
     public ApiResponse<List<String>> getWeeklyHotPosts(
             @Parameter(description = "周数，默认本周", example = "1")
             @RequestParam(required = false) Integer week,
@@ -233,7 +226,6 @@ public class RankingController {
             )
     })
     @GetMapping("/posts/daily/scores")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_HOT_POSTS)
     public ApiResponse<List<HotScore>> getDailyHotPostsWithScore(
             @Parameter(description = "日期（格式：yyyy-MM-dd），默认今天", example = "2024-01-28")
             @RequestParam(required = false) LocalDate date,
@@ -269,7 +261,6 @@ public class RankingController {
             )
     })
     @GetMapping("/posts/weekly/scores")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_HOT_POSTS)
     public ApiResponse<List<HotScore>> getWeeklyHotPostsWithScore(
             @Parameter(description = "周数，默认本周", example = "1")
             @RequestParam(required = false) Integer week,
@@ -308,7 +299,6 @@ public class RankingController {
             )
     })
     @GetMapping("/posts/monthly")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_HOT_POSTS)
     public ApiResponse<List<String>> getMonthlyHotPosts(
             @Parameter(description = "年份，默认当前年份", example = "2024")
             @RequestParam(required = false) Integer year,
@@ -360,7 +350,6 @@ public class RankingController {
             )
     })
     @GetMapping("/posts/monthly/scores")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_HOT_POSTS)
     public ApiResponse<List<HotScore>> getMonthlyHotPostsWithScore(
             @Parameter(description = "年份，默认当前年份", example = "2024")
             @RequestParam(required = false) Integer year,
@@ -410,7 +399,6 @@ public class RankingController {
             )
     })
     @GetMapping("/posts/{postId}/rank")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_HOT_POSTS)
     public ApiResponse<Long> getPostRank(
             @Parameter(description = "文章ID", example = "1234567890", required = true)
             @PathVariable String postId) {
@@ -436,7 +424,6 @@ public class RankingController {
             )
     })
     @GetMapping("/posts/{postId}/score")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_HOT_POSTS)
     public ApiResponse<Double> getPostScore(
             @Parameter(description = "文章ID", example = "1234567890", required = true)
             @PathVariable String postId) {
@@ -465,7 +452,6 @@ public class RankingController {
             )
     })
     @GetMapping("/creators/hot")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_CREATORS)
     public ApiResponse<List<String>> getHotCreators(
             @Parameter(description = "页码（从0开始）", example = "0")
             @RequestParam(defaultValue = "0") int page,
@@ -498,7 +484,6 @@ public class RankingController {
             )
     })
     @GetMapping("/creators/hot/scores")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_CREATORS)
     public ApiResponse<List<HotScore>> getHotCreatorsWithScore(
             @Parameter(description = "页码（从0开始）", example = "0")
             @RequestParam(defaultValue = "0") int page,
@@ -530,7 +515,6 @@ public class RankingController {
             )
     })
     @GetMapping("/creators/{userId}/rank")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_CREATORS)
     public ApiResponse<Long> getCreatorRank(
             @Parameter(description = "用户ID", example = "1234567890", required = true)
             @PathVariable String userId) {
@@ -556,7 +540,6 @@ public class RankingController {
             )
     })
     @GetMapping("/creators/{userId}/score")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_CREATORS)
     public ApiResponse<Double> getCreatorScore(
             @Parameter(description = "用户ID", example = "1234567890", required = true)
             @PathVariable String userId) {
@@ -585,7 +568,6 @@ public class RankingController {
             )
     })
     @GetMapping("/topics/hot")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_TOPICS)
     public ApiResponse<List<Long>> getHotTopics(
             @Parameter(description = "页码（从0开始）", example = "0")
             @RequestParam(defaultValue = "0") int page,
@@ -618,7 +600,6 @@ public class RankingController {
             )
     })
     @GetMapping("/topics/hot/scores")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_TOPICS)
     public ApiResponse<List<HotScore>> getHotTopicsWithScore(
             @Parameter(description = "页码（从0开始）", example = "0")
             @RequestParam(defaultValue = "0") int page,
@@ -650,7 +631,6 @@ public class RankingController {
             )
     })
     @GetMapping("/topics/{topicId}/rank")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_TOPICS)
     public ApiResponse<Long> getTopicRank(
             @Parameter(description = "话题ID", example = "1", required = true)
             @PathVariable Long topicId) {
@@ -676,7 +656,6 @@ public class RankingController {
             )
     })
     @GetMapping("/topics/{topicId}/score")
-    @SentinelResource(RankingSentinelConfig.RESOURCE_TOPICS)
     public ApiResponse<Double> getTopicScore(
             @Parameter(description = "话题ID", example = "1", required = true)
             @PathVariable Long topicId) {
