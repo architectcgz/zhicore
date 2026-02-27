@@ -430,4 +430,61 @@ public class RankingRedisRepository {
                 .map(Long::parseLong)
                 .toList();
     }
+
+    // ==================== 防刷去重操作 ====================
+
+    /**
+     * 浏览去重检查：同一用户同一文章 30 分钟内只计一次
+     *
+     * @param postId 文章ID
+     * @param userId 用户ID
+     * @return true 表示首次浏览（未重复），false 表示重复浏览
+     */
+    public boolean tryAcquireViewDedup(String postId, String userId) {
+        String key = RankingRedisKeys.viewDedup(postId, userId);
+        Boolean success = redisTemplate.opsForValue()
+                .setIfAbsent(key, "1", Duration.ofMinutes(30));
+        return Boolean.TRUE.equals(success);
+    }
+
+    /**
+     * 累加单篇文章浏览分数并检查是否超过上限
+     *
+     * @param postId   文章ID
+     * @param delta    本次增量
+     * @param capScore 分数上限
+     * @return 实际可加的分数（可能被截断为 0 或部分值）
+     */
+    public double incrementViewScoreWithCap(String postId, double delta, double capScore) {
+        String key = RankingRedisKeys.viewScoreCap(postId);
+        Double current = (Double) redisTemplate.opsForValue().get(key);
+        double currentScore = current != null ? current : 0.0;
+
+        if (currentScore >= capScore) {
+            return 0.0;
+        }
+
+        double allowedDelta = Math.min(delta, capScore - currentScore);
+        redisTemplate.opsForValue().set(key, currentScore + allowedDelta);
+        return allowedDelta;
+    }
+
+    // ==================== 总榜淘汰操作 ====================
+
+    /**
+     * 淘汰 Sorted Set 中排名靠后的成员，只保留 Top N
+     *
+     * @param key    Redis Key
+     * @param topN   保留的最大成员数
+     * @return 被淘汰的成员数
+     */
+    public long trimSortedSet(String key, long topN) {
+        Long size = redisTemplate.opsForZSet().zCard(key);
+        if (size == null || size <= topN) {
+            return 0;
+        }
+        // ZREMRANGEBYRANK key 0 (size - topN - 1)：移除分数最低的成员
+        Long removed = redisTemplate.opsForZSet().removeRange(key, 0, size - topN - 1);
+        return removed != null ? removed : 0;
+    }
 }
