@@ -11,9 +11,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  *
  * @author ZhiCore Team
  */
-@SpringBootApplication(scanBasePackages = {"com.ZhiCore.ranking", "com.zhicore.common"})
+@SpringBootApplication(scanBasePackages = {"com.zhicore.ranking", "com.zhicore.common"})
 @EnableDiscoveryClient
-@EnableFeignClients(basePackages = {"com.ZhiCore.ranking.infrastructure.feign", "com.zhicore.api.client"})
+@EnableFeignClients(basePackages = {"com.zhicore.ranking.infrastructure.feign", "com.zhicore.api.client"})
 @EnableScheduling
 public class RankingApplication {
 

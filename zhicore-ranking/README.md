@@ -8,19 +8,19 @@
 
 - **多维度排行榜**：支持总榜、日榜、周榜、月榜
 - **多实体类型**：文章、创作者、话题
-- **实时更新**：基于 Redis ZSet 的高性能实时排行
+- **事件驱动更新**：消费浏览、点赞、收藏、评论等 MQ 事件
+- **可靠处理**：基于 MongoDB `ranking_event_inbox` 的 durable inbox
+- **权威热度状态**：基于 MongoDB `ranking_post_hot_state` 存储净计数与元数据
+- **快照刷新**：定时从权威状态重建 Redis 当前排行
 - **历史归档**：MongoDB 永久保存历史排行榜数据
 - **智能路由**：自动选择 Redis（热数据）或 MongoDB（冷数据）
-- **本地聚合**：减少 Redis 网络调用，提高吞吐量
 
 ### 性能优化
 
-- **双层优化策略**：
-  - 本地聚合层：使用 `ConcurrentHashMap + DoubleAdder` 在内存中聚合热度更新
-  - Redis 层：使用 Lua 脚本原子性更新 4 个排行榜
-- **批量刷写**：定时批量刷写本地聚合数据到 Redis（默认 5 秒）
-- **Lua 脚本优化**：从 7 次 Redis 命令减少到 1 次网络往返
-- **智能 TTL**：只在 key 首次创建时设置过期时间
+- **消费者快速落盘**：MQ 消费后先写 durable inbox，再进入异步聚合
+- **按文章批量聚合**：聚合作业按 `postId` 合并事件，减少热度状态写放大
+- **快照全量替换**：Redis 排行统一由快照任务全量刷新，避免未衰减增量和已衰减分数混算
+- **原子替换排行榜**：使用临时 key + `RENAME` 覆盖 Sorted Set，避免半刷新的中间态
 
 ## API 端点
 
@@ -274,10 +274,17 @@ ranking:
   archive:
     limit: 100  # 归档数量限制，默认 100
   
-  # 本地聚合配置
-  buffer:
-    flush-interval: 5000  # 刷写间隔（毫秒），默认 5 秒
-    batch-size: 1000      # 批量刷写大小，默认 1000
+  inbox:
+    scan-interval: 5000          # inbox 聚合扫描间隔（毫秒）
+    batch-size: 500              # 单次 claim 的 inbox 条数上限
+    lease-seconds: 60            # PROCESSING 租约时长
+    max-retry: 10                # 最大重试次数
+    applied-event-window-size: 2048  # recentAppliedEventIds 保留窗口
+    done-retention-days: 400     # DONE inbox 保留天数
+
+  snapshot:
+    refresh-interval: 60000      # 当前快照刷新间隔（毫秒）
+    top-size: 10000              # Redis 中保留的 Top N
 ```
 
 ### MongoDB 索引
@@ -333,8 +340,8 @@ ranking:
 
 - **API 响应时间**：P95 < 100ms
 - **并发查询**：支持 1000+ QPS
-- **本地聚合优化**：减少 80-90% 的 Redis 网络调用
-- **Lua 脚本优化**：从 7 次 Redis 命令减少到 1 次网络往返
+- **inbox 聚合**：减少对权威热度状态的细粒度写入
+- **快照替换**：避免对 Redis 排行做高频逐条增量更新
 
 ### Redis Key 设计
 
@@ -356,33 +363,36 @@ ranking:posts:monthly:2024:01
 
 ## 热度更新流程
 
-### 1. 本地聚合（ScoreBufferService）
+### 1. 事件写入与聚合
 
 ```
-文章浏览/点赞/评论事件
+文章浏览/点赞/收藏/评论事件
     ↓
-ScoreBufferService.addScore()
+RocketMQ Consumer
     ↓
-本地缓冲区（ConcurrentHashMap + DoubleAdder）
+RankingEventInboxService.saveEvent()
     ↓
-定时刷写（@Scheduled，默认 5 秒）
+MongoDB: ranking_event_inbox
     ↓
-批量调用 RankingRedisRepository.incrementPostScore()
+RankingInboxScheduler
+    ↓
+RankingInboxAggregationService
+    ↓
+MongoDB: ranking_post_hot_state
 ```
 
-### 2. Redis 更新（Lua 脚本）
+### 2. 当前排行快照刷新
 
-```lua
--- 单个 Lua 脚本原子性更新 4 个排行榜
-ZINCRBY ranking:posts:hot {delta} {postId}
-ZINCRBY ranking:posts:daily:{today} {delta} {postId}
-ZINCRBY ranking:posts:weekly:{week} {delta} {postId}
-ZINCRBY ranking:posts:monthly:{year}:{month} {delta} {postId}
-
--- 智能 TTL 设置（只在首次创建时）
-if TTL == -1 then
-    EXPIRE {key} {ttl}
-end
+```
+ranking_post_hot_state + 当前周期 DONE inbox 事件
+    ↓
+RankingSnapshotScheduler
+    ↓
+RankingSnapshotService
+    ↓
+RankingRedisRepository.replaceRanking()
+    ↓
+Redis Sorted Set
 ```
 
 ### 3. 归档流程
@@ -468,13 +478,12 @@ logging:
 
 ### 监控指标
 
-系统提供以下监控指标（通过 Spring Boot Actuator）：
+系统当前重点关注：
 
-- 本地缓冲区大小
-- 刷写频率和耗时
-- 刷写失败次数
-- Redis 操作耗时
-- MongoDB 归档成功/失败次数
+- inbox 聚合调度日志与失败重试
+- snapshot 刷新日志
+- 浏览去重计数 `ranking.view.dedup`
+- Redis 和 MongoDB 的连接健康状态
 
 ## 故障排查
 
@@ -508,8 +517,11 @@ grep "归档" logs/ZhiCore-ranking.log
 # 查看错误日志
 grep "ERROR" logs/ZhiCore-ranking.log
 
-# 查看本地聚合日志
-grep "ScoreBufferService" logs/ZhiCore-ranking.log
+# 查看 inbox 聚合日志
+grep "ranking inbox" logs/ZhiCore-ranking.log
+
+# 查看快照刷新日志
+grep "快照" logs/ZhiCore-ranking.log
 ```
 
 ## 扩展性

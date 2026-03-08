@@ -1,16 +1,17 @@
 package com.zhicore.ranking.infrastructure.mq;
 
-import com.zhicore.api.event.post.PostUnfavoritedEvent;
-import com.zhicore.common.mq.StatefulIdempotentHandler;
-import com.zhicore.common.mq.TopicConstants;
-import com.zhicore.ranking.application.service.ScoreBufferService;
-import com.zhicore.ranking.domain.service.HotScoreCalculator;
-import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhicore.common.mq.TopicConstants;
+import com.zhicore.integration.messaging.post.PostUnfavoritedIntegrationEvent;
+import com.zhicore.ranking.application.service.RankingEventInboxService;
+import com.zhicore.ranking.domain.model.RankingMetricType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.stereotype.Component;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 /**
  * 文章取消收藏热度消费者
@@ -29,47 +30,32 @@ import org.springframework.stereotype.Component;
 public class PostUnfavoritedRankingConsumer extends BaseRankingConsumer
         implements RocketMQListener<String> {
 
-    public PostUnfavoritedRankingConsumer(RankingRedisRepository rankingRepository,
-                                          HotScoreCalculator scoreCalculator,
-                                          StatefulIdempotentHandler idempotentHandler,
-                                          ObjectMapper objectMapper,
-                                          ScoreBufferService scoreBufferService) {
-        super(rankingRepository, scoreCalculator, idempotentHandler, objectMapper, scoreBufferService);
+    public PostUnfavoritedRankingConsumer(ObjectMapper objectMapper,
+                                          RankingEventInboxService rankingEventInboxService) {
+        super(objectMapper, rankingEventInboxService);
     }
 
     @Override
     public void onMessage(String message) {
         try {
-            PostUnfavoritedEvent event = objectMapper.readValue(message, PostUnfavoritedEvent.class);
-            String messageId = event.getEventId();
-
-            if (!tryProcess(messageId)) {
-                log.debug("Message already processed: {}", messageId);
+            PostUnfavoritedIntegrationEvent event = objectMapper.readValue(message, PostUnfavoritedIntegrationEvent.class);
+            boolean created = saveInboxEvent(
+                    event.getEventId(),
+                    event.getClass().getSimpleName(),
+                    event.getPostId(),
+                    event.getUserId(),
+                    null,
+                    RankingMetricType.FAVORITE,
+                    -1,
+                    LocalDateTime.ofInstant(event.getOccurredAt(), ZoneId.systemDefault()),
+                    null
+            );
+            if (!created) {
+                log.debug("Post unfavorited 事件已写入 ranking inbox，跳过重复消费: eventId={}", event.getEventId());
                 return;
             }
-
-            try {
-                // 减少文章热度分数（负增量，与收藏权重对称）
-                incrementPostScore(
-                        String.valueOf(event.getPostId()),
-                        -scoreCalculator.getFavoriteDelta()
-                );
-
-                // 同时减少作者的创作者热度（与 PostFavoritedRankingConsumer 对称）
-                if (event.getAuthorId() != null) {
-                    incrementCreatorScore(
-                            String.valueOf(event.getAuthorId()),
-                            -scoreCalculator.getFavoriteDelta()
-                    );
-                }
-
-                markCompleted(messageId);
-                log.info("Processed post unfavorited event: postId={}, userId={}",
-                        event.getPostId(), event.getUserId());
-            } catch (Exception e) {
-                markFailed(messageId);
-                throw e;
-            }
+            log.info("Post unfavorited 事件已写入 ranking inbox: postId={}, userId={}",
+                    event.getPostId(), event.getUserId());
         } catch (Exception e) {
             log.error("Failed to process post unfavorited event: {}", message, e);
             throw new RuntimeException("Failed to process post unfavorited event", e);

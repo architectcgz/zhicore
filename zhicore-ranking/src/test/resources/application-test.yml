@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: ZhiCore-ranking-test
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: redis123456
   cloud:
     nacos:
       discovery:
@@ -27,4 +32,9 @@ spring.task.scheduling.enabled: false
 # Test logging
 logging:
   level:
-    com.ZhiCore.ranking: DEBUG
+    com.zhicore.ranking: DEBUG
+
+jwt:
+  secret: test-jwt-secret-for-ranking-32bytes-min
+  access-token-expiration: 7200
+  refresh-token-expiration: 604800

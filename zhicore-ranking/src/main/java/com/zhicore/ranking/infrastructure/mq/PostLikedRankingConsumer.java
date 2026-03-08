@@ -1,16 +1,17 @@
 package com.zhicore.ranking.infrastructure.mq;
 
-import com.zhicore.api.event.post.PostLikedEvent;
-import com.zhicore.common.mq.StatefulIdempotentHandler;
-import com.zhicore.common.mq.TopicConstants;
-import com.zhicore.ranking.application.service.ScoreBufferService;
-import com.zhicore.ranking.domain.service.HotScoreCalculator;
-import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhicore.common.mq.TopicConstants;
+import com.zhicore.integration.messaging.post.PostLikedIntegrationEvent;
+import com.zhicore.ranking.application.service.RankingEventInboxService;
+import com.zhicore.ranking.domain.model.RankingMetricType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.stereotype.Component;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 /**
  * 文章点赞热度消费者
@@ -29,45 +30,34 @@ import org.springframework.stereotype.Component;
 public class PostLikedRankingConsumer extends BaseRankingConsumer
         implements RocketMQListener<String> {
 
-    public PostLikedRankingConsumer(RankingRedisRepository rankingRepository,
-                                    HotScoreCalculator scoreCalculator,
-                                    StatefulIdempotentHandler idempotentHandler,
-                                    ObjectMapper objectMapper,
-                                    ScoreBufferService scoreBufferService) {
-        super(rankingRepository, scoreCalculator, idempotentHandler, objectMapper, scoreBufferService);
+    public PostLikedRankingConsumer(ObjectMapper objectMapper,
+                                    RankingEventInboxService rankingEventInboxService) {
+        super(objectMapper, rankingEventInboxService);
     }
 
     @Override
     public void onMessage(String message) {
         try {
-            PostLikedEvent event = objectMapper.readValue(message, PostLikedEvent.class);
-            String messageId = event.getEventId();
-
-            // 幂等性检查
-            if (!tryProcess(messageId)) {
-                log.debug("Message already processed: {}", messageId);
+            PostLikedIntegrationEvent event = objectMapper.readValue(message, PostLikedIntegrationEvent.class);
+            boolean created = saveInboxEvent(
+                    event.getEventId(),
+                    event.getClass().getSimpleName(),
+                    event.getPostId(),
+                    event.getUserId(),
+                    event.getAuthorId(),
+                    RankingMetricType.LIKE,
+                    1,
+                    LocalDateTime.ofInstant(event.getOccurredAt(), ZoneId.systemDefault()),
+                    event.getPublishedAt() != null
+                            ? LocalDateTime.ofInstant(event.getPublishedAt(), ZoneId.systemDefault())
+                            : null
+            );
+            if (!created) {
+                log.debug("Post liked 事件已写入 ranking inbox，跳过重复消费: eventId={}", event.getEventId());
                 return;
             }
-
-            try {
-                // 增量更新文章热度分数（事件使用 Long ID，Redis 使用 String）
-                incrementPostScore(
-                        String.valueOf(event.getPostId()),
-                        scoreCalculator.getLikeDelta()
-                );
-
-                // 同时更新作者的创作者热度
-                if (event.getAuthorId() != null) {
-                    incrementCreatorScore(String.valueOf(event.getAuthorId()), scoreCalculator.getLikeDelta());
-                }
-
-                markCompleted(messageId);
-                log.info("Processed post liked event: postId={}, authorId={}",
-                        event.getPostId(), event.getAuthorId());
-            } catch (Exception e) {
-                markFailed(messageId);
-                throw e;
-            }
+            log.info("Post liked 事件已写入 ranking inbox: postId={}, authorId={}",
+                    event.getPostId(), event.getAuthorId());
         } catch (Exception e) {
             log.error("Failed to process post liked event: {}", message, e);
             throw new RuntimeException("Failed to process post liked event", e);

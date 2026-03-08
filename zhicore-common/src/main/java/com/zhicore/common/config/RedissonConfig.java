@@ -19,7 +19,7 @@ public class RedissonConfig {
     @Value("${spring.data.redis.host:localhost}")
     private String redisHost;
 
-    @Value("${spring.data.redis.port:6500}")
+    @Value("${spring.data.redis.port:6379}")
     private int redisPort;
 
     @Value("${spring.data.redis.password:}")

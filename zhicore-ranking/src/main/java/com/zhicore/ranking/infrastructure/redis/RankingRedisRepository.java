@@ -5,8 +5,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.connection.ReturnType;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.data.redis.serializer.GenericToStringSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.stereotype.Repository;
 
 import java.time.Duration;
@@ -27,6 +31,9 @@ import java.util.Set;
 public class RankingRedisRepository {
 
     private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisSerializer stringRedisSerializer = new StringRedisSerializer();
+    private final GenericToStringSerializer<Long> longResultSerializer =
+            new GenericToStringSerializer<>(Long.class);
     
     /**
      * Lua 脚本：原子性更新所有排行榜并设置 TTL
@@ -68,6 +75,8 @@ public class RankingRedisRepository {
         new DefaultRedisScript<>(INCREMENT_SCRIPT, Long.class);
     private final RedisScript<String> viewScoreCapScript =
         new DefaultRedisScript<>(VIEW_SCORE_CAP_SCRIPT, String.class);
+    private final RedisScript<String> rollbackViewScoreCapScript =
+        new DefaultRedisScript<>(ROLLBACK_VIEW_SCORE_CAP_SCRIPT, String.class);
     private final RedisScript<Long> trimSortedSetScript =
         new DefaultRedisScript<>(TRIM_SORTED_SET_SCRIPT, Long.class);
 
@@ -125,6 +134,26 @@ public class RankingRedisRepository {
     }
 
     /**
+     * 替换整个排行榜 key。
+     *
+     * <p>当 entries 为空时直接删除旧 key，避免保留过期快照。</p>
+     *
+     * @param key      目标 Redis Key
+     * @param entries  新的排行榜数据
+     * @param ttl      过期时间，null 表示不设置 TTL
+     */
+    public void replaceRanking(String key, List<HotScore> entries, Duration ttl) {
+        if (entries == null || entries.isEmpty()) {
+            deleteKey(key);
+            return;
+        }
+        batchSetScoreAtomic(key, entries);
+        if (ttl != null) {
+            setExpire(key, ttl);
+        }
+    }
+
+    /**
      * 增量更新分数
      *
      * @param key Redis Key
@@ -167,7 +196,10 @@ public class RankingRedisRepository {
      * @return 排行榜列表
      */
     public List<HotScore> getTopRanking(String key, int start, int end) {
-        Set<ZSetOperations.TypedTuple<Object>> tuples = 
+        if (start < 0 || end < start) {
+            return Collections.emptyList();
+        }
+        Set<ZSetOperations.TypedTuple<Object>> tuples =
                 redisTemplate.opsForZSet().reverseRangeWithScores(key, start, end);
         
         if (tuples == null || tuples.isEmpty()) {
@@ -197,6 +229,9 @@ public class RankingRedisRepository {
      * @return ID列表
      */
     public List<String> getTopIds(String key, int start, int end) {
+        if (start < 0 || end < start) {
+            return Collections.emptyList();
+        }
         Set<Object> members = redisTemplate.opsForZSet().reverseRange(key, start, end);
         if (members == null || members.isEmpty()) {
             return Collections.emptyList();
@@ -226,6 +261,15 @@ public class RankingRedisRepository {
         redisTemplate.expire(key, duration);
     }
 
+    /**
+     * 删除整个 key。
+     *
+     * @param key Redis Key
+     */
+    public void deleteKey(String key) {
+        redisTemplate.delete(key);
+    }
+
     // ==================== 文章排行榜操作 ====================
 
     /**
@@ -252,16 +296,28 @@ public class RankingRedisRepository {
             RankingRedisKeys.currentWeekPosts(),
             RankingRedisKeys.currentMonthPosts()
         );
-        
-        redisTemplate.execute(
-            incrementScript,
-            keys,
-            postId,
-            String.valueOf(delta),
-            String.valueOf(Duration.ofDays(2).getSeconds()),
-            String.valueOf(Duration.ofDays(14).getSeconds()),
-            String.valueOf(Duration.ofDays(365).getSeconds())
-        );
+
+        redisTemplate.execute((org.springframework.data.redis.core.RedisCallback<Long>) connection -> {
+            RedisSerializer<?> valueSerializer = redisTemplate.getValueSerializer();
+            byte[][] keysAndArgs = new byte[][]
+                    {
+                            stringRedisSerializer.serialize(keys.get(0)),
+                            stringRedisSerializer.serialize(keys.get(1)),
+                            stringRedisSerializer.serialize(keys.get(2)),
+                            stringRedisSerializer.serialize(keys.get(3)),
+                            serializeValue(valueSerializer, postId),
+                            stringRedisSerializer.serialize(Double.toString(delta)),
+                            stringRedisSerializer.serialize(Long.toString(Duration.ofDays(2).getSeconds())),
+                            stringRedisSerializer.serialize(Long.toString(Duration.ofDays(14).getSeconds())),
+                            stringRedisSerializer.serialize(Long.toString(Duration.ofDays(365).getSeconds()))
+                    };
+            return connection.scriptingCommands().eval(
+                    stringRedisSerializer.serialize(INCREMENT_SCRIPT),
+                    ReturnType.INTEGER,
+                    keys.size(),
+                    keysAndArgs
+            );
+        });
     }
 
     /**
@@ -452,6 +508,18 @@ public class RankingRedisRepository {
     }
 
     /**
+     * 释放浏览去重标记。
+     *
+     * <p>当事件尚未成功落 inbox 时，需要回滚 dedup 标记，避免 RocketMQ 重试被误判为重复。</p>
+     *
+     * @param postId 文章ID
+     * @param userId 去重标识
+     */
+    public void releaseViewDedup(String postId, String userId) {
+        redisTemplate.delete(RankingRedisKeys.viewDedup(postId, userId));
+    }
+
+    /**
      * Lua 脚本：原子累加浏览分数并检查上限
      *
      * <p>解决 check-then-act 竞态条件，同时设置 30 天 TTL 防止内存泄漏。</p>
@@ -472,6 +540,22 @@ public class RankingRedisRepository {
         """;
 
     /**
+     * Lua 脚本：回滚浏览分数上限计数，最低不小于 0。
+     */
+    private static final String ROLLBACK_VIEW_SCORE_CAP_SCRIPT = """
+        local key = KEYS[1]
+        local delta = tonumber(ARGV[1])
+        local current = tonumber(redis.call('GET', key) or '0')
+        local next = current - delta
+        if next <= 0 then
+            redis.call('DEL', key)
+            return '0'
+        end
+        redis.call('SET', key, tostring(next))
+        return tostring(next)
+        """;
+
+    /**
      * 原子累加单篇文章浏览分数并检查是否超过上限
      *
      * <p>使用 Lua 脚本保证 check-and-increment 原子性，同时设置 30 天 TTL。</p>
@@ -485,9 +569,28 @@ public class RankingRedisRepository {
         String key = RankingRedisKeys.viewScoreCap(postId);
         long ttlSeconds = Duration.ofDays(30).getSeconds();
         String result = redisTemplate.execute(viewScoreCapScript,
+                stringRedisSerializer,
+                stringRedisSerializer,
                 Collections.singletonList(key),
-                String.valueOf(delta), String.valueOf(capScore), String.valueOf(ttlSeconds));
+                Double.toString(delta), Double.toString(capScore), Long.toString(ttlSeconds));
         return result != null ? Double.parseDouble(result) : 0.0;
+    }
+
+    /**
+     * 回滚浏览分数上限计数。
+     *
+     * @param postId 文章ID
+     * @param delta  之前已占用的分值
+     */
+    public void rollbackViewScoreCap(String postId, double delta) {
+        if (delta <= 0) {
+            return;
+        }
+        redisTemplate.execute(rollbackViewScoreCapScript,
+                stringRedisSerializer,
+                stringRedisSerializer,
+                Collections.singletonList(RankingRedisKeys.viewScoreCap(postId)),
+                Double.toString(delta));
     }
 
     // ==================== 总榜淘汰操作 ====================
@@ -514,8 +617,15 @@ public class RankingRedisRepository {
      */
     public long trimSortedSet(String key, long topN) {
         Long removed = redisTemplate.execute(trimSortedSetScript,
+                stringRedisSerializer,
+                longResultSerializer,
                 Collections.singletonList(key),
-                String.valueOf(topN));
+                Long.toString(topN));
         return removed != null ? removed : 0;
+    }
+
+    @SuppressWarnings("unchecked")
+    private byte[] serializeValue(RedisSerializer<?> serializer, Object value) {
+        return ((RedisSerializer<Object>) serializer).serialize(value);
     }
 }

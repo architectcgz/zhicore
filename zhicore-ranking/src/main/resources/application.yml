@@ -90,16 +90,23 @@ ranking:
   default-size: 20
   # 最大排行榜大小
   max-size: 100
+  pagination:
+    default-size: 20    # 默认分页大小
+    max-size: 100       # 最大分页大小
   # 归档配置
   archive:
     # 归档数量限制
     limit: 100
-  # 本地聚合缓冲配置
-  buffer:
-    # 刷写间隔（毫秒），默认 5000ms（5秒）
-    flush-interval: 5000
-    # 批量刷写大小，默认 1000
-    batch-size: 1000
+  inbox:
+    scan-interval: 5000
+    batch-size: 500
+    lease-seconds: 60
+    max-retry: 10
+    applied-event-window-size: 2048
+    done-retention-days: 400
+  snapshot:
+    refresh-interval: 60000
+    top-size: 10000
   # 定时任务调度配置（修改后需重启生效）
   scheduler:
     hot-posts-cron: "0 0 * * * ?"         # 热榜清理与淘汰，每小时
@@ -108,13 +115,6 @@ ranking:
     daily-archive-cron: "0 0 2 * * ?"     # 日榜归档，每日 02:00
     weekly-archive-cron: "0 0 3 ? * MON"  # 周榜归档，每周一 03:00
     monthly-archive-cron: "0 0 4 1 * ?"   # 月榜归档，每月 1 日 04:00
-
-# 分页配置
-ZhiCore:
-  ranking:
-    pagination:
-      default-size: 20    # 默认分页大小
-      max-size: 100       # 最大分页大小
 
 # 日志配置
 logging:

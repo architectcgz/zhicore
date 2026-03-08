@@ -15,7 +15,7 @@ import org.springframework.validation.annotation.Validated;
 @Data
 @Component
 @Validated
-@ConfigurationProperties(prefix = "ZhiCore.ranking.pagination")
+@ConfigurationProperties(prefix = "ranking.pagination")
 public class RankingProperties {
     
     /**
