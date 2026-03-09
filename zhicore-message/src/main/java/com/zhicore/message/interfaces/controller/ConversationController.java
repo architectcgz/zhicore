@@ -1,5 +1,6 @@
 package com.zhicore.message.interfaces.controller;
 
+import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.message.application.dto.ConversationVO;
 import com.zhicore.message.application.service.ConversationApplicationService;
@@ -41,6 +42,7 @@ public class ConversationController {
             @RequestParam(required = false) @Min(value = 1, message = "游标必须为正数") Long cursor,
             @Parameter(description = "每页数量", example = "20")
             @RequestParam(defaultValue = "20") @Min(value = 1, message = "每页数量必须为正数") int limit) {
+        UserContext.requireUserId();
         List<ConversationVO> conversations = conversationApplicationService.getConversationList(cursor, limit);
         return ApiResponse.success(conversations);
     }
@@ -56,6 +58,7 @@ public class ConversationController {
     public ApiResponse<ConversationVO> getConversation(
             @Parameter(description = "会话ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "会话ID必须为正数") Long conversationId) {
+        UserContext.requireUserId();
         ConversationVO conversation = conversationApplicationService.getConversation(conversationId);
         return ApiResponse.success(conversation);
     }
@@ -71,6 +74,7 @@ public class ConversationController {
     public ApiResponse<ConversationVO> getConversationByUser(
             @Parameter(description = "对方用户ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId) {
+        UserContext.requireUserId();
         ConversationVO conversation = conversationApplicationService.getConversationByUser(userId);
         return ApiResponse.success(conversation);
     }
@@ -83,6 +87,7 @@ public class ConversationController {
     @Operation(summary = "获取会话数量", description = "获取当前用户的会话总数")
     @GetMapping("/count")
     public ApiResponse<Integer> getConversationCount() {
+        UserContext.requireUserId();
         int count = conversationApplicationService.getConversationCount();
         return ApiResponse.success(count);
     }

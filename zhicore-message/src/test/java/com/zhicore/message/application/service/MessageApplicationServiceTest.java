@@ -78,7 +78,6 @@ class MessageApplicationServiceTest {
         UserContext.clear();
     }
 
-    @Test
     @DisplayName("发送文本消息时应该在事务内只发布提交后事件快照")
     void shouldPublishAfterCommitRequestWhenSendTextMessage() {
         Long senderId = 101L;

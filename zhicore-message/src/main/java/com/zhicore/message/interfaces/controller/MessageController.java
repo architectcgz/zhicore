@@ -1,5 +1,6 @@
 package com.zhicore.message.interfaces.controller;
 
+import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.message.application.dto.MessageVO;
 import com.zhicore.message.application.service.MessageApplicationService;
@@ -40,6 +41,7 @@ public class MessageController {
     public ApiResponse<MessageVO> sendMessage(
             @Parameter(description = "发送消息请求", required = true)
             @Valid @RequestBody SendMessageRequest request) {
+        UserContext.requireUserId();
         MessageVO message = messageApplicationService.sendMessage(
                 request.getReceiverId(),
                 request.getType(),
@@ -60,6 +62,7 @@ public class MessageController {
     public ApiResponse<Void> recallMessage(
             @Parameter(description = "消息ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "消息ID必须为正数") Long messageId) {
+        UserContext.requireUserId();
         messageApplicationService.recallMessage(messageId);
         return ApiResponse.success();
     }
@@ -81,6 +84,7 @@ public class MessageController {
             @RequestParam(required = false) @Min(value = 1, message = "游标必须为正数") Long cursor,
             @Parameter(description = "每页数量", example = "20")
             @RequestParam(defaultValue = "20") @Min(value = 1, message = "每页数量必须为正数") int limit) {
+        UserContext.requireUserId();
         List<MessageVO> messages = messageApplicationService.getMessageHistory(
                 conversationId, cursor, limit);
         return ApiResponse.success(messages);
@@ -97,6 +101,7 @@ public class MessageController {
     public ApiResponse<Void> markAsRead(
             @Parameter(description = "会话ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "会话ID必须为正数") Long conversationId) {
+        UserContext.requireUserId();
         messageApplicationService.markAsRead(conversationId);
         return ApiResponse.success();
     }
@@ -109,6 +114,7 @@ public class MessageController {
     @Operation(summary = "获取未读消息数", description = "获取当前用户的未读消息总数")
     @GetMapping("/unread-count")
     public ApiResponse<Integer> getUnreadCount() {
+        UserContext.requireUserId();
         int count = messageApplicationService.getUnreadCount();
         return ApiResponse.success(count);
     }

@@ -1,6 +1,7 @@
 package com.zhicore.message.interfaces.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.result.ResultCode;
@@ -52,9 +53,27 @@ class MessageControllerTest {
                 .build();
     }
 
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        UserContext.clear();
+    }
+
+    @Test
+    @DisplayName("未登录获取未读消息数时应该返回未授权")
+    void shouldReturnUnauthorizedWhenGetUnreadCountWithoutLogin() throws Exception {
+        UserContext.clear();
+
+        mockMvc.perform(get("/api/v1/messages/unread-count"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(ResultCode.UNAUTHORIZED.getCode()))
+                .andExpect(jsonPath("$.message").value("请先登录"));
+    }
+
     @Test
     @DisplayName("应该成功发送文本消息")
     void shouldSendTextMessage() throws Exception {
+        UserContext.setUser(new UserContext.UserInfo("1", "sender"));
+
         SendMessageRequest request = new SendMessageRequest();
         request.setReceiverId(2L);
         request.setType(MessageType.TEXT);
@@ -113,6 +132,8 @@ class MessageControllerTest {
     @Test
     @DisplayName("发送消息被限制时应该返回业务错误响应")
     void shouldReturnBusinessErrorWhenSendMessageForbidden() throws Exception {
+        UserContext.setUser(new UserContext.UserInfo("1", "sender"));
+
         SendMessageRequest request = new SendMessageRequest();
         request.setReceiverId(2L);
         request.setType(MessageType.TEXT);

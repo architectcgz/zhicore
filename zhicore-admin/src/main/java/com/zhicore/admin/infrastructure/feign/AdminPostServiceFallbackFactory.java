@@ -2,6 +2,7 @@ package com.zhicore.admin.infrastructure.feign;
 
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
+import com.zhicore.common.result.ResultCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
@@ -20,13 +21,13 @@ public class AdminPostServiceFallbackFactory implements FallbackFactory<AdminPos
             @Override
             public ApiResponse<PageResult<PostManageDTO>> queryPosts(String keyword, String status, Long authorId, int page, int size) {
                 log.error("Fallback: queryPosts() - Post service unavailable");
-                return ApiResponse.fail("文章服务暂时不可用");
+                return ApiResponse.fail(ResultCode.SERVICE_UNAVAILABLE, "文章服务暂时不可用");
             }
             
             @Override
             public ApiResponse<Void> deletePost(Long postId) {
                 log.error("Fallback: deletePost({}) - Post service unavailable", postId);
-                return ApiResponse.fail("文章服务暂时不可用");
+                return ApiResponse.fail(ResultCode.SERVICE_UNAVAILABLE, "文章服务暂时不可用");
             }
         };
     }

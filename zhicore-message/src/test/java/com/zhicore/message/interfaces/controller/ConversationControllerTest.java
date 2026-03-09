@@ -1,5 +1,6 @@
 package com.zhicore.message.interfaces.controller;
 
+import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.result.ResultCode;
@@ -45,9 +46,27 @@ class ConversationControllerTest {
                 .build();
     }
 
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        UserContext.clear();
+    }
+
+    @Test
+    @DisplayName("未登录获取会话列表时应该返回未授权")
+    void shouldReturnUnauthorizedWhenGetConversationListWithoutLogin() throws Exception {
+        UserContext.clear();
+
+        mockMvc.perform(get("/api/v1/conversations"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(ResultCode.UNAUTHORIZED.getCode()))
+                .andExpect(jsonPath("$.message").value("请先登录"));
+    }
+
     @Test
     @DisplayName("应该成功获取会话列表")
     void shouldGetConversationList() throws Exception {
+        UserContext.setUser(new UserContext.UserInfo("1", "sender"));
+
         ConversationVO conversation = ConversationVO.builder()
                 .id(1L)
                 .otherUserId(2L)
@@ -64,6 +83,8 @@ class ConversationControllerTest {
     @Test
     @DisplayName("会话不存在时应该返回业务错误响应")
     void shouldReturnBusinessErrorWhenConversationNotFound() throws Exception {
+        UserContext.setUser(new UserContext.UserInfo("1", "sender"));
+
         when(conversationApplicationService.getConversation(99L))
                 .thenThrow(new BusinessException(ResultCode.CONVERSATION_NOT_FOUND));
 
