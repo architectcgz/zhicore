@@ -1,6 +1,7 @@
 package com.zhicore.comment.domain.model;
 
 import com.zhicore.common.exception.DomainException;
+import com.zhicore.common.result.ResultCode;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
@@ -232,10 +233,10 @@ public class Comment {
      */
     public void edit(String newContent, Long operatorId) {
         if (!this.authorId.equals(operatorId)) {
-            throw new DomainException("只能编辑自己的评论");
+            throw new DomainException(ResultCode.OPERATION_NOT_ALLOWED, "只能编辑自己的评论");
         }
         if (this.status == CommentStatus.DELETED) {
-            throw new DomainException("已删除的评论不能编辑");
+            throw new DomainException(ResultCode.COMMENT_ALREADY_DELETED, "已删除的评论不能编辑");
         }
         validateContent(newContent, null, null);
 
@@ -251,10 +252,10 @@ public class Comment {
      */
     public void delete(Long operatorId, boolean isAdmin) {
         if (!isAdmin && !this.authorId.equals(operatorId)) {
-            throw new DomainException("无权删除此评论");
+            throw new DomainException(ResultCode.OPERATION_NOT_ALLOWED, "无权删除此评论");
         }
         if (this.status == CommentStatus.DELETED) {
-            throw new DomainException("评论已经删除");
+            throw new DomainException(ResultCode.COMMENT_ALREADY_DELETED, "评论已经删除");
         }
 
         this.status = CommentStatus.DELETED;
@@ -303,21 +304,22 @@ public class Comment {
         boolean hasVoice = StringUtils.hasText(voiceId);
 
         if (!hasText && !hasImages && !hasVoice) {
-            throw new DomainException("评论内容、图片、语音至少需要一项");
+            throw new DomainException(ResultCode.COMMENT_CONTENT_EMPTY, "评论内容、图片、语音至少需要一项");
         }
 
         if (hasText && content.length() > MAX_CONTENT_LENGTH) {
-            throw new DomainException("评论内容不能超过" + MAX_CONTENT_LENGTH + "字");
+            throw new DomainException(ResultCode.COMMENT_CONTENT_TOO_LONG,
+                    "评论内容不能超过" + MAX_CONTENT_LENGTH + "字");
         }
 
         if (hasImages && imageIds.length > MAX_IMAGE_COUNT) {
-            throw new DomainException("评论图片不能超过" + MAX_IMAGE_COUNT + "张");
+            throw new DomainException(ResultCode.PARAM_ERROR, "评论图片不能超过" + MAX_IMAGE_COUNT + "张");
         }
 
         if (hasVoice && voiceId != null) {
             // 语音评论不能同时包含图片
             if (hasImages) {
-                throw new DomainException("语音评论不能同时包含图片");
+                throw new DomainException(ResultCode.PARAM_ERROR, "语音评论不能同时包含图片");
             }
         }
     }

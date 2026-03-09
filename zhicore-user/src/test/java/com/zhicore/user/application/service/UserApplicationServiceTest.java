@@ -88,7 +88,7 @@ class UserApplicationServiceTest {
         userRole = new Role(1, "USER", "普通用户");
         roles.add(userRole);
 
-        testUser = User.reconstitute(
+        testUser = User.reconstitute(new User.Snapshot(
                 123L,
                 "testuser",
                 "测试用户",
@@ -98,11 +98,12 @@ class UserApplicationServiceTest {
                 "这是个人简介",
                 UserStatus.ACTIVE,
                 true,
+                true,
                 roles,
                 0L,
                 LocalDateTime.now(),
                 LocalDateTime.now()
-        );
+        ));
     }
 
     @Nested
@@ -236,6 +237,44 @@ class UserApplicationServiceTest {
             // When & Then
             assertThrows(BusinessException.class, () ->
                     userApplicationService.updateProfile(999L, request));
+        }
+    }
+
+    @Nested
+    @DisplayName("陌生人消息设置")
+    class StrangerMessageSetting {
+
+        @BeforeEach
+        void initSynchronization() {
+            TransactionSynchronizationManager.initSynchronization();
+        }
+
+        @AfterEach
+        void clearSynchronization() {
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.clearSynchronization();
+            }
+        }
+
+        @Test
+        @DisplayName("应该成功获取陌生人消息设置")
+        void shouldGetStrangerMessageSettingSuccessfully() {
+            when(userRepository.findById(123L)).thenReturn(Optional.of(testUser));
+
+            boolean result = userApplicationService.isStrangerMessageAllowed(123L);
+
+            assertTrue(result);
+        }
+
+        @Test
+        @DisplayName("应该成功更新陌生人消息设置")
+        void shouldUpdateStrangerMessageSettingSuccessfully() {
+            when(userRepository.findById(123L)).thenReturn(Optional.of(testUser));
+
+            userApplicationService.updateStrangerMessageSetting(123L, false);
+
+            assertFalse(testUser.isStrangerMessageAllowed());
+            verify(userRepository).update(testUser);
         }
     }
 

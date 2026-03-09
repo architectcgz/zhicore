@@ -1,5 +1,6 @@
 package com.zhicore.search.infrastructure.mq;
 
+import com.zhicore.api.client.PostServiceClient;
 import com.zhicore.api.event.post.PostUpdatedEvent;
 import com.zhicore.common.mq.AbstractEventConsumer;
 import com.zhicore.common.mq.StatefulIdempotentHandler;
@@ -26,11 +27,14 @@ import org.springframework.stereotype.Component;
 public class PostUpdatedSearchConsumer extends AbstractEventConsumer<PostUpdatedEvent> {
 
     private final PostSearchRepository postSearchRepository;
+    private final PostServiceClient postServiceClient;
 
     public PostUpdatedSearchConsumer(StatefulIdempotentHandler idempotentHandler,
-                                     PostSearchRepository postSearchRepository) {
+                                     PostSearchRepository postSearchRepository,
+                                     PostServiceClient postServiceClient) {
         super(idempotentHandler, PostUpdatedEvent.class);
         this.postSearchRepository = postSearchRepository;
+        this.postServiceClient = postServiceClient;
     }
 
     @Override
@@ -42,7 +46,14 @@ public class PostUpdatedSearchConsumer extends AbstractEventConsumer<PostUpdated
             // 检查文章是否已索引（Elasticsearch 使用 String ID）
             String postIdStr = String.valueOf(postId);
             if (postSearchRepository.findById(postIdStr).isEmpty()) {
-                log.warn("Post not found in index, skipping update: postId={}", postId);
+                var post = PostIndexingSupport.loadPostDetail(postServiceClient, postId, "重建");
+                if (post.isEmpty()) {
+                    log.info("Post missing during index rebuild, skip update: postId={}", postId);
+                    return;
+                }
+
+                postSearchRepository.index(PostIndexingSupport.toDocument(post.get()));
+                log.info("Index rebuilt from source of truth after missing document: postId={}", postId);
                 return;
             }
 

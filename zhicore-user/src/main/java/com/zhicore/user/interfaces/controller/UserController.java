@@ -5,6 +5,7 @@ import com.zhicore.common.result.ApiResponse;
 import com.zhicore.user.application.dto.UserVO;
 import com.zhicore.user.application.port.UserQueryPort;
 import com.zhicore.user.application.service.UserApplicationService;
+import com.zhicore.user.interfaces.dto.request.UpdateStrangerMessageSettingRequest;
 import com.zhicore.user.interfaces.dto.request.UpdateProfileRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -153,6 +154,45 @@ public class UserController {
             @Parameter(description = "用户资料更新信息", required = true)
             @Valid @RequestBody UpdateProfileRequest request) {
         userApplicationService.updateProfile(userId, request);
+        return ApiResponse.success();
+    }
+
+    /**
+     * 获取用户是否允许陌生人消息
+     *
+     * @param userId 用户ID
+     * @return 是否允许陌生人消息
+     */
+    @Operation(
+            summary = "获取陌生人消息设置",
+            description = "获取指定用户是否允许陌生人发送私信"
+    )
+    @GetMapping("/{userId}/settings/stranger-message")
+    public ApiResponse<Boolean> getStrangerMessageSetting(
+            @Parameter(description = "用户ID", required = true, example = "1")
+            @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId) {
+        return ApiResponse.success(userQueryPort.isStrangerMessageAllowed(userId));
+    }
+
+    /**
+     * 更新用户是否允许陌生人消息
+     *
+     * @param userId 用户ID
+     * @param request 更新请求
+     * @return 操作结果
+     */
+    @Operation(
+            summary = "更新陌生人消息设置",
+            description = "更新指定用户是否允许陌生人发送私信",
+            security = @SecurityRequirement(name = "bearer-jwt")
+    )
+    @PutMapping("/{userId}/settings/stranger-message")
+    public ApiResponse<Void> updateStrangerMessageSetting(
+            @Parameter(description = "用户ID", required = true, example = "1")
+            @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId,
+            @Parameter(description = "陌生人消息设置", required = true)
+            @Valid @RequestBody UpdateStrangerMessageSettingRequest request) {
+        userApplicationService.updateStrangerMessageSetting(userId, request.getAllowStrangerMessage());
         return ApiResponse.success();
     }
 

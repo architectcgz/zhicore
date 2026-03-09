@@ -3,16 +3,19 @@ package com.zhicore.common.mq;
 import com.zhicore.common.cache.CacheConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 有状态幂等处理器
  * 
- * 使用 Redis 存储消息处理状态，确保消息不被重复消费
+ * 使用 Redis 存储消息处理状态，确保消息不被重复消费。
+ *
+ * 处理中的短 TTL 用于避免消费者崩溃后长时间占锁；
+ * 已完成的长 TTL 用于覆盖消息重放、延迟重投等场景。
  *
  * @author ZhiCore Team
  */
@@ -26,9 +29,14 @@ public class StatefulIdempotentHandler {
     }
     private static final String STATUS_PROCESSING = "processing";
     private static final String STATUS_COMPLETED = "completed";
-    private static final Duration DEFAULT_EXPIRE = Duration.ofHours(24);
 
     private final StringRedisTemplate redisTemplate;
+
+    @Value("${mq.idempotent.processing-expire-minutes:15}")
+    private long processingExpireMinutes;
+
+    @Value("${mq.idempotent.completed-expire-hours:168}")
+    private long completedExpireHours;
 
     /**
      * 尝试获取消息处理权
@@ -41,7 +49,7 @@ public class StatefulIdempotentHandler {
         
         // 使用 SETNX 尝试设置状态为 processing
         Boolean success = redisTemplate.opsForValue()
-                .setIfAbsent(key, STATUS_PROCESSING, DEFAULT_EXPIRE);
+                .setIfAbsent(key, STATUS_PROCESSING, processingExpireDuration());
         
         if (Boolean.TRUE.equals(success)) {
             log.debug("Acquired processing lock for message: {}", messageId);
@@ -67,7 +75,7 @@ public class StatefulIdempotentHandler {
      */
     public void markCompleted(String messageId) {
         String key = keyPrefix() + messageId;
-        redisTemplate.opsForValue().set(key, STATUS_COMPLETED, DEFAULT_EXPIRE);
+        redisTemplate.opsForValue().set(key, STATUS_COMPLETED, completedExpireDuration());
         log.debug("Marked message as completed: {}", messageId);
     }
 
@@ -115,5 +123,13 @@ public class StatefulIdempotentHandler {
             release(messageId);
             throw e;
         }
+    }
+
+    private Duration processingExpireDuration() {
+        return Duration.ofMinutes(Math.max(1, processingExpireMinutes));
+    }
+
+    private Duration completedExpireDuration() {
+        return Duration.ofHours(Math.max(1, completedExpireHours));
     }
 }

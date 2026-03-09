@@ -5,7 +5,6 @@ import com.zhicore.common.result.ApiResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * 用户服务Feign客户端
@@ -31,20 +30,20 @@ public interface UserServiceClient {
      * @param targetUserId 目标用户ID
      * @return 是否被拉黑
      */
-    @GetMapping("/api/v1/users/{userId}/blocks/check")
+    @GetMapping("/api/v1/users/{userId}/blocking/{targetUserId}/check")
     ApiResponse<Boolean> isBlocked(@PathVariable("userId") String userId,
-                                   @RequestParam("targetUserId") String targetUserId);
+                                   @PathVariable("targetUserId") String targetUserId);
 
     /**
-     * 检查是否是陌生人（未互相关注）
+     * 检查当前用户是否已关注目标用户
      *
      * @param userId 用户ID
      * @param targetUserId 目标用户ID
-     * @return 是否是陌生人
+     * @return 是否已关注
      */
-    @GetMapping("/api/v1/users/{userId}/follows/is-stranger")
-    ApiResponse<Boolean> isStranger(@PathVariable("userId") String userId,
-                                    @RequestParam("targetUserId") String targetUserId);
+    @GetMapping("/api/v1/users/{userId}/following/{targetUserId}/check")
+    ApiResponse<Boolean> isFollowing(@PathVariable("userId") String userId,
+                                     @PathVariable("targetUserId") String targetUserId);
 
     /**
      * 获取用户是否允许陌生人消息

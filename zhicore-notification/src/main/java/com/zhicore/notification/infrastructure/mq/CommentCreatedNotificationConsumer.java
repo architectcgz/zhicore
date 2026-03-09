@@ -5,7 +5,6 @@ import com.zhicore.common.mq.AbstractEventConsumer;
 import com.zhicore.common.mq.StatefulIdempotentHandler;
 import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.notification.application.service.NotificationApplicationService;
-import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.infrastructure.push.NotificationPushService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
@@ -51,14 +50,15 @@ public class CommentCreatedNotificationConsumer extends AbstractEventConsumer<Co
 
         // 1. 通知文章作者（如果评论者不是作者本人）
         if (!postOwnerId.equals(commentAuthorId)) {
-            Notification notification = notificationService.createCommentNotification(
-                postOwnerId,
-                commentAuthorId,
-                postId,
-                commentId,
-                commentContent
-            );
-            pushService.push(String.valueOf(postOwnerId), notification);
+            notificationService.createCommentNotificationIfAbsent(
+                            NotificationEventKeys.notificationId(event.getEventId(), "comment-owner"),
+                            postOwnerId,
+                            commentAuthorId,
+                            postId,
+                            commentId,
+                            commentContent
+                    )
+                    .ifPresent(notification -> pushService.push(String.valueOf(postOwnerId), notification));
             
             log.info("处理评论通知（通知文章作者）: postId={}, commentId={}, author={}, owner={}",
                     postId, commentId, commentAuthorId, postOwnerId);
@@ -66,13 +66,14 @@ public class CommentCreatedNotificationConsumer extends AbstractEventConsumer<Co
 
         // 2. 如果是回复，通知被回复者（如果被回复者不是评论者本人）
         if (replyToUserId != null && !replyToUserId.equals(commentAuthorId)) {
-            Notification replyNotification = notificationService.createReplyNotification(
-                replyToUserId,
-                commentAuthorId,
-                commentId,
-                commentContent
-            );
-            pushService.push(String.valueOf(replyToUserId), replyNotification);
+            notificationService.createReplyNotificationIfAbsent(
+                            NotificationEventKeys.notificationId(event.getEventId(), "comment-reply"),
+                            replyToUserId,
+                            commentAuthorId,
+                            commentId,
+                            commentContent
+                    )
+                    .ifPresent(notification -> pushService.push(String.valueOf(replyToUserId), notification));
             
             log.info("处理回复通知: commentId={}, author={}, replyTo={}",
                     commentId, commentAuthorId, replyToUserId);

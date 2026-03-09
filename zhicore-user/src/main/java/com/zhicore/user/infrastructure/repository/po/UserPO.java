@@ -31,6 +31,9 @@ public class UserPO {
     @TableField("email_confirmed")
     private Boolean emailConfirmed;
 
+    @TableField("allow_stranger_message")
+    private Boolean allowStrangerMessage;
+
     @TableField("password_hash")
     private String passwordHash;
 

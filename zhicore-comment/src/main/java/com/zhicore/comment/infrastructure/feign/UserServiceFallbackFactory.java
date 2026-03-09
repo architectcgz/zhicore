@@ -2,12 +2,11 @@ package com.zhicore.comment.infrastructure.feign;
 
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.result.ApiResponse;
-import com.zhicore.common.sentinel.AbstractFallbackFactory;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
-
-import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
@@ -18,34 +17,47 @@ import java.util.Set;
  */
 @Slf4j
 @Component
-public class UserServiceFallbackFactory extends AbstractFallbackFactory<UserServiceClient> {
+public class UserServiceFallbackFactory implements FallbackFactory<UserServiceClient> {
+
+    private static final String SERVICE_NAME = "zhicore-user";
+
+    private final Counter fallbackCounter;
 
     public UserServiceFallbackFactory(MeterRegistry meterRegistry) {
-        super("user-service", meterRegistry);
+        this.fallbackCounter = meterRegistry.counter("feign.fallback.count", "service", SERVICE_NAME);
     }
 
     @Override
-    protected UserServiceClient createFallback(Throwable cause) {
+    public UserServiceClient create(Throwable cause) {
+        fallbackCounter.increment();
+        logFallback(cause);
         return new UserServiceClient() {
             @Override
             public ApiResponse<UserSimpleDTO> getUserSimple(Long userId) {
                 log.warn("UserService.getUserSimple fallback triggered, userId={}, cause={}", 
-                        userId, cause.getMessage());
-                // 返回默认用户信息
-                UserSimpleDTO defaultUser = new UserSimpleDTO();
-                defaultUser.setId(userId);
-                defaultUser.setNickName("用户" + userId);
-                defaultUser.setAvatarUrl("");
-                return ApiResponse.success(defaultUser);
+                        userId, failureMessage(cause));
+                return ApiResponse.fail(com.zhicore.common.result.ResultCode.SERVICE_UNAVAILABLE, "用户服务暂时不可用");
             }
 
             @Override
             public ApiResponse<Map<Long, UserSimpleDTO>> batchGetUsers(Set<Long> userIds) {
                 log.warn("UserService.batchGetUsers fallback triggered, userIds={}, cause={}", 
-                        userIds, cause.getMessage());
-                // 返回空映射，让调用方处理
-                return ApiResponse.success(Collections.emptyMap());
+                        userIds, failureMessage(cause));
+                return ApiResponse.fail(com.zhicore.common.result.ResultCode.SERVICE_UNAVAILABLE, "用户服务暂时不可用");
             }
         };
+    }
+
+    private void logFallback(Throwable cause) {
+        String message = cause != null ? cause.getMessage() : null;
+        if (message != null && (message.contains("timeout") || message.contains("Timeout") || message.contains("timed out"))) {
+            log.warn("{} 调用超时: {}", SERVICE_NAME, message);
+            return;
+        }
+        log.error("{} 调用失败", SERVICE_NAME, cause);
+    }
+
+    private String failureMessage(Throwable cause) {
+        return cause != null ? cause.getMessage() : "unknown";
     }
 }

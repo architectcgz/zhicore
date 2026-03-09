@@ -50,16 +50,14 @@ public class PostLikedNotificationConsumer extends AbstractEventConsumer<PostLik
             return;
         }
 
-        // 创建点赞通知
-        Notification notification = notificationService.createLikeNotification(
-            postOwnerId,
-            likerId,
-            "post",
-            postId
-        );
-
-        // 实时推送
-        pushService.push(String.valueOf(postOwnerId), notification);
+        notificationService.createLikeNotificationIfAbsent(
+                        NotificationEventKeys.notificationId(event.getEventId(), "post-liked"),
+                        postOwnerId,
+                        likerId,
+                        "post",
+                        postId
+                )
+                .ifPresent(notification -> pushService.push(String.valueOf(postOwnerId), notification));
 
         log.info("处理文章点赞通知: postId={}, liker={}, owner={}",
                 postId, likerId, postOwnerId);

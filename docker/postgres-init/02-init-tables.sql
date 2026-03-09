@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
     nick_name VARCHAR(50) NOT NULL DEFAULT '',
     email VARCHAR(255),
     email_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+    allow_stranger_message BOOLEAN NOT NULL DEFAULT TRUE,
     password_hash VARCHAR(255),
     phone_number VARCHAR(20),
     phone_number_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
@@ -29,6 +30,9 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS allow_stranger_message BOOLEAN NOT NULL DEFAULT TRUE;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email text_pattern_ops);

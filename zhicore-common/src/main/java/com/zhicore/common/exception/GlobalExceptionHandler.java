@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.util.stream.Collectors;
@@ -129,8 +131,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
-        String message = e.getBindingResult().getFieldErrors().stream()
-                .map(FieldError::getDefaultMessage)
+        String message = e.getBindingResult().getAllErrors().stream()
+                .map(error -> error instanceof FieldError fieldError
+                        ? fieldError.getDefaultMessage()
+                        : ((ObjectError) error).getDefaultMessage())
+                .collect(Collectors.joining(", "));
+        log.warn("参数校验失败: {}", message);
+        return ApiResponse.fail(ResultCode.PARAM_ERROR, message);
+    }
+
+    /**
+     * 处理控制器方法参数校验异常（Spring 6 HandlerMethodValidationException）
+     */
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleHandlerMethodValidationException(HandlerMethodValidationException e) {
+        String message = e.getAllErrors().stream()
+                .map(error -> error.getDefaultMessage() != null ? error.getDefaultMessage() : "参数校验失败")
                 .collect(Collectors.joining(", "));
         log.warn("参数校验失败: {}", message);
         return ApiResponse.fail(ResultCode.PARAM_ERROR, message);

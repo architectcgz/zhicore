@@ -3,8 +3,11 @@ package com.zhicore.message.application.service;
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
+import com.zhicore.common.exception.DomainException;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.common.result.ResultCode;
 import com.zhicore.message.application.dto.MessageVO;
+import com.zhicore.message.application.event.MessageSentPublishRequest;
 import com.zhicore.message.domain.model.Conversation;
 import com.zhicore.message.domain.model.Message;
 import com.zhicore.message.domain.model.MessageType;
@@ -12,10 +15,10 @@ import com.zhicore.message.domain.repository.ConversationRepository;
 import com.zhicore.message.domain.repository.MessageRepository;
 import com.zhicore.message.domain.service.MessageDomainService;
 import com.zhicore.message.infrastructure.feign.UserServiceClient;
-import com.zhicore.message.infrastructure.mq.MessageEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -34,10 +37,10 @@ public class MessageApplicationService {
     private final MessageRepository messageRepository;
     private final ConversationRepository conversationRepository;
     private final MessageDomainService messageDomainService;
-    private final MessageEventPublisher messageEventPublisher;
     private final MessageRestrictionService messageRestrictionService;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
     private final UserServiceClient userServiceClient;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     /**
      * 发送文本消息
@@ -69,8 +72,8 @@ public class MessageApplicationService {
         // 更新会话最后消息
         messageDomainService.updateConversationLastMessage(conversation, message);
         
-        // 发布消息发送事件（用于实时推送）
-        messageEventPublisher.publishMessageSent(message);
+        // 事务提交后再触发 MQ 推送，避免事务回滚时产生幽灵事件
+        publishAfterCommit(message);
         
         log.info("Text message sent: messageId={}, conversationId={}, senderId={}, receiverId={}",
                 messageId, conversation.getId(), senderId, receiverId);
@@ -108,8 +111,8 @@ public class MessageApplicationService {
         // 更新会话最后消息
         messageDomainService.updateConversationLastMessage(conversation, message);
         
-        // 发布消息发送事件
-        messageEventPublisher.publishMessageSent(message);
+        // 事务提交后再触发 MQ 推送，避免事务回滚时产生幽灵事件
+        publishAfterCommit(message);
         
         log.info("Image message sent: messageId={}, conversationId={}, senderId={}, receiverId={}",
                 messageId, conversation.getId(), senderId, receiverId);
@@ -148,8 +151,8 @@ public class MessageApplicationService {
         // 更新会话最后消息
         messageDomainService.updateConversationLastMessage(conversation, message);
         
-        // 发布消息发送事件
-        messageEventPublisher.publishMessageSent(message);
+        // 事务提交后再触发 MQ 推送，避免事务回滚时产生幽灵事件
+        publishAfterCommit(message);
         
         log.info("File message sent: messageId={}, conversationId={}, senderId={}, receiverId={}",
                 messageId, conversation.getId(), senderId, receiverId);
@@ -185,10 +188,13 @@ public class MessageApplicationService {
         Long userId = UserContext.getUserId();
         
         Message message = messageRepository.findById(messageId)
-                .orElseThrow(() -> new BusinessException("消息不存在"));
+                .orElseThrow(() -> new BusinessException(ResultCode.MESSAGE_NOT_FOUND));
         
-        // 撤回消息
-        message.recall(userId);
+        try {
+            message.recall(userId);
+        } catch (DomainException e) {
+            throw mapRecallException(e);
+        }
         
         // 更新消息
         messageRepository.update(message);
@@ -209,7 +215,7 @@ public class MessageApplicationService {
         
         // 验证会话访问权限
         Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new BusinessException("会话不存在"));
+                .orElseThrow(() -> new BusinessException(ResultCode.CONVERSATION_NOT_FOUND));
         messageDomainService.validateConversationAccess(conversation, userId);
         
         // 查询消息
@@ -231,7 +237,7 @@ public class MessageApplicationService {
         
         // 验证会话访问权限
         Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new BusinessException("会话不存在"));
+                .orElseThrow(() -> new BusinessException(ResultCode.CONVERSATION_NOT_FOUND));
         messageDomainService.validateConversationAccess(conversation, userId);
         
         // 批量标记消息为已读
@@ -263,7 +269,7 @@ public class MessageApplicationService {
         ApiResponse<Long> response = idGeneratorFeignClient.generateSnowflakeId();
         if (!response.isSuccess() || response.getData() == null) {
             log.error("生成ID失败: {}", response.getMessage());
-            throw new BusinessException("ID生成失败");
+            throw new BusinessException(ResultCode.SERVICE_DEGRADED, "ID生成失败");
         }
         return response.getData();
     }
@@ -294,5 +300,26 @@ public class MessageApplicationService {
                 .createdAt(message.getCreatedAt())
                 .isSelf(message.getSenderId().equals(currentUserId))
                 .build();
+    }
+
+    /**
+     * 在 Spring 事务提交后发布消息发送事件，避免事务内直接发 MQ。
+     */
+    private void publishAfterCommit(Message message) {
+        applicationEventPublisher.publishEvent(MessageSentPublishRequest.from(message));
+    }
+
+    private BusinessException mapRecallException(DomainException e) {
+        String message = e.getMessage();
+        if ("消息已经撤回".equals(message)) {
+            return new BusinessException(ResultCode.MESSAGE_ALREADY_RECALLED, message);
+        }
+        if ("只能撤回自己发送的消息".equals(message)) {
+            return new BusinessException(ResultCode.OPERATION_NOT_ALLOWED, message);
+        }
+        if (message != null && message.contains("无法撤回")) {
+            return new BusinessException(ResultCode.MESSAGE_RECALL_TIMEOUT, message);
+        }
+        return new BusinessException(ResultCode.OPERATION_FAILED, message);
     }
 }

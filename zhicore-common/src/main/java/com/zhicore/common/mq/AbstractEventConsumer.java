@@ -59,13 +59,27 @@ public abstract class AbstractEventConsumer<T> implements RocketMQListener<Strin
     protected String extractEventId(T event) {
         // 默认使用反射获取 eventId 字段
         try {
-            var field = event.getClass().getDeclaredField("eventId");
-            field.setAccessible(true);
-            return (String) field.get(event);
+            Class<?> current = event.getClass();
+            while (current != null) {
+                try {
+                    var field = current.getDeclaredField("eventId");
+                    field.setAccessible(true);
+                    Object value = field.get(event);
+                    if (value instanceof String eventId && !eventId.isBlank()) {
+                        return eventId;
+                    }
+                    break;
+                } catch (NoSuchFieldException ignored) {
+                    current = current.getSuperclass();
+                }
+            }
         } catch (Exception e) {
-            // 如果没有 eventId 字段，使用对象的 hashCode
-            return String.valueOf(event.hashCode());
+            log.debug("Failed to extract eventId via reflection, fallback to hashCode: type={}",
+                    event.getClass().getSimpleName(), e);
         }
+
+        // 如果没有 eventId 字段，使用对象的 hashCode
+        return String.valueOf(event.hashCode());
     }
 
     /**

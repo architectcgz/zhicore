@@ -33,6 +33,12 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
+    public boolean saveIfAbsent(Notification notification) {
+        NotificationPO po = toPO(notification);
+        return notificationMapper.insertIgnore(po) > 0;
+    }
+
+    @Override
     public Optional<Notification> findById(Long id) {
         NotificationPO po = notificationMapper.selectById(id);
         return Optional.ofNullable(po).map(this::toDomain);

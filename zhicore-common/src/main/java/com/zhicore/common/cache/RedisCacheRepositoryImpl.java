@@ -37,8 +37,6 @@ public class RedisCacheRepositoryImpl implements CacheRepository {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
-    private static final String NULL_VALUE_MARKER = "__NULL__";
-
     @Value("${cache.delete-pattern.scan-batch-size:100}")
     private int scanBatchSize;
 
@@ -173,7 +171,7 @@ public class RedisCacheRepositoryImpl implements CacheRepository {
                 return CacheResult.miss();
             }
 
-            if (NULL_VALUE_MARKER.equals(value)) {
+            if (CacheConstants.isNullMarker(value)) {
                 return CacheResult.nullValue();
             }
 

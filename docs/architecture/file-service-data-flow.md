@@ -46,11 +46,12 @@ sequenceDiagram
     FileService->>FileService: 提取用户信息和租户ID
     FileService->>FileService: 计算文件哈希值 (SHA-256)
     
-    FileService->>PostgreSQL: SELECT * FROM files<br/>WHERE hash = ?
+    FileService->>PostgreSQL: SELECT * FROM files<br/>WHERE hash = ? AND file_size = ? AND tenant_id = ?
     
     alt 文件已存在（秒传）
         PostgreSQL-->>FileService: 返回已有文件信息
         FileService->>FileService: 记录秒传日志
+        FileService->>PostgreSQL: 原子增加 ref_count
         FileService-->>FileClient: 返回文件 URL<br/>(秒传成功)
     else 文件不存在（正常上传）
         PostgreSQL-->>FileService: 文件不存在
@@ -313,17 +314,15 @@ sequenceDiagram
     PostService->>PostService: 提取封面图 URL
     PostService->>PostService: 解析内容中的图片 URL
     
-    loop 每个图片 URL
-        PostService->>FileClient: extractFileId(imageUrl)
-        FileClient-->>PostService: 返回文件 ID
-        
-        PostService->>FileClient: deleteFile(fileId)
-        FileClient->>FileService: DELETE /api/files/{fileId}
-        FileService->>MinIO: 删除文件
-        FileService->>PostgreSQL: 删除元数据
-        FileService-->>FileClient: 返回成功
-        FileClient-->>PostService: 返回成功
-    end
+    PostService->>PostService: 收集全部 fileId
+    PostService->>FileClient: deleteFiles(fileIds)
+    FileClient->>FileService: POST /api/files/batch-delete
+    FileService->>FileService: 批量校验权限与去重
+    FileService->>PostgreSQL: 原子递减 ref_count
+    FileService->>MinIO: 仅删除 ref_count = 0 的物理文件
+    FileService->>PostgreSQL: 标记删除完成
+    FileService-->>FileClient: 返回批量删除结果
+    FileClient-->>PostService: 返回批量删除结果
     
     PostService->>PostDB: DELETE FROM posts<br/>WHERE id = ?
     PostDB-->>PostService: 删除成功
@@ -410,14 +409,14 @@ sequenceDiagram
     FileService->>FileService: 验证 JWT Token
     FileService->>FileService: 提取租户 ID
     
-    FileService->>PostgreSQL: SELECT * FROM files<br/>WHERE hash = ?<br/>AND tenant_id = ?
+    FileService->>PostgreSQL: SELECT * FROM files<br/>WHERE hash = ?<br/>AND file_size = ?<br/>AND tenant_id = ?
     
     alt 文件已存在（秒传）
         PostgreSQL-->>FileService: 返回已有文件信息
         
         FileService->>FileService: 记录秒传日志<br/>log.info("秒传成功")
         FileService->>FileService: 增加引用计数
-        FileService->>PostgreSQL: UPDATE files<br/>SET ref_count = ref_count + 1
+        FileService->>PostgreSQL: UPDATE files<br/>SET ref_count = ref_count + 1,<br/>updated_at = NOW()<br/>WHERE id = ? AND deleted_at IS NULL
         
         FileService-->>FileClient: 返回文件 URL<br/>(instant_upload: true)
         FileClient-->>PostService: 返回 URL<br/>(秒传成功)
@@ -453,6 +452,7 @@ CREATE TABLE files (
     updated_at TIMESTAMP NOT NULL,
     deleted_at TIMESTAMP,
     
+    UNIQUE KEY uk_tenant_hash_size (tenant_id, hash, file_size),
     INDEX idx_hash (hash),
     INDEX idx_tenant_id (tenant_id),
     INDEX idx_created_by (created_by),
@@ -570,7 +570,8 @@ graph TB
 ### 1. 秒传优化
 
 - **哈希计算**: 使用 SHA-256 计算文件哈希
-- **数据库索引**: 在 hash 字段上建立索引
+- **联合判重**: 使用 `tenant_id + hash + file_size` 做秒传命中判断
+- **数据库索引**: 在 `(tenant_id, hash, file_size)` 上建立唯一索引
 - **租户隔离**: 只在同一租户内检查秒传
 
 ### 2. CDN 缓存

@@ -216,7 +216,7 @@ public class TagStatsEventHandler {
     private void invalidateHotTagsCache() {
         try {
             // 清除所有热门标签缓存（包含不同 limit 参数的缓存）
-            Set<String> keys = redisTemplate.keys(TagRedisKeys.HOT_TAGS_PREFIX + "*");
+            Set<String> keys = redisTemplate.keys(TagRedisKeys.hotTagsPattern());
             if (keys != null && !keys.isEmpty()) {
                 redisTemplate.delete(keys);
                 log.debug("Invalidated {} hot tags cache keys", keys.size());

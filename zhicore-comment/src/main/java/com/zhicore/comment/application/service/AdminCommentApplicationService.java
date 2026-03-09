@@ -2,10 +2,12 @@ package com.zhicore.comment.application.service;
 
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.user.UserSimpleDTO;
+import com.zhicore.api.event.comment.CommentDeletedEvent;
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.repository.CommentRepository;
 import com.zhicore.comment.infrastructure.feign.PostServiceClient;
 import com.zhicore.comment.infrastructure.feign.UserServiceClient;
+import com.zhicore.comment.infrastructure.mq.CommentEventPublisher;
 import com.zhicore.comment.interfaces.dto.response.CommentManageDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
@@ -35,6 +37,7 @@ public class AdminCommentApplicationService {
     private final CommentRepository commentRepository;
     private final UserServiceClient userServiceClient;
     private final PostServiceClient postServiceClient;
+    private final CommentEventPublisher eventPublisher;
 
     /**
      * 查询评论列表
@@ -100,6 +103,12 @@ public class AdminCommentApplicationService {
         comment.delete(comment.getAuthorId(), true);
         commentRepository.update(comment);
 
+        // 发布评论删除事件
+        eventPublisher.publishCommentDeleted(new CommentDeletedEvent(
+                commentId, comment.getPostId(), comment.getAuthorId(),
+                comment.isTopLevel(), "ADMIN"
+        ));
+
         log.info("Admin deleted comment: commentId={}", commentId);
     }
 
@@ -147,7 +156,7 @@ public class AdminCommentApplicationService {
                 .postId(comment.getPostId())
                 .postTitle(post != null ? post.getTitle() : "")
                 .userId(comment.getAuthorId())
-                .userName(user != null ? user.getNickName() : "")
+                .userName(user != null ? user.getNickname() : "")
                 .content(comment.getContent())
                 .likeCount(comment.getStats().getLikeCount())
                 .createdAt(comment.getCreatedAt())

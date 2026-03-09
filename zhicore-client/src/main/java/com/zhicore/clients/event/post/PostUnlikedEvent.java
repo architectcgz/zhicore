@@ -1,5 +1,7 @@
 package com.zhicore.api.event.post;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.api.event.DomainEvent;
 import lombok.Getter;
 
@@ -28,15 +30,24 @@ public class PostUnlikedEvent extends DomainEvent {
      */
     private final Long authorId;
 
+    @JsonCreator
+    public PostUnlikedEvent(@JsonProperty("eventId") String eventId,
+                            @JsonProperty("occurredAt") java.time.LocalDateTime occurredAt,
+                            @JsonProperty("postId") Long postId,
+                            @JsonProperty("userId") Long userId,
+                            @JsonProperty("authorId") Long authorId) {
+        super(eventId, occurredAt);
+        this.postId = postId;
+        this.userId = userId;
+        this.authorId = authorId;
+    }
+
     public PostUnlikedEvent(Long postId, Long userId) {
         this(postId, userId, null);
     }
 
     public PostUnlikedEvent(Long postId, Long userId, Long authorId) {
-        super();
-        this.postId = postId;
-        this.userId = userId;
-        this.authorId = authorId;
+        this(null, null, postId, userId, authorId);
     }
 
     @Override

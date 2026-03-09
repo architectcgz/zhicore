@@ -74,7 +74,7 @@ public class CachedDraftService implements DraftService {
 
             // 2. 命中缓存
             if (cached != null) {
-                if (CacheConstants.NULL_VALUE.equals(cached)) {
+                if (CacheConstants.isNullMarker(cached)) {
                     log.debug("Cache hit (null value) for draft: key={}", key);
                     return Optional.empty();
                 }
@@ -107,7 +107,7 @@ public class CachedDraftService implements DraftService {
 
             // 2. 命中缓存
             if (cached != null) {
-                if (CacheConstants.NULL_VALUE.equals(cached)) {
+                if (CacheConstants.isNullMarker(cached)) {
                     log.debug("Cache hit (empty list) for user drafts: key={}", key);
                     return List.of();
                 }
@@ -166,7 +166,7 @@ public class CachedDraftService implements DraftService {
             log.debug("Cached draft: key={}, ttl={}s", key, ttlWithJitter);
         } else {
             // 缓存空值防止缓存穿透
-            redisTemplate.opsForValue().set(key, CacheConstants.NULL_VALUE,
+            redisTemplate.opsForValue().set(key, CacheConstants.NULL_MARKER,
                     CacheConstants.NULL_VALUE_TTL_SECONDS, TimeUnit.SECONDS);
             log.debug("Cached null value for draft: key={}", key);
         }
@@ -183,7 +183,7 @@ public class CachedDraftService implements DraftService {
             log.debug("Cached draft list: key={}, size={}, ttl={}s", key, drafts.size(), ttlWithJitter);
         } else {
             // 缓存空列表防止缓存穿透
-            redisTemplate.opsForValue().set(key, CacheConstants.NULL_VALUE,
+            redisTemplate.opsForValue().set(key, CacheConstants.NULL_MARKER,
                     CacheConstants.NULL_VALUE_TTL_SECONDS, TimeUnit.SECONDS);
             log.debug("Cached empty draft list: key={}", key);
         }

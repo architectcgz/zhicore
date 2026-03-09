@@ -41,11 +41,19 @@ public final class UserRedisKeys {
     }
 
     /**
+     * 用户陌生人消息设置缓存
+     * Key: user:{userId}:settings:stranger-message
+     */
+    public static String strangerMessageSetting(Long userId) {
+        return prefix() + ":" + userId + ":settings:stranger-message";
+    }
+
+    /**
      * 用户所有业务缓存键（用于写操作后统一失效）
      * 包含：detail、simple
      */
     public static String[] allCacheKeys(Long userId) {
-        return new String[] { userDetail(userId), userSimple(userId) };
+        return new String[] { userDetail(userId), userSimple(userId), strangerMessageSetting(userId) };
     }
 
     // ==================== 关注统计 ====================

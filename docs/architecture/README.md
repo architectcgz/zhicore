@@ -27,13 +27,13 @@
 
 | 文档 | 状态 | 优先级 | 说明 |
 |------|------|--------|------|
-| [01-系统概述](./01-system-overview.md) | 📝 待编写 | P1 | 系统定位、核心功能、技术栈、系统架构图 |
+| [01-系统概述](./01-system-overview.md) | ✅ 已完成 | P1 | 系统定位、核心功能、技术栈、系统架构图 |
 
 **内容预览**:
 - 系统定位和核心功能
 - 技术栈列表（Spring Boot 3.2.4、Nacos、RocketMQ 等）
 - 系统架构图（Mermaid）
-- 系统统计信息（14 个微服务、代码行数等）
+- 系统统计信息（13 个模块、代码行数等）
 - 核心特性
 
 ---
@@ -42,10 +42,10 @@
 
 | 文档 | 状态 | 优先级 | 说明 |
 |------|------|--------|------|
-| [02-微服务列表和职责](./02-microservices-list.md) | 📝 待编写 | P0 | 14 个微服务的职责、端口、依赖关系 |
+| [02-微服务列表和职责](./02-microservices-list.md) | ✅ 已完成 | P0 | 13 个模块的职责、端口、依赖关系 |
 
 **内容预览**:
-- 14 个微服务列表和职责说明
+- 13 个模块列表和职责说明
 - 服务端口分配（参考 [端口分配文档](../../../.kiro/steering/port-allocation.md)）
 - 服务依赖关系图（Mermaid）
 - 服务启动顺序
@@ -62,7 +62,7 @@
 - ZhiCore-admin (8090) - 管理服务
 - ZhiCore-ops - 运维服务
 - ZhiCore-upload - 文件上传服务
-- ZhiCore-api - API 模块（共享接口）
+- 共享契约模块 - API/Client 模块（共享接口）
 - ZhiCore-common - 公共模块
 
 ---
@@ -71,7 +71,7 @@
 
 | 文档 | 状态 | 优先级 | 说明 |
 |------|------|--------|------|
-| [03-文件上传架构](./03-file-upload-architecture.md) | 📝 待编写 | P0 | 最新的 ZhiCore-upload 架构设计（重点） |
+| [03-文件上传架构](./03-file-upload-architecture.md) | ✅ 已完成 | P0 | 最新的 ZhiCore-upload 架构设计（重点） |
 
 **内容预览**:
 - 架构演进历史（为什么移除 FileUploadService 接口）
@@ -94,11 +94,11 @@
 
 | 文档 | 状态 | 优先级 | 说明 |
 |------|------|--------|------|
-| [04-服务间通信](./04-service-communication.md) | 📝 待编写 | P1 | Feign Client、消息队列、事件驱动 |
+| [04-服务间通信](./04-service-communication.md) | ✅ 已完成 | P1 | Feign Client、消息队列、事件驱动 |
 
 **内容预览**:
 - Feign Client 使用方式
-- ZhiCore-api 模块的作用（参考 [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md)）
+- 共享契约模块的作用（参考 [共享契约模块说明](./blog-api-module-purpose.md)）
 - 降级策略（FallbackFactory）
 - 消息队列使用（RocketMQ）
 - 领域事件发布和订阅
@@ -111,7 +111,7 @@
 
 | 文档 | 状态 | 优先级 | 说明 |
 |------|------|--------|------|
-| [05-DDD 分层架构](./05-ddd-layered-architecture.md) | 📝 待编写 | P2 | 四层架构、聚合根、实体、值对象 |
+| [05-DDD 分层架构](./05-ddd-layered-architecture.md) | ✅ 已完成 | P2 | 四层架构、聚合根、实体、值对象 |
 
 **内容预览**:
 - 四层架构说明（interfaces、application、domain、infrastructure）
@@ -188,10 +188,35 @@
 
 | 文档 | 说明 | 最后更新 |
 |------|------|---------|
-| [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md) | ZhiCore-api 模块的作用、为什么需要、如何使用 | 已完成 |
-| [ZhiCore-message 与 im-system 集成](./ZhiCore-message-im-integration.md) | ZhiCore-message 模块与 im-system 的集成架构 | 已完成 |
+| [共享契约模块说明](./blog-api-module-purpose.md) | 共享 Feign/DTO/事件契约模块的作用、边界与使用方式 | 已完成 |
+| [ZhiCore-message 与 im-system 集成](./blog-message-im-integration.md) | ZhiCore-message 模块与 im-system 的集成架构 | 已完成 |
 | [File Service 集成架构](./file-service-integration.md) | File Service 在博客系统中的集成架构 | 已完成 |
 | [File Service 数据流](./file-service-data-flow.md) | File Service 的数据流设计 | 已完成 |
+| [Ranking 服务设计](./ranking-service-design.md) | Ranking 服务的职责、热度公式、outbox/inbox 链路、权威状态与快照设计 | 2026-03-08 |
+| [Ranking 热度链路重构方案](./ranking-durable-ingestion-and-snapshot.md) | Ranking durable inbox、热度权威状态、定时快照刷新 Redis 的重构设计 | 2026-03-08 |
+| [模块设计文档索引](./module-design-index.md) | 各 Maven module 的服务/模块设计文档入口 | 2026-03-08 |
+
+---
+
+## 🧩 模块级设计文档
+
+| 模块 | 文档 |
+|------|------|
+| zhicore-common | [common-module-design](./common-module-design.md) |
+| zhicore-client | [client-module-design](./client-module-design.md) |
+| zhicore-integration | [integration-module-design](./integration-module-design.md) |
+| zhicore-gateway | [gateway-service-design](./gateway-service-design.md) |
+| zhicore-user | [user-service-design](./user-service-design.md) |
+| zhicore-content | [content-service-design](./content-service-design.md) |
+| zhicore-comment | [comment-service-design](./comment-service-design.md) |
+| zhicore-message | [message-service-design](./message-service-design.md) |
+| zhicore-notification | [notification-service-design](./notification-service-design.md) |
+| zhicore-search | [search-service-design](./search-service-design.md) |
+| zhicore-ranking | [ranking-service-design](./ranking-service-design.md) |
+| zhicore-admin | [admin-service-design](./admin-service-design.md) |
+| zhicore-ops | [ops-service-design](./ops-service-design.md) |
+| zhicore-upload | [upload-service-design](./upload-service-design.md) |
+| zhicore-id-generator | [id-generator-service-design](./id-generator-service-design.md) |
 
 ---
 
@@ -207,7 +232,7 @@
 #### 开发人员
 1. [03-文件上传架构](./03-file-upload-architecture.md) - 实现文件上传功能
 2. [04-服务间通信](./04-service-communication.md) - 实现跨服务调用
-3. [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md) - 使用 ZhiCore-api 模块
+3. [共享契约模块说明](./blog-api-module-purpose.md) - 使用共享 Feign/DTO/事件契约
 4. [06-数据架构](./06-data-architecture.md) - 设计数据模型
 
 #### 运维人员
@@ -233,16 +258,16 @@
 
 #### 实现跨服务调用
 1. [04-服务间通信](./04-service-communication.md) - 了解服务间通信模式
-2. [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md) - 使用 ZhiCore-api 模块
+2. [共享契约模块说明](./blog-api-module-purpose.md) - 使用共享 Feign/DTO/事件契约
 3. 参考代码：
-   - `ZhiCore-api/client/` - Feign Client 接口定义
-   - `ZhiCore-api/dto/` - 数据传输对象
+   - `zhicore-client/src/main/java/com/zhicore/api/client/` - Feign Client 接口定义
+   - `zhicore-client/src/main/java/com/zhicore/api/dto/` - 数据传输对象
 
 #### 实现消息通知
-1. [ZhiCore-message 与 im-system 集成](./ZhiCore-message-im-integration.md) - 了解消息架构
+1. [ZhiCore-message 与 im-system 集成](./blog-message-im-integration.md) - 了解消息架构
 2. [04-服务间通信](./04-service-communication.md) - 了解事件驱动
 3. 参考代码：
-   - `ZhiCore-api/event/` - 领域事件定义
+   - `zhicore-client/src/main/java/com/zhicore/api/event/` - 领域事件定义
    - `ZhiCore-message/` - 消息服务实现
 
 #### 部署系统
@@ -287,9 +312,10 @@
 ## 📊 系统统计信息
 
 ### 微服务数量
-- **业务服务**: 9 个（gateway, user, post, comment, message, notification, search, ranking, admin）
+- **网关服务**: 1 个（gateway）
+- **业务服务**: 8 个（user, post, comment, message, notification, search, ranking, admin）
 - **支持服务**: 2 个（ops, upload）
-- **共享模块**: 2 个（api, common）
+- **共享模块**: 2 个（client, common）
 - **总计**: 13 个模块
 
 ### 端口分配
@@ -431,9 +457,9 @@
 
 参考 [03-文件上传架构](./03-file-upload-architecture.md) 文档，了解架构演进历史和最新的文件上传方案。
 
-### Q2: ZhiCore-api 模块的作用是什么？
+### Q2: 共享契约模块的作用是什么？
 
-参考 [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md) 文档，了解 ZhiCore-api 模块的职责和使用方式。
+参考 [共享契约模块说明](./blog-api-module-purpose.md) 文档，了解共享契约模块的职责和使用方式。
 
 ### Q3: 如何实现跨服务调用？
 

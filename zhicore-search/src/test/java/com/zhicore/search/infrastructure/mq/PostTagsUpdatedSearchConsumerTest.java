@@ -5,6 +5,7 @@ import com.zhicore.api.dto.post.PostDetailDTO;
 import com.zhicore.api.dto.post.TagDTO;
 import com.zhicore.api.event.post.PostTagsUpdatedEvent;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.common.result.ResultCode;
 import com.zhicore.search.domain.model.PostDocument;
 import com.zhicore.search.infrastructure.elasticsearch.PostSearchRepositoryImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,7 +13,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -41,7 +41,6 @@ class PostTagsUpdatedSearchConsumerTest {
     @Mock
     private PostServiceClient postServiceClient;
 
-    @InjectMocks
     private PostTagsUpdatedSearchConsumer consumer;
 
     private PostTagsUpdatedEvent event;
@@ -76,6 +75,8 @@ class PostTagsUpdatedSearchConsumerTest {
             Arrays.asList(1001L),
             Arrays.asList(1001L, 1002L)
         );
+
+        consumer = new PostTagsUpdatedSearchConsumer(null, postSearchRepository, postServiceClient);
     }
 
     @Test
@@ -153,10 +154,8 @@ class PostTagsUpdatedSearchConsumerTest {
         // Given
         when(postServiceClient.getPostById(anyLong())).thenReturn(null);
 
-        // When
-        consumer.doHandle(event);
-
-        // Then
+        // When & Then
+        assertThrows(IllegalStateException.class, () -> consumer.doHandle(event));
         verify(postSearchRepository, never()).updateTags(anyString(), anyList());
     }
 
@@ -167,10 +166,8 @@ class PostTagsUpdatedSearchConsumerTest {
         ApiResponse<PostDetailDTO> response = ApiResponse.fail("Internal Server Error");
         when(postServiceClient.getPostById(anyLong())).thenReturn(response);
 
-        // When
-        consumer.doHandle(event);
-
-        // Then
+        // When & Then
+        assertThrows(IllegalStateException.class, () -> consumer.doHandle(event));
         verify(postSearchRepository, never()).updateTags(anyString(), anyList());
     }
 
@@ -179,6 +176,18 @@ class PostTagsUpdatedSearchConsumerTest {
     void testDoHandle_NullData() {
         // Given
         ApiResponse<PostDetailDTO> response = ApiResponse.success(null);
+        when(postServiceClient.getPostById(anyLong())).thenReturn(response);
+
+        // When & Then
+        assertThrows(IllegalStateException.class, () -> consumer.doHandle(event));
+        verify(postSearchRepository, never()).updateTags(anyString(), anyList());
+    }
+
+    @Test
+    @DisplayName("处理标签更新事件 - 文章不存在时跳过")
+    void testDoHandle_PostMissing() {
+        // Given
+        ApiResponse<PostDetailDTO> response = ApiResponse.fail(ResultCode.NOT_FOUND, "文章不存在");
         when(postServiceClient.getPostById(anyLong())).thenReturn(response);
 
         // When

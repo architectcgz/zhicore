@@ -52,7 +52,7 @@ public class OutboxEventDispatcher implements SchedulingConfigurer {
     private static final Duration LOCK_WAIT_TIME = Duration.ZERO;  // 不等待，获取不到直接返回
 
     /** RocketMQ 内置 DLQ topic 前缀：%DLQ%{consumerGroup} */
-    private static final String ROCKETMQ_DLQ_PREFIX = “%DLQ%”;
+    private static final String ROCKETMQ_DLQ_PREFIX = "%DLQ%";
     
     private final OutboxEventMapper outboxEventMapper;
     private final RocketMQTemplate rocketMQTemplate;

@@ -1650,7 +1650,7 @@ FileUploadResponse response = fileUploadService.uploadImage(file, AccessLevel.PR
 
 ### 专题文档
 - [File Service 集成架构](./file-service-integration.md) - File Service 详细说明
-- [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md) - ZhiCore-api 模块详解
+- [共享契约模块说明](./blog-api-module-purpose.md) - 共享 Feign/DTO/事件契约说明
 
 ### 开发规范
 - [核心开发策略](../../../.kiro/steering/01-core-policies.md)

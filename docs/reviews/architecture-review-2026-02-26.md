@@ -14,6 +14,39 @@
 - 中：设计不合理、可维护性问题、遗漏关键场景
 - 低：文档质量、命名不一致、冗余内容
 
+## 2026-03-08 复审状态
+
+### 复审结论
+
+- **仍存在**：1 项
+- **部分解决**：4 项
+- **已解决**：13 项
+
+> 说明：本次状态已根据 2026-03-08 的文档整改结果更新。`已解决` 表示**文档问题已经修正**；`部分解决` 表示文档已修正，但代码侧仍有存量问题；`仍存在` 表示文档或代码问题尚未完成治理。
+
+### 逐项状态表
+
+| 问题 | 当前状态 | 复审结论 | 当前证据 |
+|------|----------|----------|----------|
+| 问题 1 | 部分解决 | 顶层文档已统一改为 Outbox / AFTER_COMMIT 口径，但 `message` 服务代码仍存在事务内发布事件的实现 | `docs/architecture/04-service-communication.md`、`docs/architecture/05-ddd-layered-architecture.md`、`docs/architecture/06-data-architecture.md`、`zhicore-message/.../MessageApplicationService.java` |
+| 问题 2 | 已解决 | 顶层文档已明确 `notification` 负责系统通知领域状态，`message` 负责私信编排与消息中心聚合 | `docs/architecture/blog-message-im-integration.md`、`docs/architecture/02-microservices-list.md` |
+| 问题 3 | 已解决 | 服务数量口径已统一为 `1 网关 + 8 业务服务 + 2 支持服务 + 2 共享模块 = 13 模块` | `docs/architecture/README.md`、`docs/architecture/02-microservices-list.md` |
+| 问题 4 | 已解决 | 顶层通信文档中的 Feign 服务名已改为 `zhicore-*` 口径 | `docs/architecture/04-service-communication.md` |
+| 问题 5 | 已解决 | 文档已移除伪造用户降级示例，默认降级改为明确失败 | `docs/architecture/04-service-communication.md` |
+| 问题 6 | 部分解决 | 文档已补充 DLQ/补偿与 Outbox 描述，但代码侧 MQ 幂等仍主要依赖 Redis TTL | `docs/architecture/04-service-communication.md`、`docs/architecture/06-data-architecture.md`、`zhicore-common/.../StatefulIdempotentHandler.java` |
+| 问题 7 | 已解决 | 顶层 DDD 文档已改为方法级事务与 `readOnly = true` 的设计口径 | `docs/architecture/05-ddd-layered-architecture.md` |
+| 问题 8 | 仍存在 | `reconstitute(...)` 参数过多的问题在文档示例与真实领域模型中都还存在，尚未重构为 Snapshot / Builder | `docs/architecture/05-ddd-layered-architecture.md`、`zhicore-content/.../Post.java`、`zhicore-user/.../User.java` |
+| 问题 9 | 已解决 | 顶层 DDD 文档已区分“注册/持久化事件”和“提交后发布事件”，不再给出事务内直接发布的绝对建议 | `docs/architecture/05-ddd-layered-architecture.md` |
+| 问题 10 | 已解决 | 文档已改为“删除缓存 + 延迟补偿删除”的持久化任务方案，不再使用 `CompletableFuture + Thread.sleep` | `docs/architecture/06-data-architecture.md` |
+| 问题 11 | 部分解决 | 文档已改为 `CacheConstants.NULL_MARKER`，但代码里仍存在字符串空值标记存量实现 | `docs/architecture/06-data-architecture.md`、`zhicore-common/.../CacheConstants.java` |
+| 问题 12 | 已解决 | 文件删除文档已改为批量删除接口，不再逐个调用 `deleteFile(fileId)` | `docs/architecture/file-service-integration.md`、`docs/architecture/file-service-data-flow.md` |
+| 问题 13 | 已解决 | 秒传文档已补充 `hash + file_size + tenant_id` 联合判重和 `ref_count` 原子更新 | `docs/architecture/file-service-data-flow.md`、`docs/architecture/file-service-integration.md` |
+| 问题 14 | 已解决 | 私信发送文档已补充 `requestId` 幂等与统计异步补偿 | `docs/architecture/blog-message-im-integration.md` |
+| 问题 15 | 已解决 | 群发消息文档已改为任务化、并发 worker 和失败重试的设计 | `docs/architecture/blog-message-im-integration.md` |
+| 问题 16 | 部分解决 | 共享契约模块文档已改为“接口/DTO/事件，不放业务 fallback”，但代码里仍有共享 `FallbackFactory` 存量 | `docs/architecture/blog-api-module-purpose.md`、`zhicore-client/.../IdGeneratorFeignClientFallbackFactory.java` |
+| 问题 17 | 已解决 | 文件服务文档已统一为 Sentinel 口径，不再与顶层文档冲突 | `docs/architecture/file-service-integration.md`、`docs/architecture/04-service-communication.md` |
+| 问题 18 | 已解决 | README 已修正文档状态、统计信息和专题文档链接 | `docs/architecture/README.md` |
+
 ---
 
 ## 一、跨文档级问题（全局性）

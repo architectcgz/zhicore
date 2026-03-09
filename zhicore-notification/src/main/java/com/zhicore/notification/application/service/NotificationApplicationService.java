@@ -3,6 +3,7 @@ package com.zhicore.notification.application.service;
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.common.result.ResultCode;
 import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import com.zhicore.notification.infrastructure.cache.NotificationRedisKeys;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.Optional;
 
 /**
  * 通知应用服务
@@ -56,6 +58,20 @@ public class NotificationApplicationService {
     }
 
     /**
+     * 幂等创建点赞通知。
+     */
+    @Transactional
+    public Optional<Notification> createLikeNotificationIfAbsent(Long notificationId,
+                                                                 Long recipientId,
+                                                                 Long actorId,
+                                                                 String targetType,
+                                                                 Long targetId) {
+        Notification notification = Notification.createLikeNotification(
+                notificationId, recipientId, actorId, targetType, targetId);
+        return saveIfAbsent(notification);
+    }
+
+    /**
      * 创建评论通知
      *
      * @param recipientId 接收者ID
@@ -80,6 +96,21 @@ public class NotificationApplicationService {
                 id, recipientId, actorId, postId, commentId);
         
         return notification;
+    }
+
+    /**
+     * 幂等创建评论通知。
+     */
+    @Transactional
+    public Optional<Notification> createCommentNotificationIfAbsent(Long notificationId,
+                                                                    Long recipientId,
+                                                                    Long actorId,
+                                                                    Long postId,
+                                                                    Long commentId,
+                                                                    String commentContent) {
+        Notification notification = Notification.createCommentNotification(
+                notificationId, recipientId, actorId, postId, commentId, commentContent);
+        return saveIfAbsent(notification);
     }
 
     /**
@@ -108,6 +139,20 @@ public class NotificationApplicationService {
     }
 
     /**
+     * 幂等创建回复通知。
+     */
+    @Transactional
+    public Optional<Notification> createReplyNotificationIfAbsent(Long notificationId,
+                                                                  Long recipientId,
+                                                                  Long actorId,
+                                                                  Long commentId,
+                                                                  String replyContent) {
+        Notification notification = Notification.createReplyNotification(
+                notificationId, recipientId, actorId, commentId, replyContent);
+        return saveIfAbsent(notification);
+    }
+
+    /**
      * 创建关注通知
      *
      * @param recipientId 接收者ID
@@ -128,6 +173,17 @@ public class NotificationApplicationService {
     }
 
     /**
+     * 幂等创建关注通知。
+     */
+    @Transactional
+    public Optional<Notification> createFollowNotificationIfAbsent(Long notificationId,
+                                                                   Long recipientId,
+                                                                   Long actorId) {
+        Notification notification = Notification.createFollowNotification(notificationId, recipientId, actorId);
+        return saveIfAbsent(notification);
+    }
+
+    /**
      * 标记单条通知为已读
      *
      * @param notificationId 通知ID
@@ -135,6 +191,16 @@ public class NotificationApplicationService {
      */
     @Transactional
     public void markAsRead(Long notificationId, Long userId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOTIFICATION_NOT_FOUND));
+        if (!notification.getRecipientId().equals(userId)) {
+            throw new BusinessException(ResultCode.RESOURCE_ACCESS_DENIED, "无权访问该通知");
+        }
+        if (notification.isRead()) {
+            log.debug("通知已读，跳过重复更新: notificationId={}, userId={}", notificationId, userId);
+            return;
+        }
+
         notificationRepository.markAsRead(notificationId, String.valueOf(userId));
         invalidateCache(userId);
         
@@ -190,7 +256,7 @@ public class NotificationApplicationService {
         ApiResponse<Long> response = idGeneratorFeignClient.generateSnowflakeId();
         if (!response.isSuccess() || response.getData() == null) {
             log.error("生成通知ID失败: {}", response.getMessage());
-            throw new BusinessException("通知ID生成失败");
+            throw new BusinessException(ResultCode.SERVICE_DEGRADED, "通知ID生成失败");
         }
         return response.getData();
     }
@@ -211,5 +277,16 @@ public class NotificationApplicationService {
         } catch (Exception e) {
             log.warn("清除通知缓存失败: userId={}, error={}", userId, e.getMessage());
         }
+    }
+
+    private Optional<Notification> saveIfAbsent(Notification notification) {
+        if (!notificationRepository.saveIfAbsent(notification)) {
+            log.info("通知已存在，跳过重复写入: notificationId={}, recipient={}, type={}",
+                    notification.getId(), notification.getRecipientId(), notification.getType());
+            return Optional.empty();
+        }
+
+        invalidateCache(notification.getRecipientId());
+        return Optional.of(notification);
     }
 }

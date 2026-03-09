@@ -31,7 +31,7 @@ Feign Client 是基于 HTTP 的声明式服务调用客户端，通过 Nacos 实
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      ZhiCore-api (共享模块)                      │
+│                    共享契约模块 (共享模块)                      │
 │  - Feign Client 接口定义                                     │
 │  - DTO 数据传输对象                                          │
 │  - 领域事件定义                                              │
@@ -46,14 +46,14 @@ Feign Client 是基于 HTTP 的声明式服务调用客户端，通过 Nacos 实
 └────────────────┘  └──────────────┘  └────────────────┘
 ```
 
-### 1.2 ZhiCore-api 模块的作用
+### 1.2 共享契约模块的作用
 
-`ZhiCore-api` 是一个**共享 API 模块**，用于在微服务之间共享接口定义、DTO 和事件。
+共享契约模块是一个**共享 API 模块**，用于在微服务之间共享接口定义、DTO 和事件。
 
 #### 模块结构
 
 ```
-ZhiCore-api/
+shared-client/
 ├── client/                          # Feign 客户端接口
 │   ├── UserServiceClient.java      # 用户服务客户端
 │   ├── PostServiceClient.java      # 文章服务客户端
@@ -72,20 +72,20 @@ ZhiCore-api/
     └── comment/                     # 评论事件
 ```
 
-#### 为什么需要 ZhiCore-api？
+#### 为什么需要共享契约模块？
 
 1. **接口统一**：所有服务使用相同的 Feign 客户端接口，避免重复定义
 2. **类型安全**：DTO 在编译期检查，避免运行时类型错误
-3. **版本管理**：接口变更在 ZhiCore-api 中统一管理，所有依赖服务同步更新
+3. **版本管理**：接口变更在共享契约模块中统一管理，所有依赖服务同步更新
 4. **解耦**：服务只依赖接口，不依赖实现，符合依赖倒置原则
 
 
 ### 1.3 Feign Client 使用方式
 
-#### 步骤 1：在 ZhiCore-api 中定义接口
+#### 步骤 1：在共享契约模块中定义接口
 
 ```java
-// ZhiCore-api/src/main/java/com/ZhiCore/api/client/UserServiceClient.java
+// shared-client/src/main/java/com/zhicore/api/client/UserServiceClient.java
 package com.zhicore.api.client;
 
 import com.zhicore.api.dto.user.UserDTO;
@@ -102,7 +102,7 @@ import java.util.List;
  * 用户服务 Feign 客户端
  * 注意：fallbackFactory 应在各服务中通过 @FeignClient 配置指定
  */
-@FeignClient(name = "user-service")
+@FeignClient(name = "zhicore-user")
 public interface UserServiceClient {
 
     /**
@@ -134,8 +134,8 @@ public interface UserServiceClient {
 @RequiredArgsConstructor
 public class CommentApplicationService {
     
-    private final UserServiceClient userServiceClient;  // 来自 ZhiCore-api
-    private final PostServiceClient postServiceClient;  // 来自 ZhiCore-api
+    private final UserServiceClient userServiceClient;  // 来自共享契约模块
+    private final PostServiceClient postServiceClient;  // 来自共享契约模块
     private final CommentRepository commentRepository;
     
     public CommentVO getComment(String commentId) {
@@ -164,15 +164,19 @@ public class CommentApplicationService {
 }
 ```
 
-#### 步骤 3：配置包扫描
+#### 步骤 3：启用 Feign 客户端扫描
 
-**重要**：必须在 `@SpringBootApplication` 中扫描 `com.zhicore.api` 包！
+**推荐**：共享契约模块只放 Feign 接口、DTO、事件定义；调用方通过 `@EnableFeignClients` 显式启用客户端扫描，业务专属 `FallbackFactory` 放在调用方服务本地。
 
 ```java
+@EnableFeignClients(basePackageClasses = {
+    UserServiceClient.class,
+    PostServiceClient.class,
+    CommentUserServiceFeign.class
+})
 @SpringBootApplication(scanBasePackages = {
-    "com.ZhiCore.comment",   // 扫描评论服务自己的代码
-    "com.zhicore.common",    // 扫描公共模块
-    "com.zhicore.api"        // 扫描 API 模块 ← 必须添加！
+    "com.zhicore.comment",
+    "com.zhicore.common"
 })
 public class CommentApplication {
     public static void main(String[] args) {
@@ -184,7 +188,7 @@ public class CommentApplication {
 
 ### 1.4 降级策略（FallbackFactory）
 
-当服务调用失败时（超时、熔断、服务不可用），Feign 会触发降级逻辑，返回默认值或错误信息。
+当服务调用失败时（超时、熔断、服务不可用），Feign 会触发降级逻辑。默认策略应返回明确错误，避免伪造业务数据；只有调用方显式接受降级语义时，才返回带 `degraded` 标记的最小只读结果。
 
 #### 降级工厂基类
 
@@ -236,15 +240,15 @@ public abstract class AbstractFallbackFactory<T> implements FallbackFactory<T> {
 // ZhiCore-comment/src/main/java/com/ZhiCore/comment/infrastructure/feign/UserServiceFallbackFactory.java
 @Slf4j
 @Component
-public class UserServiceFallbackFactory extends AbstractFallbackFactory<UserServiceClient> {
+public class UserServiceFallbackFactory extends AbstractFallbackFactory<CommentUserServiceFeign> {
 
     public UserServiceFallbackFactory(MeterRegistry meterRegistry) {
-        super("user-service", meterRegistry);
+        super("zhicore-user", meterRegistry);
     }
 
     @Override
-    protected UserServiceClient createFallback(Throwable cause) {
-        return new UserServiceClient() {
+    protected CommentUserServiceFeign createFallback(Throwable cause) {
+        return new CommentUserServiceFeign() {
             @Override
             public ApiResponse<UserDTO> getUserById(Long userId) {
                 log.warn("用户服务降级: getUserById({}), 原因: {}", userId, cause.getMessage());
@@ -254,12 +258,7 @@ public class UserServiceFallbackFactory extends AbstractFallbackFactory<UserServ
             @Override
             public ApiResponse<UserSimpleDTO> getUserSimple(Long userId) {
                 log.warn("用户服务降级: getUserSimple({}), 原因: {}", userId, cause.getMessage());
-                // 返回默认用户信息
-                UserSimpleDTO defaultUser = new UserSimpleDTO();
-                defaultUser.setUserId(userId);
-                defaultUser.setUserName("用户" + userId);
-                defaultUser.setAvatar("/default-avatar.png");
-                return ApiResponse.success(defaultUser);
+                return serviceUnavailable();
             }
 
             @Override
@@ -275,10 +274,14 @@ public class UserServiceFallbackFactory extends AbstractFallbackFactory<UserServ
 #### 配置降级工厂
 
 ```java
-// ZhiCore-comment/src/main/java/com/ZhiCore/comment/infrastructure/feign/UserServiceClient.java
-@FeignClient(name = "ZhiCore-user", fallbackFactory = UserServiceFallbackFactory.class)
-public interface UserServiceClient extends com.zhicore.api.client.UserServiceClient {
-    // 继承 ZhiCore-api 中的接口定义
+// ZhiCore-comment/src/main/java/com/ZhiCore/comment/infrastructure/feign/CommentUserServiceFeign.java
+@FeignClient(
+    name = "zhicore-user",
+    contextId = "commentUserServiceFeign",
+    fallbackFactory = UserServiceFallbackFactory.class
+)
+public interface CommentUserServiceFeign extends com.zhicore.api.client.UserServiceClient {
+    // 继承共享契约模块中的接口定义，并在调用方绑定本地 fallback
 }
 ```
 
@@ -321,7 +324,7 @@ graph LR
 
 #### ✅ 推荐做法
 
-1. **接口定义在 ZhiCore-api**：所有 Feign Client 接口定义在 ZhiCore-api 模块
+1. **接口定义在共享契约模块**：所有 Feign Client 接口定义在共享契约模块
 2. **降级工厂在各服务**：每个服务根据自己的业务需求实现降级策略
 3. **批量查询优化**：使用批量接口减少网络调用次数
 4. **超时配置合理**：根据业务场景配置合理的超时时间
@@ -342,6 +345,25 @@ graph LR
 ### 2.1 架构设计
 
 RocketMQ 用于服务间的异步通信，通过发布-订阅模式实现事件驱动架构。
+
+### 2.0 Ranking 链路特别说明
+
+`zhicore-ranking` 当前的异步消费链路不是“收到消息后直接改 Redis 排行”，而是三段式：
+
+`producer(outbox/直发) -> RocketMQ -> ranking_event_inbox -> 聚合 -> snapshot -> Redis`
+
+需要区分两类可靠性边界：
+
+- **生产侧可靠发送**：`zhicore-content` 的点赞、收藏等事件先写 `outbox_event`，再由调度器投递 RocketMQ。
+- **消费侧可靠处理**：`zhicore-ranking` consumer 收到消息后，先把事件写入 MongoDB `ranking_event_inbox`，写入成功后才算进入业务侧可靠处理范围。
+
+当前现状：
+
+- `content -> MQ -> ranking`：生产侧已有 `outbox`
+- `comment -> MQ -> ranking`：评论链路仍是直接发 MQ，尚未补 producer outbox
+- `ranking`：消费侧已使用 durable inbox，不再依赖 JVM 内存缓冲
+
+因此在本系统里，`outbox` 和 `inbox` 不是二选一，而是分别解决“发出去之前”和“收到之后”的可靠性问题。
 
 #### 核心组件
 
@@ -423,7 +445,7 @@ public final class TopicConstants {
 #### 事件基类
 
 ```java
-// ZhiCore-api/src/main/java/com/ZhiCore/api/event/DomainEvent.java
+// shared-client/src/main/java/com/zhicore/api/event/DomainEvent.java
 @Getter
 public abstract class DomainEvent implements Serializable {
 
@@ -450,7 +472,7 @@ public abstract class DomainEvent implements Serializable {
 #### 具体事件示例
 
 ```java
-// ZhiCore-api/src/main/java/com/ZhiCore/api/event/post/PostPublishedEvent.java
+// shared-client/src/main/java/com/zhicore/api/event/post/PostPublishedEvent.java
 @Getter
 public class PostPublishedEvent extends DomainEvent {
 
@@ -705,8 +727,9 @@ sequenceDiagram
     participant RankingService as ZhiCore-ranking<br/>排行服务
 
     User->>PostService: 发布文章
-    PostService->>PostService: 保存文章到数据库
-    PostService->>RocketMQ: 发布 PostPublishedEvent
+    PostService->>PostService: 保存文章到数据库并写入 Outbox
+    PostService-->>User: 返回成功
+    PostService->>RocketMQ: 事务提交后由 OutboxDispatcher 投递 PostPublishedEvent
     Note over RocketMQ: Topic: ZhiCore-post-events<br/>Tag: published
     
     RocketMQ-->>SearchService: 推送事件
@@ -717,8 +740,6 @@ sequenceDiagram
     
     RocketMQ-->>RankingService: 推送事件
     RankingService->>RankingService: 更新排行榜
-    
-    PostService-->>User: 返回成功
 ```
 
 ### 2.7 Consumer Group 设计
@@ -745,19 +766,20 @@ sequenceDiagram
 
 #### ✅ 推荐做法
 
-1. **事件定义在 ZhiCore-api**：所有领域事件定义在 ZhiCore-api 模块，确保生产者和消费者使用相同的事件类
+1. **事件定义在共享契约模块**：所有领域事件定义在共享契约模块，确保生产者和消费者使用相同的事件类
 2. **幂等性处理**：消费者必须实现幂等性，避免重复消费导致的数据不一致
-3. **异常处理**：消费失败时记录日志，RocketMQ 会自动重试
-4. **顺序消息**：需要保证顺序的场景（如用户操作日志）使用顺序消息
-5. **延迟消息**：定时任务场景（如定时发布文章）使用延迟消息
-6. **监控消费延迟**：使用 RocketMQ Dashboard 监控消费延迟和堆积
+3. **事务后投递**：写库与事件投递使用 Outbox 或 `@TransactionalEventListener(AFTER_COMMIT)`，避免事务内直接发 MQ
+4. **异常处理**：消费失败时记录日志并触发重试；超过重试阈值后进入 DLQ，并接入告警与人工补偿
+5. **顺序消息**：需要保证顺序的场景（如用户操作日志）使用顺序消息
+6. **延迟消息**：定时任务场景（如定时发布文章）使用延迟消息
+7. **监控消费延迟**：使用 RocketMQ Dashboard 监控消费延迟和堆积
 
 #### ❌ 避免做法
 
 1. **同步等待结果**：不要在发布事件后同步等待消费结果
 2. **事件过大**：事件应只包含必要信息，避免传输大对象
 3. **循环依赖**：避免服务 A 发布事件，服务 B 消费后又发布事件给服务 A
-4. **忽略失败**：必须处理消费失败的情况，记录日志或告警
+4. **忽略失败**：必须处理消费失败的情况，记录日志、告警和补偿路径
 
 ---
 
@@ -794,9 +816,9 @@ sequenceDiagram
 @RequiredArgsConstructor
 public class CommentApplicationService {
 
-    private final UserServiceClient userServiceClient;  // Feign Client
+    private final CommentUserServiceFeign userServiceClient;  // Feign Client
     private final PostServiceClient postServiceClient;  // Feign Client
-    private final CommentEventPublisher eventPublisher; // RocketMQ
+    private final CommentOutboxPublisher outboxPublisher; // Outbox
 
     @Transactional
     public CommentVO createComment(CreateCommentRequest request) {
@@ -818,14 +840,14 @@ public class CommentApplicationService {
             Comment.create(request.getUserId(), request.getPostId(), request.getContent())
         );
 
-        // 3. 异步发布事件：通知、统计等（不影响主流程）
+        // 3. 在同一事务内写入 Outbox，事务提交后再异步投递
         CommentCreatedEvent event = new CommentCreatedEvent(
             comment.getId(),
             comment.getUserId(),
             comment.getPostId(),
             postResponse.getData().getAuthorId()
         );
-        eventPublisher.publish(event);
+        outboxPublisher.publish(event);
 
         return CommentVO.from(comment, userResponse.getData());
     }
@@ -857,7 +879,7 @@ feign:
         readTimeout: 10000           # 读取超时（毫秒）
         loggerLevel: BASIC           # 日志级别
   sentinel:
-    enabled: true                    # 启用 Sentinel 熔断
+    enabled: true                    # 启用 Sentinel 熔断降级
   compression:
     request:
       enabled: true                  # 启用请求压缩

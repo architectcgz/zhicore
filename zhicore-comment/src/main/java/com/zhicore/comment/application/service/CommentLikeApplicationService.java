@@ -1,7 +1,6 @@
 package com.zhicore.comment.application.service;
 
 import com.zhicore.comment.domain.model.Comment;
-import com.zhicore.comment.domain.model.CommentLike;
 import com.zhicore.comment.domain.repository.CommentLikeRepository;
 import com.zhicore.comment.domain.repository.CommentRepository;
 import com.zhicore.comment.infrastructure.cache.CommentRedisKeys;
@@ -41,91 +40,82 @@ public class CommentLikeApplicationService {
     /**
      * 点赞评论
      *
-     * 注意：Redis 操作放在事务提交后执行，避免事务回滚导致数据不一致
+     * 流程：同一事务中执行 INSERT ... ON CONFLICT DO NOTHING + 根据 affected_rows 更新 stats
+     * Redis 缓存更新放在事务提交后，失败不影响数据正确性
      *
      * @param userId 用户ID
      * @param commentId 评论ID
      */
     public void likeComment(Long userId, Long commentId) {
-        // 检查是否已点赞（先查 Redis）
-        String likeKey = CommentRedisKeys.userLiked(userId, commentId);
-        Boolean alreadyLiked = redisTemplate.hasKey(likeKey);
-
-        if (Boolean.TRUE.equals(alreadyLiked)) {
-            throw new BusinessException("已经点赞过了");
-        }
-
         // 检查评论是否存在
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new BusinessException(ResultCode.NOT_FOUND, "评论不存在"));
+                .orElseThrow(() -> new BusinessException(ResultCode.COMMENT_NOT_FOUND));
 
         if (comment.isDeleted()) {
-            throw new BusinessException("评论已删除，无法点赞");
+            throw new BusinessException(ResultCode.COMMENT_ALREADY_DELETED, "评论已删除，无法点赞");
         }
 
-        // 数据库操作在事务中执行
+        // 数据库操作在事务中执行：利用唯一约束做幂等
+        boolean[] actuallyInserted = {false};
         transactionTemplate.executeWithoutResult(status -> {
-            // 再次检查数据库（防止并发）
-            if (likeRepository.exists(commentId, userId)) {
-                throw new BusinessException("已经点赞过了");
+            // INSERT ... ON CONFLICT DO NOTHING，返回是否实际插入
+            actuallyInserted[0] = likeRepository.insertIfAbsent(commentId, userId);
+
+            // 仅当实际插入时才更新计数，避免并发重复点赞导致计数多加
+            if (actuallyInserted[0]) {
+                statsMapper.incrementLikeCount(commentId);
             }
-
-            // CommentLike uses composite key (commentId, userId), no separate id needed
-            CommentLike like = new CommentLike(commentId, userId);
-            likeRepository.save(like);
-
-            // 更新统计表
-            statsMapper.incrementLikeCount(commentId);
         });
 
         // 事务提交成功后，更新 Redis 缓存
+        String likeKey = CommentRedisKeys.userLiked(userId, commentId);
         try {
-            redisTemplate.opsForValue().increment(CommentRedisKeys.likeCount(commentId));
+            if (actuallyInserted[0]) {
+                redisTemplate.opsForValue().increment(CommentRedisKeys.likeCount(commentId));
+            }
             redisTemplate.opsForValue().set(likeKey, "1");
         } catch (Exception e) {
             handleCacheUpdateFailure("like", commentId, userId, e);
         }
 
-        log.info("Comment liked: commentId={}, userId={}", commentId, userId);
+        log.info("Comment liked: commentId={}, userId={}, actuallyInserted={}",
+                commentId, userId, actuallyInserted[0]);
     }
 
     /**
      * 取消点赞评论
      *
-     * 注意：Redis 操作放在事务提交后执行，避免事务回滚导致数据不一致
+     * 流程：同一事务中执行 DELETE + 根据 affected_rows 更新 stats
+     * Redis 缓存更新放在事务提交后，失败不影响数据正确性
      *
      * @param userId 用户ID
      * @param commentId 评论ID
      */
     public void unlikeComment(Long userId, Long commentId) {
-        // 检查是否已点赞
-        String likeKey = CommentRedisKeys.userLiked(userId, commentId);
-        Boolean liked = redisTemplate.hasKey(likeKey);
-
-        if (!Boolean.TRUE.equals(liked)) {
-            // 再查数据库确认
-            if (!likeRepository.exists(commentId, userId)) {
-                throw new BusinessException("尚未点赞");
-            }
-        }
-
-        // 数据库操作在事务中执行
+        // 数据库操作在事务中执行：利用 affected_rows 判断是否实际删除
+        boolean[] actuallyDeleted = {false};
         transactionTemplate.executeWithoutResult(status -> {
-            likeRepository.delete(commentId, userId);
+            actuallyDeleted[0] = likeRepository.deleteAndReturnAffected(commentId, userId);
 
-            // 更新统计表
-            statsMapper.decrementLikeCount(commentId);
+            // 仅当实际删除时才递减计数，使用 GREATEST 防止负数
+            if (actuallyDeleted[0]) {
+                statsMapper.decrementLikeCount(commentId);
+            }
         });
 
         // 事务提交成功后，更新 Redis 缓存
+        String likeKey = CommentRedisKeys.userLiked(userId, commentId);
         try {
-            redisTemplate.opsForValue().decrement(CommentRedisKeys.likeCount(commentId));
+            if (actuallyDeleted[0]) {
+                redisTemplate.opsForValue().decrement(CommentRedisKeys.likeCount(commentId));
+            }
             redisTemplate.delete(likeKey);
         } catch (Exception e) {
             handleCacheUpdateFailure("unlike", commentId, userId, e);
         }
 
-        log.info("Comment unliked: commentId={}, userId={}", commentId, userId);
+        log.info("Comment unliked: commentId={}, userId={}, actuallyDeleted={}",
+                commentId, userId, actuallyDeleted[0]);
     }
 
     /**

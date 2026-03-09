@@ -6,7 +6,9 @@ import com.zhicore.message.application.service.ConversationApplicationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +22,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/conversations")
 @RequiredArgsConstructor
+@Validated
 public class ConversationController {
 
     private final ConversationApplicationService conversationApplicationService;
@@ -35,9 +38,9 @@ public class ConversationController {
     @GetMapping
     public ApiResponse<List<ConversationVO>> getConversationList(
             @Parameter(description = "游标，用于分页查询", example = "100")
-            @RequestParam(required = false) Long cursor,
+            @RequestParam(required = false) @Min(value = 1, message = "游标必须为正数") Long cursor,
             @Parameter(description = "每页数量", example = "20")
-            @RequestParam(defaultValue = "20") int limit) {
+            @RequestParam(defaultValue = "20") @Min(value = 1, message = "每页数量必须为正数") int limit) {
         List<ConversationVO> conversations = conversationApplicationService.getConversationList(cursor, limit);
         return ApiResponse.success(conversations);
     }
@@ -52,7 +55,7 @@ public class ConversationController {
     @GetMapping("/{conversationId}")
     public ApiResponse<ConversationVO> getConversation(
             @Parameter(description = "会话ID", required = true, example = "1")
-            @PathVariable Long conversationId) {
+            @PathVariable @Min(value = 1, message = "会话ID必须为正数") Long conversationId) {
         ConversationVO conversation = conversationApplicationService.getConversation(conversationId);
         return ApiResponse.success(conversation);
     }
@@ -67,7 +70,7 @@ public class ConversationController {
     @GetMapping("/user/{userId}")
     public ApiResponse<ConversationVO> getConversationByUser(
             @Parameter(description = "对方用户ID", required = true, example = "1")
-            @PathVariable Long userId) {
+            @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId) {
         ConversationVO conversation = conversationApplicationService.getConversationByUser(userId);
         return ApiResponse.success(conversation);
     }

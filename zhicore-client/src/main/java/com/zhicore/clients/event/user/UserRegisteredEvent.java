@@ -1,5 +1,7 @@
 package com.zhicore.api.event.user;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.api.event.DomainEvent;
 import lombok.Getter;
 
@@ -28,11 +30,20 @@ public class UserRegisteredEvent extends DomainEvent {
      */
     private final String email;
 
-    public UserRegisteredEvent(Long userId, String userName, String email) {
-        super();
+    @JsonCreator
+    public UserRegisteredEvent(@JsonProperty("eventId") String eventId,
+                               @JsonProperty("occurredAt") java.time.LocalDateTime occurredAt,
+                               @JsonProperty("userId") Long userId,
+                               @JsonProperty("userName") String userName,
+                               @JsonProperty("email") String email) {
+        super(eventId, occurredAt);
         this.userId = userId;
         this.userName = userName;
         this.email = email;
+    }
+
+    public UserRegisteredEvent(Long userId, String userName, String email) {
+        this(null, null, userId, userName, email);
     }
 
     @Override

@@ -33,6 +33,33 @@ import java.util.regex.Pattern;
 @Getter
 public class Post {
 
+    /**
+     * 聚合恢复快照。
+     *
+     * 将持久化恢复所需字段收口，避免长参数列表继续向调用方泄漏。
+     */
+    public record Snapshot(
+        PostId id,
+        UserId ownerId,
+        OwnerSnapshot ownerSnapshot,
+        String title,
+        String excerpt,
+        String coverImageId,
+        PostStatus status,
+        TopicId topicId,
+        Set<TagId> tagIds,
+        LocalDateTime publishedAt,
+        LocalDateTime scheduledAt,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt,
+        Boolean isArchived,
+        PostStats stats,
+        WriteState writeState,
+        String incompleteReason,
+        Long version
+    ) {
+    }
+
     /** HTML 标签 */
     private static final Pattern HTML_TAG = Pattern.compile("<[^>]+>");
     /** 连续空白字符 */
@@ -267,19 +294,15 @@ public class Post {
     /**
      * 从持久化恢复文章
      */
-    public static Post reconstitute(PostId id, UserId ownerId, String title,
-                                    String excerpt, String coverImageId, PostStatus status, TopicId topicId,
-                                    Set<TagId> tagIds,
-                                    LocalDateTime publishedAt, LocalDateTime scheduledAt,
-                                    LocalDateTime createdAt, LocalDateTime updatedAt, 
-                                    Boolean isArchived, PostStats stats,
-                                    OwnerSnapshot ownerSnapshot,
-                                    WriteState writeState, String incompleteReason,
-                                    Long version) {
-        return new Post(id, ownerId, ownerSnapshot,
-                title, excerpt, coverImageId, status, topicId, tagIds,
-                publishedAt, scheduledAt, createdAt, updatedAt, isArchived, stats,
-                writeState, incompleteReason, version);
+    public static Post reconstitute(Snapshot snapshot) {
+        Assert.notNull(snapshot, "文章恢复快照不能为空");
+        return new Post(snapshot.id(), snapshot.ownerId(), snapshot.ownerSnapshot(),
+                snapshot.title(), snapshot.excerpt(), snapshot.coverImageId(),
+                snapshot.status(), snapshot.topicId(), snapshot.tagIds(),
+                snapshot.publishedAt(), snapshot.scheduledAt(),
+                snapshot.createdAt(), snapshot.updatedAt(), snapshot.isArchived(),
+                snapshot.stats(), snapshot.writeState(), snapshot.incompleteReason(),
+                snapshot.version());
     }
 
     // ==================== 领域行为 ====================

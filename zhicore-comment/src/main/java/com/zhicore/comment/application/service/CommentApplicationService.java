@@ -4,6 +4,7 @@ import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.api.event.comment.CommentCreatedEvent;
+import com.zhicore.api.event.comment.CommentDeletedEvent;
 import com.zhicore.comment.application.dto.CommentSortType;
 import com.zhicore.comment.application.dto.CommentVO;
 import com.zhicore.comment.application.dto.CursorPage;
@@ -21,6 +22,7 @@ import com.zhicore.comment.infrastructure.mq.CommentEventPublisher;
 import com.zhicore.comment.infrastructure.repository.mapper.CommentStatsMapper;
 import com.zhicore.comment.interfaces.dto.request.CreateCommentRequest;
 import com.zhicore.comment.interfaces.dto.request.UpdateCommentRequest;
+import com.zhicore.common.constant.CommonConstants;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
@@ -70,7 +72,7 @@ public class CommentApplicationService {
         // 验证文章存在并获取文章信息
         ApiResponse<PostDTO> postResponse = postServiceClient.getPost(request.getPostId());
         if (!postResponse.isSuccess() || postResponse.getData() == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "文章不存在");
+            throw new BusinessException(ResultCode.POST_NOT_FOUND, "文章不存在");
         }
         PostDTO post = postResponse.getData();
 
@@ -78,7 +80,7 @@ public class CommentApplicationService {
         ApiResponse<Long> idResponse = idGeneratorFeignClient.generateSnowflakeId();
         if (!idResponse.isSuccess() || idResponse.getData() == null) {
             log.error("生成评论ID失败: {}", idResponse.getMessage());
-            throw new BusinessException("评论ID生成失败");
+            throw new BusinessException(ResultCode.SERVICE_DEGRADED, "评论ID生成失败");
         }
         Long commentId = idResponse.getData();
         
@@ -98,14 +100,14 @@ public class CommentApplicationService {
             } else {
                 // 创建回复评论
                 Comment rootComment = commentRepository.findById(rootId)
-                        .orElseThrow(() -> new BusinessException("根评论不存在"));
+                        .orElseThrow(() -> new BusinessException(ResultCode.ROOT_COMMENT_NOT_FOUND));
                 
                 if (!rootComment.isTopLevel()) {
-                    throw new BusinessException("只能回复顶级评论");
+                    throw new BusinessException(ResultCode.OPERATION_NOT_ALLOWED, "只能回复顶级评论");
                 }
                 
                 if (rootComment.isDeleted()) {
-                    throw new BusinessException("不能回复已删除的评论");
+                    throw new BusinessException(ResultCode.COMMENT_ALREADY_DELETED, "不能回复已删除的评论");
                 }
 
                 // 确定被回复用户
@@ -113,9 +115,9 @@ public class CommentApplicationService {
                 Long replyToCommentId = request.getReplyToCommentId();
                 if (replyToCommentId != null) {
                     Comment replyToComment = commentRepository.findById(replyToCommentId)
-                            .orElseThrow(() -> new BusinessException("被回复的评论不存在"));
+                            .orElseThrow(() -> new BusinessException(ResultCode.REPLY_TO_COMMENT_NOT_FOUND));
                     if (replyToComment.isDeleted()) {
-                        throw new BusinessException("不能回复已删除的评论");
+                        throw new BusinessException(ResultCode.COMMENT_ALREADY_DELETED, "不能回复已删除的评论");
                     }
                     replyToUserId = replyToComment.getAuthorId();
                 } else {
@@ -175,10 +177,10 @@ public class CommentApplicationService {
      */
     @Transactional
     public void updateComment(Long commentId, UpdateCommentRequest request) {
-        Long currentUserId = UserContext.getUserId();
+        Long currentUserId = UserContext.requireUserId();
         
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new BusinessException(ResultCode.NOT_FOUND, "评论不存在"));
+                .orElseThrow(() -> new BusinessException(ResultCode.COMMENT_NOT_FOUND));
 
         comment.edit(request.getContent(), currentUserId);
         commentRepository.update(comment);
@@ -198,12 +200,11 @@ public class CommentApplicationService {
      */
     @Transactional
     public void deleteComment(Long commentId) {
-        Long currentUserId = UserContext.getUserId();
-        // TODO: 从 UserContext 获取管理员角色信息
-        boolean isAdmin = false;
+        Long currentUserId = UserContext.requireUserId();
+        boolean isAdmin = UserContext.isAdmin();
 
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new BusinessException(ResultCode.NOT_FOUND, "评论不存在"));
+                .orElseThrow(() -> new BusinessException(ResultCode.COMMENT_NOT_FOUND));
 
         comment.delete(currentUserId, isAdmin);
         commentRepository.update(comment);
@@ -226,7 +227,17 @@ public class CommentApplicationService {
         }
 
         // 清除缓存
-        redisTemplate.delete(CommentRedisKeys.detail(commentId));
+        try {
+            redisTemplate.delete(CommentRedisKeys.detail(commentId));
+        } catch (Exception e) {
+            log.warn("Redis 缓存清除失败: {}", e.getMessage());
+        }
+
+        // 发布评论删除事件
+        eventPublisher.publishCommentDeleted(new CommentDeletedEvent(
+                commentId, comment.getPostId(), comment.getAuthorId(),
+                comment.isTopLevel(), isAdmin ? "ADMIN" : "AUTHOR"
+        ));
 
         log.info("Comment deleted: commentId={}, userId={}, isAdmin={}", commentId, currentUserId, isAdmin);
     }
@@ -242,7 +253,7 @@ public class CommentApplicationService {
     @Transactional(readOnly = true)
     public CommentVO getComment(Long commentId) {
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new BusinessException(ResultCode.NOT_FOUND, "评论不存在"));
+                .orElseThrow(() -> new BusinessException(ResultCode.COMMENT_NOT_FOUND));
 
         return assembleCommentVO(comment);
     }
@@ -255,6 +266,7 @@ public class CommentApplicationService {
     @Transactional(readOnly = true)
     public PageResult<CommentVO> getTopLevelCommentsByPage(Long postId, int page, int size,
                                                            CommentSortType sortType) {
+        validateTraditionalPaginationWindow(page, size);
         PageResult<Comment> commentPage;
 
         if (sortType == CommentSortType.HOT) {
@@ -313,6 +325,7 @@ public class CommentApplicationService {
      */
     @Transactional(readOnly = true)
     public PageResult<CommentVO> getRepliesByPage(Long rootId, int page, int size) {
+        validateTraditionalPaginationWindow(page, size);
         PageResult<Comment> replyPage = commentRepository.findRepliesByRootIdPage(rootId, page, size);
 
         List<CommentVO> voList = assembleReplyVOList(replyPage.getRecords());
@@ -344,15 +357,23 @@ public class CommentApplicationService {
 
     // ==================== 辅助方法 ====================
 
+    private void validateTraditionalPaginationWindow(int page, int size) {
+        long offset = (long) page * size;
+        if (offset >= CommonConstants.MAX_OFFSET_WINDOW) {
+            throw new BusinessException(
+                    ResultCode.PARAM_ERROR,
+                    "传统分页仅支持前" + CommonConstants.MAX_OFFSET_WINDOW + "条数据，请改用游标分页"
+            );
+        }
+    }
+
     private CommentVO assembleCommentVO(Comment comment) {
         // 获取用户信息
-        ApiResponse<UserSimpleDTO> userResponse = userServiceClient.getUserSimple(comment.getAuthorId());
-        UserSimpleDTO author = userResponse.isSuccess() ? userResponse.getData() : createDefaultUser(comment.getAuthorId());
+        UserSimpleDTO author = fetchUserOrNull(comment.getAuthorId());
 
         UserSimpleDTO replyToUser = null;
         if (comment.getReplyToUserId() != null) {
-            ApiResponse<UserSimpleDTO> replyUserResponse = userServiceClient.getUserSimple(comment.getReplyToUserId());
-            replyToUser = replyUserResponse.isSuccess() ? replyUserResponse.getData() : createDefaultUser(comment.getReplyToUserId());
+            replyToUser = fetchUserOrNull(comment.getReplyToUserId());
         }
 
         return CommentVO.builder()
@@ -399,7 +420,7 @@ public class CommentApplicationService {
                             .imageIds(c.getImageIds())
                             .voiceId(c.getVoiceId())
                             .voiceDuration(c.getVoiceDuration())
-                            .author(userMap.getOrDefault(c.getAuthorId(), createDefaultUser(c.getAuthorId())))
+                            .author(userMap.get(c.getAuthorId()))
                             .likeCount(statsMap.getOrDefault(c.getId(), CommentStats.empty()).getLikeCount())
                             .replyCount(statsMap.getOrDefault(c.getId(), CommentStats.empty()).getReplyCount())
                             .createdAt(c.getCreatedAt())
@@ -456,9 +477,8 @@ public class CommentApplicationService {
                         .imageIds(r.getImageIds())
                         .voiceId(r.getVoiceId())
                         .voiceDuration(r.getVoiceDuration())
-                        .author(userMap.getOrDefault(r.getAuthorId(), createDefaultUser(r.getAuthorId())))
-                        .replyToUser(r.getReplyToUserId() != null ? 
-                                userMap.getOrDefault(r.getReplyToUserId(), createDefaultUser(r.getReplyToUserId())) : null)
+                        .author(userMap.get(r.getAuthorId()))
+                        .replyToUser(r.getReplyToUserId() != null ? userMap.get(r.getReplyToUserId()) : null)
                         .likeCount(r.getStats().getLikeCount())
                         .createdAt(r.getCreatedAt())
                         .liked(false)  // 需要单独查询
@@ -470,16 +490,25 @@ public class CommentApplicationService {
         if (userIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        ApiResponse<Map<Long, UserSimpleDTO>> response = userServiceClient.batchGetUsers(userIds);
-        return response.isSuccess() && response.getData() != null ? response.getData() : Collections.emptyMap();
+        try {
+            ApiResponse<Map<Long, UserSimpleDTO>> response = userServiceClient.batchGetUsers(userIds);
+            return response != null && response.isSuccess() && response.getData() != null
+                    ? response.getData()
+                    : Collections.emptyMap();
+        } catch (Exception e) {
+            log.warn("批量获取评论用户信息失败: userIds={}, error={}", userIds, e.getMessage());
+            return Collections.emptyMap();
+        }
     }
 
-    private UserSimpleDTO createDefaultUser(Long userId) {
-        UserSimpleDTO user = new UserSimpleDTO();
-        user.setId(userId);
-        user.setNickName("用户" + userId.toString().substring(0, Math.min(6, userId.toString().length())));
-        user.setAvatarUrl("");
-        return user;
+    private UserSimpleDTO fetchUserOrNull(Long userId) {
+        try {
+            ApiResponse<UserSimpleDTO> response = userServiceClient.getUserSimple(userId);
+            return response != null && response.isSuccess() ? response.getData() : null;
+        } catch (Exception e) {
+            log.warn("获取评论用户信息失败: userId={}, error={}", userId, e.getMessage());
+            return null;
+        }
     }
 
     private String truncateContent(String content, int maxLength) {

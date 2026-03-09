@@ -107,7 +107,7 @@ public class CachedCommentRepository implements CommentRepository {
         try {
             Object cached = redisTemplate.opsForValue().get(cacheKey);
             if (cached != null) {
-                if (CacheConstants.NULL_VALUE.equals(cached)) {
+                if (CacheConstants.isNullMarker(cached)) {
                     // 空值缓存，防止缓存穿透
                     return Optional.empty();
                 }
@@ -176,7 +176,7 @@ public class CachedCommentRepository implements CommentRepository {
                 // Step 3: DCL 双重检查 - 获取锁后再次检查缓存
                 Object cached = redisTemplate.opsForValue().get(cacheKey);
                 if (cached != null) {
-                    if (CacheConstants.NULL_VALUE.equals(cached)) {
+                    if (CacheConstants.isNullMarker(cached)) {
                         return Optional.empty();
                     }
                     Comment comment = objectMapper.convertValue(cached, Comment.class);
@@ -197,7 +197,7 @@ public class CachedCommentRepository implements CommentRepository {
                         // Step 5b: 缓存空值（60秒 TTL）
                         redisTemplate.opsForValue().set(
                                 cacheKey,
-                                CacheConstants.NULL_VALUE,
+                                CacheConstants.NULL_MARKER,
                                 cacheProperties.getTtl().getNullValue(),
                                 TimeUnit.SECONDS
                         );
@@ -259,7 +259,7 @@ public class CachedCommentRepository implements CommentRepository {
                 // 缓存空值防止缓存穿透
                 redisTemplate.opsForValue().set(
                         cacheKey,
-                        CacheConstants.NULL_VALUE,
+                        CacheConstants.NULL_MARKER,
                         cacheProperties.getTtl().getNullValue(),
                         TimeUnit.SECONDS
                 );
@@ -449,7 +449,7 @@ public class CachedCommentRepository implements CommentRepository {
             try {
                 Object cached = redisTemplate.opsForValue().get(cacheKey);
                 if (cached != null) {
-                    if (!CacheConstants.NULL_VALUE.equals(cached)) {
+                    if (!CacheConstants.isNullMarker(cached)) {
                         Comment comment = objectMapper.convertValue(cached, Comment.class);
                         result.add(comment);
                     }
@@ -515,7 +515,7 @@ public class CachedCommentRepository implements CommentRepository {
                             String cacheKey = CommentRedisKeys.detail(commentId);
                             redisTemplate.opsForValue().set(
                                     cacheKey,
-                                    CacheConstants.NULL_VALUE,
+                                    CacheConstants.NULL_MARKER,
                                     cacheProperties.getTtl().getNullValue(),
                                     TimeUnit.SECONDS
                             );

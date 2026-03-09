@@ -195,16 +195,16 @@ sequenceDiagram
     PostService->>PostService: 删除文章
     PostService->>PostService: 提取文章中的<br/>所有文件 ID
     
-    loop 每个文件 ID
-        PostService->>FileClient: deleteFile(fileId)
-        FileClient->>FileService: DELETE /api/files/{fileId}<br/>+ JWT
+    PostService->>FileClient: deleteFiles(fileIds)
+    FileClient->>FileService: POST /api/files/batch-delete<br/>+ JWT + fileIds
+    loop 批量删除中的每个文件
         FileService->>FileService: 验证权限
         FileService->>PostgreSQL: 查询文件元数据
         FileService->>MinIO: 删除文件
         FileService->>PostgreSQL: 删除文件元数据
-        FileService-->>FileClient: 返回成功
-        FileClient-->>PostService: 返回成功
     end
+    FileService-->>FileClient: 返回批量删除结果
+    FileClient-->>PostService: 返回批量删除结果
     
     PostService->>PostService: 删除文章记录
 ```
@@ -284,7 +284,7 @@ graph LR
 **内部职责**（File Service 负责）:
 - 文件的物理存储和检索
 - 文件元数据的 CRUD 操作
-- 文件哈希计算和秒传检测
+- 文件哈希计算和秒传检测（`hash + file_size + tenant_id` 联合判断）
 - 分片上传的协调和管理
 - 访问级别控制（PUBLIC/PRIVATE）
 - 租户隔离
@@ -468,16 +468,16 @@ graph TB
 
 ### 熔断机制
 
-使用 Resilience4j 实现熔断：
+使用 Sentinel 实现与系统一致的熔断降级：
 
 ```yaml
-resilience4j:
-  circuitbreaker:
-    instances:
-      fileService:
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 10s
-        sliding-window-size: 10
+feign:
+  sentinel:
+    enabled: true
+
+sentinel:
+  transport:
+    dashboard: localhost:8858
 ```
 
 ## 迁移策略
@@ -508,7 +508,7 @@ graph TB
 2. **统一封装**: 在 `ZhiCore-common` 中创建 `FileUploadService` 统一接口
 3. **异常处理**: 捕获并转换 File Service 异常为业务异常
 4. **资源清理**: 业务实体删除时记得清理关联文件
-5. **URL 存储**: 只存储文件 URL，不存储文件 ID
+5. **标识持久化**: 优先同时保存 `fileId` 和展示 URL，便于批量删除和对账
 
 ### 文件管理
 

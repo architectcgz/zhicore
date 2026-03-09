@@ -1,5 +1,7 @@
 package com.zhicore.api.event.post;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.api.event.DomainEvent;
 import lombok.Getter;
 
@@ -23,10 +25,18 @@ public class PostDeletedEvent extends DomainEvent {
      */
     private final Long authorId;
 
-    public PostDeletedEvent(Long postId, Long authorId) {
-        super();
+    @JsonCreator
+    public PostDeletedEvent(@JsonProperty("eventId") String eventId,
+                            @JsonProperty("occurredAt") java.time.LocalDateTime occurredAt,
+                            @JsonProperty("postId") Long postId,
+                            @JsonProperty("authorId") Long authorId) {
+        super(eventId, occurredAt);
         this.postId = postId;
         this.authorId = authorId;
+    }
+
+    public PostDeletedEvent(Long postId, Long authorId) {
+        this(null, null, postId, authorId);
     }
 
     @Override

@@ -1,5 +1,7 @@
 package com.zhicore.api.event.post;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.api.event.DomainEvent;
 import lombok.Getter;
 
@@ -45,15 +47,27 @@ public class PostViewedEvent extends DomainEvent {
      */
     private final String userAgent;
 
-    public PostViewedEvent(Long postId, Long userId, Long authorId,
-                           LocalDateTime publishedAt, String clientIp, String userAgent) {
-        super();
+    @JsonCreator
+    public PostViewedEvent(@JsonProperty("eventId") String eventId,
+                           @JsonProperty("occurredAt") LocalDateTime occurredAt,
+                           @JsonProperty("postId") Long postId,
+                           @JsonProperty("userId") Long userId,
+                           @JsonProperty("authorId") Long authorId,
+                           @JsonProperty("publishedAt") LocalDateTime publishedAt,
+                           @JsonProperty("clientIp") String clientIp,
+                           @JsonProperty("userAgent") String userAgent) {
+        super(eventId, occurredAt);
         this.postId = postId;
         this.userId = userId;
         this.authorId = authorId;
         this.publishedAt = publishedAt;
         this.clientIp = clientIp;
         this.userAgent = userAgent;
+    }
+
+    public PostViewedEvent(Long postId, Long userId, Long authorId,
+                           LocalDateTime publishedAt, String clientIp, String userAgent) {
+        this(null, null, postId, userId, authorId, publishedAt, clientIp, userAgent);
     }
 
     @Override

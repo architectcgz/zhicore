@@ -4,13 +4,13 @@
 
 | 版本 | 日期 | 作者 | 说明 |
 |------|------|------|------|
-| 1.0 | 2026-02-11 | System | 初始版本 - 定义 14 个微服务的职责和端口分配 |
+| 1.0 | 2026-02-11 | System | 初始版本 - 定义 13 个模块的职责和端口分配 |
 
 ---
 
 ## 概述
 
-ZhiCore 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13 个模块**（9 个业务服务 + 2 个支持服务 + 2 个共享模块）。每个服务职责单一，通过 Nacos 进行服务注册与发现，通过 Feign Client 和 RocketMQ 进行服务间通信。
+ZhiCore 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 **13 个模块**（**1 个网关 + 8 个业务服务 + 2 个支持服务 + 2 个共享模块**）。各服务通过 Nacos 进行服务注册与发现，通过 Feign Client 和 RocketMQ 进行服务间通信。
 
 ### 系统特点
 
@@ -18,17 +18,22 @@ ZhiCore 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 *
 - **领域驱动**: 基于 DDD 分层架构设计
 - **事件驱动**: 使用 RocketMQ 实现异步解耦
 - **统一网关**: 通过 ZhiCore-gateway 统一对外提供服务
-- **共享模块**: ZhiCore-api 和 ZhiCore-common 提供共享接口和工具
+- **共享模块**: 共享契约模块和 ZhiCore-common 提供共享接口和工具
 
 ---
 
 ## 微服务列表
 
-### 业务服务（9 个）
+### 网关服务（1 个）
 
 | 服务名称 | 端口 | 职责 | 数据库 | 依赖服务 |
 |---------|------|------|--------|---------|
 | ZhiCore-gateway | 8000 | API 网关 | - | Nacos, Redis |
+
+### 业务服务（8 个）
+
+| 服务名称 | 端口 | 职责 | 数据库 | 依赖服务 |
+|---------|------|------|--------|---------|
 | ZhiCore-user | 8081 | 用户服务 | PostgreSQL | Nacos, Redis, RocketMQ, ZhiCore-upload |
 | ZhiCore-post | 8082 | 文章服务 | PostgreSQL | Nacos, Redis, RocketMQ, ZhiCore-upload |
 | ZhiCore-comment | 8083 | 评论服务 | PostgreSQL | Nacos, Redis, RocketMQ, ZhiCore-upload |
@@ -49,7 +54,7 @@ ZhiCore 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 *
 
 | 模块名称 | 类型 | 职责 |
 |---------|------|------|
-| ZhiCore-api | Maven 模块 | 提供 Feign Client 接口、DTO、事件定义 |
+| 共享契约模块 | Maven 模块 | 提供 Feign Client 接口、DTO、事件定义 |
 | ZhiCore-common | Maven 模块 | 提供公共工具类、常量、异常定义 |
 
 ---
@@ -203,7 +208,8 @@ ZhiCore 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 *
 - 私信管理：私信发送、接收、删除
 - 会话管理：会话列表、会话详情
 - 消息推送：实时消息推送（通过 im-system）
-- 消息统计：未读消息统计
+- 消息中心聚合：聚合私信会话和通知摘要
+- 消息统计：私信未读统计
 
 **数据库**:
 - PostgreSQL（消息信息、会话信息）
@@ -225,7 +231,8 @@ ZhiCore 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 *
 
 **集成说明**:
 - 与 im-system 集成，实现实时消息推送
-- 参考文档：[ZhiCore-message 与 im-system 集成](./ZhiCore-message-im-integration.md)
+- notification 服务负责系统通知的生成、存储与未读统计
+- 参考文档：[ZhiCore-message 与 im-system 集成](./blog-message-im-integration.md)
 
 **API 文档**: `http://localhost:8084/doc.html`
 
@@ -238,7 +245,7 @@ ZhiCore 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 *
 **职责**:
 - 通知管理：通知创建、删除、标记已读
 - 通知查询：通知列表、通知详情
-- 通知聚合：相同类型通知聚合显示
+- 通知聚合：相同类型通知合并与折叠展示
 - 通知统计：未读通知统计
 - 通知推送：实时通知推送
 
@@ -413,7 +420,7 @@ ZhiCore 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 *
 
 ---
 
-### 12. ZhiCore-api (API 模块)
+### 12. 共享契约模块 (API/Client 模块)
 
 **类型**: Maven 共享模块
 
@@ -421,27 +428,26 @@ ZhiCore 微服务系统采用 Spring Cloud Alibaba 微服务架构，共包含 *
 - Feign Client 接口定义：定义服务间调用接口
 - DTO 定义：定义数据传输对象
 - 事件定义：定义领域事件
-- 降级策略：定义 FallbackFactory 降级逻辑
+- 契约共享：统一跨服务调用协议，避免重复 DTO/事件定义
 
 **模块结构**:
 ```
-ZhiCore-api/
+shared-client/
 ├── client/          # Feign Client 接口
 ├── dto/             # 数据传输对象
 ├── event/           # 领域事件
-└── fallback/        # 降级策略
 ```
 
 **使用方式**:
 ```xml
 <dependency>
     <groupId>com.ZhiCore</groupId>
-    <artifactId>ZhiCore-api</artifactId>
+    <artifactId>zhicore-client</artifactId>
     <version>${project.version}</version>
 </dependency>
 ```
 
-**详细文档**: [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md)
+**详细文档**: [共享契约模块说明](./blog-api-module-purpose.md)
 
 ---
 
@@ -502,7 +508,7 @@ graph TB
     Ops[ZhiCore-ops<br/>内部服务]
     
     %% 共享模块
-    API[ZhiCore-api<br/>共享模块]
+    API[共享契约模块<br/>共享模块]
     Common[ZhiCore-common<br/>共享模块]
     
     %% 基础设施
@@ -961,8 +967,8 @@ spring:
 - [部署架构](./08-deployment-architecture.md) - 部署架构设计
 
 ### 专题文档
-- [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md) - ZhiCore-api 模块详解
-- [ZhiCore-message 与 im-system 集成](./ZhiCore-message-im-integration.md) - 消息服务集成
+- [共享契约模块说明](./blog-api-module-purpose.md) - 共享 Feign/DTO/事件契约说明
+- [ZhiCore-message 与 im-system 集成](./blog-message-im-integration.md) - 消息服务集成
 - [File Service 集成架构](./file-service-integration.md) - 文件服务集成
 
 ### 开发规范
@@ -978,9 +984,9 @@ spring:
 
 ## 常见问题
 
-### Q1: 为什么需要 ZhiCore-api 模块？
+### Q1: 为什么需要共享契约模块？
 
-ZhiCore-api 模块提供了服务间调用的统一接口定义，避免了服务间的直接依赖。详细说明请参考：[ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md)
+共享契约模块提供了服务间调用的统一接口定义，避免了服务间的直接依赖。详细说明请参考：[共享契约模块说明](./blog-api-module-purpose.md)
 
 ### Q2: 如何添加新的微服务？
 

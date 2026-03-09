@@ -40,6 +40,7 @@ class UserTest {
             assertEquals(userName, user.getNickName()); // 默认昵称为用户名
             assertEquals(UserStatus.ACTIVE, user.getStatus());
             assertFalse(user.isEmailConfirmed());
+            assertTrue(user.isStrangerMessageAllowed());
             assertNotNull(user.getCreatedAt());
             assertNotNull(user.getRoles());
             assertTrue(user.getRoles().isEmpty());
@@ -320,6 +321,30 @@ class UserTest {
             // When & Then
             assertThrows(DomainException.class, () ->
                     user.changePassword("newHash"));
+        }
+    }
+
+    @Nested
+    @DisplayName("陌生人消息设置")
+    class StrangerMessageSetting {
+
+        @Test
+        @DisplayName("应该成功关闭陌生人消息")
+        void shouldDisableStrangerMessageSuccessfully() {
+            User user = User.create(123L, "testuser", "test@example.com", "hash");
+
+            user.updateStrangerMessageSetting(false);
+
+            assertFalse(user.isStrangerMessageAllowed());
+        }
+
+        @Test
+        @DisplayName("禁用用户更新陌生人消息设置时应该抛出异常")
+        void shouldThrowExceptionWhenDisabledUserUpdatesSetting() {
+            User user = User.create(123L, "testuser", "test@example.com", "hash");
+            user.disable();
+
+            assertThrows(DomainException.class, () -> user.updateStrangerMessageSetting(false));
         }
     }
 }

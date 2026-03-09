@@ -1,5 +1,7 @@
 package com.zhicore.api.event.comment;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.api.event.DomainEvent;
 import lombok.Getter;
 
@@ -21,10 +23,17 @@ public class CommentCreatedEvent extends DomainEvent {
     private final Long replyToUserId;
     private final String commentContent;
 
-    public CommentCreatedEvent(Long commentId, Long postId, Long postOwnerId,
-                               Long commentAuthorId, Long parentId, Long replyToUserId,
-                               String commentContent) {
-        super();
+    @JsonCreator
+    public CommentCreatedEvent(@JsonProperty("eventId") String eventId,
+                               @JsonProperty("occurredAt") java.time.LocalDateTime occurredAt,
+                               @JsonProperty("commentId") Long commentId,
+                               @JsonProperty("postId") Long postId,
+                               @JsonProperty("postOwnerId") Long postOwnerId,
+                               @JsonProperty("commentAuthorId") Long commentAuthorId,
+                               @JsonProperty("parentId") Long parentId,
+                               @JsonProperty("replyToUserId") Long replyToUserId,
+                               @JsonProperty("commentContent") String commentContent) {
+        super(eventId, occurredAt);
         this.commentId = commentId;
         this.postId = postId;
         this.postOwnerId = postOwnerId;
@@ -32,6 +41,12 @@ public class CommentCreatedEvent extends DomainEvent {
         this.parentId = parentId;
         this.replyToUserId = replyToUserId;
         this.commentContent = commentContent;
+    }
+
+    public CommentCreatedEvent(Long commentId, Long postId, Long postOwnerId,
+                               Long commentAuthorId, Long parentId, Long replyToUserId,
+                               String commentContent) {
+        this(null, null, commentId, postId, postOwnerId, commentAuthorId, parentId, replyToUserId, commentContent);
     }
 
     @Override

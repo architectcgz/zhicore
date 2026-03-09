@@ -1,12 +1,10 @@
 package com.zhicore.search.infrastructure.mq;
 
 import com.zhicore.api.client.PostServiceClient;
-import com.zhicore.api.dto.post.PostDetailDTO;
 import com.zhicore.api.event.post.PostTagsUpdatedEvent;
 import com.zhicore.common.mq.AbstractEventConsumer;
 import com.zhicore.common.mq.StatefulIdempotentHandler;
 import com.zhicore.common.mq.TopicConstants;
-import com.zhicore.common.result.ApiResponse;
 import com.zhicore.search.domain.model.PostDocument;
 import com.zhicore.search.infrastructure.elasticsearch.PostSearchRepositoryImpl;
 import lombok.extern.slf4j.Slf4j;
@@ -49,20 +47,16 @@ public class PostTagsUpdatedSearchConsumer extends AbstractEventConsumer<PostTag
         log.info("Processing post tags updated event for indexing: postId={}", postId);
 
         try {
-            // 从文章服务获取完整文章信息（包含标签详情）
-            ApiResponse<PostDetailDTO> response = postServiceClient.getPostById(postId);
-            
-            if (response == null || !response.isSuccess() || response.getData() == null) {
-                log.warn("Failed to get post details for tag update: postId={}", postId);
+            var post = PostIndexingSupport.loadPostDetail(postServiceClient, postId, "更新标签");
+            if (post.isEmpty()) {
+                log.info("Post missing during tag sync, skip tag update: postId={}", postId);
                 return;
             }
 
-            PostDetailDTO post = response.getData();
-
             // 构建标签信息列表
             List<PostDocument.TagInfo> tagInfos = null;
-            if (post.getTags() != null && !post.getTags().isEmpty()) {
-                tagInfos = post.getTags().stream()
+            if (post.get().getTags() != null && !post.get().getTags().isEmpty()) {
+                tagInfos = post.get().getTags().stream()
                     .map(tag -> PostDocument.TagInfo.builder()
                         .id(String.valueOf(tag.getId()))
                         .name(tag.getName())

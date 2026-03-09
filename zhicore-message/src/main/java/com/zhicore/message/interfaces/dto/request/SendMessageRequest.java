@@ -2,9 +2,11 @@ package com.zhicore.message.interfaces.dto.request;
 
 import com.zhicore.message.domain.model.MessageType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+import org.springframework.util.StringUtils;
 
 /**
  * 发送消息请求
@@ -41,4 +43,14 @@ public class SendMessageRequest {
      */
     @Schema(description = "媒体文件URL，图片或文件消息时必填", example = "https://example.com/files/image.jpg")
     private String mediaUrl;
+
+    @AssertTrue(message = "文本消息内容不能为空")
+    public boolean isTextContentValid() {
+        return type != MessageType.TEXT || StringUtils.hasText(content);
+    }
+
+    @AssertTrue(message = "图片或文件消息URL不能为空")
+    public boolean isMediaUrlValid() {
+        return type == null || type == MessageType.TEXT || StringUtils.hasText(mediaUrl);
+    }
 }

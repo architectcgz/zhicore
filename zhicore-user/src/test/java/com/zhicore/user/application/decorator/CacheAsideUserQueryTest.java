@@ -82,7 +82,7 @@ class CacheAsideUserQueryTest {
         @DisplayName("缓存命中时应直接返回，不查数据源")
         void shouldReturnFromCacheWhenHit() {
             UserVO cached = buildUserVO(1L);
-            when(cacheRepository.get("user:1:detail", UserVO.class))
+            when(cacheRepository.get(UserRedisKeys.userDetail(1L), UserVO.class))
                     .thenReturn(CacheResult.hit(cached));
 
             UserVO result = cacheAsideUserQuery.getUserById(1L);
@@ -95,7 +95,7 @@ class CacheAsideUserQueryTest {
         @Test
         @DisplayName("缓存为空值标记时应返回 null，不查数据源")
         void shouldReturnNullWhenCacheIsNullValue() {
-            when(cacheRepository.get("user:1:detail", UserVO.class))
+            when(cacheRepository.get(UserRedisKeys.userDetail(1L), UserVO.class))
                     .thenReturn(CacheResult.nullValue());
 
             UserVO result = cacheAsideUserQuery.getUserById(1L);
@@ -193,7 +193,7 @@ class CacheAsideUserQueryTest {
         @DisplayName("缓存命中时应直接返回")
         void shouldReturnFromCacheWhenHit() {
             UserSimpleDTO cached = buildSimpleDTO(1L);
-            when(cacheRepository.get("user:1:simple", UserSimpleDTO.class))
+            when(cacheRepository.get(UserRedisKeys.userSimple(1L), UserSimpleDTO.class))
                     .thenReturn(CacheResult.hit(cached));
 
             UserSimpleDTO result = cacheAsideUserQuery.getUserSimpleById(1L);
@@ -205,7 +205,7 @@ class CacheAsideUserQueryTest {
         @Test
         @DisplayName("缓存为空值标记时应返回 null")
         void shouldReturnNullWhenCacheIsNullValue() {
-            when(cacheRepository.get("user:1:simple", UserSimpleDTO.class))
+            when(cacheRepository.get(UserRedisKeys.userSimple(1L), UserSimpleDTO.class))
                     .thenReturn(CacheResult.nullValue());
 
             UserSimpleDTO result = cacheAsideUserQuery.getUserSimpleById(1L);
@@ -272,9 +272,9 @@ class CacheAsideUserQueryTest {
             UserSimpleDTO dto1 = buildSimpleDTO(1L);
             UserSimpleDTO dto2 = buildSimpleDTO(2L);
 
-            when(cacheRepository.get("user:1:simple", UserSimpleDTO.class))
+            when(cacheRepository.get(UserRedisKeys.userSimple(1L), UserSimpleDTO.class))
                     .thenReturn(CacheResult.hit(dto1));
-            when(cacheRepository.get("user:2:simple", UserSimpleDTO.class))
+            when(cacheRepository.get(UserRedisKeys.userSimple(2L), UserSimpleDTO.class))
                     .thenReturn(CacheResult.hit(dto2));
 
             Map<Long, UserSimpleDTO> result = cacheAsideUserQuery.batchGetUsersSimple(Set.of(1L, 2L));
@@ -291,9 +291,9 @@ class CacheAsideUserQueryTest {
             UserSimpleDTO cached1 = buildSimpleDTO(1L);
             UserSimpleDTO fromDb2 = buildSimpleDTO(2L);
 
-            when(cacheRepository.get("user:1:simple", UserSimpleDTO.class))
+            when(cacheRepository.get(UserRedisKeys.userSimple(1L), UserSimpleDTO.class))
                     .thenReturn(CacheResult.hit(cached1));
-            when(cacheRepository.get("user:2:simple", UserSimpleDTO.class))
+            when(cacheRepository.get(UserRedisKeys.userSimple(2L), UserSimpleDTO.class))
                     .thenReturn(CacheResult.miss());
 
             Map<Long, UserSimpleDTO> dbResult = new HashMap<>();
@@ -305,19 +305,51 @@ class CacheAsideUserQueryTest {
             assertEquals(2, result.size());
             assertSame(cached1, result.get(1L));
             assertSame(fromDb2, result.get(2L));
-            verify(cacheRepository).setIfAbsent(eq("user:2:simple"), eq(fromDb2), any(Duration.class));
+            verify(cacheRepository).setIfAbsent(eq(UserRedisKeys.userSimple(2L)), eq(fromDb2), any(Duration.class));
         }
 
         @Test
         @DisplayName("空值标记的 ID 应跳过，不查数据源")
         void shouldSkipNullValueIds() {
-            when(cacheRepository.get("user:1:simple", UserSimpleDTO.class))
+            when(cacheRepository.get(UserRedisKeys.userSimple(1L), UserSimpleDTO.class))
                     .thenReturn(CacheResult.nullValue());
 
             Map<Long, UserSimpleDTO> result = cacheAsideUserQuery.batchGetUsersSimple(Set.of(1L));
 
             assertTrue(result.isEmpty());
             verifyNoInteractions(delegate);
+        }
+    }
+
+    @Nested
+    @DisplayName("isStrangerMessageAllowed - 陌生人消息设置查询")
+    class IsStrangerMessageAllowed {
+
+        @Test
+        @DisplayName("缓存命中时应直接返回布尔值")
+        void shouldReturnBooleanFromCacheWhenHit() {
+            String cacheKey = UserRedisKeys.strangerMessageSetting(1L);
+            when(cacheRepository.get(cacheKey, Boolean.class))
+                    .thenReturn(CacheResult.hit(Boolean.FALSE));
+
+            boolean result = cacheAsideUserQuery.isStrangerMessageAllowed(1L);
+
+            assertFalse(result);
+            verifyNoInteractions(delegate);
+        }
+
+        @Test
+        @DisplayName("缓存未命中时应查数据源并回填缓存")
+        void shouldFetchSettingFromSourceAndCacheWhenMiss() {
+            String cacheKey = UserRedisKeys.strangerMessageSetting(1L);
+            when(cacheRepository.get(cacheKey, Boolean.class))
+                    .thenReturn(CacheResult.miss());
+            when(delegate.isStrangerMessageAllowed(1L)).thenReturn(false);
+
+            boolean result = cacheAsideUserQuery.isStrangerMessageAllowed(1L);
+
+            assertFalse(result);
+            verify(cacheRepository).set(eq(cacheKey), eq(false), any(Duration.class));
         }
     }
 }

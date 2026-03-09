@@ -117,9 +117,10 @@ public class PostEntityMapper {
         }
 
         // 使用 reconstitute 工厂方法重建聚合根
-        return Post.reconstitute(
+        return Post.reconstitute(new Post.Snapshot(
             postId,
             ownerId,
+            ownerSnapshot,
             entity.getTitle(),
             entity.getExcerpt(),
             entity.getCoverImageId(),
@@ -132,11 +133,10 @@ public class PostEntityMapper {
             entity.getUpdatedAt(),
             entity.getIsArchived(),
             PostStats.empty(postId), // Stats 由单独的仓储管理
-            ownerSnapshot,
             writeState,
             entity.getIncompleteReason(),
             entity.getVersion()
-        );
+        ));
     }
 
     /**

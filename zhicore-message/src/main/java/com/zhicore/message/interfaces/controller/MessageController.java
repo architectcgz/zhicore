@@ -78,9 +78,9 @@ public class MessageController {
             @Parameter(description = "会话ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "会话ID必须为正数") Long conversationId,
             @Parameter(description = "游标，用于分页查询", example = "100")
-            @RequestParam(required = false) Long cursor,
+            @RequestParam(required = false) @Min(value = 1, message = "游标必须为正数") Long cursor,
             @Parameter(description = "每页数量", example = "20")
-            @RequestParam(defaultValue = "20") int limit) {
+            @RequestParam(defaultValue = "20") @Min(value = 1, message = "每页数量必须为正数") int limit) {
         List<MessageVO> messages = messageApplicationService.getMessageHistory(
                 conversationId, cursor, limit);
         return ApiResponse.success(messages);

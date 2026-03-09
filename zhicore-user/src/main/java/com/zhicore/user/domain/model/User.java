@@ -27,6 +27,29 @@ import java.util.Set;
 public class User {
 
     /**
+     * 聚合恢复快照。
+     *
+     * 将持久化恢复字段打包，避免领域层长期暴露长参数列表。
+     */
+    public record Snapshot(
+        Long id,
+        String userName,
+        String nickName,
+        String email,
+        String passwordHash,
+        String avatarId,
+        String bio,
+        UserStatus status,
+        boolean emailConfirmed,
+        boolean strangerMessageAllowed,
+        Set<Role> roles,
+        Long profileVersion,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
+    ) {
+    }
+
+    /**
      * 用户ID（雪花ID）
      */
     private final Long id;
@@ -85,6 +108,11 @@ public class User {
     private Set<Role> roles;
 
     /**
+     * 是否允许陌生人消息
+     */
+    private boolean strangerMessageAllowed;
+
+    /**
      * 创建时间
      */
     private final LocalDateTime createdAt;
@@ -110,6 +138,7 @@ public class User {
         this.passwordHash = passwordHash;
         this.status = UserStatus.ACTIVE;
         this.emailConfirmed = false;
+        this.strangerMessageAllowed = true;
         this.roles = new HashSet<>();
         this.createdAt = DateTimeUtils.nowLocal();
         this.updatedAt = DateTimeUtils.nowLocal();
@@ -129,6 +158,7 @@ public class User {
             @JsonProperty("bio") String bio,
             @JsonProperty("status") UserStatus status, 
             @JsonProperty("emailConfirmed") boolean emailConfirmed, 
+            @JsonProperty("strangerMessageAllowed") boolean strangerMessageAllowed,
             @JsonProperty("roles") Set<Role> roles,
             @JsonProperty("profileVersion") Long profileVersion,
             @JsonProperty("createdAt") LocalDateTime createdAt, 
@@ -142,6 +172,7 @@ public class User {
         this.bio = bio;
         this.status = status;
         this.emailConfirmed = emailConfirmed;
+        this.strangerMessageAllowed = strangerMessageAllowed;
         this.roles = roles != null ? roles : new HashSet<>();
         this.profileVersion = profileVersion;
         this.createdAt = createdAt;
@@ -170,13 +201,12 @@ public class User {
      *
      * @return 用户实例
      */
-    public static User reconstitute(Long id, String userName, String nickName, String email,
-                                    String passwordHash, String avatarId, String bio,
-                                    UserStatus status, boolean emailConfirmed, Set<Role> roles,
-                                    Long profileVersion,
-                                    LocalDateTime createdAt, LocalDateTime updatedAt) {
-        return new User(id, userName, nickName, email, passwordHash, avatarId, bio,
-                status, emailConfirmed, roles, profileVersion, createdAt, updatedAt);
+    public static User reconstitute(Snapshot snapshot) {
+        Assert.notNull(snapshot, "用户恢复快照不能为空");
+        return new User(snapshot.id(), snapshot.userName(), snapshot.nickName(), snapshot.email(),
+                snapshot.passwordHash(), snapshot.avatarId(), snapshot.bio(),
+                snapshot.status(), snapshot.emailConfirmed(), snapshot.strangerMessageAllowed(), snapshot.roles(),
+                snapshot.profileVersion(), snapshot.createdAt(), snapshot.updatedAt());
     }
 
     // ==================== 领域行为 ====================
@@ -217,6 +247,17 @@ public class User {
         ensureActive();
         Assert.hasText(newPasswordHash, "新密码不能为空");
         this.passwordHash = newPasswordHash;
+        this.updatedAt = DateTimeUtils.nowLocal();
+    }
+
+    /**
+     * 更新陌生人消息设置
+     *
+     * @param strangerMessageAllowed 是否允许陌生人消息
+     */
+    public void updateStrangerMessageSetting(boolean strangerMessageAllowed) {
+        ensureActive();
+        this.strangerMessageAllowed = strangerMessageAllowed;
         this.updatedAt = DateTimeUtils.nowLocal();
     }
 

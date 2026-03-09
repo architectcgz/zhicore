@@ -24,6 +24,7 @@ public final class CommonConstants {
     public static final int DEFAULT_PAGE_NUM = 1;
     public static final int DEFAULT_PAGE_SIZE = 10;
     public static final int MAX_PAGE_SIZE = 100;
+    public static final int MAX_OFFSET_WINDOW = 5000;
 
     /**
      * 混合分页阈值（页码超过此值使用游标分页）
@@ -33,7 +34,7 @@ public final class CommonConstants {
     /**
      * 缓存相关
      */
-    public static final String CACHE_NULL_VALUE = "NULL";
+    public static final String CACHE_NULL_VALUE = "__NULL__";
     public static final long CACHE_NULL_TTL_SECONDS = 60;
 
     /**

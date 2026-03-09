@@ -17,6 +17,20 @@ public interface CommentLikeRepository {
     void save(CommentLike like);
 
     /**
+     * 幂等插入点赞记录，利用 DB 唯一约束做幂等
+     *
+     * @return true 表示实际插入成功，false 表示已存在（ON CONFLICT DO NOTHING）
+     */
+    boolean insertIfAbsent(Long commentId, Long userId);
+
+    /**
+     * 删除点赞记录
+     *
+     * @return true 表示实际删除了记录，false 表示记录不存在
+     */
+    boolean deleteAndReturnAffected(Long commentId, Long userId);
+
+    /**
      * 删除点赞
      */
     void delete(Long commentId, Long userId);

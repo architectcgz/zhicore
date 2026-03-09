@@ -83,7 +83,25 @@ public final class CacheConstants {
     /**
      * 空值缓存标记
      */
-    public static final String NULL_VALUE = "NULL";
+    public static final String NULL_MARKER = "__NULL__";
+
+    /**
+     * 历史空值缓存标记，保留兼容旧缓存数据读取。
+     */
+    public static final String LEGACY_NULL_MARKER = "NULL";
+
+    /**
+     * @deprecated 请使用 {@link #NULL_MARKER}
+     */
+    @Deprecated
+    public static final String NULL_VALUE = NULL_MARKER;
+
+    /**
+     * 判断给定缓存值是否为空值标记，兼容历史遗留标记。
+     */
+    public static boolean isNullMarker(Object value) {
+        return NULL_MARKER.equals(value) || LEGACY_NULL_MARKER.equals(value);
+    }
 
     // ==================== 锁前缀 ====================
 

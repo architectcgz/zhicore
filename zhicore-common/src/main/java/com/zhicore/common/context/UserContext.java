@@ -1,5 +1,6 @@
 package com.zhicore.common.context;
 
+import com.zhicore.common.exception.UnauthorizedException;
 import lombok.Data;
 
 /**
@@ -88,5 +89,16 @@ public class UserContext {
             this.userId = userId;
             this.userName = userName;
         }
+    }
+
+    /**
+     * 获取当前用户ID；未登录时抛出未授权异常。
+     */
+    public static Long requireUserId() {
+        Long userId = getUserId();
+        if (userId == null) {
+            throw new UnauthorizedException("请先登录");
+        }
+        return userId;
     }
 }

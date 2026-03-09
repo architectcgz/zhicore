@@ -1,5 +1,6 @@
 package com.zhicore.message.infrastructure.mq;
 
+import com.zhicore.message.application.event.MessageSentPublishRequest;
 import com.zhicore.common.mq.DomainEventPublisher;
 import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.message.domain.event.MessageSentEvent;
@@ -27,14 +28,23 @@ public class MessageEventPublisher {
      * @param message 消息
      */
     public void publishMessageSent(Message message) {
+        publishMessageSent(MessageSentPublishRequest.from(message));
+    }
+
+    /**
+     * 发布消息发送事件快照。
+     *
+     * @param request 事务提交后保留的消息快照
+     */
+    public void publishMessageSent(MessageSentPublishRequest request) {
         MessageSentEvent event = new MessageSentEvent(
-                message.getId(),
-                message.getConversationId(),
-                message.getSenderId(),
-                message.getReceiverId(),
-                message.getType(),
-                message.getPreviewContent(100),
-                message.getCreatedAt()
+                request.getMessageId(),
+                request.getConversationId(),
+                request.getSenderId(),
+                request.getReceiverId(),
+                request.getMessageType(),
+                request.getContentPreview(),
+                request.getSentAt()
         );
 
         // 使用顺序消息，以 conversationId 作为 shardingKey
@@ -42,10 +52,10 @@ public class MessageEventPublisher {
                 TopicConstants.TOPIC_MESSAGE_EVENTS,
                 TopicConstants.TAG_MESSAGE_SENT,
                 event,
-                String.valueOf(message.getConversationId())
+                String.valueOf(request.getConversationId())
         );
 
         log.info("Published MessageSentEvent: messageId={}, conversationId={}, senderId={}, receiverId={}",
-                message.getId(), message.getConversationId(), message.getSenderId(), message.getReceiverId());
+                request.getMessageId(), request.getConversationId(), request.getSenderId(), request.getReceiverId());
     }
 }

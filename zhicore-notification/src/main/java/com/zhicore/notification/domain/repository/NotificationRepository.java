@@ -22,6 +22,14 @@ public interface NotificationRepository {
     void save(Notification notification);
 
     /**
+     * 仅在通知不存在时保存。
+     *
+     * @param notification 通知
+     * @return true 表示首次写入成功，false 表示已存在
+     */
+    boolean saveIfAbsent(Notification notification);
+
+    /**
      * 根据ID查询通知
      *
      * @param id 通知ID

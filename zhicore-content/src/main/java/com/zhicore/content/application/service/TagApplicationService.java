@@ -203,7 +203,7 @@ public class TagApplicationService {
             
             // 2. 命中缓存
             if (cached != null) {
-                if (CacheConstants.NULL_VALUE.equals(cached)) {
+                if (CacheConstants.isNullMarker(cached)) {
                     log.debug("Cache hit (empty list): key={}", key);
                     return Collections.emptyList();
                 }
@@ -290,7 +290,7 @@ public class TagApplicationService {
                 log.debug("Cached hot tags: key={}, size={}, ttl={}s", key, hotTags.size(), ttlWithJitter);
             } else {
                 // 缓存空值防止缓存穿透
-                redisTemplate.opsForValue().set(key, CacheConstants.NULL_VALUE,
+                redisTemplate.opsForValue().set(key, CacheConstants.NULL_MARKER,
                         CacheConstants.NULL_VALUE_TTL_SECONDS, TimeUnit.SECONDS);
                 log.debug("Cached empty hot tags: key={}", key);
             }

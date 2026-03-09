@@ -4,6 +4,7 @@ import lombok.Getter;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -25,8 +26,15 @@ public abstract class DomainEvent implements Serializable {
     private final LocalDateTime occurredAt;
 
     protected DomainEvent() {
-        this.eventId = UUID.randomUUID().toString().replace("-", "");
-        this.occurredAt = LocalDateTime.now();
+        this(UUID.randomUUID().toString().replace("-", ""), LocalDateTime.now());
+    }
+
+    protected DomainEvent(String eventId, LocalDateTime occurredAt) {
+        this.eventId = Objects.requireNonNullElseGet(
+                eventId,
+                () -> UUID.randomUUID().toString().replace("-", "")
+        );
+        this.occurredAt = occurredAt != null ? occurredAt : LocalDateTime.now();
     }
 
     /**

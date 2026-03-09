@@ -1,6 +1,7 @@
 package com.zhicore.comment.interfaces.controller;
 
 import com.zhicore.comment.application.service.CommentLikeApplicationService;
+import com.zhicore.comment.interfaces.dto.request.BatchCheckLikedRequest;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,11 +10,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -25,6 +27,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/comments")
 @RequiredArgsConstructor
+@Validated
 public class CommentLikeController {
 
     private final CommentLikeApplicationService likeService;
@@ -50,7 +53,7 @@ public class CommentLikeController {
     public ApiResponse<Void> likeComment(
             @Parameter(description = "评论ID", required = true, example = "1234567890")
             @PathVariable @Min(value = 1, message = "评论ID必须为正数") Long commentId) {
-        Long userId = Long.valueOf(UserContext.getUserId());
+        Long userId = UserContext.requireUserId();
         likeService.likeComment(userId, commentId);
         return ApiResponse.success();
     }
@@ -76,7 +79,7 @@ public class CommentLikeController {
     public ApiResponse<Void> unlikeComment(
             @Parameter(description = "评论ID", required = true, example = "1234567890")
             @PathVariable @Min(value = 1, message = "评论ID必须为正数") Long commentId) {
-        Long userId = Long.valueOf(UserContext.getUserId());
+        Long userId = UserContext.requireUserId();
         likeService.unlikeComment(userId, commentId);
         return ApiResponse.success();
     }
@@ -99,7 +102,7 @@ public class CommentLikeController {
     public ApiResponse<Boolean> isLiked(
             @Parameter(description = "评论ID", required = true, example = "1234567890")
             @PathVariable @Min(value = 1, message = "评论ID必须为正数") Long commentId) {
-        Long userId = Long.valueOf(UserContext.getUserId());
+        Long userId = UserContext.requireUserId();
         boolean liked = likeService.isLiked(userId, commentId);
         return ApiResponse.success(liked);
     }
@@ -119,10 +122,10 @@ public class CommentLikeController {
     })
     @PostMapping("/batch/liked")
     public ApiResponse<Map<Long, Boolean>> batchCheckLiked(
-            @Parameter(description = "评论ID列表", required = true)
-            @RequestBody List<Long> commentIds) {
-        Long userId = Long.valueOf(UserContext.getUserId());
-        Map<Long, Boolean> likedMap = likeService.batchCheckLiked(userId, commentIds);
+            @Parameter(description = "批量检查点赞状态请求", required = true)
+            @RequestBody @Valid BatchCheckLikedRequest request) {
+        Long userId = UserContext.requireUserId();
+        Map<Long, Boolean> likedMap = likeService.batchCheckLiked(userId, request.getCommentIds());
         return ApiResponse.success(likedMap);
     }
 

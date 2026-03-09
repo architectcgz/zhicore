@@ -2,6 +2,7 @@ package com.zhicore.comment.infrastructure.cursor;
 
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.common.exception.BusinessException;
+import com.zhicore.common.result.ResultCode;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -54,7 +55,7 @@ public class HotCursorCodec {
 
             return new HotCursor(Integer.parseInt(parts[0]), Long.parseLong(parts[1]));
         } catch (Exception e) {
-            throw new BusinessException("无效的分页游标");
+            throw new BusinessException(ResultCode.PARAM_ERROR, "无效的分页游标");
         }
     }
 

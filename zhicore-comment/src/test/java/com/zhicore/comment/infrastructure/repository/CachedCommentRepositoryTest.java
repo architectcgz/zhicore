@@ -135,7 +135,7 @@ class CachedCommentRepositoryTest {
     void testFindById_NullValueCacheHit() {
         // Given: 缓存中存在空值标记
         String cacheKey = CommentRedisKeys.detail(TEST_COMMENT_ID);
-        when(valueOperations.get(cacheKey)).thenReturn(CacheConstants.NULL_VALUE);
+        when(valueOperations.get(cacheKey)).thenReturn(CacheConstants.NULL_MARKER);
 
         // When: 调用 findById
         Optional<Comment> result = cachedRepository.findById(TEST_COMMENT_ID);
@@ -145,6 +145,19 @@ class CachedCommentRepositoryTest {
         verify(valueOperations, times(1)).get(cacheKey);
         verify(delegate, never()).findById(any());
         verify(hotDataIdentifier, never()).recordAccess(any(), any());
+    }
+
+    @Test
+    @DisplayName("测试历史空值缓存命中 - 兼容旧 NULL 标记")
+    void testFindById_LegacyNullValueCacheHit() {
+        String cacheKey = CommentRedisKeys.detail(TEST_COMMENT_ID);
+        when(valueOperations.get(cacheKey)).thenReturn(CacheConstants.LEGACY_NULL_MARKER);
+
+        Optional<Comment> result = cachedRepository.findById(TEST_COMMENT_ID);
+
+        assertFalse(result.isPresent());
+        verify(valueOperations, times(1)).get(cacheKey);
+        verify(delegate, never()).findById(any());
     }
 
     // ==================== 缓存未命中场景测试 ====================
@@ -240,7 +253,7 @@ class CachedCommentRepositoryTest {
         
         when(valueOperations.get(cacheKey))
                 .thenReturn(null)                      // 第一次检查：未命中
-                .thenReturn(CacheConstants.NULL_VALUE); // DCL 第二次检查：空值
+                .thenReturn(CacheConstants.LEGACY_NULL_MARKER); // DCL 第二次检查：兼容旧空值
         when(hotDataIdentifier.isHotData(ENTITY_TYPE_COMMENT, TEST_COMMENT_ID)).thenReturn(true);
         when(redissonClient.getLock(lockKey)).thenReturn(lock);
         when(lock.tryLock(5L, 10L, TimeUnit.SECONDS)).thenReturn(true);
@@ -328,7 +341,7 @@ class CachedCommentRepositoryTest {
         verify(delegate, times(1)).findById(TEST_COMMENT_ID);
         verify(valueOperations, times(1)).set(
                 eq(cacheKey),
-                eq(CacheConstants.NULL_VALUE),
+                eq(CacheConstants.NULL_MARKER),
                 eq(60L),
                 eq(TimeUnit.SECONDS)
         );
@@ -356,7 +369,7 @@ class CachedCommentRepositoryTest {
         verify(delegate, times(1)).findById(TEST_COMMENT_ID);
         verify(valueOperations, times(1)).set(
                 eq(cacheKey),
-                eq(CacheConstants.NULL_VALUE),
+                eq(CacheConstants.NULL_MARKER),
                 eq(60L),
                 eq(TimeUnit.SECONDS)
         );

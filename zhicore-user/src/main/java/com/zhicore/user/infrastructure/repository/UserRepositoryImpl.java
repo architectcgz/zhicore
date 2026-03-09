@@ -199,7 +199,7 @@ public class UserRepositoryImpl implements UserRepository {
         // 根据 is_active 字段推断状态
         UserStatus status = Boolean.TRUE.equals(po.getIsActive()) ? UserStatus.ACTIVE : UserStatus.DISABLED;
 
-        return User.reconstitute(
+        return User.reconstitute(new User.Snapshot(
                 po.getId(),
                 po.getUserName(),
                 po.getNickName(),
@@ -209,11 +209,12 @@ public class UserRepositoryImpl implements UserRepository {
                 po.getBio(),
                 status,
                 Boolean.TRUE.equals(po.getEmailConfirmed()),
+                po.getAllowStrangerMessage() == null || po.getAllowStrangerMessage(),
                 roles,
                 po.getProfileVersion(),
                 DateTimeUtils.toLocalDateTime(po.getCreatedAt()),
                 DateTimeUtils.toLocalDateTime(po.getUpdatedAt())
-        );
+        ));
     }
 
     /**
@@ -231,6 +232,7 @@ public class UserRepositoryImpl implements UserRepository {
         po.setProfileVersion(user.getProfileVersion());
         po.setIsActive(user.getStatus() == UserStatus.ACTIVE);
         po.setEmailConfirmed(user.isEmailConfirmed());
+        po.setAllowStrangerMessage(user.isStrangerMessageAllowed());
         po.setCreatedAt(DateTimeUtils.toOffsetDateTime(user.getCreatedAt()));
         po.setUpdatedAt(DateTimeUtils.toOffsetDateTime(user.getUpdatedAt()));
         po.setDeleted(false);

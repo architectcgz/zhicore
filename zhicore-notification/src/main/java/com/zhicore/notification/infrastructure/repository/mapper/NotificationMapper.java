@@ -17,6 +17,23 @@ import java.util.List;
 public interface NotificationMapper extends BaseMapper<NotificationPO> {
 
     /**
+     * 基于通知主键幂等插入。
+     *
+     * <p>重复事件会生成相同通知 ID，通过主键冲突直接忽略写入。</p>
+     */
+    @Insert("""
+        INSERT INTO notifications (
+            id, recipient_id, type, actor_id, target_type, target_id,
+            content, is_read, read_at, created_at
+        ) VALUES (
+            #{id}, #{recipientId}, #{type}, #{actorId}, #{targetType}, #{targetId},
+            #{content}, #{isRead}, #{readAt}, #{createdAt}
+        )
+        ON CONFLICT (id) DO NOTHING
+        """)
+    int insertIgnore(NotificationPO notification);
+
+    /**
      * 聚合查询通知
      * 使用窗口函数获取每组的统计信息和最新通知
      */

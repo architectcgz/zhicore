@@ -1,5 +1,7 @@
 package com.zhicore.api.event.post;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.api.event.DomainEvent;
 import lombok.Getter;
 
@@ -30,11 +32,20 @@ public class PostScheduledEvent extends DomainEvent {
      */
     private final LocalDateTime scheduledAt;
 
-    public PostScheduledEvent(Long postId, Long authorId, LocalDateTime scheduledAt) {
-        super();
+    @JsonCreator
+    public PostScheduledEvent(@JsonProperty("eventId") String eventId,
+                              @JsonProperty("occurredAt") LocalDateTime occurredAt,
+                              @JsonProperty("postId") Long postId,
+                              @JsonProperty("authorId") Long authorId,
+                              @JsonProperty("scheduledAt") LocalDateTime scheduledAt) {
+        super(eventId, occurredAt);
         this.postId = postId;
         this.authorId = authorId;
         this.scheduledAt = scheduledAt;
+    }
+
+    public PostScheduledEvent(Long postId, Long authorId, LocalDateTime scheduledAt) {
+        this(null, null, postId, authorId, scheduledAt);
     }
 
     @Override

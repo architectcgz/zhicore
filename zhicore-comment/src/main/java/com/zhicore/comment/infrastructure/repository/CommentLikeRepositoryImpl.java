@@ -29,6 +29,18 @@ public class CommentLikeRepositoryImpl implements CommentLikeRepository {
     }
 
     @Override
+    public boolean insertIfAbsent(Long commentId, Long userId) {
+        int affected = likeMapper.insertIfAbsent(commentId, userId);
+        return affected > 0;
+    }
+
+    @Override
+    public boolean deleteAndReturnAffected(Long commentId, Long userId) {
+        int affected = likeMapper.deleteByCommentIdAndUserId(commentId, userId);
+        return affected > 0;
+    }
+
+    @Override
     public void delete(Long commentId, Long userId) {
         likeMapper.deleteByCommentIdAndUserId(commentId, userId);
     }

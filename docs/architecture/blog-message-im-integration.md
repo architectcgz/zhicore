@@ -40,9 +40,9 @@
 │  │              ZhiCore-message                            │   │
 │  │  (博客消息业务编排层 / IM 适配层)                     │   │
 │  │                                                      │   │
-│  │  ✓ 系统通知管理 (点赞、评论、关注)                   │   │
 │  │  ✓ 私信业务编排 (调用 im-system)                    │   │
-│  │  ✓ 消息聚合与展示                                    │   │
+│  │  ✓ 会话聚合与展示                                    │   │
+│  │  ✓ 通知摘要聚合（读取 notification 服务）            │   │
 │  │  ✓ 博客特定的消息规则                                │   │
 │  │  ✓ 消息权限控制                                      │   │
 │  └──────────────────────────────────────────────────────┘   │
@@ -69,37 +69,19 @@
 
 ### ZhiCore-message 的新职责
 
-#### 1. 系统通知管理（独立功能，不依赖 im-system）
+#### 1. 消息中心聚合（读取 notification 服务）
 
-处理博客业务产生的系统通知：
+`ZhiCore-message` 不再负责系统通知的生成和持久化，这部分由 `ZhiCore-notification` 独立承担。`ZhiCore-message` 只负责聚合展示：
 
-| 通知类型 | 触发事件 | 示例 |
-|---------|---------|------|
-| 点赞通知 | PostLikedEvent | "用户A 点赞了你的文章《标题》" |
-| 评论通知 | CommentCreatedEvent | "用户B 评论了你的文章《标题》" |
-| 回复通知 | CommentRepliedEvent | "用户C 回复了你的评论" |
-| 关注通知 | UserFollowedEvent | "用户D 关注了你" |
-| @提醒通知 | UserMentionedEvent | "用户E 在评论中@了你" |
-| 系统公告 | SystemAnnouncementEvent | "系统维护通知" |
+| 能力 | 归属服务 | 说明 |
+|------|---------|------|
+| 系统通知生成/存储 | ZhiCore-notification | 消费点赞、评论、关注等事件，生成通知读模型 |
+| 私信发送/会话管理 | ZhiCore-message + im-system | message 编排业务规则，im-system 负责即时通讯基础设施 |
+| 消息中心聚合 | ZhiCore-message | 聚合 notification 摘要与私信会话列表，对外提供统一入口 |
 
-**数据存储**：
-
-```sql
--- 系统通知表（ZhiCore-message 自己管理）
-CREATE TABLE system_notification (
-    id BIGINT PRIMARY KEY,
-    user_id BIGINT NOT NULL,           -- 接收者
-    type VARCHAR(50) NOT NULL,         -- 通知类型
-    title VARCHAR(200),                -- 通知标题
-    content TEXT,                      -- 通知内容
-    related_id BIGINT,                 -- 关联ID（文章ID、评论ID等）
-    related_type VARCHAR(50),          -- 关联类型
-    is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT NOW(),
-    INDEX idx_user_read (user_id, is_read),
-    INDEX idx_created (created_at)
-);
-```
+这意味着 `message` 与 `notification` 的边界是：
+- `notification` 负责通知领域状态
+- `message` 负责消息中心体验与私信业务编排
 
 #### 2. 私信业务编排（调用 im-system）
 
@@ -124,6 +106,7 @@ public class PrivateMessageService {
         String fromUserId = request.getFromUserId();
         String toUserId = request.getToUserId();
         String content = request.getContent();
+        String requestId = request.getRequestId();
         
         // 1. 博客业务校验
         validateMessagePermission(fromUserId, toUserId);
@@ -133,6 +116,7 @@ public class PrivateMessageService {
         
         // 3. 调用 im-system 发送消息
         ImMessageRequest imRequest = ImMessageRequest.builder()
+            .requestId(requestId)
             .fromUserId(fromUserId)
             .toUserId(toUserId)
             .content(filteredContent)
@@ -145,8 +129,11 @@ public class PrivateMessageService {
             throw new BusinessException("消息发送失败");
         }
         
-        // 4. 记录博客业务数据（统计、审计等）
-        recordMessageStatistics(fromUserId, toUserId);
+        // 4. 落库消息发送结果，统计和审计走异步补偿
+        messageRepository.save(MessageRecord.sent(
+            requestId, fromUserId, toUserId, response.getData()
+        ));
+        messageOutboxPublisher.publishStatisticsSync(requestId, fromUserId, toUserId);
     }
     
     /**
@@ -236,23 +223,17 @@ public class BulkMessageService {
             throw new BusinessException("单次群发不能超过" + MAX_BULK_SIZE + "人");
         }
         
-        // 3. 批量调用 im-system
-        for (String toUserId : toUserIds) {
-            try {
-                imSystemClient.sendMessage(
-                    ImMessageRequest.builder()
-                        .fromUserId(fromUserId)
-                        .toUserId(toUserId)
-                        .content(content)
-                        .build()
-                );
-            } catch (Exception e) {
-                log.error("群发消息失败: fromUserId={}, toUserId={}", fromUserId, toUserId, e);
-            }
-        }
+        // 3. 创建批量发送任务，异步并发投递
+        BulkMessageTask task = bulkMessageTaskRepository.create(fromUserId, toUserIds, content);
+        bulkMessageDispatcher.dispatch(task.getTaskId());
     }
 }
 ```
+
+批量发送的推荐策略：
+- 主流程只负责校验和创建任务，不在 HTTP 请求里串行调用 IM
+- Worker 池按批次并发发送，并对失败项进入重试队列
+- 对外返回任务 ID、成功数、失败数和最终完成状态
 
 ### im-system 的职责
 
@@ -287,7 +268,7 @@ im-system 作为通用 IM 基础设施，提供：
     
     <dependency>
         <groupId>com.ZhiCore</groupId>
-        <artifactId>ZhiCore-api</artifactId>
+        <artifactId>zhicore-client</artifactId>
     </dependency>
     
     <!-- im-system 客户端（新增） -->
@@ -313,14 +294,14 @@ im-system 作为通用 IM 基础设施，提供：
 
 ### Feign Client 定义
 
-在 **ZhiCore-api** 模块中定义 im-system 的 Feign 客户端：
+在**共享契约模块**中定义 im-system 的 Feign 客户端：
 
 ```java
-// ZhiCore-api/client/ImSystemClient.java
+// shared-client/client/ImSystemClient.java
 @FeignClient(
     name = "im-system", 
     url = "${im-system.url}",
-    fallbackFactory = ImSystemFallbackFactory.class
+    primary = false
 )
 public interface ImSystemClient {
     
@@ -357,7 +338,7 @@ public interface ImSystemClient {
 ### 降级策略
 
 ```java
-// ZhiCore-api/client/fallback/ImSystemFallbackFactory.java
+// ZhiCore-message/infrastructure/feign/ImSystemFallbackFactory.java
 @Component
 public class ImSystemFallbackFactory implements FallbackFactory<ImSystemClient> {
     
@@ -546,7 +527,7 @@ public class MessageCenterController {
 ### 阶段 1：准备阶段
 
 1. 部署 im-system 服务
-2. 在 ZhiCore-api 中添加 ImSystemClient
+2. 在共享契约模块中添加 ImSystemClient
 3. 在 ZhiCore-message 中添加 im-system-client 依赖
 
 ### 阶段 2：双写阶段
@@ -620,5 +601,5 @@ public class MessageCenterController {
 ## 相关文档
 
 - [im-system 架构文档](../../../im-system/docs/architecture-overview.md)
-- [ZhiCore-api 模块说明](./ZhiCore-api-module-purpose.md)
+- [共享契约模块说明](./blog-api-module-purpose.md)
 - [DDD 架构总览](../ddd/overview.md)

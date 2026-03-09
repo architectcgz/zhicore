@@ -212,13 +212,13 @@ application/
  */
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class PostApplicationService {
 
     private final PostRepository postRepository;
     private final PostContentRepository postContentRepository;
-    private final DomainEventPublisher eventPublisher;
+    private final OutboxEventPublisher outboxEventPublisher;
     private final IdGeneratorClient idGeneratorClient;
+    private final PostQueryService postQueryService;
 
     /**
      * 创建文章
@@ -228,8 +228,9 @@ public class PostApplicationService {
      * 2. 创建文章聚合根
      * 3. 保存文章元数据（PostgreSQL）
      * 4. 保存文章内容（MongoDB）
-     * 5. 发布文章创建事件
+     * 5. 写入文章创建事件到 Outbox
      */
+    @Transactional(rollbackFor = Exception.class)
     public Long createPost(Long userId, CreatePostRequest request) {
         // 1. 生成文章ID
         Long postId = idGeneratorClient.generateId();
@@ -248,7 +249,7 @@ public class PostApplicationService {
         PostContent content = new PostContent(postId, request.getContent());
         postContentRepository.save(content);
         
-        // 5. 发布领域事件
+        // 5. 写入领域事件，提交后异步投递
         PostCreatedEvent event = new PostCreatedEvent(
             postId.toString(), 
             post.getTitle(), 
@@ -257,7 +258,7 @@ public class PostApplicationService {
             userId.toString(),
             // ... 其他字段
         );
-        eventPublisher.publish(MqConstants.TOPIC_POST, "POST_CREATED", event);
+        outboxEventPublisher.publish(event);
         
         return postId;
     }
@@ -270,8 +271,9 @@ public class PostApplicationService {
      * 2. 权限检查
      * 3. 调用领域方法发布
      * 4. 更新文章
-     * 5. 发布领域事件
+     * 5. 写入发布事件到 Outbox
      */
+    @Transactional(rollbackFor = Exception.class)
     public void publishPost(Long userId, Long postId) {
         // 1. 查询文章
         Post post = postRepository.findById(postId)
@@ -288,18 +290,23 @@ public class PostApplicationService {
         // 4. 更新文章
         postRepository.update(post);
         
-        // 5. 发布领域事件
+        // 5. 写入领域事件，避免事务内直接发 MQ
         PostPublishedEvent event = new PostPublishedEvent(postId, userId);
-        eventPublisher.publish(MqConstants.TOPIC_POST, "POST_PUBLISHED", event);
+        outboxEventPublisher.publish(event);
+    }
+
+    @Transactional(readOnly = true)
+    public PostDetailVO getPostDetail(Long postId) {
+        return postQueryService.getPostDetail(postId);
     }
 }
 ```
 
 ### 设计原则
 
-1. **事务边界**：应用服务方法是事务边界，使用 `@Transactional`
+1. **事务边界**：应用服务方法是事务边界，读写方法分离，查询优先使用 `readOnly = true`
 2. **编排而非实现**：编排领域对象，不实现业务逻辑
-3. **领域事件**：在应用服务中发布领域事件
+3. **领域事件**：应用层负责提交后发布，推荐 Outbox 或 `@TransactionalEventListener(AFTER_COMMIT)`
 4. **外部调用**：应用层负责调用外部服务（Feign Client、消息队列等）
 
 ---
@@ -1004,66 +1011,35 @@ public class PostPO {
 
 ### 4.3 事件发布器
 
-事件发布器负责将领域事件发布到消息队列。
+事件发布器负责将领域事件安全地交给基础设施层投递。推荐使用 Outbox 持久化后再异步发送，而不是在业务事务中直接 `asyncSend()`。
 
 #### 代码示例
 
 ```java
 /**
- * 领域事件发布器
- * 
- * 支持普通消息、顺序消息、延迟消息
+ * Outbox 事件发布器
+ *
+ * 职责：
+ * 1. 在业务事务内落库 Outbox 记录
+ * 2. 由独立调度器在事务提交后异步投递 MQ
  */
 @Component
 @RequiredArgsConstructor
-public class DomainEventPublisher {
+public class OutboxEventPublisher {
 
-    private final RocketMQTemplate rocketMQTemplate;
-
-    /**
-     * 发送普通消息（异步）
-     */
-    public void publish(String topic, String tag, Object event) {
-        String destination = buildDestination(topic, tag);
-        Message<String> message = buildMessage(event);
-
-        rocketMQTemplate.asyncSend(destination, message, new SendCallback() {
-            @Override
-            public void onSuccess(SendResult sendResult) {
-                log.debug("Event published: topic={}, tag={}, msgId={}",
-                        topic, tag, sendResult.getMsgId());
-            }
-
-            @Override
-            public void onException(Throwable e) {
-                log.error("Failed to publish event: topic={}, tag={}",
-                        topic, tag, e);
-            }
-        });
-    }
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
 
     /**
-     * 发送顺序消息
+     * 在事务内保存待投递事件
      */
-    public void publishOrderly(String topic, String tag, Object event, String hashKey) {
-        String destination = buildDestination(topic, tag);
-        Message<String> message = buildMessage(event);
-
-        rocketMQTemplate.asyncSendOrderly(destination, message, hashKey, 
-            new SendCallback() {
-                // 回调处理...
-            });
-    }
-
-    private String buildDestination(String topic, String tag) {
-        return topic + ":" + tag;
-    }
-
-    private Message<String> buildMessage(Object event) {
-        String payload = JsonUtils.toJson(event);
-        return MessageBuilder.withPayload(payload)
-                .setHeader("eventType", event.getClass().getSimpleName())
-                .build();
+    @Transactional
+    public void publish(DomainEvent event) {
+        outboxEventRepository.save(OutboxEventEntity.pending(
+            event.getEventId(),
+            event.getClass().getName(),
+            objectMapper.writeValueAsString(event)
+        ));
     }
 }
 ```
@@ -1082,6 +1058,7 @@ sequenceDiagram
     participant R as Repository<br/>(领域层接口)
     participant RI as RepositoryImpl<br/>(基础设施层)
     participant DB as Database
+    participant OB as OutboxDispatcher<br/>(基础设施层)
     participant MQ as MessageQueue
 
     C->>AS: createPost(userId, request)
@@ -1096,8 +1073,9 @@ sequenceDiagram
     DB-->>RI: success
     RI-->>R: void
     R-->>AS: void
-    AS->>MQ: eventPublisher.publish(event)
+    AS->>AS: outboxEventPublisher.publish(event)
     AS-->>C: postId
+    OB->>MQ: dispatch(event)
 ```
 
 ### 5.2 发布文章流程
@@ -1110,6 +1088,7 @@ sequenceDiagram
     participant P as Post<br/>(领域层)
     participant RI as RepositoryImpl<br/>(基础设施层)
     participant DB as Database
+    participant OB as OutboxDispatcher<br/>(基础设施层)
     participant MQ as MessageQueue
 
     C->>AS: publishPost(userId, postId)
@@ -1314,19 +1293,19 @@ public class PostApplicationService {
 ✅ **推荐做法**
 
 ```java
-// 1. 在应用服务中发布事件
+// 1. 在应用服务中注册/持久化事件
 @Service
-@Transactional
 public class PostApplicationService {
-    
+
+    @Transactional(rollbackFor = Exception.class)
     public void publishPost(Long userId, Long postId) {
         // 业务操作
         post.publish();
         postRepository.update(post);
-        
-        // 发布事件（在事务内）
+
+        // 保存到 Outbox，提交后异步投递
         PostPublishedEvent event = new PostPublishedEvent(postId, userId);
-        eventPublisher.publish(MqConstants.TOPIC_POST, "POST_PUBLISHED", event);
+        outboxEventPublisher.publish(event);
     }
 }
 
@@ -1343,11 +1322,11 @@ public class PostPublishedEvent extends DomainEvent {
 ❌ **不推荐做法**
 
 ```java
-// 1. 在领域层发布事件
+// 1. 领域对象直接依赖 MQ/Feign 等基础设施
 public class Post {
     public void publish() {
         this.status = PostStatus.PUBLISHED;
-        // ❌ 领域层不应该依赖基础设施
+        // ❌ 领域层不应该直接持有 MQ 发布器
         eventPublisher.publish(event);
     }
 }
@@ -1413,9 +1392,9 @@ public class PostApplicationService {
         post.publish();
         postRepository.update(post);
         
-        // 2. 发布事件（异步处理）
+        // 2. 保存 Outbox 事件，由调度器异步投递
         PostPublishedEvent event = new PostPublishedEvent(postId);
-        eventPublisher.publish(topic, tag, event);
+        outboxEventPublisher.publish(event);
     }
 }
 

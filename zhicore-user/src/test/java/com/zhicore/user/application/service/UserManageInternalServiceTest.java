@@ -7,6 +7,7 @@ import com.zhicore.user.domain.model.Role;
 import com.zhicore.user.domain.model.User;
 import com.zhicore.user.domain.model.UserStatus;
 import com.zhicore.user.domain.repository.UserRepository;
+import com.zhicore.user.infrastructure.cache.UserRedisKeys;
 import com.zhicore.user.interfaces.dto.response.UserManageDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,7 +52,7 @@ class UserManageInternalServiceTest {
         testRoles = new HashSet<>();
         testRoles.add(new Role(1, "USER", "普通用户"));
 
-        testUser = User.reconstitute(
+        testUser = User.reconstitute(new User.Snapshot(
                 123L,
                 "testuser",
                 "测试用户",
@@ -61,11 +62,12 @@ class UserManageInternalServiceTest {
                 "这是个人简介",
                 UserStatus.ACTIVE,
                 true,
+                true,
                 testRoles,
                 0L,
                 LocalDateTime.now(),
                 LocalDateTime.now()
-        );
+        ));
     }
 
     @Nested
@@ -338,7 +340,7 @@ class UserManageInternalServiceTest {
         @DisplayName("应该处理多个用户的查询")
         void shouldHandleMultipleUsers() {
             // Given
-            User user2 = User.reconstitute(
+            User user2 = User.reconstitute(new User.Snapshot(
                     456L,
                     "testuser2",
                     "测试用户2",
@@ -348,11 +350,12 @@ class UserManageInternalServiceTest {
                     null,
                     UserStatus.ACTIVE,
                     true,
+                    true,
                     testRoles,
                     0L,
                     LocalDateTime.now(),
                     LocalDateTime.now()
-            );
+            ));
 
             List<User> mockUsers = Arrays.asList(testUser, user2);
             when(userRepository.findByConditions(isNull(), isNull(), eq(0), eq(20)))
@@ -465,14 +468,18 @@ class UserManageInternalServiceTest {
         void shouldInvalidateUserTokensSuccessfully() {
             // Given
             when(userRepository.existsById(123L)).thenReturn(true);
-            Set<String> tokenKeys = new HashSet<>(Arrays.asList("user:123:token:access", "user:123:token:refresh:abc"));
-            when(stringRedisTemplate.keys("user:123:token:*")).thenReturn(tokenKeys);
+            String tokenPattern = UserRedisKeys.userTokenPattern(123L);
+            Set<String> tokenKeys = new HashSet<>(Arrays.asList(
+                    "zhicore:user:123:token:access",
+                    "zhicore:user:123:token:refresh:abc"
+            ));
+            when(stringRedisTemplate.keys(tokenPattern)).thenReturn(tokenKeys);
 
             // When
             userManageInternalService.invalidateUserTokens(123L);
 
             // Then
-            verify(stringRedisTemplate).keys("user:123:token:*");
+            verify(stringRedisTemplate).keys(tokenPattern);
             verify(stringRedisTemplate).delete(tokenKeys);
         }
 

@@ -4,6 +4,7 @@ import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.common.result.ResultCode;
 import com.zhicore.message.application.dto.ConversationVO;
 import com.zhicore.message.domain.model.Conversation;
 import com.zhicore.message.domain.repository.ConversationRepository;
@@ -74,7 +75,7 @@ public class ConversationApplicationService {
         Long userId = UserContext.getUserId();
         
         Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new BusinessException("会话不存在"));
+                .orElseThrow(() -> new BusinessException(ResultCode.CONVERSATION_NOT_FOUND));
         
         // 验证访问权限
         messageDomainService.validateConversationAccess(conversation, userId);
@@ -122,28 +123,25 @@ public class ConversationApplicationService {
      * 批量获取用户信息
      */
     private Map<Long, UserSimpleDTO> fetchUserInfoBatch(Set<Long> userIds) {
-        // 这里简化处理，实际应该使用批量接口
         return userIds.stream()
-                .collect(Collectors.toMap(
-                        id -> id,
-                        this::fetchUserInfo,
-                        (a, b) -> a
-                ));
+                .map(id -> Map.entry(id, fetchUserInfo(id)))
+                .filter(entry -> entry.getValue() != null)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     /**
      * 获取单个用户信息
      */
     private UserSimpleDTO fetchUserInfo(Long userId) {
-        ApiResponse<UserSimpleDTO> response = userServiceClient.getUserSimple(String.valueOf(userId));
-        if (response.isSuccess() && response.getData() != null) {
-            return response.getData();
+        try {
+            ApiResponse<UserSimpleDTO> response = userServiceClient.getUserSimple(String.valueOf(userId));
+            if (response != null && response.isSuccess() && response.getData() != null) {
+                return response.getData();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch user info: userId={}", userId, e);
         }
-        // 降级处理：返回默认用户信息
-        UserSimpleDTO defaultUser = new UserSimpleDTO();
-        defaultUser.setId(userId);
-        defaultUser.setNickname("用户" + userId);
-        return defaultUser;
+        return null;
     }
 
     /**
@@ -152,7 +150,7 @@ public class ConversationApplicationService {
     private ConversationVO toConversationVO(Conversation conversation, Long userId, 
                                             Map<Long, UserSimpleDTO> userMap) {
         Long otherUserId = conversation.getOtherParticipant(userId);
-        UserSimpleDTO otherUser = userMap.getOrDefault(otherUserId, new UserSimpleDTO());
+        UserSimpleDTO otherUser = userMap.get(otherUserId);
         return toConversationVO(conversation, userId, otherUser);
     }
 

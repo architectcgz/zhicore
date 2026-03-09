@@ -43,14 +43,12 @@ public class UserFollowedNotificationConsumer extends AbstractEventConsumer<User
         Long followerId = event.getFollowerId();
         Long followingId = event.getFollowingId();
 
-        // 创建关注通知
-        Notification notification = notificationService.createFollowNotification(
-            followingId,  // 被关注者收到通知
-            followerId    // 关注者是触发者
-        );
-
-        // 实时推送
-        pushService.push(String.valueOf(followingId), notification);
+        notificationService.createFollowNotificationIfAbsent(
+                        NotificationEventKeys.notificationId(event.getEventId(), "user-followed"),
+                        followingId,
+                        followerId
+                )
+                .ifPresent(notification -> pushService.push(String.valueOf(followingId), notification));
 
         log.info("处理关注通知: follower={}, following={}",
                 followerId, followingId);

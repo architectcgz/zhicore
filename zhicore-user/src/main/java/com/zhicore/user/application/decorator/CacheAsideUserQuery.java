@@ -171,6 +171,24 @@ public class CacheAsideUserQuery implements UserQueryPort {
         return result;
     }
 
+    @Override
+    public boolean isStrangerMessageAllowed(Long userId) {
+        String cacheKey = UserRedisKeys.strangerMessageSetting(userId);
+
+        CacheResult<Boolean> cached = cacheRepository.get(cacheKey, Boolean.class);
+        if (cached.isHit()) {
+            log.debug("Cache hit for stranger message setting: userId={}", userId);
+            return Boolean.TRUE.equals(cached.getValue());
+        }
+
+        log.debug("Cache miss for stranger message setting, fetching from source: userId={}", userId);
+        boolean allowed = delegate.isStrangerMessageAllowed(userId);
+        Duration ttl = getDetailTtl().plus(Duration.ofSeconds(
+                ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
+        cacheRepository.set(cacheKey, allowed, ttl);
+        return allowed;
+    }
+
     /**
      * 缓存回填（仅供持锁场景使用，非 null 值用 set 覆盖写）
      * 无锁场景应直接使用 setIfAbsent 防止并发覆盖

@@ -161,6 +161,19 @@ public class UserApplicationService implements UserQueryPort {
     }
 
     /**
+     * 获取用户是否允许陌生人消息。
+     *
+     * @param userId 用户ID
+     * @return 是否允许陌生人消息
+     */
+    @Transactional(readOnly = true)
+    public boolean isStrangerMessageAllowed(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ResultCode.USER_NOT_FOUND));
+        return user.isStrangerMessageAllowed();
+    }
+
+    /**
      * 根据邮箱获取用户
      *
      * @param email 邮箱
@@ -330,6 +343,24 @@ public class UserApplicationService implements UserQueryPort {
         }
 
         log.info("用户头像更新成功: userId={}, avatarUrl={}", userId, avatarUrl);
+    }
+
+    /**
+     * 更新陌生人消息设置。
+     *
+     * @param userId 用户ID
+     * @param strangerMessageAllowed 是否允许陌生人消息
+     */
+    @Transactional
+    public void updateStrangerMessageSetting(Long userId, boolean strangerMessageAllowed) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ResultCode.USER_NOT_FOUND));
+
+        user.updateStrangerMessageSetting(strangerMessageAllowed);
+        userRepository.update(user);
+        registerCacheEviction(userId);
+
+        log.info("Stranger message setting updated: userId={}, allowed={}", userId, strangerMessageAllowed);
     }
 
     /**

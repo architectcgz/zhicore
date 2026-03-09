@@ -8,6 +8,7 @@ import com.zhicore.notification.application.dto.AggregatedNotificationVO;
 import com.zhicore.notification.domain.model.NotificationType;
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import com.zhicore.notification.infrastructure.cache.NotificationRedisKeys;
+import com.zhicore.notification.infrastructure.config.NotificationAggregationProperties;
 import com.zhicore.notification.infrastructure.feign.UserServiceClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,6 +52,9 @@ class NotificationAggregationServiceTest {
     @Mock
     private ValueOperations<String, Object> valueOperations;
 
+    @Mock
+    private NotificationAggregationProperties properties;
+
     @InjectMocks
     private NotificationAggregationService aggregationService;
 
@@ -59,6 +63,16 @@ class NotificationAggregationServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        NotificationAggregationProperties.CacheConfig cacheConfig =
+            new NotificationAggregationProperties.CacheConfig();
+        cacheConfig.setTtl(300);
+
+        NotificationAggregationProperties.DisplayConfig displayConfig =
+            new NotificationAggregationProperties.DisplayConfig();
+        displayConfig.setMaxRecentActors(3);
+
+        lenient().when(properties.getCache()).thenReturn(cacheConfig);
+        lenient().when(properties.getDisplay()).thenReturn(displayConfig);
     }
 
     @Nested
@@ -123,13 +137,13 @@ class NotificationAggregationServiceTest {
             // Mock user service
             UserSimpleDTO user1 = new UserSimpleDTO();
             user1.setId(456L);
-            user1.setNickName("Zhang San");
+            user1.setNickname("Zhang San");
             UserSimpleDTO user2 = new UserSimpleDTO();
             user2.setId(789L);
-            user2.setNickName("Li Si");
+            user2.setNickname("Li Si");
             UserSimpleDTO user3 = new UserSimpleDTO();
             user3.setId(999L);
-            user3.setNickName("Wang Wu");
+            user3.setNickname("Wang Wu");
 
             when(userServiceClient.getUsersSimple(anyList()))
                     .thenReturn(ApiResponse.success(Arrays.asList(user1, user2, user3)));
@@ -252,7 +266,7 @@ class NotificationAggregationServiceTest {
 
             UserSimpleDTO user = new UserSimpleDTO();
             user.setId(456L);
-            user.setNickName("Zhang San");
+            user.setNickname("Zhang San");
             when(userServiceClient.getUsersSimple(anyList()))
                     .thenReturn(ApiResponse.success(List.of(user)));
 
@@ -284,7 +298,7 @@ class NotificationAggregationServiceTest {
 
             UserSimpleDTO user = new UserSimpleDTO();
             user.setId(456L);
-            user.setNickName("Zhang San");
+            user.setNickname("Zhang San");
             when(userServiceClient.getUsersSimple(anyList()))
                     .thenReturn(ApiResponse.success(List.of(user)));
 

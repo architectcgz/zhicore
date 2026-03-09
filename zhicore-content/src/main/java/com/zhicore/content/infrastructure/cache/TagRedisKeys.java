@@ -73,6 +73,14 @@ public final class TagRedisKeys {
     }
 
     /**
+     * 热门标签缓存批量失效匹配模式
+     * Pattern: tags:hot:*
+     */
+    public static String hotTagsPattern() {
+        return hotTagsPrefix() + "*";
+    }
+
+    /**
      * Tag 统计信息缓存
      * Key: tag:stats:{tagId}
      * TTL: 1 hour

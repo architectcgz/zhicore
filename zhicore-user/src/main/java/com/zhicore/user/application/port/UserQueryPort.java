@@ -38,4 +38,12 @@ public interface UserQueryPort {
      * @return 用户ID到简要信息的映射
      */
     Map<Long, UserSimpleDTO> batchGetUsersSimple(Set<Long> userIds);
+
+    /**
+     * 获取用户是否允许陌生人消息。
+     *
+     * @param userId 用户ID
+     * @return 是否允许陌生人消息
+     */
+    boolean isStrangerMessageAllowed(Long userId);
 }

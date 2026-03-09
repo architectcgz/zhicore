@@ -2,6 +2,7 @@ package com.zhicore.comment.infrastructure.mq;
 
 import com.zhicore.api.event.DomainEvent;
 import com.zhicore.api.event.comment.CommentCreatedEvent;
+import com.zhicore.api.event.comment.CommentDeletedEvent;
 import com.zhicore.common.mq.DomainEventPublisher;
 import com.zhicore.common.mq.TopicConstants;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,13 @@ public class CommentEventPublisher {
      * 发布评论创建事件
      */
     public void publishCommentCreated(CommentCreatedEvent event) {
+        publish(event);
+    }
+
+    /**
+     * 发布评论删除事件
+     */
+    public void publishCommentDeleted(CommentDeletedEvent event) {
         publish(event);
     }
 }

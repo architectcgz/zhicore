@@ -2,9 +2,11 @@ package com.zhicore.message.infrastructure.feign;
 
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.result.ApiResponse;
-import com.zhicore.common.sentinel.AbstractFallbackFactory;
+import com.zhicore.common.result.ResultCode;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,43 +16,59 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-public class UserServiceFallbackFactory extends AbstractFallbackFactory<UserServiceClient> {
+public class UserServiceFallbackFactory implements FallbackFactory<UserServiceClient> {
+
+    private static final String SERVICE_NAME = "zhicore-user";
+
+    private final Counter fallbackCounter;
 
     public UserServiceFallbackFactory(MeterRegistry meterRegistry) {
-        super("ZhiCore-user", meterRegistry);
+        this.fallbackCounter = meterRegistry.counter("feign.fallback.count", "service", SERVICE_NAME);
     }
 
     @Override
-    protected UserServiceClient createFallback(Throwable cause) {
+    public UserServiceClient create(Throwable cause) {
+        fallbackCounter.increment();
+        logFallback(cause);
         return new UserServiceClient() {
             @Override
             public ApiResponse<UserSimpleDTO> getUserSimple(String userId) {
-                log.warn("获取用户简要信息降级: userId={}, cause={}", userId, cause.getMessage());
-                return serviceDegraded();
+                log.warn("获取用户简要信息降级: userId={}, cause={}", userId, failureMessage(cause));
+                return ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "用户服务已降级");
             }
 
             @Override
             public ApiResponse<Boolean> isBlocked(String userId, String targetUserId) {
                 log.warn("检查用户拉黑状态降级: userId={}, targetUserId={}, cause={}", 
-                        userId, targetUserId, cause.getMessage());
-                // 降级时默认不拉黑，允许发送消息
-                return ApiResponse.success(false);
+                        userId, targetUserId, failureMessage(cause));
+                return ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "用户服务已降级");
             }
 
             @Override
-            public ApiResponse<Boolean> isStranger(String userId, String targetUserId) {
-                log.warn("检查陌生人状态降级: userId={}, targetUserId={}, cause={}", 
-                        userId, targetUserId, cause.getMessage());
-                // 降级时默认不是陌生人，允许发送消息
-                return ApiResponse.success(false);
+            public ApiResponse<Boolean> isFollowing(String userId, String targetUserId) {
+                log.warn("检查关注状态降级: userId={}, targetUserId={}, cause={}",
+                        userId, targetUserId, failureMessage(cause));
+                return ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "用户服务已降级");
             }
 
             @Override
             public ApiResponse<Boolean> isStrangerMessageAllowed(String userId) {
-                log.warn("获取陌生人消息设置降级: userId={}, cause={}", userId, cause.getMessage());
-                // 降级时默认允许陌生人消息
-                return ApiResponse.success(true);
+                log.warn("获取陌生人消息设置降级: userId={}, cause={}", userId, failureMessage(cause));
+                return ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "用户服务已降级");
             }
         };
+    }
+
+    private void logFallback(Throwable cause) {
+        String message = cause != null ? cause.getMessage() : null;
+        if (message != null && (message.contains("timeout") || message.contains("Timeout") || message.contains("timed out"))) {
+            log.warn("{} 调用超时: {}", SERVICE_NAME, message);
+            return;
+        }
+        log.error("{} 调用失败", SERVICE_NAME, cause);
+    }
+
+    private String failureMessage(Throwable cause) {
+        return cause != null ? cause.getMessage() : "unknown";
     }
 }
