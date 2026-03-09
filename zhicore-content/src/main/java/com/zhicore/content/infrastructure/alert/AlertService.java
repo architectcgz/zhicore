@@ -60,54 +60,6 @@ public class AlertService {
     }
 
     /**
-     * 触发 MongoDB 连接失败告警
-     *
-     * @param errorMessage 错误信息
-     */
-    public void alertMongoConnectionFailure(String errorMessage) {
-        String alertKey = AlertType.MONGODB_CONNECTION_FAILURE.toString();
-        
-        if (shouldSendAlert(alertKey)) {
-            Alert alert = Alert.builder()
-                    .id(UUID.randomUUID().toString())
-                    .type(AlertType.MONGODB_CONNECTION_FAILURE)
-                    .level(AlertType.MONGODB_CONNECTION_FAILURE.getLevel())
-                    .title("MongoDB 连接失败")
-                    .message("无法连接到 MongoDB 数据库，系统已降级为仅使用 PostgreSQL")
-                    .details(errorMessage)
-                    .timestamp(LocalDateTime.now())
-                    .sent(false)
-                    .build();
-            
-            sendAlert(alert, alertKey);
-        }
-    }
-
-    /**
-     * 触发 PostgreSQL 连接失败告警
-     *
-     * @param errorMessage 错误信息
-     */
-    public void alertPostgresConnectionFailure(String errorMessage) {
-        String alertKey = AlertType.POSTGRES_CONNECTION_FAILURE.toString();
-        
-        if (shouldSendAlert(alertKey)) {
-            Alert alert = Alert.builder()
-                    .id(UUID.randomUUID().toString())
-                    .type(AlertType.POSTGRES_CONNECTION_FAILURE)
-                    .level(AlertType.POSTGRES_CONNECTION_FAILURE.getLevel())
-                    .title("PostgreSQL 连接失败")
-                    .message("无法连接到 PostgreSQL 数据库，系统服务不可用")
-                    .details(errorMessage)
-                    .timestamp(LocalDateTime.now())
-                    .sent(false)
-                    .build();
-            
-            sendAlert(alert, alertKey);
-        }
-    }
-
-    /**
      * 触发查询性能下降告警
      *
      * @param database 数据库类型（PostgreSQL/MongoDB）

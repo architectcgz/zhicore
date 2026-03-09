@@ -10,16 +10,6 @@ public enum AlertType {
     DATA_INCONSISTENCY("数据不一致", AlertLevel.HIGH),
     
     /**
-     * MongoDB 连接失败告警
-     */
-    MONGODB_CONNECTION_FAILURE("MongoDB连接失败", AlertLevel.CRITICAL),
-    
-    /**
-     * PostgreSQL 连接失败告警
-     */
-    POSTGRES_CONNECTION_FAILURE("PostgreSQL连接失败", AlertLevel.CRITICAL),
-    
-    /**
      * 查询性能下降告警
      */
     QUERY_PERFORMANCE_DEGRADATION("查询性能下降", AlertLevel.MEDIUM),

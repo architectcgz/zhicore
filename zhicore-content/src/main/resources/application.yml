@@ -291,35 +291,6 @@ post:
     # 孤儿数据清理任务执行频率（cron 表达式）- 每天凌晨 3 点执行
     orphan-cleanup-schedule-cron: "0 0 3 * * ?"
 
-  # 降级策略配置
-  degradation:
-    # 是否启用降级功能
-    enabled: true
-    # MongoDB 连接失败降级
-    fallback-on-mongo-failure: true
-    # 降级触发条件 - 错误率阈值
-    error-rate-threshold: 0.5
-    # 降级触发条件 - 慢调用比例阈值
-    slow-call-rate-threshold: 0.8
-    # 慢调用阈值（毫秒）
-    slow-call-threshold-ms: 1000
-    # 降级时间窗口（秒）
-    time-window-seconds: 60
-    # 最小请求数
-    min-request-amount: 10
-    # 降级持续时间（秒）
-    degradation-duration-seconds: 60
-    # 降级恢复策略（auto: 自动恢复, manual: 手动恢复）
-    recovery-strategy: auto
-    # 是否在降级时发送告警
-    alert-on-degradation: true
-    # 降级时的默认行为（return-metadata-only: 仅返回元数据, return-cached: 返回缓存数据, throw-exception: 抛出异常）
-    fallback-behavior: return-metadata-only
-    # 是否记录降级日志
-    log-enabled: true
-    # 降级指标收集
-    metrics-enabled: true
-
 # 日志配置
 logging:
   level:
