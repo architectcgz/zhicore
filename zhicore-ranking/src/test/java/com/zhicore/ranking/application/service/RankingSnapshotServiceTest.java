@@ -139,7 +139,7 @@ class RankingSnapshotServiceTest {
         assertEquals(List.of(10.0), weeklyPostsCaptor.getValue().stream().map(HotScore::getScore).toList());
 
         ArgumentCaptor<List<HotScore>> monthlyPostsCaptor = ArgumentCaptor.forClass(List.class);
-        verify(rankingRedisRepository).replaceRanking(eq(RankingRedisKeys.currentMonthPosts()), monthlyPostsCaptor.capture(), eq(Duration.ofDays(62)));
+        verify(rankingRedisRepository).replaceRanking(eq(RankingRedisKeys.currentMonthPosts()), monthlyPostsCaptor.capture(), eq(Duration.ofDays(365)));
         assertEquals(List.of("1001"), monthlyPostsCaptor.getValue().stream().map(HotScore::getEntityId).toList());
         assertEquals(List.of(8.0), monthlyPostsCaptor.getValue().stream().map(HotScore::getScore).toList());
     }

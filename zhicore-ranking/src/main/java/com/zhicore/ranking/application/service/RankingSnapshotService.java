@@ -40,7 +40,7 @@ public class RankingSnapshotService {
     private static final String ACTIVE_STATUS = "ACTIVE";
     private static final Duration DAILY_TTL = Duration.ofDays(2);
     private static final Duration WEEKLY_TTL = Duration.ofDays(14);
-    private static final Duration MONTHLY_TTL = Duration.ofDays(62);
+    private static final Duration MONTHLY_TTL = Duration.ofDays(365);
 
     private final RankingPostHotStateRepository postHotStateRepository;
     private final RankingEventInboxRepository inboxRepository;
