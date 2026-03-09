@@ -11,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -56,7 +55,7 @@ public class PostServiceFallbackFactory implements FallbackFactory<PostServiceCl
             public ApiResponse<List<PostDTO>> getPostsSimple(List<Long> postIds) {
                 log.warn("PostServiceClient.getPostsSimple fallback triggered: postIds={}, cause={}",
                         postIds, failureMessage(cause));
-                return ApiResponse.success(Collections.emptyList());
+                return ApiResponse.fail(ResultCode.SERVICE_UNAVAILABLE, "文章服务暂时不可用");
             }
 
             @Override
@@ -84,7 +83,7 @@ public class PostServiceFallbackFactory implements FallbackFactory<PostServiceCl
             public ApiResponse<Map<Long, PostDTO>> batchGetPosts(Set<Long> postIds) {
                 log.warn("PostServiceClient.batchGetPosts fallback triggered: postIds={}, cause={}",
                         postIds, failureMessage(cause));
-                return ApiResponse.success(Collections.emptyMap());
+                return ApiResponse.fail(ResultCode.SERVICE_UNAVAILABLE, "文章服务暂时不可用");
             }
         };
     }

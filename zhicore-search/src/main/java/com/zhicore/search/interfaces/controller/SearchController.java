@@ -178,10 +178,7 @@ public class SearchController {
             @Parameter(description = "返回数量限制（1-50）", example = "10")
             @RequestParam(defaultValue = "10") @Min(1) @Max(50) int limit) {
         
-        Long userId = UserContext.getUserId();
-        if (userId == null) {
-            return ApiResponse.success(List.of());
-        }
+        Long userId = UserContext.requireUserId();
         
         log.debug("User history request: userId={}, limit={}", userId, limit);
         
@@ -212,11 +209,9 @@ public class SearchController {
     @SecurityRequirement(name = "bearer-jwt")
     @DeleteMapping("/history")
     public ApiResponse<Void> clearUserHistory() {
-        Long userId = UserContext.getUserId();
-        if (userId != null) {
-            suggestionService.clearUserHistory(String.valueOf(userId));
-            log.info("Cleared search history for user: {}", userId);
-        }
+        Long userId = UserContext.requireUserId();
+        suggestionService.clearUserHistory(String.valueOf(userId));
+        log.info("Cleared search history for user: {}", userId);
         return ApiResponse.success(null);
     }
 }
