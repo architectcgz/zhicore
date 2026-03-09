@@ -6,8 +6,8 @@
 
 - [x] TODO 5 已完成：`upload` 启动类已移除裸 `@EnableFeignClients`
 - [x] TODO 2 已完成：为 `content / upload / id-generator / message` 各补 1 个真实接口级 `429 + ApiResponse` 回归
-- [x] TODO 3 已完成：已产出 [`docs/sentinel-qps-baseline-2026-03-09.md`](/home/azhi/workspace/projects/zhicore-microservice/docs/sentinel-qps-baseline-2026-03-09.md)
-- [x] TODO 4 已完成：已产出 [`docs/sentinel-rule-governance-2026-03-09.md`](/home/azhi/workspace/projects/zhicore-microservice/docs/sentinel-rule-governance-2026-03-09.md)
+- [x] TODO 3 已完成：已产出 [`docs/sentinel/sentinel-qps-baseline-2026-03-09.md`](/home/azhi/workspace/projects/zhicore-microservice/docs/sentinel/sentinel-qps-baseline-2026-03-09.md)
+- [x] TODO 4 已完成：已产出 [`docs/sentinel/sentinel-rule-governance-2026-03-09.md`](/home/azhi/workspace/projects/zhicore-microservice/docs/sentinel/sentinel-rule-governance-2026-03-09.md)
 - [x] TODO 1 已完成：本轮提交拆分为 `005715b refactor(upload): 删除启动类多余 Feign 开关`、`63b1635 test(sentinel): 补代表接口 URL 限流回归`、`455b444 docs(sentinel): 补 QPS 基线与治理边界`
 
 ## 背景
