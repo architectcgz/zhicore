@@ -1,11 +1,11 @@
 package com.zhicore.content.infrastructure.messaging.consumer;
 
-import com.zhicore.api.client.UserServiceClient;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.application.port.repo.PostRepository;
+import com.zhicore.content.infrastructure.feign.ContentUserServiceClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.integration.messaging.post.AuthorInfoCompensationIntegrationEvent;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +15,6 @@ import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
-import java.util.List;
 
 /**
  * 作者信息补偿消费者
@@ -58,7 +57,7 @@ import java.util.List;
 public class AuthorInfoCompensationConsumer implements RocketMQListener<String> {
 
     private final PostRepository postRepository;
-    private final UserServiceClient userServiceClient;
+    private final ContentUserServiceClient userServiceClient;
     private final ObjectMapper objectMapper;
 
     /**
@@ -117,13 +116,13 @@ public class AuthorInfoCompensationConsumer implements RocketMQListener<String> 
             try {
                 log.debug("调用 user-service 获取作者信息: userId={}", event.getUserId());
                 
-                ApiResponse<List<UserSimpleDTO>> response = 
-                    userServiceClient.getUsersSimple(Collections.singletonList(event.getUserId()));
-                
-                if (response != null && response.isSuccess() && 
-                    response.getData() != null && !response.getData().isEmpty()) {
-                    
-                    UserSimpleDTO author = response.getData().get(0);
+                ApiResponse<java.util.Map<Long, UserSimpleDTO>> response =
+                    userServiceClient.batchGetUsersSimple(Collections.singleton(event.getUserId()));
+                UserSimpleDTO author = response != null && response.isSuccess() && response.getData() != null
+                        ? response.getData().get(event.getUserId())
+                        : null;
+
+                if (author != null) {
                     
                     log.info("成功获取作者信息: userId={}, nickname={}, avatarId={}, profileVersion={}", 
                         event.getUserId(), author.getNickname(), author.getAvatarId(),

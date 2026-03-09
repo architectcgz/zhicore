@@ -13,7 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
  * 
  * @author ZhiCore Team
  */
-@FeignClient(name = "zhicore-upload", path = "/api/v1/upload")
+@FeignClient(name = "zhicore-upload", path = "/api/v1/upload", fallbackFactory = UploadServiceFallbackFactory.class)
 public interface ZhiCoreUploadClient {
 
     /**

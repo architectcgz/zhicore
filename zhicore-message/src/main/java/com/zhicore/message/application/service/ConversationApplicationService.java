@@ -1,5 +1,6 @@
 package com.zhicore.message.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
@@ -10,6 +11,8 @@ import com.zhicore.message.domain.model.Conversation;
 import com.zhicore.message.domain.repository.ConversationRepository;
 import com.zhicore.message.domain.service.MessageDomainService;
 import com.zhicore.message.infrastructure.feign.UserServiceClient;
+import com.zhicore.message.infrastructure.sentinel.MessageSentinelHandlers;
+import com.zhicore.message.infrastructure.sentinel.MessageSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,6 +44,11 @@ public class ConversationApplicationService {
      * @param limit 数量限制
      * @return 会话列表
      */
+    @SentinelResource(
+            value = MessageSentinelResources.GET_CONVERSATION_LIST,
+            blockHandlerClass = MessageSentinelHandlers.class,
+            blockHandler = "handleConversationListBlocked"
+    )
     public List<ConversationVO> getConversationList(Long cursor, int limit) {
         Long userId = UserContext.getUserId();
         
@@ -71,6 +79,11 @@ public class ConversationApplicationService {
      * @param conversationId 会话ID
      * @return 会话视图对象
      */
+    @SentinelResource(
+            value = MessageSentinelResources.GET_CONVERSATION,
+            blockHandlerClass = MessageSentinelHandlers.class,
+            blockHandler = "handleConversationBlocked"
+    )
     public ConversationVO getConversation(Long conversationId) {
         Long userId = UserContext.getUserId();
         
@@ -93,6 +106,11 @@ public class ConversationApplicationService {
      * @param otherUserId 对方用户ID
      * @return 会话视图对象（如果不存在返回null）
      */
+    @SentinelResource(
+            value = MessageSentinelResources.GET_CONVERSATION_BY_USER,
+            blockHandlerClass = MessageSentinelHandlers.class,
+            blockHandler = "handleConversationByUserBlocked"
+    )
     public ConversationVO getConversationByUser(Long otherUserId) {
         Long userId = UserContext.getUserId();
         
@@ -112,6 +130,11 @@ public class ConversationApplicationService {
      *
      * @return 会话数量
      */
+    @SentinelResource(
+            value = MessageSentinelResources.GET_CONVERSATION_COUNT,
+            blockHandlerClass = MessageSentinelHandlers.class,
+            blockHandler = "handleConversationCountBlocked"
+    )
     public int getConversationCount() {
         Long userId = UserContext.getUserId();
         return conversationRepository.countByUserId(userId);

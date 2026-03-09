@@ -1,11 +1,14 @@
 package com.zhicore.admin.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.admin.application.dto.ReportVO;
 import com.zhicore.admin.domain.model.*;
 import com.zhicore.admin.domain.model.*;
 import com.zhicore.admin.domain.repository.AuditLogRepository;
 import com.zhicore.admin.domain.repository.ReportRepository;
 import com.zhicore.admin.infrastructure.feign.IdGeneratorClient;
+import com.zhicore.admin.infrastructure.sentinel.AdminSentinelHandlers;
+import com.zhicore.admin.infrastructure.sentinel.AdminSentinelResources;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.ResourceNotFoundException;
 import com.zhicore.common.result.ApiResponse;
@@ -40,6 +43,11 @@ public class ReportManageService {
      * @param size 每页大小
      * @return 分页结果
      */
+    @SentinelResource(
+            value = AdminSentinelResources.LIST_PENDING_REPORTS,
+            blockHandlerClass = AdminSentinelHandlers.class,
+            blockHandler = "handleListPendingReportsBlocked"
+    )
     public PageResult<ReportVO> listPendingReports(int page, int size) {
         PageResult<Report> result = reportRepository.findPendingReports(page, size);
         
@@ -58,6 +66,11 @@ public class ReportManageService {
      * @param size   每页大小
      * @return 分页结果
      */
+    @SentinelResource(
+            value = AdminSentinelResources.LIST_REPORTS_BY_STATUS,
+            blockHandlerClass = AdminSentinelHandlers.class,
+            blockHandler = "handleListReportsByStatusBlocked"
+    )
     public PageResult<ReportVO> listReportsByStatus(String status, int page, int size) {
         ReportStatus reportStatus = ReportStatus.valueOf(status.toUpperCase());
         PageResult<Report> result = reportRepository.findByStatus(reportStatus, page, size);

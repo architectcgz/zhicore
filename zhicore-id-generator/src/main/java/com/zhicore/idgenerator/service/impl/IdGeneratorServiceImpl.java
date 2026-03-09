@@ -1,6 +1,9 @@
 package com.zhicore.idgenerator.service.impl;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.common.exception.BusinessException;
+import com.zhicore.idgenerator.infrastructure.sentinel.IdGeneratorSentinelHandlers;
+import com.zhicore.idgenerator.infrastructure.sentinel.IdGeneratorSentinelResources;
 import com.zhicore.idgenerator.service.IdGeneratorService;
 import com.platform.idgen.client.IdGeneratorClient;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,11 @@ public class IdGeneratorServiceImpl implements IdGeneratorService {
     private final IdGeneratorClient idGeneratorClient;
     
     @Override
+    @SentinelResource(
+            value = IdGeneratorSentinelResources.GENERATE_SNOWFLAKE_ID,
+            blockHandlerClass = IdGeneratorSentinelHandlers.class,
+            blockHandler = "handleGenerateSnowflakeIdBlocked"
+    )
     public Long generateSnowflakeId() {
         try {
             Long id = idGeneratorClient.nextSnowflakeId();
@@ -40,6 +48,11 @@ public class IdGeneratorServiceImpl implements IdGeneratorService {
     }
     
     @Override
+    @SentinelResource(
+            value = IdGeneratorSentinelResources.GENERATE_BATCH_SNOWFLAKE_IDS,
+            blockHandlerClass = IdGeneratorSentinelHandlers.class,
+            blockHandler = "handleGenerateBatchSnowflakeIdsBlocked"
+    )
     public List<Long> generateBatchSnowflakeIds(int count) {
         // 参数验证
         if (count <= 0 || count > MAX_BATCH_SIZE) {
@@ -67,6 +80,11 @@ public class IdGeneratorServiceImpl implements IdGeneratorService {
     }
     
     @Override
+    @SentinelResource(
+            value = IdGeneratorSentinelResources.GENERATE_SEGMENT_ID,
+            blockHandlerClass = IdGeneratorSentinelHandlers.class,
+            blockHandler = "handleGenerateSegmentIdBlocked"
+    )
     public Long generateSegmentId(String bizTag) {
         // 参数验证
         if (bizTag == null || bizTag.isBlank()) {

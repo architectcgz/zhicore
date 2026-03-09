@@ -1,10 +1,15 @@
 package com.zhicore.ranking.application.service;
 
-import com.zhicore.api.client.PostServiceClient;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.dto.post.PostDTO;
+import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.common.result.ResultCode;
 import com.zhicore.ranking.application.dto.HotPostDTO;
 import com.zhicore.ranking.domain.model.HotScore;
+import com.zhicore.ranking.infrastructure.feign.PostServiceClient;
+import com.zhicore.ranking.infrastructure.sentinel.RankingSentinelHandlers;
+import com.zhicore.ranking.infrastructure.sentinel.RankingSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -35,6 +41,11 @@ public class HotPostDetailService {
      * @param size 每页大小
      * @return 热门文章列表
      */
+    @SentinelResource(
+            value = RankingSentinelResources.HOT_POST_DETAILS,
+            blockHandlerClass = RankingSentinelHandlers.class,
+            blockHandler = "handleHotPostDetailsBlocked"
+    )
     public List<HotPostDTO> getHotPostsWithDetails(int page, int size) {
         // 步骤 1: 获取热门文章 ID 和分数
         List<HotScore> hotScores = postRankingService.getHotPostsWithScore(page, size);
@@ -49,18 +60,16 @@ public class HotPostDetailService {
                 .collect(Collectors.toList());
 
         // 步骤 3: 批量获取文章详情
-        ApiResponse<List<PostDTO>> response = postServiceClient.getPostsSimple(postIds);
-        
+        ApiResponse<Map<Long, PostDTO>> response = postServiceClient.batchGetPosts(Set.copyOf(postIds));
+
         if (response == null || !response.isSuccess() || response.getData() == null) {
-            log.warn("批量获取文章详情失败: postIds={}", postIds);
-            return new ArrayList<>();
+            log.warn("批量获取文章详情失败: postIds={}, message={}",
+                    postIds, response != null ? response.getMessage() : "null");
+            throw new BusinessException(ResultCode.SERVICE_DEGRADED, "文章服务已降级");
         }
 
-        List<PostDTO> posts = response.getData();
-
         // 步骤 4: 创建 postId -> PostDTO 的映射
-        Map<Long, PostDTO> postMap = posts.stream()
-                .collect(Collectors.toMap(PostDTO::getId, post -> post));
+        Map<Long, PostDTO> postMap = response.getData();
 
         // 步骤 5: 组装 HotPostDTO 列表（保持排名顺序）
         List<HotPostDTO> result = new ArrayList<>();

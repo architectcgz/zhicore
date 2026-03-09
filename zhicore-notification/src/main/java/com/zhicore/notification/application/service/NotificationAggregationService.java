@@ -1,5 +1,6 @@
 package com.zhicore.notification.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
@@ -10,6 +11,8 @@ import com.zhicore.notification.domain.repository.NotificationRepository;
 import com.zhicore.notification.infrastructure.cache.NotificationRedisKeys;
 import com.zhicore.notification.infrastructure.config.NotificationAggregationProperties;
 import com.zhicore.notification.infrastructure.feign.UserServiceClient;
+import com.zhicore.notification.infrastructure.sentinel.NotificationSentinelHandlers;
+import com.zhicore.notification.infrastructure.sentinel.NotificationSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -49,6 +52,11 @@ public class NotificationAggregationService {
      * @param size 每页大小
      * @return 聚合后的通知列表
      */
+    @SentinelResource(
+            value = NotificationSentinelResources.GET_AGGREGATED_NOTIFICATIONS,
+            blockHandlerClass = NotificationSentinelHandlers.class,
+            blockHandler = "handleAggregatedNotificationsBlocked"
+    )
     public PageResult<AggregatedNotificationVO> getAggregatedNotifications(
             Long userId, int page, int size) {
 

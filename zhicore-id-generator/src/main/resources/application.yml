@@ -32,6 +32,12 @@ id-generator:
     batch-fetch-size: 50
     async-refill: true
     buffer-enabled: true
+  sentinel:
+    enabled: true
+    snowflake-qps: 500
+    batch-snowflake-qps: 200
+    segment-qps: 300
+    warm-up-period-sec: 5
 
 # Actuator Configuration
 management:

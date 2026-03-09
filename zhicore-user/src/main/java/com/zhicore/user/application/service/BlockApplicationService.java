@@ -1,5 +1,6 @@
 package com.zhicore.user.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.user.application.assembler.UserAssembler;
@@ -13,6 +14,8 @@ import com.zhicore.user.domain.repository.UserFollowRepository;
 import com.zhicore.user.domain.repository.UserRepository;
 import com.zhicore.user.domain.service.BlockDomainService;
 import com.zhicore.user.infrastructure.cache.UserRedisKeys;
+import com.zhicore.user.infrastructure.sentinel.UserSentinelHandlers;
+import com.zhicore.user.infrastructure.sentinel.UserSentinelResources;
 import com.alibaba.fastjson.JSON;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -169,6 +172,11 @@ public class BlockApplicationService {
      * @param size 每页大小
      * @return 被拉黑的用户列表
      */
+    @SentinelResource(
+            value = UserSentinelResources.GET_BLOCKED_USERS,
+            blockHandlerClass = UserSentinelHandlers.class,
+            blockHandler = "handleGetBlockedUsersBlocked"
+    )
     public List<UserVO> getBlockedUsers(Long blockerId, int page, int size) {
         // 参数验证
         if (page < 1) page = 1;
@@ -190,6 +198,11 @@ public class BlockApplicationService {
      * @param blockedId 被拉黑者ID
      * @return 是否已拉黑
      */
+    @SentinelResource(
+            value = UserSentinelResources.IS_BLOCKED,
+            blockHandlerClass = UserSentinelHandlers.class,
+            blockHandler = "handleIsBlockedBlocked"
+    )
     public boolean isBlocked(Long blockerId, Long blockedId) {
         return userBlockRepository.exists(blockerId, blockedId);
     }

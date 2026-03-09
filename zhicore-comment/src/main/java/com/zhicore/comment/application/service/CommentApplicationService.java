@@ -1,5 +1,6 @@
 package com.zhicore.comment.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.user.UserSimpleDTO;
@@ -20,6 +21,8 @@ import com.zhicore.comment.infrastructure.feign.PostServiceClient;
 import com.zhicore.comment.infrastructure.feign.UserServiceClient;
 import com.zhicore.comment.infrastructure.mq.CommentEventPublisher;
 import com.zhicore.comment.infrastructure.repository.mapper.CommentStatsMapper;
+import com.zhicore.comment.infrastructure.sentinel.CommentSentinelHandlers;
+import com.zhicore.comment.infrastructure.sentinel.CommentSentinelResources;
 import com.zhicore.comment.interfaces.dto.request.CreateCommentRequest;
 import com.zhicore.comment.interfaces.dto.request.UpdateCommentRequest;
 import com.zhicore.common.constant.CommonConstants;
@@ -244,6 +247,11 @@ public class CommentApplicationService {
      * @param commentId 评论ID
      * @return 评论VO
      */
+    @SentinelResource(
+            value = CommentSentinelResources.GET_COMMENT_DETAIL,
+            blockHandlerClass = CommentSentinelHandlers.class,
+            blockHandler = "handleGetCommentBlocked"
+    )
     @Transactional(readOnly = true)
     public CommentVO getComment(Long commentId) {
         Comment comment = commentRepository.findById(commentId)
@@ -257,6 +265,11 @@ public class CommentApplicationService {
     /**
      * 【Web端】获取文章的顶级评论 - 传统分页
      */
+    @SentinelResource(
+            value = CommentSentinelResources.GET_TOP_LEVEL_COMMENTS_PAGE,
+            blockHandlerClass = CommentSentinelHandlers.class,
+            blockHandler = "handleGetTopLevelCommentsPageBlocked"
+    )
     @Transactional(readOnly = true)
     public PageResult<CommentVO> getTopLevelCommentsByPage(Long postId, int page, int size,
                                                            CommentSortType sortType) {
@@ -276,6 +289,11 @@ public class CommentApplicationService {
     /**
      * 【移动端】获取文章的顶级评论 - 游标分页
      */
+    @SentinelResource(
+            value = CommentSentinelResources.GET_TOP_LEVEL_COMMENTS_CURSOR,
+            blockHandlerClass = CommentSentinelHandlers.class,
+            blockHandler = "handleGetTopLevelCommentsCursorBlocked"
+    )
     @Transactional(readOnly = true)
     public CursorPage<CommentVO> getTopLevelCommentsByCursor(Long postId, String cursor, int size,
                                                               CommentSortType sortType) {
@@ -317,6 +335,11 @@ public class CommentApplicationService {
     /**
      * 【Web端】获取评论的回复列表 - 传统分页
      */
+    @SentinelResource(
+            value = CommentSentinelResources.GET_REPLIES_PAGE,
+            blockHandlerClass = CommentSentinelHandlers.class,
+            blockHandler = "handleGetRepliesPageBlocked"
+    )
     @Transactional(readOnly = true)
     public PageResult<CommentVO> getRepliesByPage(Long rootId, int page, int size) {
         validateTraditionalPaginationWindow(page, size);
@@ -329,6 +352,11 @@ public class CommentApplicationService {
     /**
      * 【移动端】获取评论的回复列表 - 游标分页
      */
+    @SentinelResource(
+            value = CommentSentinelResources.GET_REPLIES_CURSOR,
+            blockHandlerClass = CommentSentinelHandlers.class,
+            blockHandler = "handleGetRepliesCursorBlocked"
+    )
     @Transactional(readOnly = true)
     public CursorPage<CommentVO> getRepliesByCursor(Long rootId, String cursor, int size) {
         TimeCursor timeCursor = timeCursorCodec.decode(cursor);

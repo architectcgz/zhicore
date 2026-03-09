@@ -72,6 +72,15 @@ spring.cloud.openfeign:
   sentinel:
     enabled: true
 
+admin:
+  sentinel:
+    enabled: true
+    user-list-qps: 100
+    post-list-qps: 100
+    comment-list-qps: 100
+    report-list-qps: 80
+    warm-up-period-sec: 10
+
 # 日志配置
 logging:
   level:

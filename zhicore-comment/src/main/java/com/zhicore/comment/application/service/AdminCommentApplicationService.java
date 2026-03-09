@@ -1,5 +1,6 @@
 package com.zhicore.comment.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.api.event.comment.CommentDeletedEvent;
@@ -8,6 +9,8 @@ import com.zhicore.comment.domain.repository.CommentRepository;
 import com.zhicore.comment.infrastructure.feign.PostServiceClient;
 import com.zhicore.comment.infrastructure.feign.UserServiceClient;
 import com.zhicore.comment.infrastructure.mq.CommentEventPublisher;
+import com.zhicore.comment.infrastructure.sentinel.CommentSentinelHandlers;
+import com.zhicore.comment.infrastructure.sentinel.CommentSentinelResources;
 import com.zhicore.comment.interfaces.dto.response.CommentManageDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
@@ -49,6 +52,11 @@ public class AdminCommentApplicationService {
      * @param size 每页大小
      * @return 评论列表
      */
+    @SentinelResource(
+            value = CommentSentinelResources.ADMIN_QUERY_COMMENTS,
+            blockHandlerClass = CommentSentinelHandlers.class,
+            blockHandler = "handleAdminQueryCommentsBlocked"
+    )
     @Transactional(readOnly = true)
     public PageResult<CommentManageDTO> queryComments(String keyword, Long postId, Long userId, int page, int size) {
         try {

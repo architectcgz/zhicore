@@ -1,5 +1,6 @@
 package com.zhicore.user.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.common.util.DateTimeUtils;
@@ -9,6 +10,8 @@ import com.zhicore.user.domain.model.UserCheckInStats;
 import com.zhicore.user.domain.repository.UserCheckInRepository;
 import com.zhicore.user.domain.repository.UserRepository;
 import com.zhicore.user.infrastructure.cache.UserRedisKeys;
+import com.zhicore.user.infrastructure.sentinel.UserSentinelHandlers;
+import com.zhicore.user.infrastructure.sentinel.UserSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -89,6 +92,11 @@ public class CheckInApplicationService {
      * @param userId 用户ID
      * @return 签到统计
      */
+    @SentinelResource(
+            value = UserSentinelResources.GET_CHECK_IN_STATS,
+            blockHandlerClass = UserSentinelHandlers.class,
+            blockHandler = "handleGetCheckInStatsBlocked"
+    )
     @Transactional(readOnly = true)
     public CheckInVO getCheckInStats(Long userId) {
         UserCheckInStats stats = checkInRepository.findStatsByUserId(userId)
@@ -145,6 +153,11 @@ public class CheckInApplicationService {
      * @param yearMonth 年月
      * @return 签到位图（32位整数，每位代表一天）
      */
+    @SentinelResource(
+            value = UserSentinelResources.GET_MONTHLY_CHECK_IN_BITMAP,
+            blockHandlerClass = UserSentinelHandlers.class,
+            blockHandler = "handleGetMonthlyCheckInBitmapBlocked"
+    )
     public long getMonthlyCheckInBitmap(Long userId, YearMonth yearMonth) {
         try {
             String key = UserRedisKeys.checkInBitmap(userId, yearMonth);

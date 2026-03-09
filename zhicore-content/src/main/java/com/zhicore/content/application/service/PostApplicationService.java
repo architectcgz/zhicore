@@ -1,9 +1,8 @@
 package com.zhicore.content.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.api.client.IdGeneratorFeignClient;
-import com.zhicore.api.client.UploadServiceClient;
-import com.zhicore.api.client.UserServiceClient;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.exception.BusinessException;
@@ -58,7 +57,11 @@ import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.interfaces.dto.request.CreatePostRequest;
 import com.zhicore.content.interfaces.dto.request.UpdatePostRequest;
 import com.zhicore.content.infrastructure.alert.AlertService;
+import com.zhicore.content.infrastructure.feign.ContentUploadServiceClient;
+import com.zhicore.content.infrastructure.feign.ContentUserServiceClient;
 import com.zhicore.content.infrastructure.persistence.mongo.document.PostContent;
+import com.zhicore.content.infrastructure.sentinel.ContentSentinelHandlers;
+import com.zhicore.content.infrastructure.sentinel.ContentSentinelResources;
 import com.zhicore.content.interfaces.dto.request.SaveDraftRequest;
 import com.zhicore.content.interfaces.dto.response.DraftVO;
 import com.zhicore.content.infrastructure.config.ScheduledPublishProperties;
@@ -99,8 +102,8 @@ public class PostApplicationService {
     private final TagDomainService tagDomainService;
     private final PostTagRepository postTagRepository;
     private final TagRepository tagRepository;
-    private final UploadServiceClient uploadServiceClient;
-    private final UserServiceClient userServiceClient;
+    private final ContentUploadServiceClient uploadServiceClient;
+    private final ContentUserServiceClient userServiceClient;
     
     // 新架构依赖
     private final CreateDraftWorkflow createDraftWorkflow;
@@ -227,12 +230,11 @@ public class PostApplicationService {
     private OwnerSnapshot getOwnerSnapshot(Long userId) {
         try {
             // 调用 user-service 获取用户信息
-            ApiResponse<List<UserSimpleDTO>> response =
-                userServiceClient.getUsersSimple(Collections.singletonList(userId));
-            
-            if (response != null && response.isSuccess() && response.getData() != null && !response.getData().isEmpty()) {
-                // 成功获取用户信息
-                UserSimpleDTO userInfo = response.getData().get(0);
+            ApiResponse<Map<Long, UserSimpleDTO>> response =
+                userServiceClient.batchGetUsersSimple(Collections.singleton(userId));
+            UserSimpleDTO userInfo = extractSingleUser(response, userId);
+
+            if (userInfo != null) {
                 return new OwnerSnapshot(
                     UserId.of(userId),
                     userInfo.getNickname(),
@@ -870,6 +872,11 @@ public class PostApplicationService {
      * @return 文章视图对象
      */
     @Transactional(readOnly = true)
+    @SentinelResource(
+            value = ContentSentinelResources.GET_POST_DETAIL,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleGetPostDetailBlocked"
+    )
     public PostVO getPostById(Long postId) {
         // 使用 CacheAsidePostQuery 获取详情
         PostDetailView detailView = 
@@ -1099,6 +1106,11 @@ public class PostApplicationService {
      * 统一列表查询入口（R7/R8）
      */
     @Transactional(readOnly = true)
+    @SentinelResource(
+            value = ContentSentinelResources.GET_POST_LIST,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleGetPostListBlocked"
+    )
     public HybridPageResult<PostBriefVO> getPostList(PostListQuery query) {
         PostListQuery safeQuery = query != null ? query : PostListQuery.builder().build();
         safeQuery.validate();
@@ -1285,6 +1297,11 @@ public class PostApplicationService {
      * @return 文章内容
      */
     @Transactional(readOnly = true)
+    @SentinelResource(
+            value = ContentSentinelResources.GET_POST_CONTENT,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleGetPostContentBlocked"
+    )
     public PostContent getPostContent(Long postId) {
         // 使用 PostContentStore 获取内容
         Optional<PostBody> bodyOpt =
@@ -1485,6 +1502,13 @@ public class PostApplicationService {
         }
     }
 
+    private UserSimpleDTO extractSingleUser(ApiResponse<Map<Long, UserSimpleDTO>> response, Long userId) {
+        if (response == null || !response.isSuccess() || response.getData() == null || userId == null) {
+            return null;
+        }
+        return response.getData().get(userId);
+    }
+
     /**
      * 填充单个文章的作者信息
      * 使用文章表中的冗余字段（ownerSnapshot），避免调用 user-service
@@ -1594,12 +1618,11 @@ public class PostApplicationService {
     private void fillAuthorInfo(Post post, Long userId) {
         try {
             // 调用 user-service 获取用户信息
-            ApiResponse<List<UserSimpleDTO>> response =
-                userServiceClient.getUsersSimple(Collections.singletonList(userId));
-            
-            if (response != null && response.isSuccess() && response.getData() != null && !response.getData().isEmpty()) {
-                // 成功获取用户信息
-                UserSimpleDTO userInfo = response.getData().get(0);
+            ApiResponse<Map<Long, UserSimpleDTO>> response =
+                userServiceClient.batchGetUsersSimple(Collections.singleton(userId));
+            UserSimpleDTO userInfo = extractSingleUser(response, userId);
+
+            if (userInfo != null) {
                 OwnerSnapshot snapshot = 
                     new OwnerSnapshot(
                         UserId.of(userId),

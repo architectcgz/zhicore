@@ -1,5 +1,6 @@
 package com.zhicore.user.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.common.result.ResultCode;
@@ -7,6 +8,8 @@ import com.zhicore.common.util.QueryParamValidator;
 import com.zhicore.user.domain.model.User;
 import com.zhicore.user.domain.repository.UserRepository;
 import com.zhicore.user.infrastructure.cache.UserRedisKeys;
+import com.zhicore.user.infrastructure.sentinel.UserSentinelHandlers;
+import com.zhicore.user.infrastructure.sentinel.UserSentinelResources;
 import com.zhicore.user.interfaces.dto.response.UserManageDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +43,11 @@ public class UserManageInternalService {
      * @param size 每页大小
      * @return 用户列表
      */
+    @SentinelResource(
+            value = UserSentinelResources.QUERY_USERS,
+            blockHandlerClass = UserSentinelHandlers.class,
+            blockHandler = "handleQueryUsersBlocked"
+    )
     @Transactional(readOnly = true)
     public PageResult<UserManageDTO> queryUsers(String keyword, String status, int page, int size) {
         try {

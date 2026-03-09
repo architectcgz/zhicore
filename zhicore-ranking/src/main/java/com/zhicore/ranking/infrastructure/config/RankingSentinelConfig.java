@@ -2,8 +2,9 @@ package com.zhicore.ranking.infrastructure.config;
 
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
-import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
+import com.zhicore.common.sentinel.FlowRuleSupport;
 import com.zhicore.ranking.infrastructure.sentinel.RankingRoutes;
+import com.zhicore.ranking.infrastructure.sentinel.RankingSentinelResources;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
@@ -15,7 +16,7 @@ import java.util.List;
  * 排行榜 Sentinel 限流配置
  *
  * <p>基于 Sentinel Web Servlet Filter 自动注册的 URL 资源进行限流，
- * 限流触发时由 {@link com.zhicore.ranking.infrastructure.sentinel.RankingBlockExceptionHandler} 统一返回 429。</p>
+ * 限流触发时由 common 模块的统一 BlockExceptionHandler 返回 429。</p>
  *
  * <p>规则采用增量合并方式加载，不会覆盖其他模块已注册的限流规则。</p>
  */
@@ -73,11 +74,11 @@ public class RankingSentinelConfig {
         for (String suffix : List.of("/rank", "/score")) {
             rankingRules.add(buildQpsRule(RankingRoutes.TOPICS_ID + suffix, properties.getTopicQps()));
         }
+        // 方法级热点资源：保护下游聚合逻辑，避免只在 Web 路由层限流
+        rankingRules.add(buildQpsRule(RankingSentinelResources.HOT_POST_DETAILS, properties.getHotPostsQps()));
+        rankingRules.add(buildQpsRule(RankingSentinelResources.RESOLVE_POST_METADATA, properties.getHotPostsQps()));
 
-        // 增量合并：保留其他模块已注册的规则
-        List<FlowRule> existingRules = new ArrayList<>(FlowRuleManager.getRules());
-        existingRules.addAll(rankingRules);
-        FlowRuleManager.loadRules(existingRules);
+        FlowRuleSupport.loadMergedRules(rankingRules);
 
         log.info("排行榜 Sentinel 限流规则已加载: {} 条规则 (hotPosts={}qps, creators={}qps, topics={}qps)",
                 rankingRules.size(),

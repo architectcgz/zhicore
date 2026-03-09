@@ -80,6 +80,13 @@ search:
     pre-tag: "<em>"
     post-tag: "</em>"
     fragment-size: 150
+  sentinel:
+    enabled: true
+    posts-qps: 200
+    suggest-qps: 300
+    hot-keywords-qps: 200
+    history-qps: 100
+    warm-up-period-sec: 10
 
 # 日志配置
 logging:

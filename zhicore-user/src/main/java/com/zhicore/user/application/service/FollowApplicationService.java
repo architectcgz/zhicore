@@ -1,5 +1,6 @@
 package com.zhicore.user.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.event.user.UserFollowedEvent;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ResultCode;
@@ -12,6 +13,8 @@ import com.zhicore.user.domain.repository.UserFollowRepository;
 import com.zhicore.user.domain.repository.UserRepository;
 import com.zhicore.user.domain.service.FollowDomainService;
 import com.zhicore.user.infrastructure.cache.UserRedisKeys;
+import com.zhicore.user.infrastructure.sentinel.UserSentinelHandlers;
+import com.zhicore.user.infrastructure.sentinel.UserSentinelResources;
 import com.zhicore.user.infrastructure.mq.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -166,6 +169,11 @@ public class FollowApplicationService {
      * @param size 每页大小
      * @return 粉丝用户列表
      */
+    @SentinelResource(
+            value = UserSentinelResources.GET_FOLLOWERS,
+            blockHandlerClass = UserSentinelHandlers.class,
+            blockHandler = "handleGetFollowersBlocked"
+    )
     public List<UserVO> getFollowers(Long userId, int page, int size) {
         // 参数验证
         if (page < 1) page = 1;
@@ -188,6 +196,11 @@ public class FollowApplicationService {
      * @param size 每页大小
      * @return 关注用户列表
      */
+    @SentinelResource(
+            value = UserSentinelResources.GET_FOLLOWINGS,
+            blockHandlerClass = UserSentinelHandlers.class,
+            blockHandler = "handleGetFollowingsBlocked"
+    )
     public List<UserVO> getFollowings(Long userId, int page, int size) {
         // 参数验证
         if (page < 1) page = 1;
@@ -209,6 +222,11 @@ public class FollowApplicationService {
      * @param currentUserId 当前用户ID（可选）
      * @return 关注统计
      */
+    @SentinelResource(
+            value = UserSentinelResources.GET_FOLLOW_STATS,
+            blockHandlerClass = UserSentinelHandlers.class,
+            blockHandler = "handleGetFollowStatsBlocked"
+    )
     public FollowStatsVO getFollowStats(Long userId, Long currentUserId) {
         // 优先从 Redis 获取
         Integer followersCount = getFollowersCount(userId);
@@ -283,6 +301,11 @@ public class FollowApplicationService {
     /**
      * 检查是否已关注
      */
+    @SentinelResource(
+            value = UserSentinelResources.IS_FOLLOWING,
+            blockHandlerClass = UserSentinelHandlers.class,
+            blockHandler = "handleIsFollowingBlocked"
+    )
     public boolean isFollowing(Long followerId, Long followingId) {
         return userFollowRepository.exists(followerId, followingId);
     }

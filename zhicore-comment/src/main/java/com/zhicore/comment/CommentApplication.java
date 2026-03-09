@@ -1,5 +1,9 @@
 package com.zhicore.comment;
 
+import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.comment.infrastructure.feign.PostServiceClient;
+import com.zhicore.comment.infrastructure.feign.UserServiceClient;
+import com.zhicore.comment.infrastructure.feign.ZhiCoreUploadClient;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -13,7 +17,12 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  */
 @SpringBootApplication(scanBasePackages = {"com.ZhiCore.comment", "com.zhicore.common", "com.zhicore.api"})
 @EnableDiscoveryClient
-@EnableFeignClients(basePackages = {"com.zhicore.api.client", "com.ZhiCore.comment.infrastructure.feign"})
+@EnableFeignClients(clients = {
+        IdGeneratorFeignClient.class,
+        PostServiceClient.class,
+        UserServiceClient.class,
+        ZhiCoreUploadClient.class
+})
 @MapperScan("com.ZhiCore.comment.infrastructure.repository.mapper")
 public class CommentApplication {
 

@@ -1,5 +1,6 @@
 package com.zhicore.user.application.decorator;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.cache.port.CacheRepository;
 import com.zhicore.common.cache.port.CacheResult;
@@ -8,6 +9,8 @@ import com.zhicore.common.config.CacheProperties;
 import com.zhicore.user.application.dto.UserVO;
 import com.zhicore.user.application.port.UserQueryPort;
 import com.zhicore.user.infrastructure.cache.UserRedisKeys;
+import com.zhicore.user.infrastructure.sentinel.UserSentinelHandlers;
+import com.zhicore.user.infrastructure.sentinel.UserSentinelResources;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Primary;
@@ -54,6 +57,11 @@ public class CacheAsideUserQuery implements UserQueryPort {
     }
 
     @Override
+    @SentinelResource(
+            value = UserSentinelResources.GET_USER_DETAIL,
+            blockHandlerClass = UserSentinelHandlers.class,
+            blockHandler = "handleGetUserDetailBlocked"
+    )
     public UserVO getUserById(Long userId) {
         String cacheKey = UserRedisKeys.userDetail(userId);
         String lockKey = UserRedisKeys.lockDetail(userId);
@@ -100,6 +108,11 @@ public class CacheAsideUserQuery implements UserQueryPort {
     }
 
     @Override
+    @SentinelResource(
+            value = UserSentinelResources.GET_USER_SIMPLE,
+            blockHandlerClass = UserSentinelHandlers.class,
+            blockHandler = "handleGetUserSimpleBlocked"
+    )
     public UserSimpleDTO getUserSimpleById(Long userId) {
         String cacheKey = UserRedisKeys.userSimple(userId);
 
@@ -129,6 +142,11 @@ public class CacheAsideUserQuery implements UserQueryPort {
     }
 
     @Override
+    @SentinelResource(
+            value = UserSentinelResources.BATCH_GET_USERS_SIMPLE,
+            blockHandlerClass = UserSentinelHandlers.class,
+            blockHandler = "handleBatchGetUsersSimpleBlocked"
+    )
     public Map<Long, UserSimpleDTO> batchGetUsersSimple(Set<Long> userIds) {
         if (userIds == null || userIds.isEmpty()) {
             return new HashMap<>();
@@ -172,6 +190,11 @@ public class CacheAsideUserQuery implements UserQueryPort {
     }
 
     @Override
+    @SentinelResource(
+            value = UserSentinelResources.GET_STRANGER_MESSAGE_SETTING,
+            blockHandlerClass = UserSentinelHandlers.class,
+            blockHandler = "handleGetStrangerMessageSettingBlocked"
+    )
     public boolean isStrangerMessageAllowed(Long userId) {
         String cacheKey = UserRedisKeys.strangerMessageSetting(userId);
 

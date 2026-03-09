@@ -16,6 +16,14 @@ import org.springframework.cloud.context.config.annotation.RefreshScope;
 public class SentinelProperties {
 
     /**
+     * 是否加载 common 模块内置的默认服务级规则。
+     *
+     * <p>默认关闭。只有在确认资源名与实际 Sentinel 资源完全一致时才应显式开启，
+     * 否则会加载一批永远不会命中的伪规则，造成“已经配置熔断”的误导。</p>
+     */
+    private boolean loadDefaultServiceRules = false;
+
+    /**
      * 错误率阈值（0-1），超过此比例触发熔断
      */
     private double errorRatioThreshold = 0.5;

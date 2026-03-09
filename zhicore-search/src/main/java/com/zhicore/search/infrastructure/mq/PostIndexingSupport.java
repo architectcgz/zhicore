@@ -1,10 +1,10 @@
 package com.zhicore.search.infrastructure.mq;
 
-import com.zhicore.api.client.PostServiceClient;
 import com.zhicore.api.dto.post.PostDetailDTO;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.search.domain.model.PostDocument;
+import com.zhicore.search.infrastructure.feign.PostServiceClient;
 
 import java.util.List;
 import java.util.Optional;

@@ -1,12 +1,12 @@
 package com.zhicore.search.infrastructure.mq;
 
-import com.zhicore.api.client.PostServiceClient;
 import com.zhicore.api.event.post.PostTagsUpdatedEvent;
 import com.zhicore.common.mq.AbstractEventConsumer;
 import com.zhicore.common.mq.StatefulIdempotentHandler;
 import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.search.domain.model.PostDocument;
 import com.zhicore.search.infrastructure.elasticsearch.PostSearchRepositoryImpl;
+import com.zhicore.search.infrastructure.feign.PostServiceClient;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.springframework.stereotype.Component;

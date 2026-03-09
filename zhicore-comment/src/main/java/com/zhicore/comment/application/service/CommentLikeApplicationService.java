@@ -1,10 +1,13 @@
 package com.zhicore.comment.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.repository.CommentLikeRepository;
 import com.zhicore.comment.domain.repository.CommentRepository;
 import com.zhicore.comment.infrastructure.cache.CommentRedisKeys;
 import com.zhicore.comment.infrastructure.repository.mapper.CommentStatsMapper;
+import com.zhicore.comment.infrastructure.sentinel.CommentSentinelHandlers;
+import com.zhicore.comment.infrastructure.sentinel.CommentSentinelResources;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ResultCode;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -125,6 +128,11 @@ public class CommentLikeApplicationService {
      * @param commentId 评论ID
      * @return 是否已点赞
      */
+    @SentinelResource(
+            value = CommentSentinelResources.IS_COMMENT_LIKED,
+            blockHandlerClass = CommentSentinelHandlers.class,
+            blockHandler = "handleIsCommentLikedBlocked"
+    )
     public boolean isLiked(Long userId, Long commentId) {
         String likeKey = CommentRedisKeys.userLiked(userId, commentId);
         Boolean liked = redisTemplate.hasKey(likeKey);
@@ -149,6 +157,11 @@ public class CommentLikeApplicationService {
      * @param commentIds 评论ID列表
      * @return 点赞状态映射
      */
+    @SentinelResource(
+            value = CommentSentinelResources.BATCH_CHECK_COMMENT_LIKED,
+            blockHandlerClass = CommentSentinelHandlers.class,
+            blockHandler = "handleBatchCheckCommentLikedBlocked"
+    )
     public Map<Long, Boolean> batchCheckLiked(Long userId, List<Long> commentIds) {
         if (commentIds == null || commentIds.isEmpty()) {
             return Collections.emptyMap();
@@ -196,6 +209,11 @@ public class CommentLikeApplicationService {
      * @param commentId 评论ID
      * @return 点赞数
      */
+    @SentinelResource(
+            value = CommentSentinelResources.GET_COMMENT_LIKE_COUNT,
+            blockHandlerClass = CommentSentinelHandlers.class,
+            blockHandler = "handleGetCommentLikeCountBlocked"
+    )
     public int getLikeCount(Long commentId) {
         String key = CommentRedisKeys.likeCount(commentId);
         Object count = redisTemplate.opsForValue().get(key);

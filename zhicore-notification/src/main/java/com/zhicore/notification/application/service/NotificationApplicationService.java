@@ -1,5 +1,6 @@
 package com.zhicore.notification.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
@@ -7,6 +8,8 @@ import com.zhicore.common.result.ResultCode;
 import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import com.zhicore.notification.infrastructure.cache.NotificationRedisKeys;
+import com.zhicore.notification.infrastructure.sentinel.NotificationSentinelHandlers;
+import com.zhicore.notification.infrastructure.sentinel.NotificationSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -226,6 +229,11 @@ public class NotificationApplicationService {
      * @param userId 用户ID
      * @return 未读数量
      */
+    @SentinelResource(
+            value = NotificationSentinelResources.GET_UNREAD_COUNT,
+            blockHandlerClass = NotificationSentinelHandlers.class,
+            blockHandler = "handleUnreadCountBlocked"
+    )
     public int getUnreadCount(Long userId) {
         String key = NotificationRedisKeys.unreadCount(String.valueOf(userId));
         

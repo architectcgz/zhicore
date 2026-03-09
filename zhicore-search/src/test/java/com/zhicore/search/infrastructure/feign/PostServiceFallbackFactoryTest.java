@@ -25,8 +25,8 @@ class PostServiceFallbackFactoryTest {
         var response = fallback.getPostsSimple(List.of(1L, 2L));
 
         assertFalse(response.isSuccess());
-        assertEquals(ResultCode.SERVICE_UNAVAILABLE.getCode(), response.getCode());
-        assertEquals("文章服务暂时不可用", response.getMessage());
+        assertEquals(ResultCode.SERVICE_DEGRADED.getCode(), response.getCode());
+        assertEquals("文章服务已降级", response.getMessage());
     }
 
     @Test
@@ -37,7 +37,7 @@ class PostServiceFallbackFactoryTest {
         var response = fallback.batchGetPosts(Set.of(1L, 2L));
 
         assertFalse(response.isSuccess());
-        assertEquals(ResultCode.SERVICE_UNAVAILABLE.getCode(), response.getCode());
-        assertEquals("文章服务暂时不可用", response.getMessage());
+        assertEquals(ResultCode.SERVICE_DEGRADED.getCode(), response.getCode());
+        assertEquals("文章服务已降级", response.getMessage());
     }
 }

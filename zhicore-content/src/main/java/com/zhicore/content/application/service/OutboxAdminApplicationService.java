@@ -1,9 +1,12 @@
 package com.zhicore.content.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhicore.common.exception.ResourceNotFoundException;
 import com.zhicore.common.exception.TooManyRequestsException;
+import com.zhicore.content.infrastructure.sentinel.ContentSentinelHandlers;
+import com.zhicore.content.infrastructure.sentinel.ContentSentinelResources;
 import com.zhicore.content.infrastructure.persistence.pg.entity.OutboxEventEntity;
 import com.zhicore.content.infrastructure.persistence.pg.entity.OutboxRetryAuditEntity;
 import com.zhicore.content.infrastructure.persistence.pg.mapper.OutboxEventMapper;
@@ -32,6 +35,11 @@ public class OutboxAdminApplicationService {
     private final OutboxRetryAuditMapper outboxRetryAuditMapper;
 
     @Transactional(readOnly = true)
+    @SentinelResource(
+            value = ContentSentinelResources.LIST_FAILED_OUTBOX,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleListFailedOutboxBlocked"
+    )
     public OutboxFailedPageResponse listFailed(int page, int size, String eventType) {
         int safePage = Math.max(1, page);
         int safeSize = Math.min(Math.max(1, size), 100);
@@ -124,4 +132,3 @@ public class OutboxAdminApplicationService {
                 .build();
     }
 }
-

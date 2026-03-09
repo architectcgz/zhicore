@@ -1,6 +1,5 @@
 package com.zhicore.search.infrastructure.mq;
 
-import com.zhicore.api.client.PostServiceClient;
 import com.zhicore.api.dto.post.PostDetailDTO;
 import com.zhicore.api.dto.post.TagDTO;
 import com.zhicore.api.dto.user.UserSimpleDTO;
@@ -9,6 +8,7 @@ import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.search.domain.model.PostDocument;
 import com.zhicore.search.domain.repository.PostSearchRepository;
+import com.zhicore.search.infrastructure.feign.PostServiceClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

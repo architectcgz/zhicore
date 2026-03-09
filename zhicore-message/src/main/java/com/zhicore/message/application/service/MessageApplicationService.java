@@ -1,5 +1,6 @@
 package com.zhicore.message.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
@@ -15,6 +16,8 @@ import com.zhicore.message.domain.repository.ConversationRepository;
 import com.zhicore.message.domain.repository.MessageRepository;
 import com.zhicore.message.domain.service.MessageDomainService;
 import com.zhicore.message.infrastructure.feign.UserServiceClient;
+import com.zhicore.message.infrastructure.sentinel.MessageSentinelHandlers;
+import com.zhicore.message.infrastructure.sentinel.MessageSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -210,6 +213,11 @@ public class MessageApplicationService {
      * @param limit 数量限制
      * @return 消息列表
      */
+    @SentinelResource(
+            value = MessageSentinelResources.GET_MESSAGE_HISTORY,
+            blockHandlerClass = MessageSentinelHandlers.class,
+            blockHandler = "handleMessageHistoryBlocked"
+    )
     public List<MessageVO> getMessageHistory(Long conversationId, Long cursor, int limit) {
         Long userId = UserContext.getUserId();
         
@@ -255,6 +263,11 @@ public class MessageApplicationService {
      *
      * @return 未读消息数
      */
+    @SentinelResource(
+            value = MessageSentinelResources.GET_UNREAD_COUNT,
+            blockHandlerClass = MessageSentinelHandlers.class,
+            blockHandler = "handleUnreadCountBlocked"
+    )
     public int getUnreadCount() {
         Long userId = UserContext.getUserId();
         return messageRepository.countUnreadByUserId(userId);

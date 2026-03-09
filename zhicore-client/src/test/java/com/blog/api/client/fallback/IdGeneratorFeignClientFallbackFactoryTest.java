@@ -2,6 +2,7 @@ package com.zhicore.api.client.fallback;
 
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.common.result.ResultCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,7 +39,7 @@ class IdGeneratorFeignClientFallbackFactoryTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response.isSuccess()).isFalse();
-        assertThat(response.getCode()).isEqualTo(503);
+        assertThat(response.getCode()).isEqualTo(ResultCode.SERVICE_DEGRADED.getCode());
         assertThat(response.getMessage()).isEqualTo("ID生成服务暂时不可用，请稍后重试");
         assertThat(response.getData()).isNull();
     }
@@ -55,7 +56,7 @@ class IdGeneratorFeignClientFallbackFactoryTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response.isSuccess()).isFalse();
-        assertThat(response.getCode()).isEqualTo(503);
+        assertThat(response.getCode()).isEqualTo(ResultCode.SERVICE_DEGRADED.getCode());
         assertThat(response.getMessage()).isEqualTo("ID生成服务暂时不可用，请稍后重试");
         assertThat(response.getData()).isNull();
     }
@@ -72,7 +73,7 @@ class IdGeneratorFeignClientFallbackFactoryTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response.isSuccess()).isFalse();
-        assertThat(response.getCode()).isEqualTo(503);
+        assertThat(response.getCode()).isEqualTo(ResultCode.SERVICE_DEGRADED.getCode());
         assertThat(response.getMessage()).isEqualTo("ID生成服务暂时不可用，请稍后重试");
         assertThat(response.getData()).isNull();
     }
@@ -112,7 +113,7 @@ class IdGeneratorFeignClientFallbackFactoryTest {
 
             // Then - 所有异常都返回相同的错误响应
             assertThat(response.isSuccess()).isFalse();
-            assertThat(response.getCode()).isEqualTo(503);
+            assertThat(response.getCode()).isEqualTo(ResultCode.SERVICE_DEGRADED.getCode());
             assertThat(response.getMessage()).isEqualTo("ID生成服务暂时不可用，请稍后重试");
         }
     }

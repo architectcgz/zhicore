@@ -1,5 +1,6 @@
 package com.zhicore.content.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
@@ -11,6 +12,8 @@ import com.zhicore.content.domain.model.PostStatus;
 import com.zhicore.content.domain.repository.PostFavoriteRepository;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.infrastructure.cache.PostRedisKeys;
+import com.zhicore.content.infrastructure.sentinel.ContentSentinelHandlers;
+import com.zhicore.content.infrastructure.sentinel.ContentSentinelResources;
 import com.zhicore.integration.messaging.post.PostFavoritedIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostUnfavoritedIntegrationEvent;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -165,6 +168,11 @@ public class PostFavoriteApplicationService {
      * @param postId 文章ID
      * @return 是否已收藏
      */
+    @SentinelResource(
+            value = ContentSentinelResources.IS_POST_FAVORITED,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleIsPostFavoritedBlocked"
+    )
     public boolean isFavorited(Long userId, Long postId) {
         String favoriteKey = PostRedisKeys.userFavorited(userId, postId);
         Boolean favorited = redisTemplate.hasKey(favoriteKey);
@@ -189,6 +197,11 @@ public class PostFavoriteApplicationService {
      * @param postIds 文章ID列表
      * @return 收藏状态映射
      */
+    @SentinelResource(
+            value = ContentSentinelResources.BATCH_CHECK_POST_FAVORITED,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleBatchCheckPostFavoritedBlocked"
+    )
     public Map<Long, Boolean> batchCheckFavorited(Long userId, List<Long> postIds) {
         if (postIds == null || postIds.isEmpty()) {
             return Collections.emptyMap();
@@ -236,6 +249,11 @@ public class PostFavoriteApplicationService {
      * @param postId 文章ID
      * @return 收藏数
      */
+    @SentinelResource(
+            value = ContentSentinelResources.GET_POST_FAVORITE_COUNT,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleGetPostFavoriteCountBlocked"
+    )
     public int getFavoriteCount(Long postId) {
         String key = PostRedisKeys.favoriteCount(postId);
         Object count = redisTemplate.opsForValue().get(key);

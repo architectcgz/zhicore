@@ -1,7 +1,10 @@
 package com.zhicore.upload.service.impl;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.upload.exception.ErrorCodes;
 import com.zhicore.upload.exception.FileUploadException;
+import com.zhicore.upload.infrastructure.sentinel.UploadSentinelHandlers;
+import com.zhicore.upload.infrastructure.sentinel.UploadSentinelResources;
 import com.zhicore.upload.model.FileUploadResponse;
 import com.zhicore.upload.service.FileUploadService;
 import com.zhicore.upload.service.FileValidationService;
@@ -46,6 +49,11 @@ public class FileUploadServiceImpl implements FileUploadService {
      * @return 文件上传响应（包含 fileId 和 URL）
      */
     @Override
+    @SentinelResource(
+            value = UploadSentinelResources.UPLOAD_IMAGE,
+            blockHandlerClass = UploadSentinelHandlers.class,
+            blockHandler = "handleUploadImageBlocked"
+    )
     public FileUploadResponse uploadImage(MultipartFile file, AccessLevel accessLevel) {
         String originalFilename = file.getOriginalFilename();
         log.info("开始上传图片: {}, 大小: {} 字节, 访问级别: {}", 
@@ -114,6 +122,11 @@ public class FileUploadServiceImpl implements FileUploadService {
      * @return 文件上传响应列表
      */
     @Override
+    @SentinelResource(
+            value = UploadSentinelResources.UPLOAD_IMAGES_BATCH,
+            blockHandlerClass = UploadSentinelHandlers.class,
+            blockHandler = "handleUploadImagesBatchBlocked"
+    )
     public List<FileUploadResponse> uploadImagesBatch(List<MultipartFile> files, AccessLevel accessLevel) {
         log.info("开始批量上传图片: 文件数量={}, 访问级别={}", files.size(), accessLevel);
 
@@ -155,6 +168,11 @@ public class FileUploadServiceImpl implements FileUploadService {
      * @return 文件上传响应（包含 fileId 和 URL）
      */
     @Override
+    @SentinelResource(
+            value = UploadSentinelResources.UPLOAD_AUDIO,
+            blockHandlerClass = UploadSentinelHandlers.class,
+            blockHandler = "handleUploadAudioBlocked"
+    )
     public FileUploadResponse uploadAudio(MultipartFile file, AccessLevel accessLevel) {
         String originalFilename = file.getOriginalFilename();
         log.info("开始上传音频: {}, 大小: {} 字节, 访问级别: {}", 
@@ -215,6 +233,11 @@ public class FileUploadServiceImpl implements FileUploadService {
      * @return 文件访问URL
      */
     @Override
+    @SentinelResource(
+            value = UploadSentinelResources.GET_FILE_URL,
+            blockHandlerClass = UploadSentinelHandlers.class,
+            blockHandler = "handleGetFileUrlBlocked"
+    )
     public String getFileUrl(String fileId) {
         log.debug("开始获取文件URL: fileId={}", fileId);
 
@@ -241,6 +264,11 @@ public class FileUploadServiceImpl implements FileUploadService {
      * @param fileId 文件ID
      */
     @Override
+    @SentinelResource(
+            value = UploadSentinelResources.DELETE_FILE,
+            blockHandlerClass = UploadSentinelHandlers.class,
+            blockHandler = "handleDeleteFileBlocked"
+    )
     public void deleteFile(String fileId) {
         log.info("开始删除文件: fileId={}", fileId);
 

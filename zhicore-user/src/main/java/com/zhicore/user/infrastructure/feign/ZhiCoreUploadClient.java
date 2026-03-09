@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
  *
  * @author ZhiCore Team
  */
-@FeignClient(name = "zhicore-upload", path = "/api/v1/upload")
+@FeignClient(name = "zhicore-upload", path = "/api/v1/upload", fallbackFactory = UploadServiceFallbackFactory.class)
 public interface ZhiCoreUploadClient {
 
     /**

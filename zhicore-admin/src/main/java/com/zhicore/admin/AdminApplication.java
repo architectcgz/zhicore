@@ -1,5 +1,9 @@
 package com.zhicore.admin;
 
+import com.zhicore.admin.infrastructure.feign.AdminCommentServiceClient;
+import com.zhicore.admin.infrastructure.feign.AdminPostServiceClient;
+import com.zhicore.admin.infrastructure.feign.AdminUserServiceClient;
+import com.zhicore.admin.infrastructure.feign.IdGeneratorClient;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -13,7 +17,12 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  */
 @SpringBootApplication(scanBasePackages = {"com.ZhiCore.admin", "com.zhicore.common", "com.zhicore.api"})
 @EnableDiscoveryClient
-@EnableFeignClients(basePackages = {"com.zhicore.api.client", "com.ZhiCore.admin.infrastructure.feign"})
+@EnableFeignClients(clients = {
+        AdminUserServiceClient.class,
+        AdminPostServiceClient.class,
+        AdminCommentServiceClient.class,
+        IdGeneratorClient.class
+})
 @MapperScan("com.ZhiCore.admin.infrastructure.repository.mapper")
 public class AdminApplication {
 

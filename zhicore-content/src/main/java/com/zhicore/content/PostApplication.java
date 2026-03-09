@@ -1,5 +1,8 @@
 package com.zhicore.content;
 
+import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.content.infrastructure.feign.ContentUploadServiceClient;
+import com.zhicore.content.infrastructure.feign.ContentUserServiceClient;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
@@ -15,7 +18,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication(scanBasePackages = {"com.zhicore.content", "com.zhicore.common", "com.zhicore.api"})
 @EnableDiscoveryClient
-@EnableFeignClients(basePackages = {"com.zhicore.api.client", "com.zhicore.content.infrastructure.feign"})
+@EnableFeignClients(clients = {
+        IdGeneratorFeignClient.class,
+        ContentUserServiceClient.class,
+        ContentUploadServiceClient.class
+})
 @EnableMongoRepositories(basePackages = "com.zhicore.content.infrastructure.persistence.mongo.repository")
 @EnableScheduling
 @EnableAsync

@@ -1,10 +1,13 @@
 package com.zhicore.admin.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.admin.application.dto.CommentManageVO;
 import com.zhicore.admin.domain.model.AuditAction;
 import com.zhicore.admin.domain.model.AuditLog;
 import com.zhicore.admin.domain.repository.AuditLogRepository;
 import com.zhicore.admin.infrastructure.feign.AdminCommentServiceClient;
+import com.zhicore.admin.infrastructure.sentinel.AdminSentinelHandlers;
+import com.zhicore.admin.infrastructure.sentinel.AdminSentinelResources;
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
@@ -39,6 +42,11 @@ public class CommentManageService {
      * @param size    每页大小
      * @return 分页结果
      */
+    @SentinelResource(
+            value = AdminSentinelResources.LIST_COMMENTS,
+            blockHandlerClass = AdminSentinelHandlers.class,
+            blockHandler = "handleListCommentsBlocked"
+    )
     public PageResult<CommentManageVO> listComments(String keyword, Long postId, Long userId, int page, int size) {
         ApiResponse<PageResult<AdminCommentServiceClient.CommentManageDTO>> response = 
                 commentServiceClient.queryComments(keyword, postId, userId, page, size);

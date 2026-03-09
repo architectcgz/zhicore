@@ -1,9 +1,9 @@
 package com.zhicore.content.application.service;
 
-import com.zhicore.api.client.UploadServiceClient;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.content.application.util.ContentImageExtractor;
 import com.zhicore.content.infrastructure.alert.AlertService;
+import com.zhicore.content.infrastructure.feign.ContentUploadServiceClient;
 import com.zhicore.content.infrastructure.persistence.mongo.document.PostContentDocument;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +42,7 @@ public class PostContentImageCleanupService {
     );
 
     private final MongoTemplate mongoTemplate;
-    private final UploadServiceClient uploadServiceClient;
+    private final ContentUploadServiceClient uploadServiceClient;
     private final AlertService alertService;
 
     private static final String[] RELATIVE_ALLOWED_PREFIXES = new String[]{

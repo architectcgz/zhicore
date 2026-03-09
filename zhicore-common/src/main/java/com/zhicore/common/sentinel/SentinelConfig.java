@@ -34,9 +34,13 @@ public class SentinelConfig {
 
     @PostConstruct
     public void initRules() {
+        if (!properties.isLoadDefaultServiceRules()) {
+            log.warn("Skip loading common Sentinel default service rules: resources like `user-service`/`post-service` are not bound to actual Sentinel entries by default. Use module-local URL or @SentinelResource rules instead.");
+            return;
+        }
         initDegradeRules();
         initFlowRules();
-        log.info("Sentinel rules initialized");
+        log.info("Common Sentinel default service rules initialized");
     }
 
     /**

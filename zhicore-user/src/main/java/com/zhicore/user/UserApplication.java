@@ -1,5 +1,7 @@
 package com.zhicore.user;
 
+import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.user.infrastructure.feign.ZhiCoreUploadClient;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -13,7 +15,10 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  */
 @SpringBootApplication(scanBasePackages = {"com.ZhiCore.user", "com.zhicore.common", "com.zhicore.api"})
 @EnableDiscoveryClient
-@EnableFeignClients(basePackages = {"com.zhicore.api.client", "com.ZhiCore.user.infrastructure.feign"})
+@EnableFeignClients(clients = {
+        IdGeneratorFeignClient.class,
+        ZhiCoreUploadClient.class
+})
 @MapperScan("com.ZhiCore.user.infrastructure.repository.mapper")
 public class UserApplication {
 

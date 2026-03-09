@@ -1,9 +1,14 @@
 package com.zhicore.ranking.application.service;
 
-import com.zhicore.api.client.PostServiceClient;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.post.TagDTO;
+import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.common.result.ResultCode;
+import com.zhicore.ranking.infrastructure.feign.PostServiceClient;
+import com.zhicore.ranking.infrastructure.sentinel.RankingSentinelHandlers;
+import com.zhicore.ranking.infrastructure.sentinel.RankingSentinelResources;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +34,11 @@ public class PostMetadataResolver {
 
     private final PostServiceClient postServiceClient;
 
+    @SentinelResource(
+            value = RankingSentinelResources.RESOLVE_POST_METADATA,
+            blockHandlerClass = RankingSentinelHandlers.class,
+            blockHandler = "handleResolvePostMetadataBlocked"
+    )
     public Map<Long, PostMetadata> resolve(Collection<Long> postIds) {
         if (postIds == null || postIds.isEmpty()) {
             return Collections.emptyMap();
@@ -46,7 +56,7 @@ public class PostMetadataResolver {
             if (response == null || !response.isSuccess() || response.getData() == null) {
                 log.warn("批量获取文章元数据失败: postIds={}, message={}",
                         uniquePostIds, response != null ? response.getMessage() : "null");
-                return Collections.emptyMap();
+                throw new BusinessException(ResultCode.SERVICE_DEGRADED, "文章服务已降级");
             }
 
             Map<Long, PostMetadata> result = new LinkedHashMap<>();
@@ -57,8 +67,11 @@ public class PostMetadataResolver {
             });
             return result;
         } catch (Exception e) {
+            if (e instanceof BusinessException businessException) {
+                throw businessException;
+            }
             log.error("调用 PostServiceClient 获取文章元数据失败: postIds={}", uniquePostIds, e);
-            return Collections.emptyMap();
+            throw new BusinessException(ResultCode.SERVICE_DEGRADED, "文章服务已降级");
         }
     }
 

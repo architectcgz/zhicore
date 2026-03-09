@@ -1,7 +1,10 @@
 package com.zhicore.search.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.common.cache.CacheConstants;
 import com.zhicore.search.domain.repository.PostSearchRepository;
+import com.zhicore.search.infrastructure.sentinel.SearchSentinelHandlers;
+import com.zhicore.search.infrastructure.sentinel.SearchSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -48,6 +51,11 @@ public class SuggestionService {
      * @param limit 限制数量
      * @return 建议列表
      */
+    @SentinelResource(
+            value = SearchSentinelResources.GET_SUGGESTIONS,
+            blockHandlerClass = SearchSentinelHandlers.class,
+            blockHandler = "handleSuggestionsBlocked"
+    )
     public List<String> getSuggestions(String prefix, String userId, int limit) {
         List<String> suggestions = new ArrayList<>();
 
@@ -121,6 +129,11 @@ public class SuggestionService {
      * @param limit 限制数量
      * @return 热门搜索词列表
      */
+    @SentinelResource(
+            value = SearchSentinelResources.GET_HOT_KEYWORDS,
+            blockHandlerClass = SearchSentinelHandlers.class,
+            blockHandler = "handleHotKeywordsBlocked"
+    )
     public List<String> getHotKeywords(int limit) {
         Set<String> keywords = redisTemplate.opsForZSet()
             .reverseRange(hotSearchKey(), 0, limit - 1);
@@ -134,6 +147,11 @@ public class SuggestionService {
      * @param limit 限制数量
      * @return 搜索历史列表
      */
+    @SentinelResource(
+            value = SearchSentinelResources.GET_USER_HISTORY,
+            blockHandlerClass = SearchSentinelHandlers.class,
+            blockHandler = "handleUserHistoryBlocked"
+    )
     public List<String> getUserHistory(String userId, int limit) {
         if (userId == null) {
             return new ArrayList<>();

@@ -1,6 +1,5 @@
 package com.zhicore.content.infrastructure.scheduler;
 
-import com.zhicore.api.client.UserServiceClient;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.cache.port.LockManager;
@@ -8,6 +7,7 @@ import com.zhicore.content.domain.constant.PostConstants;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.infrastructure.cache.LockKeys;
+import com.zhicore.content.infrastructure.feign.ContentUserServiceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -41,7 +41,7 @@ public class AuthorInfoBackfillScheduler {
     private static final Duration LOCK_WAIT_TIME = Duration.ZERO;  // 不等待，获取不到直接返回
     
     private final PostRepository postRepository;
-    private final UserServiceClient userServiceClient;
+    private final ContentUserServiceClient userServiceClient;
     private final LockManager lockManager;
     private final LockKeys lockKeys;
     
@@ -112,15 +112,11 @@ public class AuthorInfoBackfillScheduler {
                     // 批量获取作者信息
                     Map<Long, UserSimpleDTO> authorMap = new HashMap<>();
                     try {
-                        ApiResponse<List<UserSimpleDTO>> response = 
-                            userServiceClient.getUsersSimple(ownerIds);
-                        
+                        ApiResponse<Map<Long, UserSimpleDTO>> response =
+                            userServiceClient.batchGetUsersSimple(new java.util.LinkedHashSet<>(ownerIds));
+
                         if (response != null && response.isSuccess() && response.getData() != null) {
-                            authorMap = response.getData().stream()
-                                .collect(Collectors.toMap(
-                                    UserSimpleDTO::getId,
-                                    user -> user
-                                ));
+                            authorMap = response.getData();
                             log.info("成功获取 {} 个用户信息", authorMap.size());
                         } else {
                             log.warn("批量获取用户信息失败: response={}", response);

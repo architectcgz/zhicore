@@ -52,6 +52,18 @@ comment:
   page-size:
     default: 20
     max: 100
+  sentinel:
+    enabled: true
+    comment-detail-qps: 200
+    top-level-page-qps: 150
+    top-level-cursor-qps: 250
+    replies-page-qps: 150
+    replies-cursor-qps: 250
+    comment-liked-qps: 300
+    batch-comment-liked-qps: 200
+    comment-like-count-qps: 300
+    admin-query-comments-qps: 120
+    warm-up-period-sec: 10
 
 # JWT 配置（本地默认值，生产环境从 Nacos 加载）
 jwt:

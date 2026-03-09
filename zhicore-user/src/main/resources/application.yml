@@ -71,6 +71,24 @@ spring.cloud.sentinel:
     dashboard: ${SENTINEL_DASHBOARD:localhost:8080}
   eager: true
 
+user:
+  sentinel:
+    enabled: true
+    user-detail-qps: 250
+    user-simple-qps: 400
+    batch-user-simple-qps: 200
+    stranger-message-setting-qps: 300
+    followers-qps: 150
+    followings-qps: 150
+    follow-stats-qps: 250
+    is-following-qps: 400
+    check-in-stats-qps: 200
+    monthly-check-in-bitmap-qps: 150
+    blocked-users-qps: 150
+    is-blocked-qps: 300
+    query-users-qps: 100
+    warm-up-period-sec: 10
+
 # Feign 配置
 spring.cloud.openfeign:
   client:

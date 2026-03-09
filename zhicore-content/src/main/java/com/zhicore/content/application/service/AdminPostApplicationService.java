@@ -1,5 +1,6 @@
 package com.zhicore.content.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.common.result.ResultCode;
@@ -7,6 +8,8 @@ import com.zhicore.common.util.QueryParamValidator;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostStatus;
 import com.zhicore.content.application.port.repo.PostRepository;
+import com.zhicore.content.infrastructure.sentinel.ContentSentinelHandlers;
+import com.zhicore.content.infrastructure.sentinel.ContentSentinelResources;
 import com.zhicore.content.interfaces.dto.response.PostManageDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +42,11 @@ public class AdminPostApplicationService {
      * @return 文章列表
      */
     @Transactional(readOnly = true)
+    @SentinelResource(
+            value = ContentSentinelResources.ADMIN_QUERY_POSTS,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleAdminQueryPostsBlocked"
+    )
     public PageResult<PostManageDTO> queryPosts(String keyword, String status, Long authorId, int page, int size) {
         try {
             // 参数验证和规范化

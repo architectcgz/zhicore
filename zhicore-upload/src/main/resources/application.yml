@@ -34,6 +34,16 @@ file-upload:
     - image/gif
     - image/webp
 
+upload:
+  sentinel:
+    enabled: true
+    upload-image-qps: 60
+    upload-audio-qps: 40
+    upload-images-batch-qps: 20
+    get-file-url-qps: 200
+    delete-file-qps: 60
+    warm-up-period-sec: 5
+
 # File Service Client 配置
 file-service:
   client:

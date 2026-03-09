@@ -1,9 +1,12 @@
 package com.zhicore.search.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.search.domain.model.PostDocument;
 import com.zhicore.search.domain.repository.PostSearchRepository;
 import com.zhicore.search.domain.repository.PostSearchRepository.SearchHit;
 import com.zhicore.search.domain.repository.PostSearchRepository.SearchResult;
+import com.zhicore.search.infrastructure.sentinel.SearchSentinelHandlers;
+import com.zhicore.search.infrastructure.sentinel.SearchSentinelResources;
 import com.zhicore.search.interfaces.dto.PostSearchVO;
 import com.zhicore.search.interfaces.dto.SearchResultVO;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +36,11 @@ public class SearchApplicationService {
      * @param size 每页大小
      * @return 搜索结果
      */
+    @SentinelResource(
+            value = SearchSentinelResources.SEARCH_POSTS,
+            blockHandlerClass = SearchSentinelHandlers.class,
+            blockHandler = "handleSearchPostsBlocked"
+    )
     public SearchResultVO<PostSearchVO> searchPosts(String keyword, int page, int size) {
         log.debug("Searching posts: keyword={}, page={}, size={}", keyword, page, size);
 

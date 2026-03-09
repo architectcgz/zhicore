@@ -1,10 +1,13 @@
 package com.zhicore.admin.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.admin.application.dto.UserManageVO;
 import com.zhicore.admin.domain.model.AuditAction;
 import com.zhicore.admin.domain.model.AuditLog;
 import com.zhicore.admin.domain.repository.AuditLogRepository;
 import com.zhicore.admin.infrastructure.feign.AdminUserServiceClient;
+import com.zhicore.admin.infrastructure.sentinel.AdminSentinelHandlers;
+import com.zhicore.admin.infrastructure.sentinel.AdminSentinelResources;
 import com.zhicore.admin.infrastructure.feign.IdGeneratorClient;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
@@ -38,6 +41,11 @@ public class UserManageService {
      * @param size    每页大小
      * @return 分页结果
      */
+    @SentinelResource(
+            value = AdminSentinelResources.LIST_USERS,
+            blockHandlerClass = AdminSentinelHandlers.class,
+            blockHandler = "handleListUsersBlocked"
+    )
     public PageResult<UserManageVO> listUsers(String keyword, String status, int page, int size) {
         ApiResponse<PageResult<AdminUserServiceClient.UserManageDTO>> response = 
                 userServiceClient.queryUsers(keyword, status, page, size);

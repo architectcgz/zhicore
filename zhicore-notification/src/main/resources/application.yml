@@ -56,6 +56,11 @@ notification:
   aggregation:
     max-actors: 3            # 聚合显示最多3个触发者
     threshold: 2             # 超过2个触发者时聚合显示
+  sentinel:
+    enabled: true
+    aggregated-qps: 200
+    unread-count-qps: 400
+    warm-up-period-sec: 10
 
 # 通知聚合配置（新配置结构）
 ZhiCore:

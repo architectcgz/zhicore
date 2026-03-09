@@ -1,5 +1,6 @@
 package com.zhicore.ranking;
 
+import com.zhicore.ranking.infrastructure.feign.PostServiceClient;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
@@ -13,7 +14,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication(scanBasePackages = {"com.zhicore.ranking", "com.zhicore.common"})
 @EnableDiscoveryClient
-@EnableFeignClients(basePackages = {"com.zhicore.ranking.infrastructure.feign", "com.zhicore.api.client"})
+@EnableFeignClients(clients = {
+        PostServiceClient.class
+})
 @EnableScheduling
 public class RankingApplication {
 

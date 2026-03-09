@@ -1,5 +1,6 @@
 package com.zhicore.content.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.common.cache.CacheConstants;
 import com.zhicore.common.config.CacheProperties;
 import com.zhicore.common.exception.ResourceNotFoundException;
@@ -15,6 +16,8 @@ import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.infrastructure.cache.TagRedisKeys;
+import com.zhicore.content.infrastructure.sentinel.ContentSentinelHandlers;
+import com.zhicore.content.infrastructure.sentinel.ContentSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -68,6 +71,11 @@ public class TagApplicationService {
      * @throws ResourceNotFoundException 标签不存在
      */
     @Transactional(readOnly = true)
+    @SentinelResource(
+            value = ContentSentinelResources.GET_TAG_DETAIL,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleGetTagDetailBlocked"
+    )
     public TagDTO getTag(String slug) {
         log.debug("Getting tag by slug: {}", slug);
         
@@ -87,6 +95,11 @@ public class TagApplicationService {
      * @return 分页结果
      */
     @Transactional(readOnly = true)
+    @SentinelResource(
+            value = ContentSentinelResources.LIST_TAGS,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleListTagsBlocked"
+    )
     public PageResult<TagDTO> listTags(int page, int size) {
         log.debug("Listing tags: page={}, size={}", page, size);
         
@@ -110,6 +123,11 @@ public class TagApplicationService {
      * @return 标签列表
      */
     @Transactional(readOnly = true)
+    @SentinelResource(
+            value = ContentSentinelResources.SEARCH_TAGS,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleSearchTagsBlocked"
+    )
     public List<TagDTO> searchTags(String keyword, int limit) {
         log.debug("Searching tags: keyword={}, limit={}", keyword, limit);
         
@@ -142,6 +160,11 @@ public class TagApplicationService {
      * @throws ResourceNotFoundException 标签不存在
      */
     @Transactional(readOnly = true)
+    @SentinelResource(
+            value = ContentSentinelResources.GET_POSTS_BY_TAG,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleGetPostsByTagBlocked"
+    )
     public PageResult<PostVO> getPostsByTag(String slug, int page, int size) {
         log.debug("Getting posts by tag: slug={}, page={}, size={}", slug, page, size);
         
@@ -192,6 +215,11 @@ public class TagApplicationService {
      * @return 热门标签列表
      */
     @Transactional(readOnly = true)
+    @SentinelResource(
+            value = ContentSentinelResources.GET_HOT_TAGS,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleGetHotTagsBlocked"
+    )
     public List<TagStatsDTO> getHotTags(int limit) {
         log.debug("Getting hot tags: limit={}", limit);
         

@@ -1,5 +1,6 @@
 package com.zhicore.content.application.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
@@ -11,6 +12,8 @@ import com.zhicore.content.domain.model.PostStatus;
 import com.zhicore.content.domain.repository.PostLikeRepository;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.infrastructure.cache.PostRedisKeys;
+import com.zhicore.content.infrastructure.sentinel.ContentSentinelHandlers;
+import com.zhicore.content.infrastructure.sentinel.ContentSentinelResources;
 import com.zhicore.integration.messaging.post.PostLikedIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostUnlikedIntegrationEvent;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -169,6 +172,11 @@ public class PostLikeApplicationService {
      * @param postId 文章ID
      * @return 是否已点赞
      */
+    @SentinelResource(
+            value = ContentSentinelResources.IS_POST_LIKED,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleIsPostLikedBlocked"
+    )
     public boolean isLiked(Long userId, Long postId) {
         String likeKey = PostRedisKeys.userLiked(userId, postId);
         Boolean liked = redisTemplate.hasKey(likeKey);
@@ -193,6 +201,11 @@ public class PostLikeApplicationService {
      * @param postIds 文章ID列表
      * @return 点赞状态映射
      */
+    @SentinelResource(
+            value = ContentSentinelResources.BATCH_CHECK_POST_LIKED,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleBatchCheckPostLikedBlocked"
+    )
     public Map<Long, Boolean> batchCheckLiked(Long userId, List<Long> postIds) {
         if (postIds == null || postIds.isEmpty()) {
             return Collections.emptyMap();
@@ -240,6 +253,11 @@ public class PostLikeApplicationService {
      * @param postId 文章ID
      * @return 点赞数
      */
+    @SentinelResource(
+            value = ContentSentinelResources.GET_POST_LIKE_COUNT,
+            blockHandlerClass = ContentSentinelHandlers.class,
+            blockHandler = "handleGetPostLikeCountBlocked"
+    )
     public int getLikeCount(Long postId) {
         String key = PostRedisKeys.likeCount(postId);
         Object count = redisTemplate.opsForValue().get(key);

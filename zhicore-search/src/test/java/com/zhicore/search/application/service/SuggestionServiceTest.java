@@ -1,5 +1,6 @@
 package com.zhicore.search.application.service;
 
+import com.zhicore.common.cache.CacheConstants;
 import com.zhicore.search.domain.repository.PostSearchRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +28,9 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 @DisplayName("SuggestionService 测试")
 class SuggestionServiceTest {
+
+    private static final String HOT_KEY = CacheConstants.withNamespace("search") + ":hot:keywords";
+    private static final String HISTORY_KEY_PREFIX = CacheConstants.withNamespace("search") + ":history:";
 
     @Mock
     private PostSearchRepository postSearchRepository;
@@ -67,9 +71,9 @@ class SuggestionServiceTest {
                 "java"
             ));
             
-            when(zSetOperations.reverseRange(eq("search:hot:keywords"), eq(0L), eq(19L)))
+            when(zSetOperations.reverseRange(eq(HOT_KEY), eq(0L), eq(19L)))
                 .thenReturn(hotKeywords);
-            when(listOperations.range(eq("search:history:user-001"), eq(0L), eq(9L)))
+            when(listOperations.range(eq(HISTORY_KEY_PREFIX + "user-001"), eq(0L), eq(9L)))
                 .thenReturn(Collections.emptyList());
             when(postSearchRepository.suggest(anyString(), anyInt()))
                 .thenReturn(Collections.emptyList());
@@ -95,7 +99,7 @@ class SuggestionServiceTest {
             
             when(zSetOperations.reverseRange(anyString(), anyLong(), anyLong()))
                 .thenReturn(Collections.emptySet());
-            when(listOperations.range(eq("search:history:user-001"), eq(0L), eq(9L)))
+            when(listOperations.range(eq(HISTORY_KEY_PREFIX + "user-001"), eq(0L), eq(9L)))
                 .thenReturn(Arrays.asList("java", "javascript", "python"));
             when(postSearchRepository.suggest(anyString(), anyInt()))
                 .thenReturn(Collections.emptyList());
@@ -202,10 +206,10 @@ class SuggestionServiceTest {
             suggestionService.recordSearch(keyword, userId);
 
             // Then
-            verify(zSetOperations).incrementScore("search:hot:keywords", "spring boot", 1);
-            verify(listOperations).remove("search:history:user-001", 0, "spring boot");
-            verify(listOperations).leftPush("search:history:user-001", "spring boot");
-            verify(listOperations).trim("search:history:user-001", 0, 9);
+            verify(zSetOperations).incrementScore(HOT_KEY, "spring boot", 1);
+            verify(listOperations).remove(HISTORY_KEY_PREFIX + "user-001", 0, "spring boot");
+            verify(listOperations).leftPush(HISTORY_KEY_PREFIX + "user-001", "spring boot");
+            verify(listOperations).trim(HISTORY_KEY_PREFIX + "user-001", 0, 9);
         }
 
         @Test
@@ -220,7 +224,7 @@ class SuggestionServiceTest {
             suggestionService.recordSearch(keyword, null);
 
             // Then
-            verify(zSetOperations).incrementScore("search:hot:keywords", "java", 1);
+            verify(zSetOperations).incrementScore(HOT_KEY, "java", 1);
             verify(listOperations, never()).leftPush(anyString(), anyString());
         }
 
@@ -241,13 +245,13 @@ class SuggestionServiceTest {
         void recordSearch_CleanupHotKeywords() {
             // Given
             String keyword = "test";
-            when(zSetOperations.size("search:hot:keywords")).thenReturn(50L);
+            when(zSetOperations.size(HOT_KEY)).thenReturn(50L);
 
             // When
             suggestionService.recordSearch(keyword, null);
 
             // Then
-            verify(zSetOperations).removeRange("search:hot:keywords", 0, 29);
+            verify(zSetOperations).removeRange(HOT_KEY, 0, 29);
         }
     }
 
@@ -263,7 +267,7 @@ class SuggestionServiceTest {
             Set<String> mockKeywords = new LinkedHashSet<>(Arrays.asList(
                 "java", "spring", "docker"
             ));
-            when(zSetOperations.reverseRange("search:hot:keywords", 0, limit - 1))
+            when(zSetOperations.reverseRange(HOT_KEY, 0, limit - 1))
                 .thenReturn(mockKeywords);
 
             // When
@@ -301,7 +305,7 @@ class SuggestionServiceTest {
             String userId = "user-001";
             int limit = 10;
             List<String> mockHistory = Arrays.asList("java", "spring", "docker");
-            when(listOperations.range("search:history:user-001", 0, limit - 1))
+            when(listOperations.range(HISTORY_KEY_PREFIX + "user-001", 0, limit - 1))
                 .thenReturn(mockHistory);
 
             // When
@@ -329,13 +333,13 @@ class SuggestionServiceTest {
         void clearUserHistory_Success() {
             // Given
             String userId = "user-001";
-            when(redisTemplate.delete("search:history:user-001")).thenReturn(true);
+            when(redisTemplate.delete(HISTORY_KEY_PREFIX + "user-001")).thenReturn(true);
 
             // When
             suggestionService.clearUserHistory(userId);
 
             // Then
-            verify(redisTemplate).delete("search:history:user-001");
+            verify(redisTemplate).delete(HISTORY_KEY_PREFIX + "user-001");
         }
 
         @Test

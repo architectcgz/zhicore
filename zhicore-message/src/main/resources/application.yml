@@ -61,6 +61,13 @@ message:
   max-content-length: 5000
   recall-time-limit-minutes: 2
   offline-message-expire-days: 7
+  sentinel:
+    enabled: true
+    conversation-list-qps: 200
+    conversation-detail-qps: 300
+    message-history-qps: 250
+    unread-count-qps: 400
+    warm-up-period-sec: 10
 
 # 日志配置
 logging:
