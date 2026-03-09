@@ -54,7 +54,7 @@ public class PostController {
     @Operation(summary = "创建文章", description = "创建新文章，默认状态为草稿")
     @PostMapping
     public ApiResponse<Long> createPost(@Valid @RequestBody CreatePostRequest request) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         return ApiResponse.success(postFacadeService.createPost(userId, request));
     }
 
@@ -63,7 +63,7 @@ public class PostController {
     public ApiResponse<Void> updatePost(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId,
             @Valid @RequestBody UpdatePostRequest request) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         postFacadeService.updatePost(userId, postId, request);
         return ApiResponse.success();
     }
@@ -72,7 +72,7 @@ public class PostController {
     @PostMapping("/{postId}/publish")
     public ApiResponse<Void> publishPost(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         postFacadeService.publishPost(userId, postId);
         return ApiResponse.success();
     }
@@ -80,7 +80,7 @@ public class PostController {
     @PostMapping("/{postId}/unpublish")
     public ApiResponse<Void> unpublishPost(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         postFacadeService.unpublishPost(userId, postId);
         return ApiResponse.success();
     }
@@ -89,7 +89,7 @@ public class PostController {
     public ApiResponse<Void> schedulePublish(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId,
             @Valid @RequestBody SchedulePublishRequest request) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         postFacadeService.schedulePublish(userId, postId, request);
         return ApiResponse.success();
     }
@@ -97,7 +97,7 @@ public class PostController {
     @DeleteMapping("/{postId}/schedule")
     public ApiResponse<Void> cancelSchedule(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         postFacadeService.cancelSchedule(userId, postId);
         return ApiResponse.success();
     }
@@ -106,7 +106,7 @@ public class PostController {
     @DeleteMapping("/{postId}")
     public ApiResponse<Void> deletePost(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         postFacadeService.deletePost(userId, postId);
         return ApiResponse.success();
     }
@@ -114,7 +114,7 @@ public class PostController {
     @PostMapping("/{postId}/restore")
     public ApiResponse<Void> restorePost(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         postFacadeService.restorePost(userId, postId);
         return ApiResponse.success();
     }
@@ -129,7 +129,7 @@ public class PostController {
     @GetMapping("/my/{postId}")
     public ApiResponse<PostVO> getMyPost(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         return ApiResponse.success(postFacadeService.getMyPost(userId, postId));
     }
 
@@ -138,7 +138,7 @@ public class PostController {
             @RequestParam(defaultValue = "DRAFT") String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         return ApiResponse.success(postFacadeService.getMyPosts(userId, status, page, size));
     }
 
@@ -195,7 +195,7 @@ public class PostController {
     public ApiResponse<Void> saveDraft(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId,
             @Valid @RequestBody SaveDraftRequest request) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         postFacadeService.saveDraft(userId, postId, request);
         return ApiResponse.success();
     }
@@ -203,20 +203,20 @@ public class PostController {
     @GetMapping("/{postId}/draft")
     public ApiResponse<DraftVO> getDraft(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         return ApiResponse.success(postFacadeService.getDraft(userId, postId));
     }
 
     @GetMapping("/drafts")
     public ApiResponse<List<DraftVO>> getUserDrafts() {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         return ApiResponse.success(postFacadeService.getUserDrafts(userId));
     }
 
     @DeleteMapping("/{postId}/draft")
     public ApiResponse<Void> deleteDraft(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         postFacadeService.deleteDraft(userId, postId);
         return ApiResponse.success();
     }
@@ -238,7 +238,7 @@ public class PostController {
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId,
             @Parameter(description = "添加标签请求", required = true)
             @Valid @RequestBody AttachTagsRequest request) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         postFacadeService.attachTags(userId, postId, request);
         return ApiResponse.success();
     }
@@ -256,7 +256,7 @@ public class PostController {
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId,
             @Parameter(description = "标签 slug（URL 友好标识）", required = true, example = "spring-boot")
             @PathVariable String slug) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         postFacadeService.detachTag(userId, postId, slug);
         return ApiResponse.success();
     }

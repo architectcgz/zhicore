@@ -37,7 +37,7 @@ public class PostLikeController {
     public ApiResponse<Void> likePost(
             @Parameter(description = "文章ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         likeService.likePost(userId, postId);
         return ApiResponse.success();
     }
@@ -53,7 +53,7 @@ public class PostLikeController {
     public ApiResponse<Void> unlikePost(
             @Parameter(description = "文章ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         likeService.unlikePost(userId, postId);
         return ApiResponse.success();
     }
@@ -69,7 +69,7 @@ public class PostLikeController {
     public ApiResponse<Boolean> checkLikeStatus(
             @Parameter(description = "文章ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         boolean liked = likeService.isLiked(userId, postId);
         return ApiResponse.success(liked);
     }
@@ -85,7 +85,7 @@ public class PostLikeController {
     public ApiResponse<Map<Long, Boolean>> batchCheckLikeStatus(
             @Parameter(description = "文章ID列表", required = true)
             @RequestBody List<Long> postIds) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         Map<Long, Boolean> likedMap = likeService.batchCheckLiked(userId, postIds);
         return ApiResponse.success(likedMap);
     }

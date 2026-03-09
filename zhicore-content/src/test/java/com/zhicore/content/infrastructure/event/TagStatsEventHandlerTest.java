@@ -91,12 +91,12 @@ class TagStatsEventHandlerTest {
 
     @Test
     void handlePostDeleted_shouldInvalidateHotTagCache() {
-        when(redisTemplate.keys(TagRedisKeys.HOT_TAGS_PREFIX + "*")).thenReturn(Set.of("k1"));
+        when(redisTemplate.keys(TagRedisKeys.hotTagsPattern())).thenReturn(Set.of("k1"));
         when(redisTemplate.delete(Set.of("k1"))).thenReturn(1L);
 
         eventHandler.handlePostDeleted(deletedEvent);
 
-        verify(redisTemplate).keys(TagRedisKeys.HOT_TAGS_PREFIX + "*");
+        verify(redisTemplate).keys(TagRedisKeys.hotTagsPattern());
     }
 
     @Test

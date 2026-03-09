@@ -37,7 +37,7 @@ public class PostFavoriteController {
     public ApiResponse<Void> favoritePost(
             @Parameter(description = "文章ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         favoriteService.favoritePost(userId, postId);
         return ApiResponse.success();
     }
@@ -53,7 +53,7 @@ public class PostFavoriteController {
     public ApiResponse<Void> unfavoritePost(
             @Parameter(description = "文章ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         favoriteService.unfavoritePost(userId, postId);
         return ApiResponse.success();
     }
@@ -69,7 +69,7 @@ public class PostFavoriteController {
     public ApiResponse<Boolean> checkFavoriteStatus(
             @Parameter(description = "文章ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         boolean favorited = favoriteService.isFavorited(userId, postId);
         return ApiResponse.success(favorited);
     }
@@ -85,7 +85,7 @@ public class PostFavoriteController {
     public ApiResponse<Map<Long, Boolean>> batchCheckFavoriteStatus(
             @Parameter(description = "文章ID列表", required = true)
             @RequestBody List<Long> postIds) {
-        Long userId = UserContext.getUserId();
+        Long userId = UserContext.requireUserId();
         Map<Long, Boolean> favoritedMap = favoriteService.batchCheckFavorited(userId, postIds);
         return ApiResponse.success(favoritedMap);
     }

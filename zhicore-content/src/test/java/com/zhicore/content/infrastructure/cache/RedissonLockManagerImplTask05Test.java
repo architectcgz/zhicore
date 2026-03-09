@@ -1,5 +1,6 @@
 package com.zhicore.content.infrastructure.cache;
 
+import com.zhicore.common.cache.RedissonLockManagerImpl;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.redisson.api.RLock;
@@ -34,4 +35,3 @@ class RedissonLockManagerImplTask05Test {
         assertThat(count).isEqualTo(1.0);
     }
 }
-
