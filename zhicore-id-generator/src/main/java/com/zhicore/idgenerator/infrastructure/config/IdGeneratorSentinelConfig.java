@@ -3,6 +3,7 @@ package com.zhicore.idgenerator.infrastructure.config;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
 import com.zhicore.common.sentinel.FlowRuleSupport;
+import com.zhicore.idgenerator.infrastructure.sentinel.IdGeneratorRoutes;
 import com.zhicore.idgenerator.infrastructure.sentinel.IdGeneratorSentinelResources;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class IdGeneratorSentinelConfig {
         }
 
         List<FlowRule> rules = new ArrayList<>();
+        rules.add(buildRule(IdGeneratorRoutes.SNOWFLAKE, properties.getSnowflakeQps()));
         rules.add(buildRule(IdGeneratorSentinelResources.GENERATE_SNOWFLAKE_ID, properties.getSnowflakeQps()));
         rules.add(buildRule(IdGeneratorSentinelResources.GENERATE_BATCH_SNOWFLAKE_IDS,
                 properties.getBatchSnowflakeQps()));

@@ -3,6 +3,7 @@ package com.zhicore.upload.infrastructure.config;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
 import com.zhicore.common.sentinel.FlowRuleSupport;
+import com.zhicore.upload.infrastructure.sentinel.UploadRoutes;
 import com.zhicore.upload.infrastructure.sentinel.UploadSentinelResources;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class UploadSentinelConfig {
         }
 
         List<FlowRule> rules = new ArrayList<>();
+        rules.add(buildRule(UploadRoutes.IMAGE, properties.getUploadImageQps()));
         rules.add(buildRule(UploadSentinelResources.UPLOAD_IMAGE, properties.getUploadImageQps()));
         rules.add(buildRule(UploadSentinelResources.UPLOAD_AUDIO, properties.getUploadAudioQps()));
         rules.add(buildRule(UploadSentinelResources.UPLOAD_IMAGES_BATCH, properties.getUploadImagesBatchQps()));

@@ -1,6 +1,7 @@
 package com.zhicore.content.infrastructure.config;
 
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
+import com.zhicore.content.infrastructure.sentinel.ContentRoutes;
 import com.zhicore.content.infrastructure.sentinel.ContentSentinelResources;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +29,8 @@ class ContentSentinelConfigTest {
         config.initFlowRules();
 
         assertTrue(FlowRuleManager.getRules().stream()
+                .anyMatch(rule -> ContentRoutes.TAGS_HOT.equals(rule.getResource())));
+        assertTrue(FlowRuleManager.getRules().stream()
                 .anyMatch(rule -> ContentSentinelResources.GET_POST_DETAIL.equals(rule.getResource())));
         assertTrue(FlowRuleManager.getRules().stream()
                 .anyMatch(rule -> ContentSentinelResources.GET_POST_LIST.equals(rule.getResource())));
@@ -54,6 +57,9 @@ class ContentSentinelConfigTest {
         config.initFlowRules();
         config.initFlowRules();
 
+        long hotTagRouteRules = FlowRuleManager.getRules().stream()
+                .filter(rule -> ContentRoutes.TAGS_HOT.equals(rule.getResource()))
+                .count();
         long detailRules = FlowRuleManager.getRules().stream()
                 .filter(rule -> ContentSentinelResources.GET_POST_DETAIL.equals(rule.getResource()))
                 .count();
@@ -61,6 +67,7 @@ class ContentSentinelConfigTest {
                 .filter(rule -> ContentSentinelResources.GET_TAG_DETAIL.equals(rule.getResource()))
                 .count();
 
+        assertEquals(1L, hotTagRouteRules);
         assertEquals(1L, detailRules);
         assertEquals(1L, tagRules);
     }

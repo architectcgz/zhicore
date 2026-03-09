@@ -3,6 +3,7 @@ package com.zhicore.message.infrastructure.config;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
 import com.zhicore.common.sentinel.FlowRuleSupport;
+import com.zhicore.message.infrastructure.sentinel.MessageRoutes;
 import com.zhicore.message.infrastructure.sentinel.MessageSentinelResources;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class MessageSentinelConfig {
         }
 
         List<FlowRule> rules = new ArrayList<>();
+        rules.add(buildQpsRule(MessageRoutes.UNREAD_COUNT, properties.getUnreadCountQps()));
         rules.add(buildQpsRule(MessageSentinelResources.GET_CONVERSATION_LIST, properties.getConversationListQps()));
         rules.add(buildQpsRule(MessageSentinelResources.GET_CONVERSATION, properties.getConversationDetailQps()));
         rules.add(buildQpsRule(MessageSentinelResources.GET_CONVERSATION_BY_USER, properties.getConversationDetailQps()));

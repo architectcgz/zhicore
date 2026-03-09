@@ -1,6 +1,7 @@
 package com.zhicore.upload.infrastructure.config;
 
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
+import com.zhicore.upload.infrastructure.sentinel.UploadRoutes;
 import com.zhicore.upload.infrastructure.sentinel.UploadSentinelResources;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +29,8 @@ class UploadSentinelConfigTest {
         config.initFlowRules();
 
         assertTrue(FlowRuleManager.getRules().stream()
+                .anyMatch(rule -> UploadRoutes.IMAGE.equals(rule.getResource())));
+        assertTrue(FlowRuleManager.getRules().stream()
                 .anyMatch(rule -> UploadSentinelResources.UPLOAD_IMAGE.equals(rule.getResource())));
         assertTrue(FlowRuleManager.getRules().stream()
                 .anyMatch(rule -> UploadSentinelResources.GET_FILE_URL.equals(rule.getResource())));
@@ -44,10 +47,14 @@ class UploadSentinelConfigTest {
         config.initFlowRules();
         config.initFlowRules();
 
+        long imageRouteRules = FlowRuleManager.getRules().stream()
+                .filter(rule -> UploadRoutes.IMAGE.equals(rule.getResource()))
+                .count();
         long getFileUrlRules = FlowRuleManager.getRules().stream()
                 .filter(rule -> UploadSentinelResources.GET_FILE_URL.equals(rule.getResource()))
                 .count();
 
+        assertEquals(1L, imageRouteRules);
         assertEquals(1L, getFileUrlRules);
     }
 }

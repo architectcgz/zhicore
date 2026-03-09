@@ -1,6 +1,7 @@
 package com.zhicore.idgenerator.infrastructure.config;
 
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
+import com.zhicore.idgenerator.infrastructure.sentinel.IdGeneratorRoutes;
 import com.zhicore.idgenerator.infrastructure.sentinel.IdGeneratorSentinelResources;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +29,8 @@ class IdGeneratorSentinelConfigTest {
         config.initFlowRules();
 
         assertTrue(FlowRuleManager.getRules().stream()
+                .anyMatch(rule -> IdGeneratorRoutes.SNOWFLAKE.equals(rule.getResource())));
+        assertTrue(FlowRuleManager.getRules().stream()
                 .anyMatch(rule -> IdGeneratorSentinelResources.GENERATE_SNOWFLAKE_ID.equals(rule.getResource())));
         assertTrue(FlowRuleManager.getRules().stream()
                 .anyMatch(rule -> IdGeneratorSentinelResources.GENERATE_BATCH_SNOWFLAKE_IDS.equals(rule.getResource())));
@@ -44,10 +47,14 @@ class IdGeneratorSentinelConfigTest {
         config.initFlowRules();
         config.initFlowRules();
 
+        long routeRules = FlowRuleManager.getRules().stream()
+                .filter(rule -> IdGeneratorRoutes.SNOWFLAKE.equals(rule.getResource()))
+                .count();
         long rules = FlowRuleManager.getRules().stream()
                 .filter(rule -> IdGeneratorSentinelResources.GENERATE_SNOWFLAKE_ID.equals(rule.getResource()))
                 .count();
 
+        assertEquals(1L, routeRules);
         assertEquals(1L, rules);
     }
 }

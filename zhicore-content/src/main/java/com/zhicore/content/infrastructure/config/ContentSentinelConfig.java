@@ -3,6 +3,7 @@ package com.zhicore.content.infrastructure.config;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
 import com.zhicore.common.sentinel.FlowRuleSupport;
+import com.zhicore.content.infrastructure.sentinel.ContentRoutes;
 import com.zhicore.content.infrastructure.sentinel.ContentSentinelResources;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class ContentSentinelConfig {
         }
 
         List<FlowRule> rules = new ArrayList<>();
+        rules.add(buildQpsRule(ContentRoutes.TAGS_HOT, properties.getHotTagsQps()));
         rules.add(buildQpsRule(ContentSentinelResources.GET_POST_DETAIL, properties.getPostDetailQps()));
         rules.add(buildQpsRule(ContentSentinelResources.GET_POST_LIST, properties.getPostListQps()));
         rules.add(buildQpsRule(ContentSentinelResources.GET_POST_CONTENT, properties.getPostContentQps()));
