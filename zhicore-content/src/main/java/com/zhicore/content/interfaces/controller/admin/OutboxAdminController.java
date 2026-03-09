@@ -34,6 +34,7 @@ public class OutboxAdminController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             @RequestParam(required = false) String eventType
     ) {
+        UserContext.requireUserId();
         return ApiResponse.success(outboxAdminApplicationService.listFailed(page, size, eventType));
     }
 
@@ -42,8 +43,7 @@ public class OutboxAdminController {
             @PathVariable String eventId,
             @Valid @RequestBody OutboxRetryRequest request
     ) {
-        Long operatorId = UserContext.getUserId();
+        Long operatorId = UserContext.requireUserId();
         return ApiResponse.success(outboxAdminApplicationService.retryFailed(eventId, operatorId, request.getReason()));
     }
 }
-

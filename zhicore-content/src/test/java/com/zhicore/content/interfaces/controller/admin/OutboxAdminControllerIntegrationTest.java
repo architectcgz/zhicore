@@ -61,12 +61,15 @@ class OutboxAdminControllerIntegrationTest extends IntegrationTestBase {
             insertFailed("E1", "TYPE_A");
             insertFailed("E2", "TYPE_B");
 
-            mockMvc.perform(get(BASE + "/failed"))
+            mockMvc.perform(get(BASE + "/failed")
+                            .header(CommonConstants.HEADER_USER_ID, OPERATOR))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(200))
                     .andExpect(jsonPath("$.data.items", hasSize(2)));
 
-            mockMvc.perform(get(BASE + "/failed").param("eventType", "TYPE_A"))
+            mockMvc.perform(get(BASE + "/failed")
+                            .header(CommonConstants.HEADER_USER_ID, OPERATOR)
+                            .param("eventType", "TYPE_A"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(200))
                     .andExpect(jsonPath("$.data.items", hasSize(1)))
@@ -76,7 +79,8 @@ class OutboxAdminControllerIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("无失败事件时返回空列表")
         void emptyListWhenNoFailedEvents() throws Exception {
-            mockMvc.perform(get(BASE + "/failed"))
+            mockMvc.perform(get(BASE + "/failed")
+                            .header(CommonConstants.HEADER_USER_ID, OPERATOR))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(200))
                     .andExpect(jsonPath("$.data.items", hasSize(0)));
@@ -89,10 +93,19 @@ class OutboxAdminControllerIntegrationTest extends IntegrationTestBase {
             // 插入一个 PENDING 状态的事件
             insertWithStatus("E_PENDING", "TYPE_A", OutboxEventEntity.OutboxStatus.PENDING);
 
-            mockMvc.perform(get(BASE + "/failed"))
+            mockMvc.perform(get(BASE + "/failed")
+                            .header(CommonConstants.HEADER_USER_ID, OPERATOR))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.items", hasSize(1)))
                     .andExpect(jsonPath("$.data.items[0].eventId").value("E_FAIL"));
+        }
+
+        @Test
+        @DisplayName("未登录查询失败列表时返回 401")
+        void listFailedWithoutLoginShouldReturn401() throws Exception {
+            mockMvc.perform(get(BASE + "/failed"))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.code").value(401));
         }
     }
 

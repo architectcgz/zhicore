@@ -19,7 +19,6 @@ import com.zhicore.comment.infrastructure.repository.mapper.CommentStatsMapper;
 import com.zhicore.comment.interfaces.dto.request.CreateCommentRequest;
 import com.zhicore.comment.interfaces.dto.request.UpdateCommentRequest;
 import com.zhicore.common.constant.CommonConstants;
-import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.DomainException;
 import com.zhicore.common.result.ApiResponse;
@@ -27,7 +26,6 @@ import com.zhicore.common.result.ResultCode;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -261,40 +259,32 @@ class CommentApplicationServiceTest {
         @Test
         @DisplayName("非作者更新评论时应返回操作不允许错误码")
         void shouldThrow_WhenUpdateByNonAuthor() {
-            try (MockedStatic<UserContext> uc = mockStatic(UserContext.class)) {
-                uc.when(UserContext::requireUserId).thenReturn(9999L);
+            Comment comment = createTopLevelComment();
+            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
 
-                Comment comment = createTopLevelComment();
-                when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
+            UpdateCommentRequest request = new UpdateCommentRequest();
+            request.setContent("更新后的内容");
 
-                UpdateCommentRequest request = new UpdateCommentRequest();
-                request.setContent("更新后的内容");
+            DomainException exception = assertThrows(DomainException.class,
+                    () -> service.updateComment(9999L, COMMENT_ID, request));
 
-                DomainException exception = assertThrows(DomainException.class,
-                        () -> service.updateComment(COMMENT_ID, request));
-
-                assertEquals(ResultCode.OPERATION_NOT_ALLOWED.getCode(), exception.getCode());
-                assertEquals("只能编辑自己的评论", exception.getMessage());
-            }
+            assertEquals(ResultCode.OPERATION_NOT_ALLOWED.getCode(), exception.getCode());
+            assertEquals("只能编辑自己的评论", exception.getMessage());
         }
 
         @Test
         @DisplayName("更新已删除评论时应返回评论已删除错误码")
         void shouldThrow_WhenUpdateDeletedComment() {
-            try (MockedStatic<UserContext> uc = mockStatic(UserContext.class)) {
-                uc.when(UserContext::requireUserId).thenReturn(USER_ID);
+            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createDeletedComment()));
 
-                when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createDeletedComment()));
+            UpdateCommentRequest request = new UpdateCommentRequest();
+            request.setContent("更新后的内容");
 
-                UpdateCommentRequest request = new UpdateCommentRequest();
-                request.setContent("更新后的内容");
+            DomainException exception = assertThrows(DomainException.class,
+                    () -> service.updateComment(USER_ID, COMMENT_ID, request));
 
-                DomainException exception = assertThrows(DomainException.class,
-                        () -> service.updateComment(COMMENT_ID, request));
-
-                assertEquals(ResultCode.COMMENT_ALREADY_DELETED.getCode(), exception.getCode());
-                assertEquals("已删除的评论不能编辑", exception.getMessage());
-            }
+            assertEquals(ResultCode.COMMENT_ALREADY_DELETED.getCode(), exception.getCode());
+            assertEquals("已删除的评论不能编辑", exception.getMessage());
         }
     }
 
@@ -322,105 +312,75 @@ class CommentApplicationServiceTest {
         @Test
         @DisplayName("作者删除顶级评论成功，发布 CommentDeletedEvent")
         void shouldDeleteTopLevel_AndPublishEvent() {
-            try (MockedStatic<UserContext> uc = mockStatic(UserContext.class)) {
-                uc.when(UserContext::requireUserId).thenReturn(USER_ID);
-                uc.when(UserContext::isAdmin).thenReturn(false);
+            Comment comment = createTopLevelComment();
+            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
 
-                Comment comment = createTopLevelComment();
-                when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
+            service.deleteComment(USER_ID, false, COMMENT_ID);
 
-                service.deleteComment(COMMENT_ID);
-
-                verify(commentRepository).update(any(Comment.class));
-                verify(eventPublisher).publishCommentDeleted(argThat(event ->
-                        event.getCommentId().equals(COMMENT_ID)
-                                && event.isTopLevel()
-                                && "AUTHOR".equals(event.getDeletedBy())
-                ));
-            }
+            verify(commentRepository).update(any(Comment.class));
+            verify(eventPublisher).publishCommentDeleted(argThat(event ->
+                    event.getCommentId().equals(COMMENT_ID)
+                            && event.isTopLevel()
+                            && "AUTHOR".equals(event.getDeletedBy())
+            ));
         }
 
         @Test
         @DisplayName("删除回复评论时递减顶级评论回复数")
         void shouldDecrementReplyCount_WhenDeletingReply() {
-            try (MockedStatic<UserContext> uc = mockStatic(UserContext.class)) {
-                uc.when(UserContext::requireUserId).thenReturn(USER_ID);
-                uc.when(UserContext::isAdmin).thenReturn(false);
+            Comment reply = createReplyComment(COMMENT_ID);
+            when(commentRepository.findById(reply.getId())).thenReturn(Optional.of(reply));
 
-                Comment reply = createReplyComment(COMMENT_ID);
-                when(commentRepository.findById(reply.getId())).thenReturn(Optional.of(reply));
+            service.deleteComment(USER_ID, false, reply.getId());
 
-                service.deleteComment(reply.getId());
-
-                verify(statsMapper).decrementReplyCount(COMMENT_ID);
-            }
+            verify(statsMapper).decrementReplyCount(COMMENT_ID);
         }
 
         @Test
         @DisplayName("评论不存在时抛出异常")
         void shouldThrow_WhenCommentNotFound() {
-            try (MockedStatic<UserContext> uc = mockStatic(UserContext.class)) {
-                uc.when(UserContext::requireUserId).thenReturn(USER_ID);
-                uc.when(UserContext::isAdmin).thenReturn(false);
+            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.empty());
 
-                when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.empty());
-
-                BusinessException exception = assertThrows(BusinessException.class,
-                        () -> service.deleteComment(COMMENT_ID));
-                assertEquals(ResultCode.COMMENT_NOT_FOUND.getCode(), exception.getCode());
-            }
+            BusinessException exception = assertThrows(BusinessException.class,
+                    () -> service.deleteComment(USER_ID, false, COMMENT_ID));
+            assertEquals(ResultCode.COMMENT_NOT_FOUND.getCode(), exception.getCode());
         }
 
         @Test
         @DisplayName("非作者删除评论时应返回操作不允许错误码")
         void shouldThrow_WhenDeleteByNonAuthor() {
-            try (MockedStatic<UserContext> uc = mockStatic(UserContext.class)) {
-                uc.when(UserContext::requireUserId).thenReturn(9999L);
-                uc.when(UserContext::isAdmin).thenReturn(false);
+            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createTopLevelComment()));
 
-                when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createTopLevelComment()));
+            DomainException exception = assertThrows(DomainException.class,
+                    () -> service.deleteComment(9999L, false, COMMENT_ID));
 
-                DomainException exception = assertThrows(DomainException.class,
-                        () -> service.deleteComment(COMMENT_ID));
-
-                assertEquals(ResultCode.OPERATION_NOT_ALLOWED.getCode(), exception.getCode());
-                assertEquals("无权删除此评论", exception.getMessage());
-            }
+            assertEquals(ResultCode.OPERATION_NOT_ALLOWED.getCode(), exception.getCode());
+            assertEquals("无权删除此评论", exception.getMessage());
         }
 
         @Test
         @DisplayName("删除已删除评论时应返回评论已删除错误码")
         void shouldThrow_WhenDeleteDeletedComment() {
-            try (MockedStatic<UserContext> uc = mockStatic(UserContext.class)) {
-                uc.when(UserContext::requireUserId).thenReturn(USER_ID);
-                uc.when(UserContext::isAdmin).thenReturn(false);
+            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createDeletedComment()));
 
-                when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createDeletedComment()));
+            DomainException exception = assertThrows(DomainException.class,
+                    () -> service.deleteComment(USER_ID, false, COMMENT_ID));
 
-                DomainException exception = assertThrows(DomainException.class,
-                        () -> service.deleteComment(COMMENT_ID));
-
-                assertEquals(ResultCode.COMMENT_ALREADY_DELETED.getCode(), exception.getCode());
-                assertEquals("评论已经删除", exception.getMessage());
-            }
+            assertEquals(ResultCode.COMMENT_ALREADY_DELETED.getCode(), exception.getCode());
+            assertEquals("评论已经删除", exception.getMessage());
         }
 
         @Test
         @DisplayName("管理员删除评论，deletedBy=ADMIN")
         void shouldSetDeletedByAdmin_WhenAdminDeletes() {
-            try (MockedStatic<UserContext> uc = mockStatic(UserContext.class)) {
-                uc.when(UserContext::requireUserId).thenReturn(9999L); // 非作者
-                uc.when(UserContext::isAdmin).thenReturn(true);
+            Comment comment = createTopLevelComment();
+            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
 
-                Comment comment = createTopLevelComment();
-                when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
+            service.deleteComment(9999L, true, COMMENT_ID);
 
-                service.deleteComment(COMMENT_ID);
-
-                verify(eventPublisher).publishCommentDeleted(argThat(event ->
-                        "ADMIN".equals(event.getDeletedBy())
-                ));
-            }
+            verify(eventPublisher).publishCommentDeleted(argThat(event ->
+                    "ADMIN".equals(event.getDeletedBy())
+            ));
         }
     }
 

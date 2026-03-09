@@ -23,7 +23,6 @@ import com.zhicore.comment.infrastructure.repository.mapper.CommentStatsMapper;
 import com.zhicore.comment.interfaces.dto.request.CreateCommentRequest;
 import com.zhicore.comment.interfaces.dto.request.UpdateCommentRequest;
 import com.zhicore.common.constant.CommonConstants;
-import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
@@ -176,9 +175,7 @@ public class CommentApplicationService {
      * @param request 更新请求
      */
     @Transactional
-    public void updateComment(Long commentId, UpdateCommentRequest request) {
-        Long currentUserId = UserContext.requireUserId();
-        
+    public void updateComment(Long currentUserId, Long commentId, UpdateCommentRequest request) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new BusinessException(ResultCode.COMMENT_NOT_FOUND));
 
@@ -199,10 +196,7 @@ public class CommentApplicationService {
      * @param commentId 评论ID
      */
     @Transactional
-    public void deleteComment(Long commentId) {
-        Long currentUserId = UserContext.requireUserId();
-        boolean isAdmin = UserContext.isAdmin();
-
+    public void deleteComment(Long currentUserId, boolean isAdmin, Long commentId) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new BusinessException(ResultCode.COMMENT_NOT_FOUND));
 

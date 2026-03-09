@@ -95,7 +95,8 @@ public class CommentController {
             @PathVariable @Min(value = 1, message = "评论ID必须为正数") Long commentId,
             @Parameter(description = "评论更新请求", required = true)
             @RequestBody @Valid UpdateCommentRequest request) {
-        commentService.updateComment(commentId, request);
+        Long userId = UserContext.requireUserId();
+        commentService.updateComment(userId, commentId, request);
         return ApiResponse.success();
     }
 
@@ -122,7 +123,8 @@ public class CommentController {
     public ApiResponse<Void> deleteComment(
             @Parameter(description = "评论ID", required = true, example = "1234567890")
             @PathVariable @Min(value = 1, message = "评论ID必须为正数") Long commentId) {
-        commentService.deleteComment(commentId);
+        Long userId = UserContext.requireUserId();
+        commentService.deleteComment(userId, UserContext.isAdmin(), commentId);
         return ApiResponse.success();
     }
 

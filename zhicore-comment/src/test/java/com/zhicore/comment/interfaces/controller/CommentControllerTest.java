@@ -63,15 +63,38 @@ class CommentControllerTest extends ControllerTestSupport {
         MockMvc mockMvc = buildMockMvc(controller);
         UpdateCommentRequest request = new UpdateCommentRequest();
         request.setContent("更新后的内容");
-        doThrow(new BusinessException(ResultCode.OPERATION_NOT_ALLOWED, "只能编辑自己的评论"))
-                .when(commentService).updateComment(101L, request);
+        try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
+            userContext.when(UserContext::requireUserId).thenReturn(1001L);
+            doThrow(new BusinessException(ResultCode.OPERATION_NOT_ALLOWED, "只能编辑自己的评论"))
+                    .when(commentService).updateComment(1001L, 101L, request);
 
-        mockMvc.perform(put("/api/v1/comments/{commentId}", 101L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ResultCode.OPERATION_NOT_ALLOWED.getCode()))
-                .andExpect(jsonPath("$.message").value("只能编辑自己的评论"));
+            mockMvc.perform(put("/api/v1/comments/{commentId}", 101L)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(ResultCode.OPERATION_NOT_ALLOWED.getCode()))
+                    .andExpect(jsonPath("$.message").value("只能编辑自己的评论"));
+        }
+    }
+
+    @Test
+    @DisplayName("未登录更新评论时应该返回未授权")
+    void shouldReturnUnauthorizedWhenUpdateCommentWithoutLogin() throws Exception {
+        CommentController controller = new CommentController(commentService);
+        MockMvc mockMvc = buildMockMvc(controller);
+        UpdateCommentRequest request = new UpdateCommentRequest();
+        request.setContent("更新后的内容");
+
+        try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
+            userContext.when(UserContext::requireUserId).thenThrow(new UnauthorizedException("请先登录"));
+
+            mockMvc.perform(put("/api/v1/comments/{commentId}", 101L)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.code").value(ResultCode.UNAUTHORIZED.getCode()))
+                    .andExpect(jsonPath("$.message").value("请先登录"));
+        }
     }
 
     @Test
@@ -79,13 +102,17 @@ class CommentControllerTest extends ControllerTestSupport {
     void shouldReturnBusinessErrorWhenDeleteDeletedComment() throws Exception {
         CommentController controller = new CommentController(commentService);
         MockMvc mockMvc = buildMockMvc(controller);
-        doThrow(new BusinessException(ResultCode.COMMENT_ALREADY_DELETED, "评论已经删除"))
-                .when(commentService).deleteComment(101L);
+        try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
+            userContext.when(UserContext::requireUserId).thenReturn(1001L);
+            userContext.when(UserContext::isAdmin).thenReturn(false);
+            doThrow(new BusinessException(ResultCode.COMMENT_ALREADY_DELETED, "评论已经删除"))
+                    .when(commentService).deleteComment(1001L, false, 101L);
 
-        mockMvc.perform(delete("/api/v1/comments/{commentId}", 101L))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ResultCode.COMMENT_ALREADY_DELETED.getCode()))
-                .andExpect(jsonPath("$.message").value("评论已经删除"));
+            mockMvc.perform(delete("/api/v1/comments/{commentId}", 101L))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(ResultCode.COMMENT_ALREADY_DELETED.getCode()))
+                    .andExpect(jsonPath("$.message").value("评论已经删除"));
+        }
     }
 
     @Test
