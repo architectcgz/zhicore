@@ -32,12 +32,16 @@ class PostContentStoreMongoImplIntegrationTest extends IntegrationTestBase {
         postContentStore.saveContent(postId, body);
 
         Optional<PostBody> loaded = postContentStore.getContent(postId);
+        Optional<PostBody> strictLoaded = postContentStore.loadContent(postId);
         assertThat(loaded).isPresent();
+        assertThat(strictLoaded).isPresent();
         assertThat(loaded.get().getContent()).isEqualTo("# title");
+        assertThat(strictLoaded.get().getContent()).isEqualTo("# title");
         assertThat(loaded.get().getContentType()).isEqualTo(ContentType.MARKDOWN);
 
         postContentStore.deleteContent(postId);
         assertThat(postContentStore.getContent(postId)).isEmpty();
+        assertThat(postContentStore.loadContent(postId)).isEmpty();
     }
 
     @Test

@@ -1,8 +1,8 @@
 package com.zhicore.search.infrastructure.config;
 
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
+import com.zhicore.search.application.sentinel.SearchSentinelResources;
 import com.zhicore.search.infrastructure.sentinel.SearchRoutes;
-import com.zhicore.search.infrastructure.sentinel.SearchSentinelResources;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

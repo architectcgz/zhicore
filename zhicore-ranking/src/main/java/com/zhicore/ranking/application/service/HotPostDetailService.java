@@ -1,15 +1,15 @@
 package com.zhicore.ranking.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.zhicore.api.client.PostBatchClient;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.ranking.application.dto.HotPostDTO;
 import com.zhicore.ranking.domain.model.HotScore;
-import com.zhicore.ranking.infrastructure.feign.PostServiceClient;
-import com.zhicore.ranking.infrastructure.sentinel.RankingSentinelHandlers;
-import com.zhicore.ranking.infrastructure.sentinel.RankingSentinelResources;
+import com.zhicore.ranking.application.sentinel.RankingSentinelHandlers;
+import com.zhicore.ranking.application.sentinel.RankingSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 public class HotPostDetailService {
 
     private final PostRankingService postRankingService;
-    private final PostServiceClient postServiceClient;
+    private final PostBatchClient postServiceClient;
 
     /**
      * 获取热门文章列表（包含详细信息）

@@ -1,6 +1,6 @@
 package com.zhicore.search.application.service;
 
-import com.zhicore.common.cache.CacheConstants;
+import com.zhicore.search.application.port.store.SuggestionCacheStore;
 import com.zhicore.search.domain.repository.PostSearchRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -10,9 +10,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.ListOperations;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ZSetOperations;
 
 import java.util.*;
 
@@ -29,28 +26,19 @@ import static org.mockito.Mockito.*;
 @DisplayName("SuggestionService 测试")
 class SuggestionServiceTest {
 
-    private static final String HOT_KEY = CacheConstants.withNamespace("search") + ":hot:keywords";
-    private static final String HISTORY_KEY_PREFIX = CacheConstants.withNamespace("search") + ":history:";
-
     @Mock
     private PostSearchRepository postSearchRepository;
 
     @Mock
-    private StringRedisTemplate redisTemplate;
-
-    @Mock
-    private ZSetOperations<String, String> zSetOperations;
-
-    @Mock
-    private ListOperations<String, String> listOperations;
+    private SuggestionCacheStore suggestionCacheStore;
 
     @InjectMocks
     private SuggestionService suggestionService;
 
     @BeforeEach
     void setUp() {
-        lenient().when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
-        lenient().when(redisTemplate.opsForList()).thenReturn(listOperations);
+        lenient().when(suggestionCacheStore.getHotKeywords(anyInt())).thenReturn(Collections.emptyList());
+        lenient().when(suggestionCacheStore.getUserHistory(anyString(), anyInt())).thenReturn(Collections.emptyList());
     }
 
     @Nested
@@ -70,11 +58,9 @@ class SuggestionServiceTest {
                 "spring cloud",
                 "java"
             ));
-            
-            when(zSetOperations.reverseRange(eq(HOT_KEY), eq(0L), eq(19L)))
-                .thenReturn(hotKeywords);
-            when(listOperations.range(eq(HISTORY_KEY_PREFIX + "user-001"), eq(0L), eq(9L)))
-                .thenReturn(Collections.emptyList());
+
+            when(suggestionCacheStore.getHotKeywords(20)).thenReturn(new ArrayList<>(hotKeywords));
+            when(suggestionCacheStore.getUserHistory("user-001", 10)).thenReturn(Collections.emptyList());
             when(postSearchRepository.suggest(anyString(), anyInt()))
                 .thenReturn(Collections.emptyList());
 
@@ -97,9 +83,8 @@ class SuggestionServiceTest {
             String userId = "user-001";
             int limit = 5;
             
-            when(zSetOperations.reverseRange(anyString(), anyLong(), anyLong()))
-                .thenReturn(Collections.emptySet());
-            when(listOperations.range(eq(HISTORY_KEY_PREFIX + "user-001"), eq(0L), eq(9L)))
+            when(suggestionCacheStore.getHotKeywords(20)).thenReturn(Collections.emptyList());
+            when(suggestionCacheStore.getUserHistory("user-001", 10))
                 .thenReturn(Arrays.asList("java", "javascript", "python"));
             when(postSearchRepository.suggest(anyString(), anyInt()))
                 .thenReturn(Collections.emptyList());
@@ -122,10 +107,8 @@ class SuggestionServiceTest {
             String userId = "user-001";
             int limit = 5;
             
-            when(zSetOperations.reverseRange(anyString(), anyLong(), anyLong()))
-                .thenReturn(Collections.emptySet());
-            when(listOperations.range(anyString(), anyLong(), anyLong()))
-                .thenReturn(Collections.emptyList());
+            when(suggestionCacheStore.getHotKeywords(20)).thenReturn(Collections.emptyList());
+            when(suggestionCacheStore.getUserHistory("user-001", 10)).thenReturn(Collections.emptyList());
             when(postSearchRepository.suggest(prefix, limit))
                 .thenReturn(Arrays.asList("Docker 入门", "Docker Compose"));
 
@@ -146,8 +129,7 @@ class SuggestionServiceTest {
             String prefix = "test";
             int limit = 5;
             
-            when(zSetOperations.reverseRange(anyString(), anyLong(), anyLong()))
-                .thenReturn(Collections.emptySet());
+            when(suggestionCacheStore.getHotKeywords(20)).thenReturn(Collections.emptyList());
             when(postSearchRepository.suggest(prefix, limit))
                 .thenReturn(Arrays.asList("test1", "test2"));
 
@@ -158,7 +140,7 @@ class SuggestionServiceTest {
             assertNotNull(suggestions);
             assertEquals(2, suggestions.size());
             // 不应该调用用户历史
-            verify(listOperations, never()).range(anyString(), anyLong(), anyLong());
+            verify(suggestionCacheStore, never()).getUserHistory(anyString(), anyInt());
         }
 
         @Test
@@ -170,9 +152,8 @@ class SuggestionServiceTest {
             int limit = 5;
             
             Set<String> hotKeywords = new LinkedHashSet<>(Arrays.asList("spring boot"));
-            when(zSetOperations.reverseRange(anyString(), anyLong(), anyLong()))
-                .thenReturn(hotKeywords);
-            when(listOperations.range(anyString(), anyLong(), anyLong()))
+            when(suggestionCacheStore.getHotKeywords(20)).thenReturn(new ArrayList<>(hotKeywords));
+            when(suggestionCacheStore.getUserHistory(userId, 10))
                 .thenReturn(Arrays.asList("spring boot", "spring cloud"));
             when(postSearchRepository.suggest(anyString(), anyInt()))
                 .thenReturn(Arrays.asList("spring boot", "spring mvc"));
@@ -199,17 +180,14 @@ class SuggestionServiceTest {
             // Given
             String keyword = "Spring Boot";
             String userId = "user-001";
-            
-            when(zSetOperations.size(anyString())).thenReturn(10L);
 
             // When
             suggestionService.recordSearch(keyword, userId);
 
             // Then
-            verify(zSetOperations).incrementScore(HOT_KEY, "spring boot", 1);
-            verify(listOperations).remove(HISTORY_KEY_PREFIX + "user-001", 0, "spring boot");
-            verify(listOperations).leftPush(HISTORY_KEY_PREFIX + "user-001", "spring boot");
-            verify(listOperations).trim(HISTORY_KEY_PREFIX + "user-001", 0, 9);
+            verify(suggestionCacheStore).incrementHotKeywordScore("spring boot");
+            verify(suggestionCacheStore).getHotKeywordCount();
+            verify(suggestionCacheStore).recordUserHistory(eq("user-001"), eq("spring boot"), eq(10), any());
         }
 
         @Test
@@ -217,15 +195,13 @@ class SuggestionServiceTest {
         void recordSearch_NoUserId() {
             // Given
             String keyword = "Java";
-            
-            when(zSetOperations.size(anyString())).thenReturn(10L);
 
             // When
             suggestionService.recordSearch(keyword, null);
 
             // Then
-            verify(zSetOperations).incrementScore(HOT_KEY, "java", 1);
-            verify(listOperations, never()).leftPush(anyString(), anyString());
+            verify(suggestionCacheStore).incrementHotKeywordScore("java");
+            verify(suggestionCacheStore, never()).recordUserHistory(anyString(), anyString(), anyInt(), any());
         }
 
         @Test
@@ -237,7 +213,7 @@ class SuggestionServiceTest {
             suggestionService.recordSearch("   ", "user-001");
 
             // Then
-            verify(zSetOperations, never()).incrementScore(anyString(), anyString(), anyDouble());
+            verifyNoInteractions(suggestionCacheStore);
         }
 
         @Test
@@ -245,13 +221,13 @@ class SuggestionServiceTest {
         void recordSearch_CleanupHotKeywords() {
             // Given
             String keyword = "test";
-            when(zSetOperations.size(HOT_KEY)).thenReturn(50L);
+            when(suggestionCacheStore.getHotKeywordCount()).thenReturn(50L);
 
             // When
             suggestionService.recordSearch(keyword, null);
 
             // Then
-            verify(zSetOperations).removeRange(HOT_KEY, 0, 29);
+            verify(suggestionCacheStore).removeHotKeywordRange(0, 29);
         }
     }
 
@@ -267,8 +243,7 @@ class SuggestionServiceTest {
             Set<String> mockKeywords = new LinkedHashSet<>(Arrays.asList(
                 "java", "spring", "docker"
             ));
-            when(zSetOperations.reverseRange(HOT_KEY, 0, limit - 1))
-                .thenReturn(mockKeywords);
+            when(suggestionCacheStore.getHotKeywords(limit)).thenReturn(new ArrayList<>(mockKeywords));
 
             // When
             List<String> hotKeywords = suggestionService.getHotKeywords(limit);
@@ -282,8 +257,7 @@ class SuggestionServiceTest {
         @DisplayName("获取热门搜索词 - 无数据")
         void getHotKeywords_Empty() {
             // Given
-            when(zSetOperations.reverseRange(anyString(), anyLong(), anyLong()))
-                .thenReturn(null);
+            when(suggestionCacheStore.getHotKeywords(10)).thenReturn(Collections.emptyList());
 
             // When
             List<String> hotKeywords = suggestionService.getHotKeywords(10);
@@ -305,8 +279,7 @@ class SuggestionServiceTest {
             String userId = "user-001";
             int limit = 10;
             List<String> mockHistory = Arrays.asList("java", "spring", "docker");
-            when(listOperations.range(HISTORY_KEY_PREFIX + "user-001", 0, limit - 1))
-                .thenReturn(mockHistory);
+            when(suggestionCacheStore.getUserHistory(userId, limit)).thenReturn(mockHistory);
 
             // When
             List<String> history = suggestionService.getUserHistory(userId, limit);
@@ -325,21 +298,19 @@ class SuggestionServiceTest {
             // Then
             assertNotNull(history);
             assertTrue(history.isEmpty());
-            verify(listOperations, never()).range(anyString(), anyLong(), anyLong());
+            verify(suggestionCacheStore, never()).getUserHistory(anyString(), anyInt());
         }
 
         @Test
         @DisplayName("清除用户搜索历史")
         void clearUserHistory_Success() {
-            // Given
             String userId = "user-001";
-            when(redisTemplate.delete(HISTORY_KEY_PREFIX + "user-001")).thenReturn(true);
 
             // When
             suggestionService.clearUserHistory(userId);
 
             // Then
-            verify(redisTemplate).delete(HISTORY_KEY_PREFIX + "user-001");
+            verify(suggestionCacheStore).clearUserHistory("user-001");
         }
 
         @Test
@@ -349,7 +320,7 @@ class SuggestionServiceTest {
             suggestionService.clearUserHistory(null);
 
             // Then
-            verify(redisTemplate, never()).delete(anyString());
+            verify(suggestionCacheStore, never()).clearUserHistory(anyString());
         }
     }
 }

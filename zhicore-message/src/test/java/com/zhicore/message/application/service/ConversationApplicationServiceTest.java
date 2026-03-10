@@ -1,5 +1,6 @@
 package com.zhicore.message.application.service;
 
+import com.zhicore.api.client.UserMessagingClient;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
@@ -7,7 +8,6 @@ import com.zhicore.common.result.ResultCode;
 import com.zhicore.message.domain.model.Conversation;
 import com.zhicore.message.domain.repository.ConversationRepository;
 import com.zhicore.message.domain.service.MessageDomainService;
-import com.zhicore.message.infrastructure.feign.UserServiceClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,7 +39,7 @@ class ConversationApplicationServiceTest {
     private MessageDomainService messageDomainService;
 
     @Mock
-    private UserServiceClient userServiceClient;
+    private UserMessagingClient userServiceClient;
 
     private ConversationApplicationService service;
 
@@ -63,7 +63,7 @@ class ConversationApplicationServiceTest {
     void shouldFailConversationListWhenUserServiceDegraded() {
         when(conversationRepository.findByUserId(USER_ID, null, 20))
                 .thenReturn(List.of(createConversation()));
-        when(userServiceClient.getUserSimple(String.valueOf(OTHER_USER_ID)))
+        when(userServiceClient.getUserSimple(OTHER_USER_ID))
                 .thenReturn(ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "用户服务已降级"));
 
         BusinessException exception = assertThrows(BusinessException.class,
@@ -78,7 +78,7 @@ class ConversationApplicationServiceTest {
     void shouldFailConversationDetailWhenUserServiceDegraded() {
         when(conversationRepository.findById(CONVERSATION_ID))
                 .thenReturn(Optional.of(createConversation()));
-        when(userServiceClient.getUserSimple(String.valueOf(OTHER_USER_ID)))
+        when(userServiceClient.getUserSimple(OTHER_USER_ID))
                 .thenReturn(ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "用户服务已降级"));
 
         BusinessException exception = assertThrows(BusinessException.class,

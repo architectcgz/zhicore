@@ -1,14 +1,14 @@
 package com.zhicore.search.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.zhicore.search.application.dto.PostSearchVO;
+import com.zhicore.search.application.dto.SearchResultVO;
 import com.zhicore.search.domain.model.PostDocument;
 import com.zhicore.search.domain.repository.PostSearchRepository;
 import com.zhicore.search.domain.repository.PostSearchRepository.SearchHit;
 import com.zhicore.search.domain.repository.PostSearchRepository.SearchResult;
-import com.zhicore.search.infrastructure.sentinel.SearchSentinelHandlers;
-import com.zhicore.search.infrastructure.sentinel.SearchSentinelResources;
-import com.zhicore.search.interfaces.dto.PostSearchVO;
-import com.zhicore.search.interfaces.dto.SearchResultVO;
+import com.zhicore.search.application.sentinel.SearchSentinelHandlers;
+import com.zhicore.search.application.sentinel.SearchSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

@@ -1,7 +1,8 @@
 package com.zhicore.content.application.command.handlers;
 
 import com.zhicore.content.application.command.commands.DeletePostCommand;
-import com.zhicore.common.cache.port.CacheRepository;
+import com.zhicore.common.cache.port.CacheStore;
+import com.zhicore.content.application.port.cachekey.PostCacheKeyResolver;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.event.DomainEventFactory;
@@ -10,7 +11,6 @@ import com.zhicore.content.domain.exception.PostErrorMessages;
 import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
-import com.zhicore.content.infrastructure.cache.PostRedisKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,8 +30,9 @@ public class DeletePostHandler {
     
     private final PostRepository postRepository;
     private final EventPublisher eventPublisher;
-    private final CacheRepository cacheRepository;
+    private final CacheStore cacheStore;
     private final DomainEventFactory eventFactory;
+    private final PostCacheKeyResolver postCacheKeyResolver;
     
     /**
      * 处理删除文章命令
@@ -85,15 +86,15 @@ public class DeletePostHandler {
      */
     private void invalidateAllCache(PostId postId, Post post) {
         // 使用 deletePattern 删除所有相关缓存
-        cacheRepository.deletePattern(PostRedisKeys.allRelatedPattern(postId));
+        cacheStore.deletePattern(postCacheKeyResolver.allRelatedPattern(postId));
         
         // 删除列表缓存（分页/size 等维度下为多 key，统一用 pattern 失效）
-        cacheRepository.deletePattern(PostRedisKeys.listLatestPattern());
-        cacheRepository.deletePattern(PostRedisKeys.listAuthorPattern(post.getOwnerSnapshot().getOwnerId()));
+        cacheStore.deletePattern(postCacheKeyResolver.listLatestPattern());
+        cacheStore.deletePattern(postCacheKeyResolver.listAuthorPattern(post.getOwnerSnapshot().getOwnerId()));
         
         // 删除标签列表缓存（分页/size 等维度下为多 key，统一用 pattern 失效）
         post.getTagIds().forEach(tagId ->
-                cacheRepository.deletePattern(PostRedisKeys.listTagPattern(tagId))
+                cacheStore.deletePattern(postCacheKeyResolver.listTagPattern(tagId))
         );
         
         log.debug("Invalidated all cache for post: {}", postId);

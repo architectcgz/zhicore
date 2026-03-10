@@ -1,13 +1,11 @@
 package com.zhicore.ranking.application.service;
 
+import com.zhicore.ranking.application.model.AggregationInboxEvent;
+import com.zhicore.ranking.application.model.AggregationPostHotState;
+import com.zhicore.ranking.application.port.store.RankingInboxAggregationStore;
 import com.zhicore.ranking.domain.model.RankingMetricType;
 import com.zhicore.ranking.domain.service.HotScoreCalculator;
-import com.zhicore.ranking.infrastructure.config.RankingInboxProperties;
 import com.zhicore.ranking.infrastructure.config.RankingWeightProperties;
-import com.zhicore.ranking.infrastructure.mongodb.RankingEventInbox;
-import com.zhicore.ranking.infrastructure.mongodb.RankingEventInboxRepository;
-import com.zhicore.ranking.infrastructure.mongodb.RankingPostHotState;
-import com.zhicore.ranking.infrastructure.mongodb.RankingPostHotStateRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,7 +13,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.mongodb.core.MongoTemplate;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -36,13 +33,7 @@ import static org.mockito.Mockito.when;
 class RankingInboxAggregationServiceTest {
 
     @Mock
-    private MongoTemplate mongoTemplate;
-
-    @Mock
-    private RankingEventInboxRepository inboxRepository;
-
-    @Mock
-    private RankingPostHotStateRepository postHotStateRepository;
+    private RankingInboxAggregationStore rankingInboxAggregationStore;
 
     @Mock
     private PostMetadataResolver postMetadataResolver;
@@ -51,24 +42,16 @@ class RankingInboxAggregationServiceTest {
 
     @BeforeEach
     void setUp() {
-        RankingInboxProperties inboxProperties = new RankingInboxProperties();
-        inboxProperties.setBatchSize(4);
-        inboxProperties.setLeaseSeconds(60);
-        inboxProperties.setDoneRetentionDays(30);
-        inboxProperties.setAppliedEventWindowSize(16);
-
         RankingWeightProperties weightProperties = new RankingWeightProperties();
         weightProperties.setView(1.0);
         weightProperties.setLike(5.0);
         weightProperties.setComment(10.0);
         weightProperties.setFavorite(8.0);
         weightProperties.setHalfLifeDays(7.0);
+        when(rankingInboxAggregationStore.recentAppliedEventWindowSize()).thenReturn(16);
 
         aggregationService = new RankingInboxAggregationService(
-                mongoTemplate,
-                inboxRepository,
-                postHotStateRepository,
-                inboxProperties,
+                rankingInboxAggregationStore,
                 postMetadataResolver,
                 new HotScoreCalculator(weightProperties)
         );
@@ -78,7 +61,7 @@ class RankingInboxAggregationServiceTest {
     @DisplayName("聚合待处理 inbox 事件并更新文章热度权威状态")
     void aggregatePendingEvents_shouldPersistAuthorityState() {
         LocalDateTime now = LocalDateTime.now();
-        RankingEventInbox viewEvent = RankingEventInbox.builder()
+        AggregationInboxEvent viewEvent = AggregationInboxEvent.builder()
                 .eventId("evt-view")
                 .postId(1001L)
                 .metricType(RankingMetricType.VIEW)
@@ -86,10 +69,9 @@ class RankingInboxAggregationServiceTest {
                 .authorId(2001L)
                 .occurredAt(now.minusSeconds(2))
                 .publishedAt(now.minusDays(1))
-                .status(RankingEventInbox.InboxStatus.NEW)
                 .retryCount(0)
                 .build();
-        RankingEventInbox likeEvent = RankingEventInbox.builder()
+        AggregationInboxEvent likeEvent = AggregationInboxEvent.builder()
                 .eventId("evt-like")
                 .postId(1001L)
                 .metricType(RankingMetricType.LIKE)
@@ -97,13 +79,11 @@ class RankingInboxAggregationServiceTest {
                 .authorId(2001L)
                 .occurredAt(now.minusSeconds(1))
                 .publishedAt(now.minusDays(1))
-                .status(RankingEventInbox.InboxStatus.NEW)
                 .retryCount(0)
                 .build();
 
-        when(mongoTemplate.findAndModify(any(), any(), any(), any(Class.class)))
-                .thenReturn(viewEvent, likeEvent, null);
-        when(postHotStateRepository.findAllById(anyCollection())).thenReturn(List.of());
+        when(rankingInboxAggregationStore.claimPendingEvents()).thenReturn(List.of(viewEvent, likeEvent));
+        when(rankingInboxAggregationStore.findStatesByPostIds(anyCollection())).thenReturn(Map.of());
         when(postMetadataResolver.resolve(any(Collection.class))).thenReturn(Map.of(
                 1001L,
                 PostMetadataResolver.PostMetadata.builder()
@@ -117,10 +97,10 @@ class RankingInboxAggregationServiceTest {
         int processed = aggregationService.aggregatePendingEvents();
 
         assertEquals(2, processed);
-        ArgumentCaptor<RankingPostHotState> stateCaptor = ArgumentCaptor.forClass(RankingPostHotState.class);
-        verify(postHotStateRepository).save(stateCaptor.capture());
+        ArgumentCaptor<AggregationPostHotState> stateCaptor = ArgumentCaptor.forClass(AggregationPostHotState.class);
+        verify(rankingInboxAggregationStore).saveState(stateCaptor.capture());
 
-        RankingPostHotState savedState = stateCaptor.getValue();
+        AggregationPostHotState savedState = stateCaptor.getValue();
         assertNotNull(savedState);
         assertEquals(1001L, savedState.getPostId());
         assertEquals(2001L, savedState.getAuthorId());
@@ -133,7 +113,7 @@ class RankingInboxAggregationServiceTest {
         assertTrue(savedState.getRecentAppliedEventIds().containsAll(List.of("evt-view", "evt-like")));
         assertEquals(likeEvent.getOccurredAt(), savedState.getLastEventAt());
 
-        verify(mongoTemplate, times(2)).updateFirst(any(), any(), any(Class.class));
-        verify(inboxRepository).deleteByStatusAndOccurredAtBefore(any(), any());
+        verify(rankingInboxAggregationStore).markDone(List.of(viewEvent, likeEvent));
+        verify(rankingInboxAggregationStore).cleanupExpiredDoneEvents();
     }
 }

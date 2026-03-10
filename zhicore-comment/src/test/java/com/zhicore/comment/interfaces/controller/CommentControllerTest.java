@@ -1,6 +1,7 @@
 package com.zhicore.comment.interfaces.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhicore.comment.application.command.UpdateCommentCommand;
 import com.zhicore.comment.application.service.CommentApplicationService;
 import com.zhicore.comment.application.dto.CommentSortType;
 import com.zhicore.comment.interfaces.dto.request.CreateCommentRequest;
@@ -66,7 +67,7 @@ class CommentControllerTest extends ControllerTestSupport {
         try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
             userContext.when(UserContext::requireUserId).thenReturn(1001L);
             doThrow(new BusinessException(ResultCode.OPERATION_NOT_ALLOWED, "只能编辑自己的评论"))
-                    .when(commentService).updateComment(1001L, 101L, request);
+                    .when(commentService).updateComment(1001L, 101L, new UpdateCommentCommand("更新后的内容"));
 
             mockMvc.perform(put("/api/v1/comments/{commentId}", 101L)
                             .contentType(MediaType.APPLICATION_JSON)

@@ -1,23 +1,21 @@
 package com.zhicore.comment.application.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhicore.comment.application.port.CommentCacheKeyResolver;
+import com.zhicore.comment.application.port.store.CommentDetailCacheStore;
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.repository.CommentRepository;
-import com.zhicore.comment.infrastructure.cache.CommentRedisKeys;
-import com.zhicore.common.cache.CacheConstants;
+import com.zhicore.common.cache.port.CacheResult;
+import com.zhicore.common.cache.port.LockManager;
 import com.zhicore.common.cache.HotDataIdentifier;
 import com.zhicore.common.config.CacheProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
 import org.redisson.client.RedisException;
 import org.springframework.data.redis.RedisConnectionFailureException;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 评论详情读取缓存服务
@@ -38,26 +36,20 @@ public class CommentDetailCacheService {
     }
 
     private final CommentRepository commentRepository;
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final RedissonClient redissonClient;
+    private final CommentDetailCacheStore cacheStore;
+    private final LockManager lockManager;
     private final CacheProperties cacheProperties;
     private final HotDataIdentifier hotDataIdentifier;
-    private final ObjectMapper objectMapper;
+    private final CommentCacheKeyResolver commentCacheKeyResolver;
 
     /**
      * 读取评论详情（缓存优先）
      */
     public Optional<Comment> findById(Long id) {
-        String cacheKey = CommentRedisKeys.detail(id);
-
         try {
-            Object cached = redisTemplate.opsForValue().get(cacheKey);
-            if (cached != null) {
-                if (CacheConstants.isNullMarker(cached)) {
-                    return Optional.empty();
-                }
-                Comment comment = objectMapper.convertValue(cached, Comment.class);
-                return Optional.of(comment);
+            Optional<Comment> cachedResult = toOptional(cacheStore.get(id));
+            if (cachedResult != null) {
+                return cachedResult;
             }
         } catch (RedisConnectionFailureException e) {
             log.error("Redis connection failed, falling back to database: commentId={}, error={}",
@@ -84,10 +76,10 @@ public class CommentDetailCacheService {
         }
 
         if (!isHotData) {
-            return loadAndCacheComment(id, cacheKey);
+            return loadAndCacheComment(id);
         }
 
-        return loadCommentWithLock(id, cacheKey);
+        return loadCommentWithLock(id);
     }
 
     /**
@@ -98,31 +90,14 @@ public class CommentDetailCacheService {
         return -1;
     }
 
-    private RLock getLock(String lockKey) {
-        if (cacheProperties.getLock().isFair()) {
-            log.debug("Using fair lock for key: {}", lockKey);
-            return redissonClient.getFairLock(lockKey);
-        } else {
-            log.debug("Using non-fair lock for key: {}", lockKey);
-            return redissonClient.getLock(lockKey);
-        }
-    }
-
-    private Optional<Comment> loadAndCacheComment(Long commentId, String cacheKey) {
+    private Optional<Comment> loadAndCacheComment(Long commentId) {
         Optional<Comment> result = commentRepository.findById(commentId);
 
         try {
             if (result.isPresent()) {
-                long ttl = cacheProperties.getTtl().getEntityDetail();
-                ttl = ttl + (long) (Math.random() * ttl * 0.1);
-                redisTemplate.opsForValue().set(cacheKey, result.get(), ttl, TimeUnit.SECONDS);
+                cacheStore.set(commentId, result.get(), entityDetailTtl());
             } else {
-                redisTemplate.opsForValue().set(
-                        cacheKey,
-                        CacheConstants.NULL_MARKER,
-                        cacheProperties.getTtl().getNullValue(),
-                        TimeUnit.SECONDS
-                );
+                cacheStore.setNull(commentId, nullValueTtl());
             }
         } catch (Exception e) {
             log.warn("Cache write failed for comment {}: {}", commentId, e.getMessage());
@@ -131,16 +106,14 @@ public class CommentDetailCacheService {
         return result;
     }
 
-    private Optional<Comment> loadCommentWithLock(Long commentId, String cacheKey) {
-        String lockKey = CommentRedisKeys.lockDetail(commentId);
-        RLock lock = getLock(lockKey);
+    private Optional<Comment> loadCommentWithLock(Long commentId) {
+        boolean fair = cacheProperties.getLock().isFair();
+        String lockKey = commentCacheKeyResolver.lockDetail(commentId);
+        Duration waitTime = Duration.ofSeconds(cacheProperties.getLock().getWaitTime());
+        Duration leaseTime = Duration.ofSeconds(cacheProperties.getLock().getLeaseTime());
 
         try {
-            boolean acquired = lock.tryLock(
-                    cacheProperties.getLock().getWaitTime(),
-                    cacheProperties.getLock().getLeaseTime(),
-                    TimeUnit.SECONDS
-            );
+            boolean acquired = lockManager.tryLock(lockKey, waitTime, leaseTime, fair);
 
             if (!acquired) {
                 log.warn("Failed to acquire lock for comment {} within timeout, falling back to database", commentId);
@@ -148,13 +121,9 @@ public class CommentDetailCacheService {
             }
 
             try {
-                Object cached = redisTemplate.opsForValue().get(cacheKey);
-                if (cached != null) {
-                    if (CacheConstants.isNullMarker(cached)) {
-                        return Optional.empty();
-                    }
-                    Comment comment = objectMapper.convertValue(cached, Comment.class);
-                    return Optional.of(comment);
+                Optional<Comment> cachedResult = toOptional(cacheStore.get(commentId));
+                if (cachedResult != null) {
+                    return cachedResult;
                 }
 
                 Optional<Comment> result;
@@ -166,16 +135,9 @@ public class CommentDetailCacheService {
 
                 try {
                     if (result.isPresent()) {
-                        long ttl = cacheProperties.getTtl().getEntityDetail();
-                        ttl = ttl + (long) (Math.random() * ttl * 0.1);
-                        redisTemplate.opsForValue().set(cacheKey, result.get(), ttl, TimeUnit.SECONDS);
+                        cacheStore.set(commentId, result.get(), entityDetailTtl());
                     } else {
-                        redisTemplate.opsForValue().set(
-                                cacheKey,
-                                CacheConstants.NULL_MARKER,
-                                cacheProperties.getTtl().getNullValue(),
-                                TimeUnit.SECONDS
-                        );
+                        cacheStore.setNull(commentId, nullValueTtl());
                     }
                 } catch (RedisConnectionFailureException e) {
                     log.error("Redis connection failed during cache write: commentId={}, error={}",
@@ -187,19 +149,15 @@ public class CommentDetailCacheService {
 
                 return result;
             } finally {
-                if (lock.isHeldByCurrentThread()) {
+                if (lockManager.isHeldByCurrentThread(lockKey, fair)) {
                     try {
-                        lock.unlock();
+                        lockManager.unlock(lockKey, fair);
                     } catch (Exception e) {
                         log.error("Failed to release lock for comment {}, will rely on auto-expiration: {}",
                                 commentId, e.getMessage());
                     }
                 }
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.warn("Lock acquisition interrupted for comment {}, falling back to database", commentId);
-            return commentRepository.findById(commentId);
         } catch (RedisException e) {
             log.error("Redisson connection failed for commentId={}, falling back to database: {}",
                     commentId, e.getMessage());
@@ -210,5 +168,25 @@ public class CommentDetailCacheService {
             log.error("Unexpected error during cache operation for comment {}: {}", commentId, e.getMessage(), e);
             return commentRepository.findById(commentId);
         }
+    }
+
+    private Optional<Comment> toOptional(CacheResult<Comment> result) {
+        if (result == null || result.isMiss()) {
+            return null;
+        }
+        if (result.isNull()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(result.getValue());
+    }
+
+    private Duration entityDetailTtl() {
+        long ttl = cacheProperties.getTtl().getEntityDetail();
+        ttl = ttl + (long) (Math.random() * ttl * 0.1);
+        return Duration.ofSeconds(ttl);
+    }
+
+    private Duration nullValueTtl() {
+        return Duration.ofSeconds(cacheProperties.getTtl().getNullValue());
     }
 }

@@ -2,6 +2,7 @@ package com.zhicore.content.infrastructure.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.common.cache.port.LockManager;
+import com.zhicore.content.application.model.OutboxEventTypes;
 import com.zhicore.content.infrastructure.alert.AlertService;
 import com.zhicore.content.infrastructure.cache.LockKeys;
 import com.zhicore.content.infrastructure.config.OutboxProperties;

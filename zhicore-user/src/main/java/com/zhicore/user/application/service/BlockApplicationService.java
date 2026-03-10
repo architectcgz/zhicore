@@ -1,10 +1,13 @@
 package com.zhicore.user.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.zhicore.common.cache.port.LockManager;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.user.application.assembler.UserAssembler;
 import com.zhicore.user.application.dto.UserVO;
+import com.zhicore.user.application.port.UserCacheKeyResolver;
+import com.zhicore.user.application.port.store.FollowStatsStore;
 import com.zhicore.user.domain.event.UserBlockedEvent;
 import com.zhicore.user.domain.model.OutboxEvent;
 import com.zhicore.user.domain.model.UserBlock;
@@ -13,21 +16,16 @@ import com.zhicore.user.domain.repository.UserBlockRepository;
 import com.zhicore.user.domain.repository.UserFollowRepository;
 import com.zhicore.user.domain.repository.UserRepository;
 import com.zhicore.user.domain.service.BlockDomainService;
-import com.zhicore.user.infrastructure.cache.UserRedisKeys;
-import com.zhicore.user.infrastructure.sentinel.UserSentinelHandlers;
-import com.zhicore.user.infrastructure.sentinel.UserSentinelResources;
+import com.zhicore.user.application.sentinel.UserSentinelHandlers;
+import com.zhicore.user.application.sentinel.UserSentinelResources;
 import com.alibaba.fastjson.JSON;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.RedissonMultiLock;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -48,9 +46,13 @@ public class BlockApplicationService {
     private final UserFollowRepository userFollowRepository;
     private final BlockDomainService blockDomainService;
     private final OutboxEventRepository outboxEventRepository;
-    private final RedissonClient redissonClient;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final FollowStatsStore followStatsStore;
+    private final LockManager lockManager;
     private final TransactionTemplate transactionTemplate;
+    private final UserCacheKeyResolver userCacheKeyResolver;
+
+    private static final Duration BLOCK_LOCK_WAIT_TIME = Duration.ofSeconds(3);
+    private static final Duration BLOCK_LOCK_LEASE_TIME = Duration.ofSeconds(10);
 
     /**
      * 拉黑用户
@@ -68,26 +70,15 @@ public class BlockApplicationService {
         // 2. followLock(A→B) —— 与 A 关注 B 的操作互斥
         // 3. followLock(B→A) —— 与 B 关注 A 的操作互斥
         // 使用 RedissonMultiLock 一次性获取，内部按锁名排序，避免死锁
-        long minId = Math.min(blockerId, blockedId);
-        long maxId = Math.max(blockerId, blockedId);
-
-        RLock blockLock = redissonClient.getLock(UserRedisKeys.blockLock(blockerId, blockedId));
-        RLock followLock1 = redissonClient.getLock(UserRedisKeys.followLock(minId, maxId));
-        RLock followLock2 = redissonClient.getLock(UserRedisKeys.followLock(maxId, minId));
-        RedissonMultiLock multiLock = new RedissonMultiLock(blockLock, followLock1, followLock2);
+        List<String> lockKeys = buildBlockLockKeys(blockerId, blockedId);
+        if (!lockManager.tryLockAll(lockKeys, BLOCK_LOCK_WAIT_TIME, BLOCK_LOCK_LEASE_TIME)) {
+            throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
+        }
 
         try {
-            if (!multiLock.tryLock(3, 10, TimeUnit.SECONDS)) {
-                throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
-            }
-            try {
-                doBlock(blockerId, blockedId);
-            } finally {
-                multiLock.unlock();
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BusinessException("操作被中断");
+            doBlock(blockerId, blockedId);
+        } finally {
+            lockManager.unlockAll(lockKeys);
         }
     }
 
@@ -136,14 +127,12 @@ public class BlockApplicationService {
     public void unblock(Long blockerId, Long blockedId) {
         blockDomainService.validateUnblock(blockerId, blockedId);
 
-        String blockLockKey = UserRedisKeys.blockLock(blockerId, blockedId);
-        RLock lock = redissonClient.getLock(blockLockKey);
+        String blockLockKey = userCacheKeyResolver.blockLock(blockerId, blockedId);
+        if (!lockManager.tryLock(blockLockKey, BLOCK_LOCK_WAIT_TIME, BLOCK_LOCK_LEASE_TIME)) {
+            throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
+        }
 
         try {
-            if (!lock.tryLock(3, 10, TimeUnit.SECONDS)) {
-                throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
-            }
-
             if (!userBlockRepository.exists(blockerId, blockedId)) {
                 return;
             }
@@ -153,14 +142,8 @@ public class BlockApplicationService {
             });
 
             log.info("User unblocked: blockerId={}, blockedId={}", blockerId, blockedId);
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BusinessException("操作被中断");
         } finally {
-            if (lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
+            lockManager.unlock(blockLockKey);
         }
     }
 
@@ -212,12 +195,19 @@ public class BlockApplicationService {
      */
     private void evictFollowCaches(Long userIdA, Long userIdB) {
         try {
-            redisTemplate.delete(UserRedisKeys.followingCount(userIdA));
-            redisTemplate.delete(UserRedisKeys.followersCount(userIdA));
-            redisTemplate.delete(UserRedisKeys.followingCount(userIdB));
-            redisTemplate.delete(UserRedisKeys.followersCount(userIdB));
+            followStatsStore.evictStats(userIdA, userIdB);
         } catch (Exception e) {
             log.warn("清除关注缓存失败: {}", e.getMessage());
         }
+    }
+
+    private List<String> buildBlockLockKeys(Long blockerId, Long blockedId) {
+        long minId = Math.min(blockerId, blockedId);
+        long maxId = Math.max(blockerId, blockedId);
+        return List.of(
+                userCacheKeyResolver.blockLock(blockerId, blockedId),
+                userCacheKeyResolver.followLock(minId, maxId),
+                userCacheKeyResolver.followLock(maxId, minId)
+        );
     }
 }

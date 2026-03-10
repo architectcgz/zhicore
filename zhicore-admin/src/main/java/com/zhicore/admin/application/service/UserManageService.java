@@ -5,10 +5,11 @@ import com.zhicore.admin.application.dto.UserManageVO;
 import com.zhicore.admin.domain.model.AuditAction;
 import com.zhicore.admin.domain.model.AuditLog;
 import com.zhicore.admin.domain.repository.AuditLogRepository;
-import com.zhicore.admin.infrastructure.feign.AdminUserServiceClient;
-import com.zhicore.admin.infrastructure.sentinel.AdminSentinelHandlers;
-import com.zhicore.admin.infrastructure.sentinel.AdminSentinelResources;
-import com.zhicore.admin.infrastructure.feign.IdGeneratorClient;
+import com.zhicore.admin.application.sentinel.AdminSentinelHandlers;
+import com.zhicore.admin.application.sentinel.AdminSentinelResources;
+import com.zhicore.api.client.AdminUserClient;
+import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.api.dto.admin.UserManageDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
@@ -28,9 +29,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class UserManageService {
     
-    private final AdminUserServiceClient userServiceClient;
+    private final AdminUserClient userServiceClient;
     private final AuditLogRepository auditLogRepository;
-    private final IdGeneratorClient idGeneratorClient;
+    private final IdGeneratorFeignClient idGeneratorFeignClient;
     
     /**
      * 查询用户列表
@@ -47,14 +48,14 @@ public class UserManageService {
             blockHandler = "handleListUsersBlocked"
     )
     public PageResult<UserManageVO> listUsers(String keyword, String status, int page, int size) {
-        ApiResponse<PageResult<AdminUserServiceClient.UserManageDTO>> response = 
+        ApiResponse<PageResult<UserManageDTO>> response =
                 userServiceClient.queryUsers(keyword, status, page, size);
         
         if (!response.isSuccess()) {
             throw new BusinessException(response.getMessage());
         }
         
-        PageResult<AdminUserServiceClient.UserManageDTO> result = response.getData();
+        PageResult<UserManageDTO> result = response.getData();
         List<UserManageVO> voList = result.getRecords().stream()
                 .map(this::toVO)
                 .collect(Collectors.toList());
@@ -132,23 +133,23 @@ public class UserManageService {
     }
     
     private Long generateId() {
-        ApiResponse<Long> response = idGeneratorClient.generateSnowflakeId();
+        ApiResponse<Long> response = idGeneratorFeignClient.generateSnowflakeId();
         if (!response.isSuccess()) {
             throw new BusinessException("生成ID失败: " + response.getMessage());
         }
         return response.getData();
     }
     
-    private UserManageVO toVO(AdminUserServiceClient.UserManageDTO dto) {
+    private UserManageVO toVO(UserManageDTO dto) {
         return UserManageVO.builder()
-                .id(dto.id())
-                .username(dto.username())
-                .email(dto.email())
-                .nickname(dto.nickname())
-                .avatar(dto.avatar())
-                .status(dto.status())
-                .createdAt(dto.createdAt())
-                .roles(dto.roles())
+                .id(dto.getId())
+                .username(dto.getUsername())
+                .email(dto.getEmail())
+                .nickname(dto.getNickname())
+                .avatar(dto.getAvatar())
+                .status(dto.getStatus())
+                .createdAt(dto.getCreatedAt())
+                .roles(dto.getRoles())
                 .build();
     }
 }

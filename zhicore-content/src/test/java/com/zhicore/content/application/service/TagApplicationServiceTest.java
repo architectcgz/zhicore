@@ -1,11 +1,15 @@
 package com.zhicore.content.application.service;
 
+import com.zhicore.common.cache.port.CacheResult;
 import com.zhicore.common.exception.ResourceNotFoundException;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.content.application.assembler.TagAssembler;
 import com.zhicore.content.application.dto.TagDTO;
 import com.zhicore.content.application.dto.TagStatsDTO;
+import com.zhicore.content.application.port.repo.PostRepository;
+import com.zhicore.content.application.port.store.TagHotTagsStore;
 import com.zhicore.content.domain.model.Tag;
+import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +31,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.*;
 
 /**
@@ -51,6 +56,15 @@ class TagApplicationServiceTest {
     @Mock
     private TagAssembler tagAssembler;
 
+    @Mock
+    private PostTagRepository postTagRepository;
+
+    @Mock
+    private PostRepository postRepository;
+
+    @Mock
+    private TagHotTagsStore tagHotTagsStore;
+
     @InjectMocks
     private TagApplicationService tagApplicationService;
 
@@ -70,6 +84,8 @@ class TagApplicationServiceTest {
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
+
+        lenient().when(tagHotTagsStore.getHotTags(anyInt())).thenReturn(CacheResult.miss());
     }
 
     // ==================== getTag 测试 ====================

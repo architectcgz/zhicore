@@ -2,30 +2,29 @@ package com.zhicore.user.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.event.user.UserFollowedEvent;
+import com.zhicore.common.cache.port.LockManager;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.user.application.assembler.UserAssembler;
 import com.zhicore.user.application.dto.FollowStatsVO;
 import com.zhicore.user.application.dto.UserVO;
+import com.zhicore.user.application.port.UserCacheKeyResolver;
+import com.zhicore.user.application.port.event.UserEventPort;
+import com.zhicore.user.application.port.store.FollowStatsStore;
 import com.zhicore.user.domain.model.UserFollow;
 import com.zhicore.user.domain.model.UserFollowStats;
 import com.zhicore.user.domain.repository.UserFollowRepository;
 import com.zhicore.user.domain.repository.UserRepository;
 import com.zhicore.user.domain.service.FollowDomainService;
-import com.zhicore.user.infrastructure.cache.UserRedisKeys;
-import com.zhicore.user.infrastructure.sentinel.UserSentinelHandlers;
-import com.zhicore.user.infrastructure.sentinel.UserSentinelResources;
-import com.zhicore.user.infrastructure.mq.EventPublisher;
+import com.zhicore.user.application.sentinel.UserSentinelHandlers;
+import com.zhicore.user.application.sentinel.UserSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -44,10 +43,13 @@ public class FollowApplicationService {
     private final UserRepository userRepository;
     private final UserFollowRepository userFollowRepository;
     private final FollowDomainService followDomainService;
-    private final EventPublisher eventPublisher;
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final RedissonClient redissonClient;
+    private final UserEventPort eventPublisher;
+    private final FollowStatsStore followStatsStore;
+    private final LockManager lockManager;
     private final TransactionTemplate transactionTemplate;
+    private final UserCacheKeyResolver userCacheKeyResolver;
+
+    private static final Duration FOLLOW_STATS_CACHE_TTL = Duration.ofHours(1);
 
     /**
      * 关注用户
@@ -60,14 +62,12 @@ public class FollowApplicationService {
         followDomainService.validateFollow(followerId, followingId);
 
         // 2. 分布式锁防止并发
-        String lockKey = "follow:" + followerId + ":" + followingId;
-        RLock lock = redissonClient.getLock(lockKey);
+        String lockKey = userCacheKeyResolver.followLock(followerId, followingId);
+        if (!lockManager.tryLock(lockKey, getLockWaitTime(), getLockLeaseTime())) {
+            throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
+        }
 
         try {
-            if (!lock.tryLock(5, 10, TimeUnit.SECONDS)) {
-                throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
-            }
-
             // 3. 幂等性检查
             if (userFollowRepository.exists(followerId, followingId)) {
                 log.debug("Already followed: followerId={}, followingId={}", followerId, followingId);
@@ -88,8 +88,8 @@ public class FollowApplicationService {
 
             // 5. 事务提交成功后，更新 Redis 缓存
             try {
-                redisTemplate.opsForValue().increment(UserRedisKeys.followingCount(followerId));
-                redisTemplate.opsForValue().increment(UserRedisKeys.followersCount(followingId));
+                followStatsStore.incrementFollowingCount(followerId);
+                followStatsStore.incrementFollowersCount(followingId);
             } catch (Exception e) {
                 log.warn("Redis 更新失败，将由 CDC 或定时任务修复: {}", e.getMessage());
             }
@@ -98,14 +98,8 @@ public class FollowApplicationService {
             eventPublisher.publish(new UserFollowedEvent(followerId, followingId));
 
             log.info("User followed: followerId={}, followingId={}", followerId, followingId);
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BusinessException("操作被中断");
         } finally {
-            if (lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
+            lockManager.unlock(lockKey);
         }
     }
 
@@ -120,14 +114,12 @@ public class FollowApplicationService {
         followDomainService.validateUnfollow(followerId, followingId);
 
         // 2. 分布式锁防止并发
-        String lockKey = "follow:" + followerId + ":" + followingId;
-        RLock lock = redissonClient.getLock(lockKey);
+        String lockKey = userCacheKeyResolver.followLock(followerId, followingId);
+        if (!lockManager.tryLock(lockKey, getLockWaitTime(), getLockLeaseTime())) {
+            throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
+        }
 
         try {
-            if (!lock.tryLock(5, 10, TimeUnit.SECONDS)) {
-                throw new BusinessException(ResultCode.REQUEST_TOO_FREQUENT, "操作过于频繁，请稍后再试");
-            }
-
             // 3. 幂等性检查
             if (!userFollowRepository.exists(followerId, followingId)) {
                 log.debug("Not followed: followerId={}, followingId={}", followerId, followingId);
@@ -143,21 +135,15 @@ public class FollowApplicationService {
 
             // 5. 事务提交成功后，更新 Redis 缓存
             try {
-                redisTemplate.opsForValue().decrement(UserRedisKeys.followingCount(followerId));
-                redisTemplate.opsForValue().decrement(UserRedisKeys.followersCount(followingId));
+                followStatsStore.decrementFollowingCount(followerId);
+                followStatsStore.decrementFollowersCount(followingId);
             } catch (Exception e) {
                 log.warn("Redis 更新失败，将由 CDC 或定时任务修复: {}", e.getMessage());
             }
 
             log.info("User unfollowed: followerId={}, followingId={}", followerId, followingId);
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BusinessException("操作被中断");
         } finally {
-            if (lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
+            lockManager.unlock(lockKey);
         }
     }
 
@@ -251,9 +237,9 @@ public class FollowApplicationService {
      */
     public Integer getFollowingCount(Long userId) {
         try {
-            Object cached = redisTemplate.opsForValue().get(UserRedisKeys.followingCount(userId));
+            Integer cached = followStatsStore.getFollowingCount(userId);
             if (cached != null) {
-                return ((Number) cached).intValue();
+                return cached;
             }
         } catch (Exception e) {
             log.warn("Redis 查询失败，降级到数据库: {}", e.getMessage());
@@ -265,7 +251,7 @@ public class FollowApplicationService {
         int count = stats.getFollowingCount();
 
         try {
-            redisTemplate.opsForValue().set(UserRedisKeys.followingCount(userId), count, 1, TimeUnit.HOURS);
+            followStatsStore.cacheFollowingCount(userId, count, FOLLOW_STATS_CACHE_TTL);
         } catch (Exception ignored) {
         }
 
@@ -277,9 +263,9 @@ public class FollowApplicationService {
      */
     public Integer getFollowersCount(Long userId) {
         try {
-            Object cached = redisTemplate.opsForValue().get(UserRedisKeys.followersCount(userId));
+            Integer cached = followStatsStore.getFollowersCount(userId);
             if (cached != null) {
-                return ((Number) cached).intValue();
+                return cached;
             }
         } catch (Exception e) {
             log.warn("Redis 查询失败，降级到数据库: {}", e.getMessage());
@@ -291,7 +277,7 @@ public class FollowApplicationService {
         int count = stats.getFollowersCount();
 
         try {
-            redisTemplate.opsForValue().set(UserRedisKeys.followersCount(userId), count, 1, TimeUnit.HOURS);
+            followStatsStore.cacheFollowersCount(userId, count, FOLLOW_STATS_CACHE_TTL);
         } catch (Exception ignored) {
         }
 
@@ -308,5 +294,13 @@ public class FollowApplicationService {
     )
     public boolean isFollowing(Long followerId, Long followingId) {
         return userFollowRepository.exists(followerId, followingId);
+    }
+
+    private Duration getLockWaitTime() {
+        return Duration.ofSeconds(5);
+    }
+
+    private Duration getLockLeaseTime() {
+        return Duration.ofSeconds(10);
     }
 }

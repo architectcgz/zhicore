@@ -2,23 +2,20 @@ package com.zhicore.user.application.service;
 
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ResultCode;
+import com.zhicore.user.application.command.LoginCommand;
+import com.zhicore.user.application.command.RefreshTokenCommand;
 import com.zhicore.user.application.dto.TokenVO;
+import com.zhicore.user.application.port.security.TokenProvider;
+import com.zhicore.user.application.port.store.RefreshTokenStore;
 import com.zhicore.user.domain.model.User;
 import com.zhicore.user.domain.repository.UserRepository;
 import com.zhicore.user.domain.service.UserDomainService;
-import com.zhicore.user.infrastructure.cache.UserRedisKeys;
-import com.zhicore.user.infrastructure.security.JwtTokenProvider;
-import com.zhicore.user.interfaces.dto.request.LoginRequest;
-import com.zhicore.user.interfaces.dto.request.RefreshTokenRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.Cursor;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 /**
  * 认证应用服务
@@ -32,8 +29,8 @@ public class AuthApplicationService {
 
     private final UserRepository userRepository;
     private final UserDomainService userDomainService;
-    private final JwtTokenProvider jwtTokenProvider;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final TokenProvider jwtTokenProvider;
+    private final RefreshTokenStore refreshTokenStore;
 
     /**
      * 用户登录
@@ -42,16 +39,16 @@ public class AuthApplicationService {
      * @return Token视图对象
      */
     @Transactional(readOnly = true)
-    public TokenVO login(LoginRequest request) {
+    public TokenVO login(LoginCommand request) {
         // 1. 根据邮箱查找用户
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BusinessException(ResultCode.LOGIN_FAILED, "邮箱或密码错误"));
 
         // 2. 验证用户状态
         userDomainService.validateUserStatus(user);
 
         // 3. 验证密码
-        if (!userDomainService.validatePassword(user, request.getPassword())) {
+        if (!userDomainService.validatePassword(user, request.password())) {
             throw new BusinessException(ResultCode.LOGIN_FAILED, "邮箱或密码错误");
         }
 
@@ -79,21 +76,19 @@ public class AuthApplicationService {
      * @return 新的Token视图对象
      */
     @Transactional(readOnly = true)
-    public TokenVO refreshToken(RefreshTokenRequest request) {
+    public TokenVO refreshToken(RefreshTokenCommand request) {
         // 1. 验证 Refresh Token 签名
-        if (!jwtTokenProvider.validateToken(request.getRefreshToken())) {
+        if (!jwtTokenProvider.validateToken(request.refreshToken())) {
             throw new BusinessException(ResultCode.TOKEN_INVALID, "Refresh Token无效");
         }
 
         // 2. 从 Token 中获取用户ID和tokenId
-        String userIdStr = jwtTokenProvider.getUserIdFromToken(request.getRefreshToken());
+        String userIdStr = jwtTokenProvider.getUserIdFromToken(request.refreshToken());
         Long userId = Long.valueOf(userIdStr);
-        String tokenId = jwtTokenProvider.getTokenIdFromRefreshToken(request.getRefreshToken());
+        String tokenId = jwtTokenProvider.getTokenIdFromRefreshToken(request.refreshToken());
 
         // 3. 校验白名单（Redis 中是否存在该 Refresh Token）
-        String whitelistKey = UserRedisKeys.refreshTokenWhitelist(userId, tokenId);
-        Boolean exists = redisTemplate.hasKey(whitelistKey);
-        if (!Boolean.TRUE.equals(exists)) {
+        if (!refreshTokenStore.exists(userId, tokenId)) {
             // 可能是重放攻击，清除该用户所有 Refresh Token
             log.warn("Refresh Token 不在白名单中，疑似重放攻击: userId={}, tokenId={}", userId, tokenId);
             revokeAllRefreshTokens(userId);
@@ -106,7 +101,7 @@ public class AuthApplicationService {
         userDomainService.validateUserStatus(user);
 
         // 5. Token Rotation：废弃旧 Token，签发新 Token
-        redisTemplate.delete(whitelistKey);
+        refreshTokenStore.revoke(userId, tokenId);
         String newAccessToken = jwtTokenProvider.generateAccessToken(user);
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(user);
         storeRefreshToken(userId, newRefreshToken);
@@ -146,7 +141,7 @@ public class AuthApplicationService {
         if (refreshToken != null && jwtTokenProvider.validateToken(refreshToken)) {
             String tokenId = jwtTokenProvider.getTokenIdFromRefreshToken(refreshToken);
             if (tokenId != null) {
-                redisTemplate.delete(UserRedisKeys.refreshTokenWhitelist(userId, tokenId));
+                refreshTokenStore.revoke(userId, tokenId);
             }
         }
         log.info("User logged out: userId={}", userId);
@@ -159,16 +154,7 @@ public class AuthApplicationService {
      */
     public void revokeAllRefreshTokens(Long userId) {
         try {
-            // 使用 SCAN 替代 KEYS，避免 O(N) 全库扫描阻塞 Redis
-            String pattern = UserRedisKeys.refreshTokenPattern(userId);
-            ScanOptions options = ScanOptions.scanOptions().match(pattern).count(100).build();
-            int deleted = 0;
-            try (Cursor<String> cursor = redisTemplate.scan(options)) {
-                while (cursor.hasNext()) {
-                    redisTemplate.delete(cursor.next());
-                    deleted++;
-                }
-            }
+            long deleted = refreshTokenStore.revokeAll(userId);
             if (deleted > 0) {
                 log.info("Revoked all refresh tokens: userId={}, count={}", userId, deleted);
             }
@@ -185,8 +171,6 @@ public class AuthApplicationService {
      */
     private void storeRefreshToken(Long userId, String refreshToken) {
         String tokenId = jwtTokenProvider.getTokenIdFromRefreshToken(refreshToken);
-        String key = UserRedisKeys.refreshTokenWhitelist(userId, tokenId);
-        long ttl = jwtTokenProvider.getRefreshTokenExpiration();
-        redisTemplate.opsForValue().set(key, "1", ttl, TimeUnit.SECONDS);
+        refreshTokenStore.store(userId, tokenId, Duration.ofSeconds(jwtTokenProvider.getRefreshTokenExpiration()));
     }
 }

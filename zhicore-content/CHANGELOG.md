@@ -163,6 +163,8 @@
 
 #### 架构变更说明
 
+> 说明：本节包含迁移历史中的“旧架构 → 新架构”对照。当前主代码已经完成迁移，不再存在 `Cached*Repository` 一类缓存仓储实现；查询缓存统一位于 application 层的 `CacheAside*` 装饰器。
+
 **旧架构 → 新架构**
 
 | 组件类型 | 旧位置 | 新位置 |
@@ -205,9 +207,9 @@
 **迁移示例**
 
 ```java
-// 旧代码
+// 旧代码示例（迁移前）
 @Autowired
-private TagRepository tagRepository;  // 注入的是 CachedTagRepository
+private TagRepository tagRepository;  // 实际注入旧缓存装饰实现
 
 Tag tag = tagRepository.findById(tagId);
 

@@ -1,5 +1,6 @@
 package com.zhicore.comment.infrastructure.feign;
 
+import com.zhicore.api.client.UploadMediaUploadClient.FileUploadResponse;
 import com.zhicore.common.feign.DownstreamFallbackSupport;
 import com.zhicore.common.result.ApiResponse;
 import io.micrometer.core.instrument.MeterRegistry;

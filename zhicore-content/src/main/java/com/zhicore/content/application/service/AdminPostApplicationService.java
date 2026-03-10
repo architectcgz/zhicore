@@ -1,6 +1,7 @@
 package com.zhicore.content.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.zhicore.api.dto.admin.PostManageDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.common.result.ResultCode;
@@ -8,9 +9,8 @@ import com.zhicore.common.util.QueryParamValidator;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostStatus;
 import com.zhicore.content.application.port.repo.PostRepository;
-import com.zhicore.content.infrastructure.sentinel.ContentSentinelHandlers;
-import com.zhicore.content.infrastructure.sentinel.ContentSentinelResources;
-import com.zhicore.content.interfaces.dto.response.PostManageDTO;
+import com.zhicore.content.application.sentinel.ContentSentinelHandlers;
+import com.zhicore.content.application.sentinel.ContentSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

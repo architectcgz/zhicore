@@ -1,7 +1,8 @@
 package com.zhicore.content.application.command.handlers;
 
 import com.zhicore.content.application.command.commands.UnpublishPostCommand;
-import com.zhicore.common.cache.port.CacheRepository;
+import com.zhicore.common.cache.port.CacheStore;
+import com.zhicore.content.application.port.cachekey.PostCacheKeyResolver;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.event.PostUnpublishedEvent;
@@ -10,7 +11,6 @@ import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.PostStatus;
-import com.zhicore.content.infrastructure.cache.PostRedisKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,7 +32,8 @@ public class UnpublishPostHandler {
     
     private final PostRepository postRepository;
     private final EventPublisher eventPublisher;
-    private final CacheRepository cacheRepository;
+    private final CacheStore cacheStore;
+    private final PostCacheKeyResolver postCacheKeyResolver;
     
     /**
      * 处理撤回文章命令
@@ -85,9 +86,9 @@ public class UnpublishPostHandler {
      * @param post 文章对象
      */
     private void invalidateCache(PostId postId, Post post) {
-        cacheRepository.delete(PostRedisKeys.detail(postId));
-        cacheRepository.deletePattern(PostRedisKeys.listLatestPattern());
-        cacheRepository.deletePattern(PostRedisKeys.listAuthorPattern(post.getOwnerId()));
+        cacheStore.delete(postCacheKeyResolver.detail(postId));
+        cacheStore.deletePattern(postCacheKeyResolver.listLatestPattern());
+        cacheStore.deletePattern(postCacheKeyResolver.listAuthorPattern(post.getOwnerId()));
         log.debug("Invalidated cache for unpublished post: {}", postId);
     }
 }

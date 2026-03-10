@@ -271,7 +271,7 @@
 #### 8.1 MISS 状态测试
 - **场景**: 首次查询缓存不存在
 - **验证点**:
-  - CacheRepository.getWithState 返回 CacheResult.MISS
+  - CacheStore.getWithState 返回 CacheResult.MISS
   - 查询数据库
   - 回填缓存（TTL 30 分钟）
   - 返回查询结果
@@ -279,7 +279,7 @@
 #### 8.2 NULL 状态测试
 - **场景**: 资源不存在，缓存了 NULL 标记
 - **验证点**:
-  - CacheRepository.getWithState 返回 CacheResult.NULL
+  - CacheStore.getWithState 返回 CacheResult.NULL
   - 不查询数据库
   - 返回 null
   - Redis 中存储 `{"type":"NULL"}`（无 value 字段）
@@ -288,7 +288,7 @@
 #### 8.3 HIT 状态测试
 - **场景**: 缓存命中
 - **验证点**:
-  - CacheRepository.getWithState 返回 CacheResult.HIT
+  - CacheStore.getWithState 返回 CacheResult.HIT
   - 不查询数据库
   - 返回缓存值
   - Redis 中存储 `{"type":"HIT","value":<data>}`

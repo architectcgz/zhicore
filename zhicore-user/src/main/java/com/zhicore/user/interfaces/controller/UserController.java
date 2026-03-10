@@ -2,6 +2,7 @@ package com.zhicore.user.interfaces.controller;
 
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.user.application.command.UpdateProfileCommand;
 import com.zhicore.user.application.dto.UserVO;
 import com.zhicore.user.application.port.UserQueryPort;
 import com.zhicore.user.application.service.UserApplicationService;
@@ -153,7 +154,11 @@ public class UserController {
             @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId,
             @Parameter(description = "用户资料更新信息", required = true)
             @Valid @RequestBody UpdateProfileRequest request) {
-        userApplicationService.updateProfile(userId, request);
+        userApplicationService.updateProfile(userId, new UpdateProfileCommand(
+                request.getNickName(),
+                request.getAvatarId(),
+                request.getBio()
+        ));
         return ApiResponse.success();
     }
 

@@ -1,17 +1,17 @@
 package com.zhicore.comment.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.zhicore.api.client.PostBatchClient;
+import com.zhicore.api.client.UserBatchSimpleClient;
+import com.zhicore.api.dto.admin.CommentManageDTO;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.api.event.comment.CommentDeletedEvent;
+import com.zhicore.comment.application.port.event.CommentEventPort;
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.repository.CommentRepository;
-import com.zhicore.comment.infrastructure.feign.PostServiceClient;
-import com.zhicore.comment.infrastructure.feign.UserServiceClient;
-import com.zhicore.comment.infrastructure.mq.CommentEventPublisher;
-import com.zhicore.comment.infrastructure.sentinel.CommentSentinelHandlers;
-import com.zhicore.comment.infrastructure.sentinel.CommentSentinelResources;
-import com.zhicore.comment.interfaces.dto.response.CommentManageDTO;
+import com.zhicore.comment.application.sentinel.CommentSentinelHandlers;
+import com.zhicore.comment.application.sentinel.CommentSentinelResources;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
@@ -41,9 +41,9 @@ public class AdminCommentApplicationService {
     private static final String POST_SERVICE_DEGRADED_MESSAGE = "文章服务已降级";
 
     private final CommentRepository commentRepository;
-    private final UserServiceClient userServiceClient;
-    private final PostServiceClient postServiceClient;
-    private final CommentEventPublisher eventPublisher;
+    private final UserBatchSimpleClient userServiceClient;
+    private final PostBatchClient postServiceClient;
+    private final CommentEventPort eventPublisher;
 
     /**
      * 查询评论列表
@@ -134,7 +134,7 @@ public class AdminCommentApplicationService {
         }
 
         try {
-            ApiResponse<Map<Long, UserSimpleDTO>> response = userServiceClient.batchGetUsers(userIds);
+            ApiResponse<Map<Long, UserSimpleDTO>> response = userServiceClient.batchGetUsersSimple(userIds);
             if (response != null && response.isSuccess() && response.getData() != null) {
                 return response.getData();
             }

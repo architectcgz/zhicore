@@ -1,19 +1,17 @@
 package com.zhicore.search.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
-import com.zhicore.common.cache.CacheConstants;
+import com.zhicore.search.application.sentinel.SearchSentinelHandlers;
+import com.zhicore.search.application.sentinel.SearchSentinelResources;
+import com.zhicore.search.application.port.store.SuggestionCacheStore;
 import com.zhicore.search.domain.repository.PostSearchRepository;
-import com.zhicore.search.infrastructure.sentinel.SearchSentinelHandlers;
-import com.zhicore.search.infrastructure.sentinel.SearchSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -29,15 +27,8 @@ import java.util.stream.Collectors;
 public class SuggestionService {
 
     private final PostSearchRepository postSearchRepository;
-    private final StringRedisTemplate redisTemplate;
+    private final SuggestionCacheStore suggestionCacheStore;
 
-    private static String hotSearchKey() {
-        return CacheConstants.withNamespace("search") + ":hot:keywords";
-    }
-
-    private static String searchHistoryKeyPrefix() {
-        return CacheConstants.withNamespace("search") + ":history:";
-    }
     private static final int MAX_HOT_KEYWORDS = 20;
     private static final int MAX_HISTORY_SIZE = 10;
 
@@ -102,22 +93,18 @@ public class SuggestionService {
         String normalizedKeyword = keyword.trim().toLowerCase();
 
         // 更新热门搜索词
-        redisTemplate.opsForZSet().incrementScore(hotSearchKey(), normalizedKeyword, 1);
+        suggestionCacheStore.incrementHotKeywordScore(normalizedKeyword);
 
         // 保持热门搜索词数量限制
-        Long size = redisTemplate.opsForZSet().size(hotSearchKey());
-        if (size != null && size > MAX_HOT_KEYWORDS * 2) {
+        long size = suggestionCacheStore.getHotKeywordCount();
+        if (size > MAX_HOT_KEYWORDS * 2L) {
             // 移除分数最低的词
-            redisTemplate.opsForZSet().removeRange(hotSearchKey(), 0, size - MAX_HOT_KEYWORDS - 1);
+            suggestionCacheStore.removeHotKeywordRange(0, size - MAX_HOT_KEYWORDS - 1);
         }
 
         // 更新用户搜索历史
         if (userId != null) {
-            String historyKey = searchHistoryKeyPrefix() + userId;
-            redisTemplate.opsForList().remove(historyKey, 0, normalizedKeyword);
-            redisTemplate.opsForList().leftPush(historyKey, normalizedKeyword);
-            redisTemplate.opsForList().trim(historyKey, 0, MAX_HISTORY_SIZE - 1);
-            redisTemplate.expire(historyKey, Duration.ofDays(30));
+            suggestionCacheStore.recordUserHistory(userId, normalizedKeyword, MAX_HISTORY_SIZE, Duration.ofDays(30));
         }
 
         log.debug("Recorded search: keyword={}, userId={}", keyword, userId);
@@ -135,9 +122,7 @@ public class SuggestionService {
             blockHandler = "handleHotKeywordsBlocked"
     )
     public List<String> getHotKeywords(int limit) {
-        Set<String> keywords = redisTemplate.opsForZSet()
-            .reverseRange(hotSearchKey(), 0, limit - 1);
-        return keywords != null ? new ArrayList<>(keywords) : new ArrayList<>();
+        return suggestionCacheStore.getHotKeywords(limit);
     }
 
     /**
@@ -156,9 +141,7 @@ public class SuggestionService {
         if (userId == null) {
             return new ArrayList<>();
         }
-        String historyKey = searchHistoryKeyPrefix() + userId;
-        List<String> history = redisTemplate.opsForList().range(historyKey, 0, limit - 1);
-        return history != null ? history : new ArrayList<>();
+        return suggestionCacheStore.getUserHistory(userId, limit);
     }
 
     /**
@@ -168,22 +151,14 @@ public class SuggestionService {
      */
     public void clearUserHistory(String userId) {
         if (userId != null) {
-            String historyKey = searchHistoryKeyPrefix() + userId;
-            redisTemplate.delete(historyKey);
+            suggestionCacheStore.clearUserHistory(userId);
             log.info("Cleared search history for user: {}", userId);
         }
     }
 
     private List<String> getHotKeywordsMatching(String prefix, int limit) {
-        Set<String> allHot = redisTemplate.opsForZSet()
-            .reverseRange(hotSearchKey(), 0, MAX_HOT_KEYWORDS - 1);
-        
-        if (allHot == null) {
-            return new ArrayList<>();
-        }
-
         String normalizedPrefix = prefix.toLowerCase();
-        return allHot.stream()
+        return suggestionCacheStore.getHotKeywords(MAX_HOT_KEYWORDS).stream()
             .filter(keyword -> keyword.startsWith(normalizedPrefix))
             .limit(limit)
             .collect(Collectors.toList());

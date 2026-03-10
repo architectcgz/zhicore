@@ -62,6 +62,17 @@ public class PostContentStoreMongoImpl implements PostContentStore {
     @Override
     public Optional<PostBody> getContent(PostId postId) {
         try {
+            return loadContent(postId);
+        } catch (Exception e) {
+            // 降级处理：连接失败时返回空，不抛出异常
+            log.warn("获取文章内容失败（降级处理）: postId={}", postId.getValue(), e);
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public Optional<PostBody> loadContent(PostId postId) {
+        try {
             // 值对象转 String 用于查询
             Query query = Query.query(Criteria.where("postId").is(postId.getValue()));
             PostContentDocument document = mongoTemplate.findOne(query, PostContentDocument.class);
@@ -78,9 +89,8 @@ public class PostContentStoreMongoImpl implements PostContentStore {
             return Optional.of(body);
 
         } catch (Exception e) {
-            // 降级处理：连接失败时返回空，不抛出异常
-            log.warn("获取文章内容失败（降级处理）: postId={}", postId.getValue(), e);
-            return Optional.empty();
+            log.error("获取文章内容失败: postId={}", postId.getValue(), e);
+            throw new RuntimeException("获取文章内容失败", e);
         }
     }
 

@@ -7,7 +7,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
-import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * 用户服务降级工厂
@@ -29,13 +30,7 @@ public class UserServiceFallbackFactory implements FallbackFactory<UserServiceCl
         fallbackSupport.onFallbackTriggered(log, cause);
         return new UserServiceClient() {
             @Override
-            public ApiResponse<UserSimpleDTO> getUserSimple(String userId) {
-                log.warn("获取用户简要信息降级: userId={}, cause={}", userId, fallbackSupport.failureMessage(cause));
-                return fallbackSupport.degraded("用户服务已降级");
-            }
-
-            @Override
-            public ApiResponse<List<UserSimpleDTO>> getUsersSimple(List<String> userIds) {
+            public ApiResponse<Map<Long, UserSimpleDTO>> batchGetUsersSimple(Set<Long> userIds) {
                 log.warn("批量获取用户简要信息降级: userIds={}, cause={}", userIds, fallbackSupport.failureMessage(cause));
                 return fallbackSupport.degraded("用户服务已降级");
             }

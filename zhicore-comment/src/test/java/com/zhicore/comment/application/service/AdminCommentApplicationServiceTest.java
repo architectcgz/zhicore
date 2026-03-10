@@ -1,13 +1,13 @@
 package com.zhicore.comment.application.service;
 
+import com.zhicore.api.client.PostBatchClient;
+import com.zhicore.api.client.UserBatchSimpleClient;
 import com.zhicore.api.dto.user.UserSimpleDTO;
+import com.zhicore.comment.application.port.event.CommentEventPort;
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.model.CommentStats;
 import com.zhicore.comment.domain.model.CommentStatus;
 import com.zhicore.comment.domain.repository.CommentRepository;
-import com.zhicore.comment.infrastructure.feign.PostServiceClient;
-import com.zhicore.comment.infrastructure.feign.UserServiceClient;
-import com.zhicore.comment.infrastructure.mq.CommentEventPublisher;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
@@ -41,13 +41,13 @@ class AdminCommentApplicationServiceTest {
     private CommentRepository commentRepository;
 
     @Mock
-    private UserServiceClient userServiceClient;
+    private UserBatchSimpleClient userServiceClient;
 
     @Mock
-    private PostServiceClient postServiceClient;
+    private PostBatchClient postServiceClient;
 
     @Mock
-    private CommentEventPublisher eventPublisher;
+    private CommentEventPort eventPublisher;
 
     private AdminCommentApplicationService service;
 
@@ -67,7 +67,7 @@ class AdminCommentApplicationServiceTest {
         when(commentRepository.findByConditions(null, null, null, 0, 20))
                 .thenReturn(List.of(createComment()));
         when(commentRepository.countByConditions(null, null, null)).thenReturn(1L);
-        when(userServiceClient.batchGetUsers(anySet()))
+        when(userServiceClient.batchGetUsersSimple(anySet()))
                 .thenReturn(ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "用户服务已降级"));
 
         BusinessException exception = assertThrows(BusinessException.class,
@@ -84,7 +84,7 @@ class AdminCommentApplicationServiceTest {
         when(commentRepository.findByConditions(null, null, null, 0, 20))
                 .thenReturn(List.of(createComment()));
         when(commentRepository.countByConditions(null, null, null)).thenReturn(1L);
-        when(userServiceClient.batchGetUsers(anySet()))
+        when(userServiceClient.batchGetUsersSimple(anySet()))
                 .thenReturn(ApiResponse.success(Map.of(AUTHOR_ID, createUser())));
         when(postServiceClient.batchGetPosts(anySet()))
                 .thenReturn(ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "文章服务已降级"));

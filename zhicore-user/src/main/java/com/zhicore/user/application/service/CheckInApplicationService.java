@@ -5,16 +5,15 @@ import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.common.util.DateTimeUtils;
 import com.zhicore.user.application.dto.CheckInVO;
+import com.zhicore.user.application.port.store.CheckInStore;
 import com.zhicore.user.domain.model.UserCheckIn;
 import com.zhicore.user.domain.model.UserCheckInStats;
 import com.zhicore.user.domain.repository.UserCheckInRepository;
 import com.zhicore.user.domain.repository.UserRepository;
-import com.zhicore.user.infrastructure.cache.UserRedisKeys;
-import com.zhicore.user.infrastructure.sentinel.UserSentinelHandlers;
-import com.zhicore.user.infrastructure.sentinel.UserSentinelResources;
+import com.zhicore.user.application.sentinel.UserSentinelHandlers;
+import com.zhicore.user.application.sentinel.UserSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +32,7 @@ public class CheckInApplicationService {
 
     private final UserCheckInRepository checkInRepository;
     private final UserRepository userRepository;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final CheckInStore checkInStore;
 
     /**
      * 用户签到
@@ -120,10 +119,7 @@ public class CheckInApplicationService {
      */
     private boolean hasCheckedInToday(Long userId, LocalDate date) {
         try {
-            String key = UserRedisKeys.checkInBitmap(userId, YearMonth.from(date));
-            int dayOfMonth = date.getDayOfMonth();
-            Boolean bit = redisTemplate.opsForValue().getBit(key, dayOfMonth - 1);
-            return Boolean.TRUE.equals(bit);
+            return checkInStore.hasCheckedIn(userId, date);
         } catch (Exception e) {
             log.warn("Redis Bitmap 查询失败: {}", e.getMessage());
             return false;
@@ -138,9 +134,7 @@ public class CheckInApplicationService {
      */
     private void setCheckInBitmap(Long userId, LocalDate date) {
         try {
-            String key = UserRedisKeys.checkInBitmap(userId, YearMonth.from(date));
-            int dayOfMonth = date.getDayOfMonth();
-            redisTemplate.opsForValue().setBit(key, dayOfMonth - 1, true);
+            checkInStore.markCheckedIn(userId, date);
         } catch (Exception e) {
             log.warn("Redis Bitmap 设置失败: {}", e.getMessage());
         }
@@ -160,21 +154,7 @@ public class CheckInApplicationService {
     )
     public long getMonthlyCheckInBitmap(Long userId, YearMonth yearMonth) {
         try {
-            String key = UserRedisKeys.checkInBitmap(userId, yearMonth);
-            // 获取整个月的签到位图
-            byte[] bytes = (byte[]) redisTemplate.execute(connection -> 
-                    connection.stringCommands().get(key.getBytes()), true);
-            
-            if (bytes == null || bytes.length == 0) {
-                return 0L;
-            }
-            
-            // 转换为 long
-            long bitmap = 0L;
-            for (int i = 0; i < bytes.length && i < 8; i++) {
-                bitmap |= ((long) (bytes[i] & 0xFF)) << (i * 8);
-            }
-            return bitmap;
+            return checkInStore.getMonthlyBitmap(userId, yearMonth);
         } catch (Exception e) {
             log.warn("获取月度签到记录失败: {}", e.getMessage());
             return 0L;

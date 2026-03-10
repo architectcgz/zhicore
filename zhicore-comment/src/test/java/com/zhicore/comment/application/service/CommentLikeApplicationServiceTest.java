@@ -1,12 +1,12 @@
 package com.zhicore.comment.application.service;
 
+import com.zhicore.comment.application.port.store.CommentLikeStore;
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.model.CommentStats;
 import com.zhicore.comment.domain.model.CommentStatus;
 import com.zhicore.comment.domain.repository.CommentLikeRepository;
 import com.zhicore.comment.domain.repository.CommentRepository;
-import com.zhicore.comment.infrastructure.cache.CommentRedisKeys;
-import com.zhicore.comment.infrastructure.repository.mapper.CommentStatsMapper;
+import com.zhicore.comment.domain.repository.CommentStatsRepository;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ResultCode;
 import io.micrometer.core.instrument.Counter;
@@ -20,12 +20,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -49,9 +49,8 @@ class CommentLikeApplicationServiceTest {
 
     @Mock private CommentLikeRepository likeRepository;
     @Mock private CommentRepository commentRepository;
-    @Mock private CommentStatsMapper statsMapper;
-    @Mock private RedisTemplate<String, Object> redisTemplate;
-    @Mock private ValueOperations<String, Object> valueOperations;
+    @Mock private CommentStatsRepository commentStatsRepository;
+    @Mock private CommentLikeStore commentLikeStore;
     @Mock private TransactionTemplate transactionTemplate;
     @Mock private MeterRegistry meterRegistry;
     @Mock private Counter counter;
@@ -67,11 +66,10 @@ class CommentLikeApplicationServiceTest {
     @BeforeEach
     void setUp() {
         service = new CommentLikeApplicationService(
-                likeRepository, commentRepository, statsMapper,
-                redisTemplate, transactionTemplate, meterRegistry
+                likeRepository, commentRepository, commentStatsRepository,
+                commentLikeStore, transactionTemplate, meterRegistry
         );
 
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(meterRegistry.counter(anyString(), any(String[].class))).thenReturn(counter);
 
         // TransactionTemplate 默认直接执行回调
@@ -119,9 +117,9 @@ class CommentLikeApplicationServiceTest {
             service.likeComment(USER_ID, COMMENT_ID);
 
             verify(likeRepository).insertIfAbsent(COMMENT_ID, USER_ID);
-            verify(statsMapper).incrementLikeCount(COMMENT_ID);
-            verify(valueOperations).increment(CommentRedisKeys.likeCount(COMMENT_ID));
-            verify(valueOperations).set(CommentRedisKeys.userLiked(USER_ID, COMMENT_ID), "1");
+            verify(commentStatsRepository).incrementLikeCount(COMMENT_ID);
+            verify(commentLikeStore).incrementLikeCount(COMMENT_ID);
+            verify(commentLikeStore).markLiked(USER_ID, COMMENT_ID);
         }
 
         @Test
@@ -133,10 +131,10 @@ class CommentLikeApplicationServiceTest {
             service.likeComment(USER_ID, COMMENT_ID);
 
             verify(likeRepository).insertIfAbsent(COMMENT_ID, USER_ID);
-            verify(statsMapper, never()).incrementLikeCount(anyLong());
-            verify(valueOperations, never()).increment(anyString());
+            verify(commentStatsRepository, never()).incrementLikeCount(anyLong());
+            verify(commentLikeStore, never()).incrementLikeCount(anyLong());
             // 仍然设置 Redis 标记（确保缓存一致）
-            verify(valueOperations).set(CommentRedisKeys.userLiked(USER_ID, COMMENT_ID), "1");
+            verify(commentLikeStore).markLiked(USER_ID, COMMENT_ID);
         }
 
         @Test
@@ -167,10 +165,10 @@ class CommentLikeApplicationServiceTest {
         void shouldSucceed_WhenRedisUpdateFails() {
             when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createNormalComment()));
             when(likeRepository.insertIfAbsent(COMMENT_ID, USER_ID)).thenReturn(true);
-            when(valueOperations.increment(anyString())).thenThrow(new RuntimeException("Redis down"));
+            doThrow(new RuntimeException("Redis down")).when(commentLikeStore).incrementLikeCount(anyLong());
 
             assertDoesNotThrow(() -> service.likeComment(USER_ID, COMMENT_ID));
-            verify(statsMapper).incrementLikeCount(COMMENT_ID);
+            verify(commentStatsRepository).incrementLikeCount(COMMENT_ID);
         }
     }
 
@@ -188,9 +186,9 @@ class CommentLikeApplicationServiceTest {
             service.unlikeComment(USER_ID, COMMENT_ID);
 
             verify(likeRepository).deleteAndReturnAffected(COMMENT_ID, USER_ID);
-            verify(statsMapper).decrementLikeCount(COMMENT_ID);
-            verify(valueOperations).decrement(CommentRedisKeys.likeCount(COMMENT_ID));
-            verify(redisTemplate).delete(CommentRedisKeys.userLiked(USER_ID, COMMENT_ID));
+            verify(commentStatsRepository).decrementLikeCount(COMMENT_ID);
+            verify(commentLikeStore).decrementLikeCount(COMMENT_ID);
+            verify(commentLikeStore).unmarkLiked(USER_ID, COMMENT_ID);
         }
 
         @Test
@@ -200,20 +198,20 @@ class CommentLikeApplicationServiceTest {
 
             service.unlikeComment(USER_ID, COMMENT_ID);
 
-            verify(statsMapper, never()).decrementLikeCount(anyLong());
-            verify(valueOperations, never()).decrement(anyString());
+            verify(commentStatsRepository, never()).decrementLikeCount(anyLong());
+            verify(commentLikeStore, never()).decrementLikeCount(anyLong());
             // 仍然清除 Redis 标记（确保缓存一致）
-            verify(redisTemplate).delete(CommentRedisKeys.userLiked(USER_ID, COMMENT_ID));
+            verify(commentLikeStore).unmarkLiked(USER_ID, COMMENT_ID);
         }
 
         @Test
         @DisplayName("Redis 缓存更新失败不影响业务")
         void shouldSucceed_WhenRedisUpdateFails() {
             when(likeRepository.deleteAndReturnAffected(COMMENT_ID, USER_ID)).thenReturn(true);
-            when(valueOperations.decrement(anyString())).thenThrow(new RuntimeException("Redis down"));
+            doThrow(new RuntimeException("Redis down")).when(commentLikeStore).decrementLikeCount(anyLong());
 
             assertDoesNotThrow(() -> service.unlikeComment(USER_ID, COMMENT_ID));
-            verify(statsMapper).decrementLikeCount(COMMENT_ID);
+            verify(commentStatsRepository).decrementLikeCount(COMMENT_ID);
         }
     }
 
@@ -226,7 +224,7 @@ class CommentLikeApplicationServiceTest {
         @Test
         @DisplayName("Redis 命中时直接返回 true")
         void isLiked_ShouldReturnTrue_WhenRedisHit() {
-            when(redisTemplate.hasKey(CommentRedisKeys.userLiked(USER_ID, COMMENT_ID))).thenReturn(true);
+            when(commentLikeStore.isLiked(USER_ID, COMMENT_ID)).thenReturn(true);
 
             assertTrue(service.isLiked(USER_ID, COMMENT_ID));
             verify(likeRepository, never()).exists(anyLong(), anyLong());
@@ -235,17 +233,17 @@ class CommentLikeApplicationServiceTest {
         @Test
         @DisplayName("Redis 未命中时查 DB 并回填")
         void isLiked_ShouldQueryDB_WhenRedisMiss() {
-            when(redisTemplate.hasKey(CommentRedisKeys.userLiked(USER_ID, COMMENT_ID))).thenReturn(false);
+            when(commentLikeStore.isLiked(USER_ID, COMMENT_ID)).thenReturn(null);
             when(likeRepository.exists(COMMENT_ID, USER_ID)).thenReturn(true);
 
             assertTrue(service.isLiked(USER_ID, COMMENT_ID));
-            verify(valueOperations).set(CommentRedisKeys.userLiked(USER_ID, COMMENT_ID), "1");
+            verify(commentLikeStore).markLiked(USER_ID, COMMENT_ID);
         }
 
         @Test
         @DisplayName("getLikeCount Redis 命中")
         void getLikeCount_ShouldReturnFromRedis() {
-            when(valueOperations.get(CommentRedisKeys.likeCount(COMMENT_ID))).thenReturn(42);
+            when(commentLikeStore.getLikeCount(COMMENT_ID)).thenReturn(42);
 
             assertEquals(42, service.getLikeCount(COMMENT_ID));
             verify(likeRepository, never()).countByCommentId(anyLong());
@@ -254,11 +252,28 @@ class CommentLikeApplicationServiceTest {
         @Test
         @DisplayName("getLikeCount Redis 未命中时查 DB 并回填")
         void getLikeCount_ShouldQueryDB_WhenRedisMiss() {
-            when(valueOperations.get(CommentRedisKeys.likeCount(COMMENT_ID))).thenReturn(null);
+            when(commentLikeStore.getLikeCount(COMMENT_ID)).thenReturn(null);
             when(likeRepository.countByCommentId(COMMENT_ID)).thenReturn(10);
 
             assertEquals(10, service.getLikeCount(COMMENT_ID));
-            verify(valueOperations).set(CommentRedisKeys.likeCount(COMMENT_ID), 10);
+            verify(commentLikeStore).cacheLikeCount(COMMENT_ID, 10);
+        }
+
+        @Test
+        @DisplayName("batchCheckLiked Redis 命中与 DB 回填应正确合并")
+        void batchCheckLiked_ShouldMergeCacheHitsAndDbResults() {
+            List<Long> commentIds = List.of(COMMENT_ID, COMMENT_ID + 1, COMMENT_ID + 2);
+            when(commentLikeStore.findLikedCommentIds(USER_ID, commentIds))
+                    .thenReturn(Set.of(COMMENT_ID));
+            when(likeRepository.findLikedCommentIds(USER_ID, List.of(COMMENT_ID + 1, COMMENT_ID + 2)))
+                    .thenReturn(List.of(COMMENT_ID + 2));
+
+            var result = service.batchCheckLiked(USER_ID, commentIds);
+
+            assertEquals(Boolean.TRUE, result.get(COMMENT_ID));
+            assertEquals(Boolean.FALSE, result.get(COMMENT_ID + 1));
+            assertEquals(Boolean.TRUE, result.get(COMMENT_ID + 2));
+            verify(commentLikeStore).markLiked(USER_ID, COMMENT_ID + 2);
         }
     }
 }

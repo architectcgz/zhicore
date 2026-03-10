@@ -1,11 +1,15 @@
 package com.zhicore.user.application.service;
 
 import com.zhicore.api.client.IdGeneratorFeignClient;
-import com.zhicore.common.cache.port.CacheRepository;
+import com.zhicore.api.client.UploadFileDeleteClient;
+import com.zhicore.common.cache.port.CacheStore;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
+import com.zhicore.user.application.command.RegisterCommand;
+import com.zhicore.user.application.command.UpdateProfileCommand;
 import com.zhicore.user.application.dto.UserVO;
+import com.zhicore.user.application.port.UserCacheKeyResolver;
 import com.zhicore.user.domain.model.Role;
 import com.zhicore.user.domain.model.User;
 import com.zhicore.user.domain.model.UserFollowStats;
@@ -15,9 +19,6 @@ import com.zhicore.user.domain.repository.UserFollowRepository;
 import com.zhicore.user.domain.repository.UserRepository;
 import com.zhicore.user.domain.repository.OutboxEventRepository;
 import com.zhicore.user.domain.service.UserDomainService;
-import com.zhicore.user.infrastructure.feign.ZhiCoreUploadClient;
-import com.zhicore.user.interfaces.dto.request.RegisterRequest;
-import com.zhicore.user.interfaces.dto.request.UpdateProfileRequest;
 import com.zhicore.user.domain.model.OutboxEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -68,13 +70,16 @@ class UserApplicationServiceTest {
     private OutboxEventRepository outboxEventRepository;
 
     @Mock
-    private ZhiCoreUploadClient zhiCoreUploadClient;
+    private UploadFileDeleteClient uploadFileDeleteClient;
 
     @Mock
     private AuthApplicationService authApplicationService;
 
     @Mock
-    private CacheRepository cacheRepository;
+    private CacheStore cacheStore;
+
+    @Spy
+    private UserCacheKeyResolver userCacheKeyResolver = new com.zhicore.user.infrastructure.cache.DefaultUserCacheKeyResolver();
 
     @InjectMocks
     private UserApplicationService userApplicationService;
@@ -114,10 +119,7 @@ class UserApplicationServiceTest {
         @DisplayName("应该成功注册用户")
         void shouldRegisterUserSuccessfully() {
             // Given
-            RegisterRequest request = new RegisterRequest();
-            request.setUserName("newuser");
-            request.setEmail("new@example.com");
-            request.setPassword("password123");
+            RegisterCommand request = new RegisterCommand("newuser", "new@example.com", "password123");
 
             when(idGeneratorFeignClient.generateSnowflakeId())
                     .thenReturn(ApiResponse.success(456L));
@@ -138,10 +140,7 @@ class UserApplicationServiceTest {
         @DisplayName("邮箱已存在时应该抛出异常")
         void shouldThrowExceptionWhenEmailExists() {
             // Given
-            RegisterRequest request = new RegisterRequest();
-            request.setUserName("newuser");
-            request.setEmail("existing@example.com");
-            request.setPassword("password123");
+            RegisterCommand request = new RegisterCommand("newuser", "existing@example.com", "password123");
 
             doThrow(new BusinessException(ResultCode.EMAIL_ALREADY_EXISTS))
                     .when(userDomainService).validateRegistration(anyString(), anyString());
@@ -209,10 +208,11 @@ class UserApplicationServiceTest {
         @DisplayName("应该成功更新用户资料")
         void shouldUpdateProfileSuccessfully() {
             // Given
-            UpdateProfileRequest request = new UpdateProfileRequest();
-            request.setNickName("新昵称");
-            request.setAvatarId("01933e5f-8b2a-7890-a123-456789abcdef");
-            request.setBio("新的个人简介");
+            UpdateProfileCommand request = new UpdateProfileCommand(
+                    "新昵称",
+                    "01933e5f-8b2a-7890-a123-456789abcdef",
+                    "新的个人简介"
+            );
 
             when(userRepository.findById(123L)).thenReturn(Optional.of(testUser));
             when(userRepository.updateWithOptimisticLock(any(User.class))).thenReturn(testUser);
@@ -229,8 +229,7 @@ class UserApplicationServiceTest {
         @DisplayName("用户不存在时应该抛出异常")
         void shouldThrowExceptionWhenUserNotFound() {
             // Given
-            UpdateProfileRequest request = new UpdateProfileRequest();
-            request.setNickName("新昵称");
+            UpdateProfileCommand request = new UpdateProfileCommand("新昵称", null, null);
 
             when(userRepository.findById(999L)).thenReturn(Optional.empty());
 

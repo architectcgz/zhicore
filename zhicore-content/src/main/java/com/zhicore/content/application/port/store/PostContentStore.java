@@ -24,12 +24,21 @@ public interface PostContentStore {
     void saveContent(PostId postId, PostBody body);
     
     /**
-     * 获取文章内容
+     * 获取文章内容（降级读）
      * 
      * @param postId 文章ID（值对象）
-     * @return 文章内容（可能为空）
+     * @return 文章内容（可能为空；底层异常可按实现降级为空）
      */
     Optional<PostBody> getContent(PostId postId);
+
+    /**
+     * 严格加载文章内容
+     *
+     * @param postId 文章ID（值对象）
+     * @return 文章内容（可能为空）
+     * @throws RuntimeException 底层存储读取失败时抛出
+     */
+    Optional<PostBody> loadContent(PostId postId);
     
     /**
      * 删除文章内容

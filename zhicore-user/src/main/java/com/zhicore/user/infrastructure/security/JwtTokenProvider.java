@@ -1,6 +1,7 @@
 package com.zhicore.user.infrastructure.security;
 
 import com.zhicore.common.config.JwtProperties;
+import com.zhicore.user.application.port.security.TokenProvider;
 import com.zhicore.user.domain.model.Role;
 import com.zhicore.user.domain.model.User;
 import io.jsonwebtoken.*;
@@ -27,7 +28,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class JwtTokenProvider {
+public class JwtTokenProvider implements TokenProvider {
 
     private final JwtProperties jwtProperties;
 

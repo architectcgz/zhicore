@@ -6,20 +6,19 @@ import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
+import com.zhicore.content.application.port.store.PostLikeStore;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostLike;
 import com.zhicore.content.domain.model.PostStatus;
 import com.zhicore.content.domain.repository.PostLikeRepository;
 import com.zhicore.content.application.port.repo.PostRepository;
-import com.zhicore.content.infrastructure.cache.PostRedisKeys;
-import com.zhicore.content.infrastructure.sentinel.ContentSentinelHandlers;
-import com.zhicore.content.infrastructure.sentinel.ContentSentinelResources;
+import com.zhicore.content.application.sentinel.ContentSentinelHandlers;
+import com.zhicore.content.application.sentinel.ContentSentinelResources;
 import com.zhicore.integration.messaging.post.PostLikedIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostUnlikedIntegrationEvent;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -27,6 +26,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -42,7 +42,7 @@ public class PostLikeApplicationService {
     private final PostLikeRepository likeRepository;
     private final PostRepository postRepository;
     private final IntegrationEventPublisher integrationEventPublisher;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final PostLikeStore postLikeStore;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
     private final TransactionTemplate transactionTemplate;
     private final MeterRegistry meterRegistry;
@@ -57,10 +57,7 @@ public class PostLikeApplicationService {
      */
     public void likePost(Long userId, Long postId) {
         // 检查是否已点赞（先查 Redis）
-        String likeKey = PostRedisKeys.userLiked(userId, postId);
-        Boolean alreadyLiked = redisTemplate.hasKey(likeKey);
-
-        if (alreadyLiked) {
+        if (Boolean.TRUE.equals(postLikeStore.isLiked(userId, postId))) {
             throw new BusinessException("已经点赞过了");
         }
 
@@ -93,8 +90,8 @@ public class PostLikeApplicationService {
 
         // 事务提交成功后，更新 Redis 缓存
         try {
-            redisTemplate.opsForValue().increment(PostRedisKeys.likeCount(postId));
-            redisTemplate.opsForValue().set(likeKey, "1");
+            postLikeStore.incrementLikeCount(postId);
+            postLikeStore.markLiked(userId, postId);
         } catch (Exception e) {
             // Redis 更新失败处理
             handleCacheUpdateFailure("like", postId, userId, e);
@@ -125,10 +122,7 @@ public class PostLikeApplicationService {
      */
     public void unlikePost(Long userId, Long postId) {
         // 检查是否已点赞
-        String likeKey = PostRedisKeys.userLiked(userId, postId);
-        Boolean liked = redisTemplate.hasKey(likeKey);
-
-        if (!liked) {
+        if (!Boolean.TRUE.equals(postLikeStore.isLiked(userId, postId))) {
             // 再查数据库确认
             if (!likeRepository.exists(postId, userId)) {
                 throw new BusinessException("尚未点赞");
@@ -142,8 +136,8 @@ public class PostLikeApplicationService {
 
         // 事务提交成功后，更新 Redis 缓存
         try {
-            redisTemplate.opsForValue().decrement(PostRedisKeys.likeCount(postId));
-            redisTemplate.delete(likeKey);
+            postLikeStore.decrementLikeCount(postId);
+            postLikeStore.unmarkLiked(userId, postId);
         } catch (Exception e) {
             // Redis 更新失败处理
             handleCacheUpdateFailure("unlike", postId, userId, e);
@@ -178,10 +172,7 @@ public class PostLikeApplicationService {
             blockHandler = "handleIsPostLikedBlocked"
     )
     public boolean isLiked(Long userId, Long postId) {
-        String likeKey = PostRedisKeys.userLiked(userId, postId);
-        Boolean liked = redisTemplate.hasKey(likeKey);
-        
-        if (Boolean.TRUE.equals(liked)) {
+        if (Boolean.TRUE.equals(postLikeStore.isLiked(userId, postId))) {
             return true;
         }
         
@@ -189,7 +180,7 @@ public class PostLikeApplicationService {
         boolean exists = likeRepository.exists(postId, userId);
         if (exists) {
             // 回填 Redis
-            redisTemplate.opsForValue().set(likeKey, "1");
+            postLikeStore.markLiked(userId, postId);
         }
         return exists;
     }
@@ -211,22 +202,12 @@ public class PostLikeApplicationService {
             return Collections.emptyMap();
         }
 
-        // 使用 Pipeline 批量查询 Redis
-        List<Object> results = redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
-            for (Long postId : postIds) {
-                String key = PostRedisKeys.userLiked(userId, postId);
-                connection.keyCommands().exists(key.getBytes());
-            }
-            return null;
-        });
-
         Map<Long, Boolean> likedMap = new HashMap<>();
         List<Long> missedIds = new java.util.ArrayList<>();
+        Set<Long> cachedLikedIds = postLikeStore.findLikedPostIds(userId, postIds);
 
-        for (int i = 0; i < postIds.size(); i++) {
-            Long postId = postIds.get(i);
-            Object result = results.get(i);
-            if (Boolean.TRUE.equals(result) || (result instanceof Long && (Long) result > 0)) {
+        for (Long postId : postIds) {
+            if (cachedLikedIds.contains(postId)) {
                 likedMap.put(postId, true);
             } else {
                 likedMap.put(postId, false);
@@ -240,7 +221,7 @@ public class PostLikeApplicationService {
             for (Long postId : likedPostIds) {
                 likedMap.put(postId, true);
                 // 回填 Redis
-                redisTemplate.opsForValue().set(PostRedisKeys.userLiked(userId, postId), "1");
+                postLikeStore.markLiked(userId, postId);
             }
         }
 
@@ -259,17 +240,15 @@ public class PostLikeApplicationService {
             blockHandler = "handleGetPostLikeCountBlocked"
     )
     public int getLikeCount(Long postId) {
-        String key = PostRedisKeys.likeCount(postId);
-        Object count = redisTemplate.opsForValue().get(key);
-        
+        Integer count = postLikeStore.getLikeCount(postId);
         if (count != null) {
-            return Integer.parseInt(count.toString());
+            return count;
         }
         
         // Redis 未命中，查数据库
         int dbCount = likeRepository.countByPostId(postId);
         // 回填 Redis
-        redisTemplate.opsForValue().set(key, dbCount);
+        postLikeStore.cacheLikeCount(postId, dbCount);
         return dbCount;
     }
 

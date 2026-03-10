@@ -1,9 +1,9 @@
 package com.zhicore.ranking.application.service;
 
+import com.zhicore.api.client.PostBatchClient;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
-import com.zhicore.ranking.infrastructure.feign.PostServiceClient;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,7 +22,7 @@ import static org.mockito.Mockito.when;
 class PostMetadataResolverTest {
 
     @Mock
-    private PostServiceClient postServiceClient;
+    private PostBatchClient postServiceClient;
 
     @InjectMocks
     private PostMetadataResolver postMetadataResolver;

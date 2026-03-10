@@ -4,19 +4,18 @@ import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
+import com.zhicore.notification.application.port.store.NotificationAggregationStore;
+import com.zhicore.notification.application.port.store.NotificationUnreadCountStore;
 import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.repository.NotificationRepository;
-import com.zhicore.notification.infrastructure.cache.NotificationRedisKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.RedisTemplate;
 
 import java.util.Optional;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -39,7 +38,10 @@ class NotificationApplicationServiceTest {
     private IdGeneratorFeignClient idGeneratorFeignClient;
 
     @Mock
-    private RedisTemplate<String, Object> redisTemplate;
+    private NotificationUnreadCountStore notificationUnreadCountStore;
+
+    @Mock
+    private NotificationAggregationStore notificationAggregationStore;
 
     private NotificationApplicationService notificationApplicationService;
 
@@ -48,7 +50,8 @@ class NotificationApplicationServiceTest {
         notificationApplicationService = new NotificationApplicationService(
                 notificationRepository,
                 idGeneratorFeignClient,
-                redisTemplate
+                notificationUnreadCountStore,
+                notificationAggregationStore
         );
     }
 
@@ -56,15 +59,14 @@ class NotificationApplicationServiceTest {
     @DisplayName("首次幂等创建成功时应该落库并失效缓存")
     void shouldCreateNotificationWhenAbsent() {
         when(notificationRepository.saveIfAbsent(any(Notification.class))).thenReturn(true);
-        when(redisTemplate.keys(anyString())).thenReturn(Set.of("k1", "k2"));
 
         Optional<Notification> result = notificationApplicationService.createFollowNotificationIfAbsent(101L, 11L, 22L);
 
         assertTrue(result.isPresent());
         assertEquals(101L, result.get().getId());
         verify(notificationRepository).saveIfAbsent(any(Notification.class));
-        verify(redisTemplate).delete(NotificationRedisKeys.unreadCount("11"));
-        verify(redisTemplate).delete(Set.of("k1", "k2"));
+        verify(notificationUnreadCountStore).evict(11L);
+        verify(notificationAggregationStore).evictUser(11L);
     }
 
     @Test
@@ -77,8 +79,8 @@ class NotificationApplicationServiceTest {
 
         assertTrue(result.isEmpty());
         verify(notificationRepository).saveIfAbsent(any(Notification.class));
-        verify(redisTemplate, never()).delete(anyString());
-        verify(redisTemplate, never()).keys(anyString());
+        verify(notificationUnreadCountStore, never()).evict(any());
+        verify(notificationAggregationStore, never()).evictUser(any());
     }
 
     @Test
@@ -106,8 +108,8 @@ class NotificationApplicationServiceTest {
         assertEquals(ResultCode.RESOURCE_ACCESS_DENIED.getCode(), exception.getCode());
         assertEquals("无权访问该通知", exception.getMessage());
         verify(notificationRepository, never()).markAsRead(any(), anyString());
-        verify(redisTemplate, never()).delete(anyString());
-        verify(redisTemplate, never()).keys(anyString());
+        verify(notificationUnreadCountStore, never()).evict(any());
+        verify(notificationAggregationStore, never()).evictUser(any());
     }
 
     @Test
@@ -115,12 +117,11 @@ class NotificationApplicationServiceTest {
     void shouldMarkAsReadWhenNotificationBelongsToCurrentUser() {
         Notification notification = Notification.createFollowNotification(202L, 11L, 33L);
         when(notificationRepository.findById(202L)).thenReturn(Optional.of(notification));
-        when(redisTemplate.keys(NotificationRedisKeys.aggregatedListPattern("11"))).thenReturn(Set.of("k1"));
 
         notificationApplicationService.markAsRead(202L, 11L);
 
         verify(notificationRepository).markAsRead(202L, "11");
-        verify(redisTemplate).delete(NotificationRedisKeys.unreadCount("11"));
-        verify(redisTemplate).delete(eq(Set.of("k1")));
+        verify(notificationUnreadCountStore).evict(11L);
+        verify(notificationAggregationStore).evictUser(eq(11L));
     }
 }

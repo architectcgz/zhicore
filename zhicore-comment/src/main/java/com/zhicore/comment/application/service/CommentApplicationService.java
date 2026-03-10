@@ -2,29 +2,30 @@ package com.zhicore.comment.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.api.client.PostCommentClient;
+import com.zhicore.api.client.UserSimpleBatchClient;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.api.event.comment.CommentCreatedEvent;
 import com.zhicore.api.event.comment.CommentDeletedEvent;
+import com.zhicore.comment.application.command.CreateCommentCommand;
+import com.zhicore.comment.application.command.UpdateCommentCommand;
 import com.zhicore.comment.application.dto.CommentSortType;
 import com.zhicore.comment.application.dto.CommentVO;
 import com.zhicore.comment.application.dto.CursorPage;
+import com.zhicore.comment.application.port.event.CommentEventPort;
+import com.zhicore.comment.application.port.store.CommentCounterStore;
+import com.zhicore.comment.application.port.store.CommentDetailCacheStore;
+import com.zhicore.comment.domain.cursor.HotCursorCodec;
+import com.zhicore.comment.domain.cursor.HotCursorCodec.HotCursor;
+import com.zhicore.comment.domain.cursor.TimeCursorCodec;
+import com.zhicore.comment.domain.cursor.TimeCursorCodec.TimeCursor;
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.model.CommentStats;
 import com.zhicore.comment.domain.repository.CommentRepository;
-import com.zhicore.comment.infrastructure.cache.CommentRedisKeys;
-import com.zhicore.comment.infrastructure.cursor.HotCursorCodec;
-import com.zhicore.comment.infrastructure.cursor.HotCursorCodec.HotCursor;
-import com.zhicore.comment.infrastructure.cursor.TimeCursorCodec;
-import com.zhicore.comment.infrastructure.cursor.TimeCursorCodec.TimeCursor;
-import com.zhicore.comment.infrastructure.feign.PostServiceClient;
-import com.zhicore.comment.infrastructure.feign.UserServiceClient;
-import com.zhicore.comment.infrastructure.mq.CommentEventPublisher;
-import com.zhicore.comment.infrastructure.repository.mapper.CommentStatsMapper;
-import com.zhicore.comment.infrastructure.sentinel.CommentSentinelHandlers;
-import com.zhicore.comment.infrastructure.sentinel.CommentSentinelResources;
-import com.zhicore.comment.interfaces.dto.request.CreateCommentRequest;
-import com.zhicore.comment.interfaces.dto.request.UpdateCommentRequest;
+import com.zhicore.comment.domain.repository.CommentStatsRepository;
+import com.zhicore.comment.application.sentinel.CommentSentinelHandlers;
+import com.zhicore.comment.application.sentinel.CommentSentinelResources;
 import com.zhicore.common.constant.CommonConstants;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
@@ -32,7 +33,6 @@ import com.zhicore.common.result.PageResult;
 import com.zhicore.common.result.ResultCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -52,12 +52,13 @@ public class CommentApplicationService {
 
     private final CommentRepository commentRepository;
     private final CommentDetailCacheService commentDetailCacheService;
-    private final CommentStatsMapper statsMapper;
-    private final CommentEventPublisher eventPublisher;
-    private final PostServiceClient postServiceClient;
-    private final UserServiceClient userServiceClient;
+    private final CommentDetailCacheStore commentDetailCacheStore;
+    private final CommentCounterStore commentCounterStore;
+    private final CommentStatsRepository commentStatsRepository;
+    private final CommentEventPort eventPublisher;
+    private final PostCommentClient postServiceClient;
+    private final UserSimpleBatchClient userServiceClient;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
-    private final RedisTemplate<String, Object> redisTemplate;
     private final HotCursorCodec hotCursorCodec;
     private final TimeCursorCodec timeCursorCodec;
     private final TransactionTemplate transactionTemplate;
@@ -71,9 +72,9 @@ public class CommentApplicationService {
      * @param request 创建请求
      * @return 评论ID
      */
-    public Long createComment(Long authorId, CreateCommentRequest request) {
+    public Long createComment(Long authorId, CreateCommentCommand request) {
         // 验证文章存在并获取文章信息
-        ApiResponse<PostDTO> postResponse = postServiceClient.getPost(request.getPostId());
+        ApiResponse<PostDTO> postResponse = postServiceClient.getPost(request.postId());
         if (!postResponse.isSuccess() || postResponse.getData() == null) {
             throw new BusinessException(ResultCode.POST_NOT_FOUND, "文章不存在");
         }
@@ -88,7 +89,7 @@ public class CommentApplicationService {
         Long commentId = idResponse.getData();
         
         final Comment[] commentHolder = new Comment[1];
-        final Long rootId = request.getRootId();
+        final Long rootId = request.rootId();
 
         // 数据库操作在事务中执行
         transactionTemplate.executeWithoutResult(status -> {
@@ -97,8 +98,8 @@ public class CommentApplicationService {
             if (rootId == null) {
                 // 创建顶级评论
                 comment = Comment.createTopLevel(
-                        commentId, request.getPostId(), authorId, request.getContent(),
-                        request.getImageIds(), request.getVoiceId(), request.getVoiceDuration()
+                        commentId, request.postId(), authorId, request.content(),
+                        request.imageIds(), request.voiceId(), request.voiceDuration()
                 );
             } else {
                 // 创建回复评论
@@ -115,7 +116,7 @@ public class CommentApplicationService {
 
                 // 确定被回复用户
                 Long replyToUserId;
-                Long replyToCommentId = request.getReplyToCommentId();
+                Long replyToCommentId = request.replyToCommentId();
                 if (replyToCommentId != null) {
                     Comment replyToComment = commentRepository.findById(replyToCommentId)
                             .orElseThrow(() -> new BusinessException(ResultCode.REPLY_TO_COMMENT_NOT_FOUND));
@@ -129,13 +130,13 @@ public class CommentApplicationService {
                 }
 
                 comment = Comment.createReply(
-                        commentId, request.getPostId(), authorId, request.getContent(),
-                        request.getImageIds(), request.getVoiceId(), request.getVoiceDuration(),
+                        commentId, request.postId(), authorId, request.content(),
+                        request.imageIds(), request.voiceId(), request.voiceDuration(),
                         rootId, replyToUserId
                 );
 
                 // 更新顶级评论的回复数（数据库）
-                statsMapper.incrementReplyCount(rootId);
+                commentStatsRepository.incrementReplyCount(rootId);
             }
 
             commentRepository.save(comment);
@@ -148,24 +149,24 @@ public class CommentApplicationService {
         try {
             if (rootId != null) {
                 // 更新顶级评论的回复计数
-                redisTemplate.opsForValue().increment(CommentRedisKeys.replyCount(rootId));
+                commentCounterStore.incrementReplyCount(rootId);
             }
 
             // 更新文章评论计数
-            redisTemplate.opsForValue().increment(CommentRedisKeys.postCommentCount(request.getPostId()));
+            commentCounterStore.incrementPostCommentCount(request.postId());
         } catch (Exception e) {
             log.warn("Redis 更新失败，将由 CDC 或定时任务修复: {}", e.getMessage());
         }
 
         // 发布事件
-        eventPublisher.publish(new CommentCreatedEvent(
-                commentId, request.getPostId(), post.getOwnerId(),
+        eventPublisher.publishCommentCreated(new CommentCreatedEvent(
+                commentId, request.postId(), post.getOwnerId(),
                 authorId, rootId, comment.getReplyToUserId(),
-                truncateContent(request.getContent(), 100)
+                truncateContent(request.content(), 100)
         ));
 
         log.info("Comment created: commentId={}, postId={}, authorId={}, rootId={}",
-                commentId, request.getPostId(), authorId, rootId);
+                commentId, request.postId(), authorId, rootId);
 
         return commentId;
     }
@@ -179,15 +180,15 @@ public class CommentApplicationService {
      * @param request 更新请求
      */
     @Transactional
-    public void updateComment(Long currentUserId, Long commentId, UpdateCommentRequest request) {
+    public void updateComment(Long currentUserId, Long commentId, UpdateCommentCommand request) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new BusinessException(ResultCode.COMMENT_NOT_FOUND));
 
-        comment.edit(request.getContent(), currentUserId);
+        comment.edit(request.content(), currentUserId);
         commentRepository.update(comment);
 
         // 清除缓存
-        redisTemplate.delete(CommentRedisKeys.detail(commentId));
+        commentDetailCacheStore.evict(commentId);
 
         log.info("Comment updated: commentId={}, userId={}", commentId, currentUserId);
     }
@@ -209,9 +210,9 @@ public class CommentApplicationService {
 
         // 如果是回复，更新顶级评论的回复数
         if (comment.isReply()) {
-            statsMapper.decrementReplyCount(comment.getRootId());
+            commentStatsRepository.decrementReplyCount(comment.getRootId());
             try {
-                redisTemplate.opsForValue().decrement(CommentRedisKeys.replyCount(comment.getRootId()));
+                commentCounterStore.decrementReplyCount(comment.getRootId());
             } catch (Exception e) {
                 log.warn("Redis 更新失败: {}", e.getMessage());
             }
@@ -219,14 +220,14 @@ public class CommentApplicationService {
 
         // 更新文章评论计数
         try {
-            redisTemplate.opsForValue().decrement(CommentRedisKeys.postCommentCount(comment.getPostId()));
+            commentCounterStore.decrementPostCommentCount(comment.getPostId());
         } catch (Exception e) {
             log.warn("Redis 更新失败: {}", e.getMessage());
         }
 
         // 清除缓存
         try {
-            redisTemplate.delete(CommentRedisKeys.detail(commentId));
+            commentDetailCacheStore.evict(commentId);
         } catch (Exception e) {
             log.warn("Redis 缓存清除失败: {}", e.getMessage());
         }
@@ -514,7 +515,7 @@ public class CommentApplicationService {
             return Collections.emptyMap();
         }
         try {
-            ApiResponse<Map<Long, UserSimpleDTO>> response = userServiceClient.batchGetUsers(userIds);
+            ApiResponse<Map<Long, UserSimpleDTO>> response = userServiceClient.batchGetUsersSimple(userIds);
             return response != null && response.isSuccess() && response.getData() != null
                     ? response.getData()
                     : Collections.emptyMap();

@@ -2,7 +2,8 @@ package com.zhicore.content.application.command.handlers;
 
 import com.zhicore.common.context.UserContext;
 import com.zhicore.content.application.command.commands.PurgePostCommand;
-import com.zhicore.common.cache.port.CacheRepository;
+import com.zhicore.common.cache.port.CacheStore;
+import com.zhicore.content.application.port.cachekey.PostCacheKeyResolver;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostContentStore;
@@ -12,7 +13,6 @@ import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.UserId;
-import com.zhicore.content.infrastructure.cache.PostRedisKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,7 +38,8 @@ public class PurgePostHandler {
     private final PostRepository postRepository;
     private final PostContentStore postContentStore;
     private final EventPublisher eventPublisher;
-    private final CacheRepository cacheRepository;
+    private final CacheStore cacheStore;
+    private final PostCacheKeyResolver postCacheKeyResolver;
     
     /**
      * 处理物理删除文章命令
@@ -127,21 +128,21 @@ public class PurgePostHandler {
      */
     private void clearAllCache(PostId postId, Post post) {
         // 使用 deletePattern 删除所有相关缓存
-        cacheRepository.deletePattern(PostRedisKeys.allRelatedPattern(postId));
+        cacheStore.deletePattern(postCacheKeyResolver.allRelatedPattern(postId));
         
         // 删除详情缓存
-        cacheRepository.delete(PostRedisKeys.detail(postId));
+        cacheStore.delete(postCacheKeyResolver.detail(postId));
         
         // 删除列表缓存（分页/size 等维度下为多 key，统一用 pattern 失效）
-        cacheRepository.deletePattern(PostRedisKeys.listLatestPattern());
-        cacheRepository.deletePattern(PostRedisKeys.listAuthorPattern(post.getOwnerId()));
+        cacheStore.deletePattern(postCacheKeyResolver.listLatestPattern());
+        cacheStore.deletePattern(postCacheKeyResolver.listAuthorPattern(post.getOwnerId()));
         
         // 删除统计缓存
-        cacheRepository.delete(
-                PostRedisKeys.viewCount(postId),
-                PostRedisKeys.likeCount(postId),
-                PostRedisKeys.commentCount(postId),
-                PostRedisKeys.favoriteCount(postId)
+        cacheStore.delete(
+                postCacheKeyResolver.viewCount(postId),
+                postCacheKeyResolver.likeCount(postId),
+                postCacheKeyResolver.commentCount(postId),
+                postCacheKeyResolver.favoriteCount(postId)
         );
         
         log.debug("Cleared all cache for post: {}", postId);

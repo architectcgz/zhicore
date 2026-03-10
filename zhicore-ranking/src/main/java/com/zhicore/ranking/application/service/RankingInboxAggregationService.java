@@ -1,21 +1,13 @@
 package com.zhicore.ranking.application.service;
 
+import com.zhicore.ranking.application.model.AggregationInboxEvent;
+import com.zhicore.ranking.application.model.AggregationPostHotState;
+import com.zhicore.ranking.application.port.store.RankingInboxAggregationStore;
 import com.zhicore.ranking.domain.model.PostStats;
 import com.zhicore.ranking.domain.model.RankingMetricType;
 import com.zhicore.ranking.domain.service.HotScoreCalculator;
-import com.zhicore.ranking.infrastructure.config.RankingInboxProperties;
-import com.zhicore.ranking.infrastructure.mongodb.RankingEventInbox;
-import com.zhicore.ranking.infrastructure.mongodb.RankingEventInboxRepository;
-import com.zhicore.ranking.infrastructure.mongodb.RankingPostHotState;
-import com.zhicore.ranking.infrastructure.mongodb.RankingPostHotStateRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.FindAndModifyOptions;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -38,96 +30,57 @@ public class RankingInboxAggregationService {
 
     private static final String ACTIVE_STATUS = "ACTIVE";
 
-    private final MongoTemplate mongoTemplate;
-    private final RankingEventInboxRepository inboxRepository;
-    private final RankingPostHotStateRepository postHotStateRepository;
-    private final RankingInboxProperties inboxProperties;
+    private final RankingInboxAggregationStore rankingInboxAggregationStore;
     private final PostMetadataResolver postMetadataResolver;
     private final HotScoreCalculator hotScoreCalculator;
 
     public int aggregatePendingEvents() {
-        List<RankingEventInbox> claimedEvents = claimBatch();
+        List<AggregationInboxEvent> claimedEvents = rankingInboxAggregationStore.claimPendingEvents();
         if (claimedEvents.isEmpty()) {
-            cleanupExpiredDoneEvents();
+            rankingInboxAggregationStore.cleanupExpiredDoneEvents();
             return 0;
         }
 
-        Map<Long, List<RankingEventInbox>> grouped = claimedEvents.stream()
+        Map<Long, List<AggregationInboxEvent>> grouped = claimedEvents.stream()
                 .filter(event -> event.getPostId() != null)
-                .sorted(Comparator.comparing(RankingEventInbox::getOccurredAt, Comparator.nullsLast(LocalDateTime::compareTo)))
+                .sorted(Comparator.comparing(AggregationInboxEvent::getOccurredAt, Comparator.nullsLast(LocalDateTime::compareTo)))
                 .collect(java.util.stream.Collectors.groupingBy(
-                        RankingEventInbox::getPostId,
+                        AggregationInboxEvent::getPostId,
                         LinkedHashMap::new,
                         java.util.stream.Collectors.toList()
                 ));
 
-        Map<Long, RankingPostHotState> existingStates = new HashMap<>();
-        postHotStateRepository.findAllById(grouped.keySet())
-                .forEach(state -> existingStates.put(state.getPostId(), state));
+        Map<Long, AggregationPostHotState> existingStates =
+                new HashMap<>(rankingInboxAggregationStore.findStatesByPostIds(grouped.keySet()));
         Map<Long, PostMetadataResolver.PostMetadata> metadataMap = postMetadataResolver.resolve(grouped.keySet());
 
         int processed = 0;
-        for (Map.Entry<Long, List<RankingEventInbox>> entry : grouped.entrySet()) {
-            List<RankingEventInbox> events = entry.getValue();
+        for (Map.Entry<Long, List<AggregationInboxEvent>> entry : grouped.entrySet()) {
+            List<AggregationInboxEvent> events = entry.getValue();
             try {
-                RankingPostHotState state = applyEvents(
+                AggregationPostHotState state = applyEvents(
                         existingStates.get(entry.getKey()),
                         metadataMap.get(entry.getKey()),
                         events
                 );
-                postHotStateRepository.save(state);
-                markDone(events);
+                rankingInboxAggregationStore.saveState(state);
+                rankingInboxAggregationStore.markDone(events);
                 processed += events.size();
             } catch (Exception e) {
                 log.error("聚合 ranking inbox 事件失败: postId={}, eventCount={}", entry.getKey(), events.size(), e);
-                markFailed(events, e);
+                rankingInboxAggregationStore.markFailed(events, e.getMessage());
             }
         }
 
-        cleanupExpiredDoneEvents();
+        rankingInboxAggregationStore.cleanupExpiredDoneEvents();
         return processed;
     }
 
-    private List<RankingEventInbox> claimBatch() {
-        List<RankingEventInbox> result = new ArrayList<>();
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime leaseUntil = now.plusSeconds(inboxProperties.getLeaseSeconds());
-
-        for (int i = 0; i < inboxProperties.getBatchSize(); i++) {
-            Query query = new Query(new Criteria().orOperator(
-                    Criteria.where("status").is(RankingEventInbox.InboxStatus.NEW),
-                    new Criteria().andOperator(
-                            Criteria.where("status").is(RankingEventInbox.InboxStatus.PROCESSING),
-                            Criteria.where("leaseUntil").lt(now)
-                    )
-            ));
-            query.with(Sort.by(Sort.Direction.ASC, "occurredAt"));
-
-            Update update = new Update()
-                    .set("status", RankingEventInbox.InboxStatus.PROCESSING)
-                    .set("leaseUntil", leaseUntil)
-                    .set("updatedAt", now)
-                    .unset("lastError");
-
-            RankingEventInbox claimed = mongoTemplate.findAndModify(
-                    query,
-                    update,
-                    FindAndModifyOptions.options().returnNew(true),
-                    RankingEventInbox.class
-            );
-            if (claimed == null) {
-                break;
-            }
-            result.add(claimed);
-        }
-        return result;
-    }
-
-    private RankingPostHotState applyEvents(RankingPostHotState existingState,
-                                            PostMetadataResolver.PostMetadata metadata,
-                                            List<RankingEventInbox> events) {
-        RankingEventInbox seed = events.get(0);
-        RankingPostHotState state = existingState != null ? existingState : RankingPostHotState.builder()
+    private AggregationPostHotState applyEvents(AggregationPostHotState existingState,
+                                                PostMetadataResolver.PostMetadata metadata,
+                                                List<AggregationInboxEvent> events) {
+        AggregationInboxEvent seed = events.get(0);
+        AggregationPostHotState state = existingState != null ? existingState : AggregationPostHotState.builder()
                 .postId(seed.getPostId())
                 .status(ACTIVE_STATUS)
                 .build();
@@ -142,7 +95,7 @@ public class RankingInboxAggregationService {
         mergeMetadata(state, metadata, seed);
 
         boolean changed = false;
-        for (RankingEventInbox event : events) {
+        for (AggregationInboxEvent event : events) {
             if (state.getRecentAppliedEventIds().contains(event.getEventId())) {
                 continue;
             }
@@ -161,9 +114,9 @@ public class RankingInboxAggregationService {
         return state;
     }
 
-    private void mergeMetadata(RankingPostHotState state,
+    private void mergeMetadata(AggregationPostHotState state,
                                PostMetadataResolver.PostMetadata metadata,
-                               RankingEventInbox seed) {
+                               AggregationInboxEvent seed) {
         if (state.getAuthorId() == null) {
             Long authorId = metadata != null ? metadata.getAuthorId() : seed.getAuthorId();
             state.setAuthorId(authorId);
@@ -180,7 +133,7 @@ public class RankingInboxAggregationService {
         }
     }
 
-    private void applyCountDelta(RankingPostHotState state, RankingMetricType metricType, int delta) {
+    private void applyCountDelta(AggregationPostHotState state, RankingMetricType metricType, int delta) {
         switch (metricType) {
             case VIEW -> state.setViewCount(Math.max(0L, state.getViewCount() + delta));
             case LIKE -> state.setLikeCount(Math.max(0, state.getLikeCount() + delta));
@@ -189,7 +142,7 @@ public class RankingInboxAggregationService {
         }
     }
 
-    private double calculateRawScoreCache(RankingPostHotState state) {
+    private double calculateRawScoreCache(AggregationPostHotState state) {
         PostStats stats = PostStats.builder()
                 .viewCount(state.getViewCount())
                 .likeCount(state.getLikeCount())
@@ -202,48 +155,8 @@ public class RankingInboxAggregationService {
                 + stats.getFavoriteCount() * hotScoreCalculator.getFavoriteDelta();
     }
 
-    private void markDone(Collection<RankingEventInbox> events) {
-        LocalDateTime now = LocalDateTime.now();
-        for (RankingEventInbox event : events) {
-            Query query = Query.query(Criteria.where("_id").is(event.getEventId()));
-            Update update = new Update()
-                    .set("status", RankingEventInbox.InboxStatus.DONE)
-                    .unset("leaseUntil")
-                    .unset("lastError")
-                    .set("updatedAt", now);
-            mongoTemplate.updateFirst(query, update, RankingEventInbox.class);
-        }
-    }
-
-    private void markFailed(Collection<RankingEventInbox> events, Exception error) {
-        LocalDateTime now = LocalDateTime.now();
-        for (RankingEventInbox event : events) {
-            int nextRetry = (event.getRetryCount() != null ? event.getRetryCount() : 0) + 1;
-            RankingEventInbox.InboxStatus nextStatus = nextRetry >= inboxProperties.getMaxRetry()
-                    ? RankingEventInbox.InboxStatus.FAILED
-                    : RankingEventInbox.InboxStatus.NEW;
-
-            Query query = Query.query(Criteria.where("_id").is(event.getEventId()));
-            Update update = new Update()
-                    .set("status", nextStatus)
-                    .set("retryCount", nextRetry)
-                    .set("lastError", error.getMessage())
-                    .unset("leaseUntil")
-                    .set("updatedAt", now);
-            mongoTemplate.updateFirst(query, update, RankingEventInbox.class);
-        }
-    }
-
-    private void cleanupExpiredDoneEvents() {
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(inboxProperties.getDoneRetentionDays());
-        long deleted = inboxRepository.deleteByStatusAndOccurredAtBefore(RankingEventInbox.InboxStatus.DONE, cutoff);
-        if (deleted > 0) {
-            log.info("清理过期 ranking inbox DONE 记录: {}", deleted);
-        }
-    }
-
     private void trimRecentAppliedIds(List<String> recentAppliedEventIds) {
-        int limit = inboxProperties.getAppliedEventWindowSize();
+        int limit = rankingInboxAggregationStore.recentAppliedEventWindowSize();
         if (recentAppliedEventIds.size() <= limit) {
             return;
         }

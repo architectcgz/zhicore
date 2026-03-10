@@ -1,20 +1,18 @@
 package com.zhicore.comment.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.zhicore.comment.application.port.store.CommentLikeStore;
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.repository.CommentLikeRepository;
 import com.zhicore.comment.domain.repository.CommentRepository;
-import com.zhicore.comment.infrastructure.cache.CommentRedisKeys;
-import com.zhicore.comment.infrastructure.repository.mapper.CommentStatsMapper;
-import com.zhicore.comment.infrastructure.sentinel.CommentSentinelHandlers;
-import com.zhicore.comment.infrastructure.sentinel.CommentSentinelResources;
+import com.zhicore.comment.domain.repository.CommentStatsRepository;
+import com.zhicore.comment.application.sentinel.CommentSentinelHandlers;
+import com.zhicore.comment.application.sentinel.CommentSentinelResources;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ResultCode;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisCallback;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -22,6 +20,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 评论点赞应用服务
@@ -35,8 +34,8 @@ public class CommentLikeApplicationService {
 
     private final CommentLikeRepository likeRepository;
     private final CommentRepository commentRepository;
-    private final CommentStatsMapper statsMapper;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final CommentStatsRepository commentStatsRepository;
+    private final CommentLikeStore commentLikeStore;
     private final TransactionTemplate transactionTemplate;
     private final MeterRegistry meterRegistry;
 
@@ -66,17 +65,16 @@ public class CommentLikeApplicationService {
 
             // 仅当实际插入时才更新计数，避免并发重复点赞导致计数多加
             if (actuallyInserted[0]) {
-                statsMapper.incrementLikeCount(commentId);
+                commentStatsRepository.incrementLikeCount(commentId);
             }
         });
 
         // 事务提交成功后，更新 Redis 缓存
-        String likeKey = CommentRedisKeys.userLiked(userId, commentId);
         try {
             if (actuallyInserted[0]) {
-                redisTemplate.opsForValue().increment(CommentRedisKeys.likeCount(commentId));
+                commentLikeStore.incrementLikeCount(commentId);
             }
-            redisTemplate.opsForValue().set(likeKey, "1");
+            commentLikeStore.markLiked(userId, commentId);
         } catch (Exception e) {
             handleCacheUpdateFailure("like", commentId, userId, e);
         }
@@ -102,17 +100,16 @@ public class CommentLikeApplicationService {
 
             // 仅当实际删除时才递减计数，使用 GREATEST 防止负数
             if (actuallyDeleted[0]) {
-                statsMapper.decrementLikeCount(commentId);
+                commentStatsRepository.decrementLikeCount(commentId);
             }
         });
 
         // 事务提交成功后，更新 Redis 缓存
-        String likeKey = CommentRedisKeys.userLiked(userId, commentId);
         try {
             if (actuallyDeleted[0]) {
-                redisTemplate.opsForValue().decrement(CommentRedisKeys.likeCount(commentId));
+                commentLikeStore.decrementLikeCount(commentId);
             }
-            redisTemplate.delete(likeKey);
+            commentLikeStore.unmarkLiked(userId, commentId);
         } catch (Exception e) {
             handleCacheUpdateFailure("unlike", commentId, userId, e);
         }
@@ -134,10 +131,7 @@ public class CommentLikeApplicationService {
             blockHandler = "handleIsCommentLikedBlocked"
     )
     public boolean isLiked(Long userId, Long commentId) {
-        String likeKey = CommentRedisKeys.userLiked(userId, commentId);
-        Boolean liked = redisTemplate.hasKey(likeKey);
-
-        if (Boolean.TRUE.equals(liked)) {
+        if (Boolean.TRUE.equals(commentLikeStore.isLiked(userId, commentId))) {
             return true;
         }
 
@@ -145,7 +139,7 @@ public class CommentLikeApplicationService {
         boolean exists = likeRepository.exists(commentId, userId);
         if (exists) {
             // 回填 Redis
-            redisTemplate.opsForValue().set(likeKey, "1");
+            commentLikeStore.markLiked(userId, commentId);
         }
         return exists;
     }
@@ -167,22 +161,12 @@ public class CommentLikeApplicationService {
             return Collections.emptyMap();
         }
 
-        // 使用 Pipeline 批量查询 Redis
-        List<Object> results = redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-            for (Long commentId : commentIds) {
-                String key = CommentRedisKeys.userLiked(userId, commentId);
-                connection.keyCommands().exists(key.getBytes());
-            }
-            return null;
-        });
-
         Map<Long, Boolean> likedMap = new HashMap<>();
         List<Long> missedIds = new java.util.ArrayList<>();
+        Set<Long> cachedLikedIds = commentLikeStore.findLikedCommentIds(userId, commentIds);
 
-        for (int i = 0; i < commentIds.size(); i++) {
-            Long commentId = commentIds.get(i);
-            Object result = results.get(i);
-            if (Boolean.TRUE.equals(result) || (result instanceof Long && (Long) result > 0)) {
+        for (Long commentId : commentIds) {
+            if (cachedLikedIds.contains(commentId)) {
                 likedMap.put(commentId, true);
             } else {
                 likedMap.put(commentId, false);
@@ -196,7 +180,7 @@ public class CommentLikeApplicationService {
             for (Long commentId : likedCommentIds) {
                 likedMap.put(commentId, true);
                 // 回填 Redis
-                redisTemplate.opsForValue().set(CommentRedisKeys.userLiked(userId, commentId), "1");
+                commentLikeStore.markLiked(userId, commentId);
             }
         }
 
@@ -215,17 +199,15 @@ public class CommentLikeApplicationService {
             blockHandler = "handleGetCommentLikeCountBlocked"
     )
     public int getLikeCount(Long commentId) {
-        String key = CommentRedisKeys.likeCount(commentId);
-        Object count = redisTemplate.opsForValue().get(key);
-
+        Integer count = commentLikeStore.getLikeCount(commentId);
         if (count != null) {
-            return Integer.parseInt(count.toString());
+            return count;
         }
 
         // Redis 未命中，查数据库
         int dbCount = likeRepository.countByCommentId(commentId);
         // 回填 Redis
-        redisTemplate.opsForValue().set(key, dbCount);
+        commentLikeStore.cacheLikeCount(commentId, dbCount);
         return dbCount;
     }
 

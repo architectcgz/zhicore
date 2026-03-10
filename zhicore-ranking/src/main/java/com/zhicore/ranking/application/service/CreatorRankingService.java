@@ -1,10 +1,9 @@
 package com.zhicore.ranking.application.service;
 
+import com.zhicore.ranking.application.port.store.CreatorRankingStore;
 import com.zhicore.ranking.domain.model.CreatorStats;
 import com.zhicore.ranking.domain.model.HotScore;
 import com.zhicore.ranking.domain.service.HotScoreCalculator;
-import com.zhicore.ranking.infrastructure.redis.RankingRedisKeys;
-import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,7 +20,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CreatorRankingService {
 
-    private final RankingRedisRepository rankingRepository;
+    private final CreatorRankingStore creatorRankingStore;
     private final HotScoreCalculator scoreCalculator;
 
     /**
@@ -32,7 +31,7 @@ public class CreatorRankingService {
      */
     public void updateCreatorScore(String userId, CreatorStats stats) {
         double score = scoreCalculator.calculateCreatorHotScore(stats);
-        rankingRepository.updateCreatorScore(userId, score);
+        creatorRankingStore.updateCreatorScore(userId, score);
         log.debug("Updated creator score: userId={}, score={}", userId, score);
     }
 
@@ -44,7 +43,7 @@ public class CreatorRankingService {
      * @return 用户ID列表
      */
     public List<String> getHotCreators(int page, int size) {
-        return rankingRepository.getHotCreators(page, size);
+        return creatorRankingStore.getHotCreators(page, size);
     }
 
     /**
@@ -55,9 +54,7 @@ public class CreatorRankingService {
      * @return 热度分数列表
      */
     public List<HotScore> getHotCreatorsWithScore(int page, int size) {
-        int start = page * size;
-        int end = start + size - 1;
-        return rankingRepository.getTopRanking(RankingRedisKeys.hotCreators(), start, end);
+        return creatorRankingStore.getHotCreatorsWithScore(page, size);
     }
 
     /**
@@ -67,8 +64,7 @@ public class CreatorRankingService {
      * @return 排名（从1开始），如果不在排行榜中返回null
      */
     public Long getCreatorRank(String userId) {
-        Long rank = rankingRepository.getRank(RankingRedisKeys.hotCreators(), userId);
-        return rank != null ? rank + 1 : null;
+        return creatorRankingStore.getCreatorRank(userId);
     }
 
     /**
@@ -78,7 +74,7 @@ public class CreatorRankingService {
      * @return 热度分数
      */
     public Double getCreatorScore(String userId) {
-        return rankingRepository.getScore(RankingRedisKeys.hotCreators(), userId);
+        return creatorRankingStore.getCreatorScore(userId);
     }
 
     /**
@@ -87,7 +83,7 @@ public class CreatorRankingService {
      * @param userId 用户ID
      */
     public void removeCreator(String userId) {
-        rankingRepository.removeMember(RankingRedisKeys.hotCreators(), userId);
+        creatorRankingStore.removeCreator(userId);
         log.info("Removed creator from ranking: userId={}", userId);
     }
 }

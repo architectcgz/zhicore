@@ -1,6 +1,7 @@
 package com.zhicore.message.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.zhicore.api.client.UserMessagingClient;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
@@ -10,9 +11,8 @@ import com.zhicore.message.application.dto.ConversationVO;
 import com.zhicore.message.domain.model.Conversation;
 import com.zhicore.message.domain.repository.ConversationRepository;
 import com.zhicore.message.domain.service.MessageDomainService;
-import com.zhicore.message.infrastructure.feign.UserServiceClient;
-import com.zhicore.message.infrastructure.sentinel.MessageSentinelHandlers;
-import com.zhicore.message.infrastructure.sentinel.MessageSentinelResources;
+import com.zhicore.message.application.sentinel.MessageSentinelHandlers;
+import com.zhicore.message.application.sentinel.MessageSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,7 +37,7 @@ public class ConversationApplicationService {
 
     private final ConversationRepository conversationRepository;
     private final MessageDomainService messageDomainService;
-    private final UserServiceClient userServiceClient;
+    private final UserMessagingClient userServiceClient;
 
     /**
      * 获取会话列表（按最后消息时间排序）
@@ -162,7 +162,7 @@ public class ConversationApplicationService {
      */
     private UserSimpleDTO fetchUserInfo(Long userId) {
         try {
-            ApiResponse<UserSimpleDTO> response = userServiceClient.getUserSimple(String.valueOf(userId));
+            ApiResponse<UserSimpleDTO> response = userServiceClient.getUserSimple(userId);
             if (response != null && response.isSuccess() && response.getData() != null) {
                 return response.getData();
             }

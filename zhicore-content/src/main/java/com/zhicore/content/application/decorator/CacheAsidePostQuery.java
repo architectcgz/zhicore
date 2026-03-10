@@ -1,17 +1,17 @@
 package com.zhicore.content.application.decorator;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.zhicore.common.cache.port.CacheRepository;
+import com.zhicore.common.cache.port.CacheStore;
 import com.zhicore.common.cache.port.CacheResult;
 import com.zhicore.common.cache.port.LockManager;
 import com.zhicore.common.config.CacheProperties;
+import com.zhicore.content.application.port.cachekey.PostCacheKeyResolver;
 import com.zhicore.content.application.query.PostQuery;
 import com.zhicore.content.application.query.view.PostDetailView;
 import com.zhicore.content.application.query.view.PostListItemView;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.model.UserId;
-import com.zhicore.content.infrastructure.cache.PostRedisKeys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Primary;
@@ -42,32 +42,35 @@ import java.util.function.Supplier;
 public class CacheAsidePostQuery implements PostQuery {
 
     private final PostQuery delegate;
-    private final CacheRepository cacheRepository;
+    private final CacheStore cacheStore;
     private final LockManager lockManager;
     private final CacheProperties cacheProperties;
+    private final PostCacheKeyResolver postCacheKeyResolver;
 
     /** 降级结果缓存 TTL（5 分钟） */
     private static final Duration DEGRADED_TTL = Duration.ofMinutes(5);
 
     public CacheAsidePostQuery(
             @Qualifier("postQueryService") PostQuery delegate,
-            CacheRepository cacheRepository,
+            CacheStore cacheStore,
             LockManager lockManager,
-            CacheProperties cacheProperties
+            CacheProperties cacheProperties,
+            PostCacheKeyResolver postCacheKeyResolver
     ) {
         this.delegate = delegate;
-        this.cacheRepository = cacheRepository;
+        this.cacheStore = cacheStore;
         this.lockManager = lockManager;
         this.cacheProperties = cacheProperties;
+        this.postCacheKeyResolver = postCacheKeyResolver;
     }
     
     @Override
     public PostDetailView getDetail(PostId postId) {
-        String cacheKey = PostRedisKeys.detail(postId);
-        String lockKey = PostRedisKeys.lockDetail(postId);
+        String cacheKey = postCacheKeyResolver.detail(postId);
+        String lockKey = postCacheKeyResolver.lockDetail(postId);
 
         // 1. 尝试从缓存获取
-        CacheResult<PostDetailView> cached = cacheRepository.get(cacheKey, PostDetailView.class);
+        CacheResult<PostDetailView> cached = cacheStore.get(cacheKey, PostDetailView.class);
         if (cached.isHit()) {
             log.debug("Cache hit for post detail: {}", postId);
             return cached.getValue();
@@ -87,7 +90,7 @@ public class CacheAsidePostQuery implements PostQuery {
 
         try {
             // 3. DCL：获取锁后再次检查缓存
-            CacheResult<PostDetailView> retried = cacheRepository.get(cacheKey, PostDetailView.class);
+            CacheResult<PostDetailView> retried = cacheStore.get(cacheKey, PostDetailView.class);
             if (retried.isHit()) {
                 return retried.getValue();
             }
@@ -101,13 +104,13 @@ public class CacheAsidePostQuery implements PostQuery {
 
             // 5. 缓存结果
             if (view == null) {
-                cacheRepository.setIfAbsent(cacheKey, null, getNullTtl());
+                cacheStore.setIfAbsent(cacheKey, null, getNullTtl());
             } else if (view.isContentDegraded()) {
-                cacheRepository.set(cacheKey, view, DEGRADED_TTL);
+                cacheStore.set(cacheKey, view, DEGRADED_TTL);
             } else {
                 Duration ttl = getDetailTtl().plus(Duration.ofSeconds(
                         ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
-                cacheRepository.set(cacheKey, view, ttl);
+                cacheStore.set(cacheKey, view, ttl);
             }
 
             return view;
@@ -120,7 +123,7 @@ public class CacheAsidePostQuery implements PostQuery {
     @Override
     public List<PostListItemView> getLatestPosts(Pageable pageable) {
         return getCachedList(
-                PostRedisKeys.listLatest(pageable.getPageNumber(), pageable.getPageSize()),
+                postCacheKeyResolver.listLatest(pageable.getPageNumber(), pageable.getPageSize()),
                 () -> delegate.getLatestPosts(pageable)
         );
     }
@@ -128,7 +131,7 @@ public class CacheAsidePostQuery implements PostQuery {
     @Override
     public List<PostListItemView> getPostsByAuthor(UserId authorId, Pageable pageable) {
         return getCachedList(
-                PostRedisKeys.listAuthor(authorId, pageable.getPageNumber(), pageable.getPageSize()),
+                postCacheKeyResolver.listAuthor(authorId, pageable.getPageNumber(), pageable.getPageSize()),
                 () -> delegate.getPostsByAuthor(authorId, pageable)
         );
     }
@@ -136,7 +139,7 @@ public class CacheAsidePostQuery implements PostQuery {
     @Override
     public List<PostListItemView> getPostsByTag(TagId tagId, Pageable pageable) {
         return getCachedList(
-                PostRedisKeys.listTag(tagId, pageable.getPageNumber(), pageable.getPageSize()),
+                postCacheKeyResolver.listTag(tagId, pageable.getPageNumber(), pageable.getPageSize()),
                 () -> delegate.getPostsByTag(tagId, pageable)
         );
     }
@@ -152,7 +155,7 @@ public class CacheAsidePostQuery implements PostQuery {
      */
     private List<PostListItemView> getCachedList(String cacheKey, Supplier<List<PostListItemView>> supplier) {
         CacheResult<List<PostListItemView>> cached =
-                cacheRepository.get(cacheKey, new TypeReference<List<PostListItemView>>() {});
+                cacheStore.get(cacheKey, new TypeReference<List<PostListItemView>>() {});
 
         if (cached.isHit()) {
             log.debug("Cache hit for list: {}", cacheKey);
@@ -167,7 +170,7 @@ public class CacheAsidePostQuery implements PostQuery {
 
         Duration ttl = getListTtl().plus(Duration.ofSeconds(
                 ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
-        cacheRepository.set(cacheKey, result, ttl);
+        cacheStore.set(cacheKey, result, ttl);
 
         return result;
     }

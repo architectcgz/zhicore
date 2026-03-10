@@ -15,9 +15,8 @@ import com.zhicore.message.domain.model.MessageType;
 import com.zhicore.message.domain.repository.ConversationRepository;
 import com.zhicore.message.domain.repository.MessageRepository;
 import com.zhicore.message.domain.service.MessageDomainService;
-import com.zhicore.message.infrastructure.feign.UserServiceClient;
-import com.zhicore.message.infrastructure.sentinel.MessageSentinelHandlers;
-import com.zhicore.message.infrastructure.sentinel.MessageSentinelResources;
+import com.zhicore.message.application.sentinel.MessageSentinelHandlers;
+import com.zhicore.message.application.sentinel.MessageSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -42,7 +41,6 @@ public class MessageApplicationService {
     private final MessageDomainService messageDomainService;
     private final MessageRestrictionService messageRestrictionService;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
-    private final UserServiceClient userServiceClient;
     private final ApplicationEventPublisher applicationEventPublisher;
 
     /**

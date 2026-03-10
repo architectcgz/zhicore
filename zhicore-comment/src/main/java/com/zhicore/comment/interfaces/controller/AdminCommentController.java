@@ -1,9 +1,9 @@
 package com.zhicore.comment.interfaces.controller;
 
+import com.zhicore.api.dto.admin.CommentManageDTO;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.comment.application.service.AdminCommentApplicationService;
-import com.zhicore.comment.interfaces.dto.response.CommentManageDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

@@ -1,24 +1,23 @@
 package com.zhicore.user.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.zhicore.api.dto.admin.UserManageDTO;
+import com.zhicore.common.cache.port.CacheStore;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.common.util.QueryParamValidator;
+import com.zhicore.user.application.port.UserCacheKeyResolver;
 import com.zhicore.user.domain.model.User;
 import com.zhicore.user.domain.repository.UserRepository;
-import com.zhicore.user.infrastructure.cache.UserRedisKeys;
-import com.zhicore.user.infrastructure.sentinel.UserSentinelHandlers;
-import com.zhicore.user.infrastructure.sentinel.UserSentinelResources;
-import com.zhicore.user.interfaces.dto.response.UserManageDTO;
+import com.zhicore.user.application.sentinel.UserSentinelHandlers;
+import com.zhicore.user.application.sentinel.UserSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -32,7 +31,8 @@ import java.util.stream.Collectors;
 public class UserManageInternalService {
 
     private final UserRepository userRepository;
-    private final StringRedisTemplate stringRedisTemplate;
+    private final CacheStore cacheStore;
+    private final UserCacheKeyResolver userCacheKeyResolver;
 
     /**
      * 查询用户列表
@@ -125,11 +125,8 @@ public class UserManageInternalService {
             throw new BusinessException(ResultCode.USER_NOT_FOUND);
         }
 
-        // 删除用户相关的所有 Token 键（包括 access token 和所有 refresh token 白名单）
-        Set<String> tokenKeys = stringRedisTemplate.keys(UserRedisKeys.userTokenPattern(userId));
-        if (tokenKeys != null && !tokenKeys.isEmpty()) {
-            stringRedisTemplate.delete(tokenKeys);
-        }
+        // 使用统一缓存抽象做批量失效，避免业务层直接执行 Redis KEYS。
+        cacheStore.deletePattern(userCacheKeyResolver.userTokenPattern(userId));
 
         log.info("Admin invalidated all tokens for user: userId={}", userId);
     }

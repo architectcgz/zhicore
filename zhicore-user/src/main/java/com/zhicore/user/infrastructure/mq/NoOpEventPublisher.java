@@ -1,6 +1,7 @@
 package com.zhicore.user.infrastructure.mq;
 
 import com.zhicore.api.event.DomainEvent;
+import com.zhicore.user.application.port.event.UserEventPort;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -14,7 +15,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @ConditionalOnMissingBean(RocketMQTemplate.class)
-public class NoOpEventPublisher implements EventPublisher {
+public class NoOpEventPublisher implements UserEventPort {
 
     @Override
     public void publish(DomainEvent event) {

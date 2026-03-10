@@ -2,15 +2,19 @@ package com.zhicore.user.application.service;
 
 import com.alibaba.fastjson.JSON;
 import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.api.client.UploadFileDeleteClient;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.api.event.user.UserProfileUpdatedEvent;
 import com.zhicore.api.event.user.UserRegisteredEvent;
-import com.zhicore.common.cache.port.CacheRepository;
+import com.zhicore.common.cache.port.CacheStore;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.user.application.assembler.UserAssembler;
+import com.zhicore.user.application.command.RegisterCommand;
+import com.zhicore.user.application.command.UpdateProfileCommand;
 import com.zhicore.user.application.dto.UserVO;
+import com.zhicore.user.application.port.UserCacheKeyResolver;
 import com.zhicore.user.application.port.UserQueryPort;
 import com.zhicore.user.domain.event.UserActivatedEvent;
 import com.zhicore.user.domain.event.UserDeactivatedEvent;
@@ -22,10 +26,6 @@ import com.zhicore.user.domain.repository.RoleRepository;
 import com.zhicore.user.domain.repository.UserFollowRepository;
 import com.zhicore.user.domain.repository.UserRepository;
 import com.zhicore.user.domain.service.UserDomainService;
-import com.zhicore.user.infrastructure.feign.ZhiCoreUploadClient;
-import com.zhicore.user.infrastructure.cache.UserRedisKeys;
-import com.zhicore.user.interfaces.dto.request.RegisterRequest;
-import com.zhicore.user.interfaces.dto.request.UpdateProfileRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -55,9 +55,10 @@ public class UserApplicationService implements UserQueryPort {
     private final UserDomainService userDomainService;
     private final OutboxEventRepository outboxEventRepository;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
-    private final ZhiCoreUploadClient zhiCoreUploadClient;
+    private final UploadFileDeleteClient uploadFileDeleteClient;
     private final AuthApplicationService authApplicationService;
-    private final CacheRepository cacheRepository;
+    private final CacheStore cacheStore;
+    private final UserCacheKeyResolver userCacheKeyResolver;
 
     /**
      * 用户注册
@@ -66,9 +67,9 @@ public class UserApplicationService implements UserQueryPort {
      * @return 用户ID
      */
     @Transactional
-    public Long register(RegisterRequest request) {
+    public Long register(RegisterCommand request) {
         // 1. 验证注册信息
-        userDomainService.validateRegistration(request.getEmail(), request.getUserName());
+        userDomainService.validateRegistration(request.email(), request.userName());
 
         // 2. 生成用户ID
         ApiResponse<Long> idResponse = idGeneratorFeignClient.generateSnowflakeId();
@@ -79,10 +80,10 @@ public class UserApplicationService implements UserQueryPort {
         Long userId = idResponse.getData();
 
         // 3. 加密密码
-        String passwordHash = userDomainService.encodePassword(request.getPassword());
+        String passwordHash = userDomainService.encodePassword(request.password());
 
         // 4. 创建用户
-        User user = User.create(userId, request.getUserName(), request.getEmail(), passwordHash);
+        User user = User.create(userId, request.userName(), request.email(), passwordHash);
 
         // 5. 分配默认角色
         roleRepository.findByName(Role.ROLE_USER)
@@ -96,12 +97,12 @@ public class UserApplicationService implements UserQueryPort {
             "user-registered",
             "registered",
             String.valueOf(userId),
-            JSON.toJSONString(new UserRegisteredEvent(userId, request.getUserName(), request.getEmail()))
+            JSON.toJSONString(new UserRegisteredEvent(userId, request.userName(), request.email()))
         );
         outboxEventRepository.save(outboxEvent);
 
         log.info("User registered successfully: userId={}, userName={}, eventId={}",
-            userId, request.getUserName(), outboxEvent.getId());
+            userId, request.userName(), outboxEvent.getId());
         return userId;
     }
 
@@ -193,12 +194,12 @@ public class UserApplicationService implements UserQueryPort {
      * @param request 更新请求
      */
     @Transactional
-    public void updateProfile(Long userId, UpdateProfileRequest request) {
+    public void updateProfile(Long userId, UpdateProfileCommand request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ResultCode.USER_NOT_FOUND));
 
         // 领域行为：更新资料
-        user.updateProfile(request.getNickName(), request.getAvatarId(), request.getBio());
+        user.updateProfile(request.nickName(), request.avatarId(), request.bio());
 
         // 持久化（使用乐观锁确保版本号单调递增）
         User updatedUser = userRepository.updateWithOptimisticLock(user);
@@ -333,7 +334,7 @@ public class UserApplicationService implements UserQueryPort {
         // 删除旧头像文件（如果存在）
         if (oldAvatarId != null && !oldAvatarId.isEmpty()) {
             try {
-                zhiCoreUploadClient.deleteFile(oldAvatarId);
+                uploadFileDeleteClient.deleteFile(oldAvatarId);
                 log.info("旧头像已删除: userId={}, oldFileId={}", userId, oldAvatarId);
             } catch (Exception e) {
                 log.warn("删除旧头像失败: userId={}, oldAvatarId={}, error={}", 
@@ -385,7 +386,7 @@ public class UserApplicationService implements UserQueryPort {
         // 删除头像文件（如果存在）
         if (avatarId != null && !avatarId.isEmpty()) {
             try {
-                zhiCoreUploadClient.deleteFile(avatarId);
+                uploadFileDeleteClient.deleteFile(avatarId);
                 log.info("头像文件已删除: userId={}, fileId={}", userId, avatarId);
             } catch (Exception e) {
                 log.warn("删除头像文件失败: userId={}, avatarId={}, error={}", 
@@ -414,7 +415,7 @@ public class UserApplicationService implements UserQueryPort {
      */
     private void evictUserCache(Long userId) {
         try {
-            cacheRepository.delete(UserRedisKeys.allCacheKeys(userId));
+            cacheStore.delete(userCacheKeyResolver.allCacheKeys(userId));
             log.debug("Evicted user cache: userId={}", userId);
         } catch (Exception e) {
             log.warn("Failed to evict user cache: userId={}, error={}", userId, e.getMessage());

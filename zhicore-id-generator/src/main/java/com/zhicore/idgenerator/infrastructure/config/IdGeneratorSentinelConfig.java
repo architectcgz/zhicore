@@ -4,7 +4,7 @@ import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
 import com.zhicore.common.sentinel.FlowRuleSupport;
 import com.zhicore.idgenerator.infrastructure.sentinel.IdGeneratorRoutes;
-import com.zhicore.idgenerator.infrastructure.sentinel.IdGeneratorSentinelResources;
+import com.zhicore.idgenerator.service.sentinel.IdGeneratorSentinelResources;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;

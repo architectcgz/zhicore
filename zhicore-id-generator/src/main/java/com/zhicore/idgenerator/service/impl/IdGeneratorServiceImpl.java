@@ -2,9 +2,9 @@ package com.zhicore.idgenerator.service.impl;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.common.exception.BusinessException;
-import com.zhicore.idgenerator.infrastructure.sentinel.IdGeneratorSentinelHandlers;
-import com.zhicore.idgenerator.infrastructure.sentinel.IdGeneratorSentinelResources;
 import com.zhicore.idgenerator.service.IdGeneratorService;
+import com.zhicore.idgenerator.service.sentinel.IdGeneratorSentinelHandlers;
+import com.zhicore.idgenerator.service.sentinel.IdGeneratorSentinelResources;
 import com.platform.idgen.client.IdGeneratorClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

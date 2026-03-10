@@ -3,7 +3,8 @@ package com.zhicore.content.application.assembler;
 import com.zhicore.content.application.dto.PostBriefVO;
 import com.zhicore.content.application.dto.PostVO;
 import com.zhicore.content.domain.model.Post;
-import com.zhicore.content.infrastructure.persistence.mongo.document.PostContent;
+import com.zhicore.content.domain.model.ContentType;
+import com.zhicore.content.domain.model.PostBody;
 
 /**
  * 文章装配器
@@ -52,7 +53,7 @@ public final class PostViewAssembler {
      * 转换为详情视图对象（包含 MongoDB 内容）
      * 用于双存储架构，从 MongoDB 获取内容字段
      */
-    public static PostVO toVOWithContent(Post post, PostContent content) {
+    public static PostVO toVOWithContent(Post post, PostBody content) {
         if (post == null) {
             return null;
         }
@@ -64,8 +65,10 @@ public final class PostViewAssembler {
         
         // 从 MongoDB 内容中获取 raw 和 html
         if (content != null) {
-            vo.setRaw(content.getRaw());
-            vo.setHtml(content.getHtml());
+            vo.setRaw(content.getContent());
+            if (content.getContentType() == ContentType.HTML) {
+                vo.setHtml(content.getContent());
+            }
         }
         
         vo.setExcerpt(post.getExcerpt());

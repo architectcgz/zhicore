@@ -2,7 +2,7 @@ package com.zhicore.admin.infrastructure.config;
 
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
-import com.zhicore.admin.infrastructure.sentinel.AdminSentinelResources;
+import com.zhicore.admin.application.sentinel.AdminSentinelResources;
 import com.zhicore.common.sentinel.FlowRuleSupport;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;

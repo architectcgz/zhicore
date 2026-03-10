@@ -1,9 +1,9 @@
 package com.zhicore.content.interfaces.controller;
 
+import com.zhicore.api.dto.admin.PostManageDTO;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.content.application.service.AdminPostApplicationService;
-import com.zhicore.content.interfaces.dto.response.PostManageDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

@@ -1,10 +1,9 @@
 package com.zhicore.ranking.application.service;
 
+import com.zhicore.ranking.application.port.store.PostRankingStore;
 import com.zhicore.ranking.domain.model.HotScore;
 import com.zhicore.ranking.domain.model.PostStats;
 import com.zhicore.ranking.domain.service.HotScoreCalculator;
-import com.zhicore.ranking.infrastructure.redis.RankingRedisKeys;
-import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PostRankingService {
 
-    private final RankingRedisRepository rankingRepository;
+    private final PostRankingStore postRankingStore;
     private final HotScoreCalculator scoreCalculator;
 
     /**
@@ -35,7 +34,7 @@ public class PostRankingService {
      */
     public void updatePostScore(String postId, PostStats stats, LocalDateTime publishedAt) {
         double score = scoreCalculator.calculatePostHotScore(stats, publishedAt);
-        rankingRepository.updatePostScore(postId, score);
+        postRankingStore.updatePostScore(postId, score);
         log.debug("Updated post score: postId={}, score={}", postId, score);
     }
 
@@ -47,7 +46,7 @@ public class PostRankingService {
      * @return 文章ID列表
      */
     public List<String> getHotPosts(int page, int size) {
-        return rankingRepository.getHotPosts(page, size);
+        return postRankingStore.getHotPosts(page, size);
     }
 
     /**
@@ -58,9 +57,7 @@ public class PostRankingService {
      * @return 热度分数列表
      */
     public List<HotScore> getHotPostsWithScore(int page, int size) {
-        int start = page * size;
-        int end = start + size - 1;
-        return rankingRepository.getTopRanking(RankingRedisKeys.hotPosts(), start, end);
+        return postRankingStore.getHotPostsWithScore(page, size);
     }
 
     /**
@@ -71,7 +68,7 @@ public class PostRankingService {
      * @return 文章ID列表
      */
     public List<String> getDailyHotPosts(LocalDate date, int limit) {
-        return rankingRepository.getDailyHotPosts(date, limit);
+        return postRankingStore.getDailyHotPosts(date, limit);
     }
 
     /**
@@ -92,7 +89,7 @@ public class PostRankingService {
      * @return 文章ID列表
      */
     public List<String> getWeeklyHotPosts(int weekNumber, int limit) {
-        return rankingRepository.getWeeklyHotPosts(weekNumber, limit);
+        return postRankingStore.getWeeklyHotPosts(weekNumber, limit);
     }
 
     /**
@@ -102,7 +99,7 @@ public class PostRankingService {
      * @return 文章ID列表
      */
     public List<String> getCurrentWeekHotPosts(int limit) {
-        return getWeeklyHotPosts(RankingRedisKeys.getCurrentWeekNumber(), limit);
+        return postRankingStore.getCurrentWeekHotPosts(limit);
     }
 
     /**
@@ -113,7 +110,7 @@ public class PostRankingService {
      * @return 热度分数列表
      */
     public List<HotScore> getDailyHotPostsWithScore(LocalDate date, int limit) {
-        return rankingRepository.getDailyHotPostsWithScore(date, limit);
+        return postRankingStore.getDailyHotPostsWithScore(date, limit);
     }
 
     /**
@@ -134,7 +131,7 @@ public class PostRankingService {
      * @return 热度分数列表
      */
     public List<HotScore> getWeeklyHotPostsWithScore(int weekNumber, int limit) {
-        return rankingRepository.getWeeklyHotPostsWithScore(weekNumber, limit);
+        return postRankingStore.getWeeklyHotPostsWithScore(weekNumber, limit);
     }
 
     /**
@@ -144,7 +141,7 @@ public class PostRankingService {
      * @return 热度分数列表
      */
     public List<HotScore> getCurrentWeekHotPostsWithScore(int limit) {
-        return getWeeklyHotPostsWithScore(RankingRedisKeys.getCurrentWeekNumber(), limit);
+        return postRankingStore.getCurrentWeekHotPostsWithScore(limit);
     }
 
     /**
@@ -156,7 +153,7 @@ public class PostRankingService {
      * @return 文章ID列表
      */
     public List<String> getMonthlyHotPosts(int year, int month, int limit) {
-        return rankingRepository.getMonthlyHotPosts(year, month, limit);
+        return postRankingStore.getMonthlyHotPosts(year, month, limit);
     }
 
     /**
@@ -166,8 +163,7 @@ public class PostRankingService {
      * @return 文章ID列表
      */
     public List<String> getCurrentMonthHotPosts(int limit) {
-        LocalDate now = LocalDate.now();
-        return getMonthlyHotPosts(now.getYear(), now.getMonthValue(), limit);
+        return postRankingStore.getCurrentMonthHotPosts(limit);
     }
 
     /**
@@ -179,7 +175,7 @@ public class PostRankingService {
      * @return 热度分数列表
      */
     public List<HotScore> getMonthlyHotPostsWithScore(int year, int month, int limit) {
-        return rankingRepository.getMonthlyHotPostsWithScore(year, month, limit);
+        return postRankingStore.getMonthlyHotPostsWithScore(year, month, limit);
     }
 
     /**
@@ -189,8 +185,7 @@ public class PostRankingService {
      * @return 热度分数列表
      */
     public List<HotScore> getCurrentMonthHotPostsWithScore(int limit) {
-        LocalDate now = LocalDate.now();
-        return getMonthlyHotPostsWithScore(now.getYear(), now.getMonthValue(), limit);
+        return postRankingStore.getCurrentMonthHotPostsWithScore(limit);
     }
 
     /**
@@ -200,8 +195,7 @@ public class PostRankingService {
      * @return 排名（从1开始），如果不在排行榜中返回null
      */
     public Long getPostRank(String postId) {
-        Long rank = rankingRepository.getRank(RankingRedisKeys.hotPosts(), postId);
-        return rank != null ? rank + 1 : null;
+        return postRankingStore.getPostRank(postId);
     }
 
     /**
@@ -211,7 +205,7 @@ public class PostRankingService {
      * @return 热度分数
      */
     public Double getPostScore(String postId) {
-        return rankingRepository.getScore(RankingRedisKeys.hotPosts(), postId);
+        return postRankingStore.getPostScore(postId);
     }
 
     /**
@@ -220,7 +214,7 @@ public class PostRankingService {
      * @param postId 文章ID
      */
     public void removePost(String postId) {
-        rankingRepository.removeMember(RankingRedisKeys.hotPosts(), postId);
+        postRankingStore.removePost(postId);
         log.info("Removed post from ranking: postId={}", postId);
     }
 }

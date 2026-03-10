@@ -1,7 +1,8 @@
 package com.zhicore.content.application.command.handlers;
 
 import com.zhicore.content.application.command.commands.UpdatePostContentCommand;
-import com.zhicore.common.cache.port.CacheRepository;
+import com.zhicore.common.cache.port.CacheStore;
+import com.zhicore.content.application.port.cachekey.PostCacheKeyResolver;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostContentStore;
@@ -10,7 +11,6 @@ import com.zhicore.content.domain.event.PostContentUpdatedEvent;
 import com.zhicore.content.domain.exception.PostErrorMessages;
 import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.*;
-import com.zhicore.content.infrastructure.cache.PostRedisKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,8 +31,9 @@ public class UpdatePostContentHandler {
     private final PostRepository postRepository;
     private final PostContentStore postContentStore;
     private final EventPublisher eventPublisher;
-    private final CacheRepository cacheRepository;
+    private final CacheStore cacheStore;
     private final DomainEventFactory eventFactory;
+    private final PostCacheKeyResolver postCacheKeyResolver;
     
     /**
      * 处理更新内容命令
@@ -99,10 +100,10 @@ public class UpdatePostContentHandler {
      */
     private void invalidateCache(PostId postId) {
         // 失效详情缓存
-        cacheRepository.delete(PostRedisKeys.detail(postId));
+        cacheStore.delete(postCacheKeyResolver.detail(postId));
         
         // 失效内容缓存
-        cacheRepository.delete(PostRedisKeys.content(postId));
+        cacheStore.delete(postCacheKeyResolver.content(postId));
         
         log.debug("Invalidated cache for post: {}", postId);
     }

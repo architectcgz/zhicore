@@ -1,11 +1,11 @@
 package com.zhicore.ranking.application.service;
 
+import com.zhicore.api.client.PostBatchClient;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.ranking.domain.model.HotScore;
-import com.zhicore.ranking.infrastructure.feign.PostServiceClient;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +29,7 @@ class HotPostDetailServiceTest {
     private PostRankingService postRankingService;
 
     @Mock
-    private PostServiceClient postServiceClient;
+    private PostBatchClient postServiceClient;
 
     @InjectMocks
     private HotPostDetailService hotPostDetailService;

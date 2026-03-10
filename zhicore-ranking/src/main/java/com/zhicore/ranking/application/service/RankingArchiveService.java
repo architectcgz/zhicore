@@ -1,12 +1,11 @@
 package com.zhicore.ranking.application.service;
 
-import com.zhicore.ranking.domain.model.HotScore;
-import com.zhicore.ranking.infrastructure.config.RankingArchiveProperties;
-import com.zhicore.ranking.infrastructure.mongodb.RankingArchive;
-import com.zhicore.ranking.infrastructure.mongodb.RankingArchiveRepository;
-import com.zhicore.ranking.infrastructure.redis.RankingRedisKeys;
-import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
 import com.zhicore.common.cache.DistributedLockExecutor;
+import com.zhicore.ranking.application.model.RankingArchiveRecord;
+import com.zhicore.ranking.application.port.policy.RankingArchivePolicy;
+import com.zhicore.ranking.application.port.store.RankingArchiveSourceStore;
+import com.zhicore.ranking.application.port.store.RankingArchiveStore;
+import com.zhicore.ranking.domain.model.HotScore;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -14,65 +13,41 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.WeekFields;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * 排行榜归档服务
- * <p>
- * 负责将 Redis 中的排行榜数据定期归档到 MongoDB，支持文章、创作者、话题三种实体类型。
- * 归档策略：
- * <ul>
- *   <li>日榜：每天凌晨 2:00 归档昨天的数据</li>
- *   <li>周榜：每周一凌晨 3:00 归档上周的数据</li>
- *   <li>月榜：每月 1 号凌晨 4:00 归档上月的数据</li>
- * </ul>
- * </p>
- * <p>
- * 实体类型说明：
- * <ul>
- *   <li>文章（post）：有独立的日榜、周榜、月榜数据</li>
- *   <li>创作者（creator）：使用总榜快照作为日榜、周榜、月榜数据</li>
- *   <li>话题（topic）：使用总榜快照作为日榜、周榜、月榜数据</li>
- * </ul>
- * </p>
- * <p>
- * 使用 @ConfigurationProperties 支持配置动态刷新
- * </p>
- *
- * @author ZhiCore Team
+ * 排行榜归档服务。
  */
 @Slf4j
 @Service
 public class RankingArchiveService {
 
-    private final RankingRedisRepository redisRepository;
-    private final RankingArchiveRepository archiveRepository;
-    private final RankingArchiveProperties archiveProperties;
+    private static final String POST_ENTITY_TYPE = "post";
+    private static final String CREATOR_ENTITY_TYPE = "creator";
+    private static final String TOPIC_ENTITY_TYPE = "topic";
+    private static final String DAILY_RANKING_TYPE = "daily";
+    private static final String WEEKLY_RANKING_TYPE = "weekly";
+    private static final String MONTHLY_RANKING_TYPE = "monthly";
+
+    private final RankingArchiveSourceStore rankingArchiveSourceStore;
+    private final RankingArchiveStore rankingArchiveStore;
+    private final RankingArchivePolicy rankingArchivePolicy;
     private final DistributedLockExecutor lockExecutor;
 
-    public RankingArchiveService(RankingRedisRepository redisRepository,
-                                  RankingArchiveRepository archiveRepository,
-                                  RankingArchiveProperties archiveProperties,
-                                  DistributedLockExecutor lockExecutor) {
-        this.redisRepository = redisRepository;
-        this.archiveRepository = archiveRepository;
-        this.archiveProperties = archiveProperties;
+    public RankingArchiveService(RankingArchiveSourceStore rankingArchiveSourceStore,
+                                 RankingArchiveStore rankingArchiveStore,
+                                 RankingArchivePolicy rankingArchivePolicy,
+                                 DistributedLockExecutor lockExecutor) {
+        this.rankingArchiveSourceStore = rankingArchiveSourceStore;
+        this.rankingArchiveStore = rankingArchiveStore;
+        this.rankingArchivePolicy = rankingArchivePolicy;
         this.lockExecutor = lockExecutor;
     }
-    
-    // ==================== 日榜归档 ====================
-    
-    /**
-     * 归档日榜（每天凌晨 2:00 执行）
-     * <p>
-     * 归档文章、创作者、话题的日榜数据。
-     * </p>
-     */
+
     @Scheduled(cron = "${ranking.scheduler.daily-archive-cron:0 0 2 * * ?}")
     public void archiveDailyRanking() {
-        lockExecutor.executeWithLock(RankingRedisKeys.archiveLock("archive-daily"), () -> {
+        lockExecutor.executeWithLock(rankingArchivePolicy.dailyArchiveLockKey(), () -> {
             LocalDate yesterday = LocalDate.now().minusDays(1);
             log.info("开始归档日榜: date={}", yesterday);
             try {
@@ -85,96 +60,10 @@ public class RankingArchiveService {
             }
         });
     }
-    
-    /**
-     * 归档文章日榜
-     * <p>
-     * 从 Redis 获取指定日期的文章日榜 Top N 并保存到 MongoDB。
-     * </p>
-     *
-     * @param date 日期
-     */
-    private void archiveDailyPosts(LocalDate date) {
-        try {
-            log.info("开始归档文章日榜: date={}", date);
-            
-            // 从 Redis 获取昨天的排行榜数据
-            List<HotScore> scores = redisRepository.getDailyHotPostsWithScore(date, archiveProperties.getLimit());
-            
-            // 归档到 MongoDB
-            int archived = archiveRankingData(scores, "post", "daily", date.getYear(), null, null, date);
-            
-            log.info("文章日榜归档完成: date={}, archived={}", date, archived);
-        } catch (Exception e) {
-            log.error("文章日榜归档失败: date={}", date, e);
-            // 单个实体类型失败不影响其他类型
-        }
-    }
-    
-    /**
-     * 归档创作者日榜（总榜快照）
-     * <p>
-     * 从 Redis 获取创作者总榜 Top N 作为日榜快照并保存到 MongoDB。
-     * </p>
-     *
-     * @param date 日期
-     */
-    private void archiveDailyCreators(LocalDate date) {
-        try {
-            log.info("开始归档创作者日榜: date={}", date);
-            
-            // 从 Redis 获取创作者总榜 Top N 作为日榜快照
-            List<HotScore> scores = redisRepository.getTopRanking(
-                RankingRedisKeys.hotCreators(), 0, archiveProperties.getLimit() - 1);
-            
-            // 归档到 MongoDB
-            int archived = archiveRankingData(scores, "creator", "daily", date.getYear(), null, null, date);
-            
-            log.info("创作者日榜归档完成: date={}, archived={}", date, archived);
-        } catch (Exception e) {
-            log.error("创作者日榜归档失败: date={}", date, e);
-            // 单个实体类型失败不影响其他类型
-        }
-    }
-    
-    /**
-     * 归档话题日榜（总榜快照）
-     * <p>
-     * 从 Redis 获取话题总榜 Top N 作为日榜快照并保存到 MongoDB。
-     * </p>
-     *
-     * @param date 日期
-     */
-    private void archiveDailyTopics(LocalDate date) {
-        try {
-            log.info("开始归档话题日榜: date={}", date);
-            
-            // 从 Redis 获取话题总榜 Top N 作为日榜快照
-            List<HotScore> scores = redisRepository.getTopRanking(
-                RankingRedisKeys.hotTopics(), 0, archiveProperties.getLimit() - 1);
-            
-            // 归档到 MongoDB
-            int archived = archiveRankingData(scores, "topic", "daily", date.getYear(), null, null, date);
-            
-            log.info("话题日榜归档完成: date={}, archived={}", date, archived);
-        } catch (Exception e) {
-            log.error("话题日榜归档失败: date={}", date, e);
-            // 单个实体类型失败不影响其他类型
-        }
-    }
-    
-    // ==================== 周榜归档 ====================
-    
-    /**
-     * 归档周榜（每周一凌晨 3:00 执行）
-     * <p>
-     * 归档文章、创作者、话题的周榜数据。
-     * 使用 LocalDate.now().minusWeeks(1) 计算上周的年份和周数，正确处理跨年情况。
-     * </p>
-     */
+
     @Scheduled(cron = "${ranking.scheduler.weekly-archive-cron:0 0 3 ? * MON}")
     public void archiveWeeklyRanking() {
-        lockExecutor.executeWithLock(RankingRedisKeys.archiveLock("archive-weekly"), () -> {
+        lockExecutor.executeWithLock(rankingArchivePolicy.weeklyArchiveLockKey(), () -> {
             LocalDate lastWeek = LocalDate.now().minusWeeks(1);
             int year = lastWeek.getYear();
             int weekNumber = getWeekNumber(lastWeek);
@@ -189,98 +78,10 @@ public class RankingArchiveService {
             }
         });
     }
-    
-    /**
-     * 归档文章周榜
-     * <p>
-     * 从 Redis 获取指定周的文章周榜 Top N 并保存到 MongoDB。
-     * </p>
-     *
-     * @param year 年份
-     * @param weekNumber 周数
-     */
-    private void archiveWeeklyPosts(int year, int weekNumber) {
-        try {
-            log.info("开始归档文章周榜: year={}, week={}", year, weekNumber);
-            
-            // 从 Redis 获取上周的排行榜数据
-            List<HotScore> scores = redisRepository.getWeeklyHotPostsWithScore(weekNumber, archiveProperties.getLimit());
-            
-            // 归档到 MongoDB
-            int archived = archiveRankingData(scores, "post", "weekly", year, null, weekNumber, null);
-            
-            log.info("文章周榜归档完成: year={}, week={}, archived={}", year, weekNumber, archived);
-        } catch (Exception e) {
-            log.error("文章周榜归档失败: year={}, week={}", year, weekNumber, e);
-            // 单个实体类型失败不影响其他类型
-        }
-    }
-    
-    /**
-     * 归档创作者周榜（总榜快照）
-     * <p>
-     * 从 Redis 获取创作者总榜 Top N 作为周榜快照并保存到 MongoDB。
-     * </p>
-     *
-     * @param year 年份
-     * @param weekNumber 周数
-     */
-    private void archiveWeeklyCreators(int year, int weekNumber) {
-        try {
-            log.info("开始归档创作者周榜: year={}, week={}", year, weekNumber);
-            
-            // 从 Redis 获取创作者总榜 Top N 作为周榜快照
-            List<HotScore> scores = redisRepository.getTopRanking(
-                RankingRedisKeys.hotCreators(), 0, archiveProperties.getLimit() - 1);
-            
-            // 归档到 MongoDB
-            int archived = archiveRankingData(scores, "creator", "weekly", year, null, weekNumber, null);
-            
-            log.info("创作者周榜归档完成: year={}, week={}, archived={}", year, weekNumber, archived);
-        } catch (Exception e) {
-            log.error("创作者周榜归档失败: year={}, week={}", year, weekNumber, e);
-            // 单个实体类型失败不影响其他类型
-        }
-    }
-    
-    /**
-     * 归档话题周榜（总榜快照）
-     * <p>
-     * 从 Redis 获取话题总榜 Top N 作为周榜快照并保存到 MongoDB。
-     * </p>
-     *
-     * @param year 年份
-     * @param weekNumber 周数
-     */
-    private void archiveWeeklyTopics(int year, int weekNumber) {
-        try {
-            log.info("开始归档话题周榜: year={}, week={}", year, weekNumber);
-            
-            // 从 Redis 获取话题总榜 Top N 作为周榜快照
-            List<HotScore> scores = redisRepository.getTopRanking(
-                RankingRedisKeys.hotTopics(), 0, archiveProperties.getLimit() - 1);
-            
-            // 归档到 MongoDB
-            int archived = archiveRankingData(scores, "topic", "weekly", year, null, weekNumber, null);
-            
-            log.info("话题周榜归档完成: year={}, week={}, archived={}", year, weekNumber, archived);
-        } catch (Exception e) {
-            log.error("话题周榜归档失败: year={}, week={}", year, weekNumber, e);
-            // 单个实体类型失败不影响其他类型
-        }
-    }
-    
-    // ==================== 月榜归档 ====================
-    
-    /**
-     * 归档月榜（每月 1 号凌晨 4:00 执行）
-     * <p>
-     * 归档文章、创作者、话题的月榜数据。
-     * </p>
-     */
+
     @Scheduled(cron = "${ranking.scheduler.monthly-archive-cron:0 0 4 1 * ?}")
     public void archiveMonthlyRanking() {
-        lockExecutor.executeWithLock(RankingRedisKeys.archiveLock("archive-monthly"), () -> {
+        lockExecutor.executeWithLock(rankingArchivePolicy.monthlyArchiveLockKey(), () -> {
             LocalDate lastMonth = LocalDate.now().minusMonths(1);
             int year = lastMonth.getYear();
             int month = lastMonth.getMonthValue();
@@ -295,183 +96,173 @@ public class RankingArchiveService {
             }
         });
     }
-    
-    /**
-     * 归档文章月榜
-     * <p>
-     * 从 Redis 获取指定月份的文章月榜 Top N 并保存到 MongoDB。
-     * </p>
-     *
-     * @param year 年份
-     * @param month 月份（1-12）
-     */
+
+    public List<HotScore> getMonthlyArchive(String entityType, int year, int month, int limit) {
+        return rankingArchiveStore.getMonthlyArchive(entityType, year, month, limit);
+    }
+
+    private void archiveDailyPosts(LocalDate date) {
+        archiveSingleDimension(
+                "文章日榜",
+                rankingArchiveSourceStore.getDailyPostRanking(date, rankingArchivePolicy.archiveLimit()),
+                POST_ENTITY_TYPE,
+                DAILY_RANKING_TYPE,
+                date.getYear(),
+                null,
+                null,
+                date
+        );
+    }
+
+    private void archiveDailyCreators(LocalDate date) {
+        archiveSingleDimension(
+                "创作者日榜",
+                rankingArchiveSourceStore.getDailyCreatorRanking(rankingArchivePolicy.archiveLimit()),
+                CREATOR_ENTITY_TYPE,
+                DAILY_RANKING_TYPE,
+                date.getYear(),
+                null,
+                null,
+                date
+        );
+    }
+
+    private void archiveDailyTopics(LocalDate date) {
+        archiveSingleDimension(
+                "话题日榜",
+                rankingArchiveSourceStore.getDailyTopicRanking(rankingArchivePolicy.archiveLimit()),
+                TOPIC_ENTITY_TYPE,
+                DAILY_RANKING_TYPE,
+                date.getYear(),
+                null,
+                null,
+                date
+        );
+    }
+
+    private void archiveWeeklyPosts(int year, int weekNumber) {
+        archiveSingleDimension(
+                "文章周榜",
+                rankingArchiveSourceStore.getWeeklyPostRanking(weekNumber, rankingArchivePolicy.archiveLimit()),
+                POST_ENTITY_TYPE,
+                WEEKLY_RANKING_TYPE,
+                year,
+                null,
+                weekNumber,
+                null
+        );
+    }
+
+    private void archiveWeeklyCreators(int year, int weekNumber) {
+        archiveSingleDimension(
+                "创作者周榜",
+                rankingArchiveSourceStore.getWeeklyCreatorRanking(rankingArchivePolicy.archiveLimit()),
+                CREATOR_ENTITY_TYPE,
+                WEEKLY_RANKING_TYPE,
+                year,
+                null,
+                weekNumber,
+                null
+        );
+    }
+
+    private void archiveWeeklyTopics(int year, int weekNumber) {
+        archiveSingleDimension(
+                "话题周榜",
+                rankingArchiveSourceStore.getWeeklyTopicRanking(rankingArchivePolicy.archiveLimit()),
+                TOPIC_ENTITY_TYPE,
+                WEEKLY_RANKING_TYPE,
+                year,
+                null,
+                weekNumber,
+                null
+        );
+    }
+
     private void archiveMonthlyPosts(int year, int month) {
-        try {
-            log.info("开始归档文章月榜: year={}, month={}", year, month);
-            
-            // 从 Redis 获取上月的排行榜数据
-            List<HotScore> scores = redisRepository.getMonthlyHotPostsWithScore(year, month, archiveProperties.getLimit());
-            
-            // 归档到 MongoDB
-            int archived = archiveRankingData(scores, "post", "monthly", year, month, null, null);
-            
-            log.info("文章月榜归档完成: year={}, month={}, archived={}", year, month, archived);
-        } catch (Exception e) {
-            log.error("文章月榜归档失败: year={}, month={}", year, month, e);
-            // 单个实体类型失败不影响其他类型
-        }
+        archiveSingleDimension(
+                "文章月榜",
+                rankingArchiveSourceStore.getMonthlyPostRanking(year, month, rankingArchivePolicy.archiveLimit()),
+                POST_ENTITY_TYPE,
+                MONTHLY_RANKING_TYPE,
+                year,
+                month,
+                null,
+                null
+        );
     }
-    
-    /**
-     * 归档创作者月榜（总榜快照）
-     * <p>
-     * 从 Redis 获取创作者总榜 Top N 作为月榜快照并保存到 MongoDB。
-     * </p>
-     *
-     * @param year 年份
-     * @param month 月份（1-12）
-     */
+
     private void archiveMonthlyCreators(int year, int month) {
-        try {
-            log.info("开始归档创作者月榜: year={}, month={}", year, month);
-            
-            // 从 Redis 获取创作者总榜 Top N 作为月榜快照
-            List<HotScore> scores = redisRepository.getTopRanking(
-                RankingRedisKeys.hotCreators(), 0, archiveProperties.getLimit() - 1);
-            
-            // 归档到 MongoDB
-            int archived = archiveRankingData(scores, "creator", "monthly", year, month, null, null);
-            
-            log.info("创作者月榜归档完成: year={}, month={}, archived={}", year, month, archived);
-        } catch (Exception e) {
-            log.error("创作者月榜归档失败: year={}, month={}", year, month, e);
-            // 单个实体类型失败不影响其他类型
-        }
+        archiveSingleDimension(
+                "创作者月榜",
+                rankingArchiveSourceStore.getMonthlyCreatorRanking(rankingArchivePolicy.archiveLimit()),
+                CREATOR_ENTITY_TYPE,
+                MONTHLY_RANKING_TYPE,
+                year,
+                month,
+                null,
+                null
+        );
     }
-    
-    /**
-     * 归档话题月榜（总榜快照）
-     * <p>
-     * 从 Redis 获取话题总榜 Top N 作为月榜快照并保存到 MongoDB。
-     * </p>
-     *
-     * @param year 年份
-     * @param month 月份（1-12）
-     */
+
     private void archiveMonthlyTopics(int year, int month) {
+        archiveSingleDimension(
+                "话题月榜",
+                rankingArchiveSourceStore.getMonthlyTopicRanking(rankingArchivePolicy.archiveLimit()),
+                TOPIC_ENTITY_TYPE,
+                MONTHLY_RANKING_TYPE,
+                year,
+                month,
+                null,
+                null
+        );
+    }
+
+    private void archiveSingleDimension(String label,
+                                        List<HotScore> scores,
+                                        String entityType,
+                                        String rankingType,
+                                        Integer year,
+                                        Integer month,
+                                        Integer week,
+                                        LocalDate date) {
         try {
-            log.info("开始归档话题月榜: year={}, month={}", year, month);
-            
-            // 从 Redis 获取话题总榜 Top N 作为月榜快照
-            List<HotScore> scores = redisRepository.getTopRanking(
-                RankingRedisKeys.hotTopics(), 0, archiveProperties.getLimit() - 1);
-            
-            // 归档到 MongoDB
-            int archived = archiveRankingData(scores, "topic", "monthly", year, month, null, null);
-            
-            log.info("话题月榜归档完成: year={}, month={}, archived={}", year, month, archived);
+            log.info("开始归档{}: year={}, month={}, week={}, date={}", label, year, month, week, date);
+            int archived = archiveRankingData(scores, entityType, rankingType, year, month, week, date);
+            log.info("{}归档完成: archived={}", label, archived);
         } catch (Exception e) {
-            log.error("话题月榜归档失败: year={}, month={}", year, month, e);
-            // 单个实体类型失败不影响其他类型
+            log.error("{}归档失败: year={}, month={}, week={}, date={}", label, year, month, week, date, e);
         }
     }
-    
-    // ==================== 通用方法 ====================
-    
-    /**
-     * 通用归档方法
-     * <p>
-     * 统一处理所有类型的归档逻辑（文章、创作者、话题），防止重复归档。
-     * </p>
-     *
-     * @param scores 热度分数列表
-     * @param entityType 实体类型（post、creator、topic）
-     * @param rankingType 排行榜类型（daily、weekly、monthly）
-     * @param year 年份
-     * @param month 月份（可选，月榜使用）
-     * @param week 周数（可选，周榜使用）
-     * @param date 日期（可选，日榜使用）
-     * @return 归档数量
-     */
-    private int archiveRankingData(List<HotScore> scores, String entityType, String rankingType,
-                                   Integer year, Integer month, Integer week, LocalDate date) {
+
+    private int archiveRankingData(List<HotScore> scores,
+                                   String entityType,
+                                   String rankingType,
+                                   Integer year,
+                                   Integer month,
+                                   Integer week,
+                                   LocalDate date) {
         int archived = 0;
-        
         for (HotScore score : scores) {
-            RankingArchive archive = RankingArchive.builder()
-                .entityId(score.getEntityId())
-                .entityType(entityType)
-                .score(score.getScore())
-                .rank(score.getRank())
-                .rankingType(rankingType)
-                .period(RankingArchive.PeriodInfo.builder()
+            boolean saved = rankingArchiveStore.saveIfAbsent(RankingArchiveRecord.builder()
+                    .entityId(score.getEntityId())
+                    .entityType(entityType)
+                    .score(score.getScore())
+                    .rank(score.getRank())
+                    .rankingType(rankingType)
                     .year(year)
                     .month(month)
                     .week(week)
                     .date(date)
-                    .build())
-                .metadata(new HashMap<>())
-                .archivedAt(LocalDateTime.now())
-                .version(1)
-                .build();
-            
-            // 检查是否已归档（防止重复）
-            // 注意：null 参数会匹配 MongoDB 中字段不存在或值为 null 的文档。
-            // 这是预期行为，因为不同排行榜类型使用不同的时间字段：
-            // - 日榜：year 和 date 有值，month 和 week 为 null
-            // - 周榜：year 和 week 有值，month 和 date 为 null
-            // - 月榜：year 和 month 有值，week 和 date 为 null
-            if (!archiveRepository.existsByEntityIdAndEntityTypeAndRankingTypeAndPeriod_YearAndPeriod_MonthAndPeriod_WeekAndPeriod_Date(
-                archive.getEntityId(),
-                archive.getEntityType(),
-                archive.getRankingType(),
-                archive.getPeriod().getYear(),
-                archive.getPeriod().getMonth(),
-                archive.getPeriod().getWeek(),
-                archive.getPeriod().getDate()
-            )) {
-                archiveRepository.save(archive);
+                    .archivedAt(LocalDateTime.now())
+                    .build());
+            if (saved) {
                 archived++;
             }
         }
-        
         return archived;
     }
-    
-    /**
-     * 查询历史排行榜（从 MongoDB）
-     * <p>
-     * 支持查询不同实体类型的历史数据。
-     * </p>
-     *
-     * @param entityType 实体类型（post、creator、topic）
-     * @param year 年份
-     * @param month 月份（1-12）
-     * @param limit 数量限制
-     * @return 排行榜归档列表
-     */
-    public List<RankingArchive> getMonthlyArchive(String entityType, int year, int month, int limit) {
-        List<RankingArchive> archives = archiveRepository
-            .findByEntityTypeAndRankingTypeAndPeriod_YearAndPeriod_MonthOrderByRankAsc(
-                entityType, "monthly", year, month
-            );
-        
-        return archives.stream()
-            .limit(limit)
-            .toList();
-    }
-    
-    // ==================== 工具方法 ====================
-    
-    /**
-     * 获取指定日期的周数
-     * <p>
-     * 使用系统默认的 Locale 计算周数，确保与 RankingRedisKeys 中的计算方式一致。
-     * </p>
-     *
-     * @param date 日期
-     * @return 周数
-     */
+
     private int getWeekNumber(LocalDate date) {
         WeekFields weekFields = WeekFields.of(Locale.getDefault());
         return date.get(weekFields.weekOfWeekBasedYear());

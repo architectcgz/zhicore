@@ -1,9 +1,9 @@
 package com.zhicore.user.interfaces.controller;
 
+import com.zhicore.api.dto.admin.UserManageDTO;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.user.application.service.UserManageInternalService;
-import com.zhicore.user.interfaces.dto.response.UserManageDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

@@ -1,14 +1,16 @@
 package com.zhicore.user.application.service;
 
+import com.zhicore.api.dto.admin.UserManageDTO;
+import com.zhicore.common.cache.port.CacheStore;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.common.result.ResultCode;
+import com.zhicore.user.application.port.UserCacheKeyResolver;
 import com.zhicore.user.domain.model.Role;
 import com.zhicore.user.domain.model.User;
 import com.zhicore.user.domain.model.UserStatus;
 import com.zhicore.user.domain.repository.UserRepository;
 import com.zhicore.user.infrastructure.cache.UserRedisKeys;
-import com.zhicore.user.interfaces.dto.response.UserManageDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -16,8 +18,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -39,7 +41,10 @@ class UserManageInternalServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private StringRedisTemplate stringRedisTemplate;
+    private CacheStore cacheStore;
+
+    @Spy
+    private UserCacheKeyResolver userCacheKeyResolver = new com.zhicore.user.infrastructure.cache.DefaultUserCacheKeyResolver();
 
     @InjectMocks
     private UserManageInternalService userManageInternalService;
@@ -469,18 +474,12 @@ class UserManageInternalServiceTest {
             // Given
             when(userRepository.existsById(123L)).thenReturn(true);
             String tokenPattern = UserRedisKeys.userTokenPattern(123L);
-            Set<String> tokenKeys = new HashSet<>(Arrays.asList(
-                    "zhicore:user:123:token:access",
-                    "zhicore:user:123:token:refresh:abc"
-            ));
-            when(stringRedisTemplate.keys(tokenPattern)).thenReturn(tokenKeys);
 
             // When
             userManageInternalService.invalidateUserTokens(123L);
 
             // Then
-            verify(stringRedisTemplate).keys(tokenPattern);
-            verify(stringRedisTemplate).delete(tokenKeys);
+            verify(cacheStore).deletePattern(tokenPattern);
         }
 
         @Test

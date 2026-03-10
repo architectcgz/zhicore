@@ -5,10 +5,11 @@ import com.zhicore.admin.application.dto.CommentManageVO;
 import com.zhicore.admin.domain.model.AuditAction;
 import com.zhicore.admin.domain.model.AuditLog;
 import com.zhicore.admin.domain.repository.AuditLogRepository;
-import com.zhicore.admin.infrastructure.feign.AdminCommentServiceClient;
-import com.zhicore.admin.infrastructure.sentinel.AdminSentinelHandlers;
-import com.zhicore.admin.infrastructure.sentinel.AdminSentinelResources;
+import com.zhicore.admin.application.sentinel.AdminSentinelHandlers;
+import com.zhicore.admin.application.sentinel.AdminSentinelResources;
+import com.zhicore.api.client.AdminCommentClient;
 import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.api.dto.admin.CommentManageDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
@@ -28,7 +29,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CommentManageService {
     
-    private final AdminCommentServiceClient commentServiceClient;
+    private final AdminCommentClient commentServiceClient;
     private final AuditLogRepository auditLogRepository;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
     
@@ -48,14 +49,14 @@ public class CommentManageService {
             blockHandler = "handleListCommentsBlocked"
     )
     public PageResult<CommentManageVO> listComments(String keyword, Long postId, Long userId, int page, int size) {
-        ApiResponse<PageResult<AdminCommentServiceClient.CommentManageDTO>> response = 
+        ApiResponse<PageResult<CommentManageDTO>> response =
                 commentServiceClient.queryComments(keyword, postId, userId, page, size);
         
         if (!response.isSuccess()) {
             throw new BusinessException(response.getMessage());
         }
         
-        PageResult<AdminCommentServiceClient.CommentManageDTO> result = response.getData();
+        PageResult<CommentManageDTO> result = response.getData();
         List<CommentManageVO> voList = result.getRecords().stream()
                 .map(this::toVO)
                 .collect(Collectors.toList());
@@ -111,16 +112,16 @@ public class CommentManageService {
         return id;
     }
     
-    private CommentManageVO toVO(AdminCommentServiceClient.CommentManageDTO dto) {
+    private CommentManageVO toVO(CommentManageDTO dto) {
         return CommentManageVO.builder()
-                .id(dto.id())
-                .postId(dto.postId())
-                .postTitle(dto.postTitle())
-                .userId(dto.userId())
-                .userName(dto.userName())
-                .content(dto.content())
-                .likeCount(dto.likeCount())
-                .createdAt(dto.createdAt())
+                .id(dto.getId())
+                .postId(dto.getPostId())
+                .postTitle(dto.getPostTitle())
+                .userId(dto.getUserId())
+                .userName(dto.getUserName())
+                .content(dto.getContent())
+                .likeCount(dto.getLikeCount())
+                .createdAt(dto.getCreatedAt())
                 .build();
     }
 }

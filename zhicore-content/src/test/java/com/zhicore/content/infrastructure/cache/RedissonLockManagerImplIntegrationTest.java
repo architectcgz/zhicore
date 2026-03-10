@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -269,6 +270,35 @@ class RedissonLockManagerImplIntegrationTest extends IntegrationTestBase {
         lockManager.unlock(lock1);
         lockManager.unlock(lock2);
         lockManager.unlock(lock3);
+    }
+
+    @Test
+    @DisplayName("应该支持一次性获取和释放多把锁")
+    void shouldAcquireAndReleaseMultipleLocksAtOnce() {
+        List<String> lockKeys = List.of(
+                "test:lock:batch:1",
+                "test:lock:batch:2",
+                "test:lock:batch:3"
+        );
+
+        boolean acquired = lockManager.tryLockAll(
+                lockKeys,
+                Duration.ZERO,
+                Duration.ofSeconds(10)
+        );
+
+        assertThat(acquired).isTrue();
+
+        lockManager.unlockAll(lockKeys);
+
+        boolean reacquired = lockManager.tryLockAll(
+                lockKeys,
+                Duration.ZERO,
+                Duration.ofSeconds(10)
+        );
+
+        assertThat(reacquired).isTrue();
+        lockManager.unlockAll(lockKeys);
     }
     
     @Test

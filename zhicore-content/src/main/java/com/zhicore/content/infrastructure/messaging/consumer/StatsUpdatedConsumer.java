@@ -2,7 +2,7 @@ package com.zhicore.content.infrastructure.messaging.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.integration.messaging.post.PostStatsUpdatedIntegrationEvent;
-import com.zhicore.common.cache.port.CacheRepository;
+import com.zhicore.common.cache.port.CacheStore;
 import com.zhicore.content.application.port.repo.ConsumedEventRepository;
 import com.zhicore.content.application.port.repo.PostStatsRepository;
 import com.zhicore.content.domain.model.PostId;
@@ -56,7 +56,7 @@ import java.time.ZoneId;
 public class StatsUpdatedConsumer implements RocketMQListener<String> {
     
     private final PostStatsRepository postStatsRepository;
-    private final CacheRepository cacheRepository;
+    private final CacheStore cacheStore;
     private final ConsumedEventRepository consumedEventRepository;
     private final ObjectMapper objectMapper;
     
@@ -132,10 +132,10 @@ public class StatsUpdatedConsumer implements RocketMQListener<String> {
                     event.getFavoriteCount(), event.getCommentCount());
             
             // 6. 失效文章详情缓存
-            cacheRepository.delete(PostRedisKeys.detail(postId));
+            cacheStore.delete(PostRedisKeys.detail(postId));
             
             // 7. 失效统计信息缓存（如果有单独的统计缓存）
-            cacheRepository.delete(
+            cacheStore.delete(
                     PostRedisKeys.viewCount(postId),
                     PostRedisKeys.likeCount(postId),
                     PostRedisKeys.commentCount(postId)

@@ -1,7 +1,8 @@
 package com.zhicore.content.application.command.handlers;
 
 import com.zhicore.content.application.command.commands.UpdatePostTagsCommand;
-import com.zhicore.common.cache.port.CacheRepository;
+import com.zhicore.common.cache.port.CacheStore;
+import com.zhicore.content.application.port.cachekey.PostCacheKeyResolver;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.common.exception.OptimisticLockException;
@@ -11,7 +12,6 @@ import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.TagId;
-import com.zhicore.content.infrastructure.cache.PostRedisKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,7 +35,8 @@ public class UpdatePostTagsHandler {
     
     private final PostRepository postRepository;
     private final EventPublisher eventPublisher;
-    private final CacheRepository cacheRepository;
+    private final CacheStore cacheStore;
+    private final PostCacheKeyResolver postCacheKeyResolver;
     
     /**
      * 处理更新标签命令
@@ -99,11 +100,11 @@ public class UpdatePostTagsHandler {
      */
     private void invalidateCache(PostId postId, Set<TagId> oldTags, Set<TagId> newTags) {
         // 文章详情精确 key 直接删除
-        cacheRepository.delete(PostRedisKeys.detail(postId));
+        cacheStore.delete(postCacheKeyResolver.detail(postId));
 
         // 标签列表缓存包含分页/size 等维度，统一使用 pattern 失效
-        oldTags.forEach(tag -> cacheRepository.deletePattern(PostRedisKeys.listTagPattern(tag)));
-        newTags.forEach(tag -> cacheRepository.deletePattern(PostRedisKeys.listTagPattern(tag)));
+        oldTags.forEach(tag -> cacheStore.deletePattern(postCacheKeyResolver.listTagPattern(tag)));
+        newTags.forEach(tag -> cacheStore.deletePattern(postCacheKeyResolver.listTagPattern(tag)));
 
         log.debug("Invalidated cache for post and tags: postId={}, oldTags={}, newTags={}",
                 postId, oldTags.size(), newTags.size());

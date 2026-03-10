@@ -1,7 +1,7 @@
 package com.zhicore.comment.infrastructure.config;
 
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
-import com.zhicore.comment.infrastructure.sentinel.CommentSentinelResources;
+import com.zhicore.comment.application.sentinel.CommentSentinelResources;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

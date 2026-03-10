@@ -37,7 +37,7 @@ public class UserServiceFallbackFactory implements FallbackFactory<UserServiceCl
             }
 
             @Override
-            public ApiResponse<Map<Long, UserSimpleDTO>> batchGetUsers(Set<Long> userIds) {
+            public ApiResponse<Map<Long, UserSimpleDTO>> batchGetUsersSimple(Set<Long> userIds) {
                 log.warn("UserService.batchGetUsers fallback triggered, userIds={}, cause={}", 
                         userIds, fallbackSupport.failureMessage(cause));
                 return fallbackSupport.degraded("用户服务已降级");

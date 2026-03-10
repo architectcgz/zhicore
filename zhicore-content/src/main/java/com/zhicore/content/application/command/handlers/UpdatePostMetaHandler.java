@@ -1,7 +1,8 @@
 package com.zhicore.content.application.command.handlers;
 
 import com.zhicore.content.application.command.commands.UpdatePostMetaCommand;
-import com.zhicore.common.cache.port.CacheRepository;
+import com.zhicore.common.cache.port.CacheStore;
+import com.zhicore.content.application.port.cachekey.PostCacheKeyResolver;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.event.DomainEventFactory;
@@ -11,7 +12,6 @@ import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.PostStatus;
-import com.zhicore.content.infrastructure.cache.PostRedisKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,8 +31,9 @@ public class UpdatePostMetaHandler {
     
     private final PostRepository postRepository;
     private final EventPublisher eventPublisher;
-    private final CacheRepository cacheRepository;
+    private final CacheStore cacheStore;
     private final DomainEventFactory eventFactory;
+    private final PostCacheKeyResolver postCacheKeyResolver;
     
     /**
      * 处理更新元数据命令
@@ -91,7 +92,7 @@ public class UpdatePostMetaHandler {
      * @param postId 文章 ID（领域类型）
      */
     private void invalidateCache(PostId postId) {
-        cacheRepository.delete(PostRedisKeys.detail(postId));
+        cacheStore.delete(postCacheKeyResolver.detail(postId));
         log.debug("Invalidated cache for post: {}", postId);
     }
 }

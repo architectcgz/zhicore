@@ -1,22 +1,24 @@
 package com.zhicore.comment.application.service;
 
+import com.zhicore.api.client.PostCommentClient;
+import com.zhicore.api.client.UserSimpleBatchClient;
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.api.event.comment.CommentCreatedEvent;
 import com.zhicore.api.event.comment.CommentDeletedEvent;
+import com.zhicore.comment.application.command.CreateCommentCommand;
+import com.zhicore.comment.application.command.UpdateCommentCommand;
+import com.zhicore.comment.application.port.event.CommentEventPort;
+import com.zhicore.comment.application.port.store.CommentCounterStore;
+import com.zhicore.comment.application.port.store.CommentDetailCacheStore;
+import com.zhicore.comment.domain.cursor.HotCursorCodec;
+import com.zhicore.comment.domain.cursor.TimeCursorCodec;
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.model.CommentStats;
 import com.zhicore.comment.domain.model.CommentStatus;
 import com.zhicore.comment.domain.repository.CommentRepository;
-import com.zhicore.comment.infrastructure.cursor.HotCursorCodec;
-import com.zhicore.comment.infrastructure.cursor.TimeCursorCodec;
-import com.zhicore.comment.infrastructure.feign.PostServiceClient;
-import com.zhicore.comment.infrastructure.feign.UserServiceClient;
-import com.zhicore.comment.infrastructure.mq.CommentEventPublisher;
-import com.zhicore.comment.infrastructure.repository.mapper.CommentStatsMapper;
-import com.zhicore.comment.interfaces.dto.request.CreateCommentRequest;
-import com.zhicore.comment.interfaces.dto.request.UpdateCommentRequest;
+import com.zhicore.comment.domain.repository.CommentStatsRepository;
 import com.zhicore.common.constant.CommonConstants;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.DomainException;
@@ -28,8 +30,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
@@ -51,13 +51,13 @@ class CommentApplicationServiceTest {
 
     @Mock private CommentRepository commentRepository;
     @Mock private CommentDetailCacheService commentDetailCacheService;
-    @Mock private CommentStatsMapper statsMapper;
-    @Mock private CommentEventPublisher eventPublisher;
-    @Mock private PostServiceClient postServiceClient;
-    @Mock private UserServiceClient userServiceClient;
+    @Mock private CommentDetailCacheStore commentDetailCacheStore;
+    @Mock private CommentCounterStore commentCounterStore;
+    @Mock private CommentStatsRepository commentStatsRepository;
+    @Mock private CommentEventPort eventPublisher;
+    @Mock private PostCommentClient postServiceClient;
+    @Mock private UserSimpleBatchClient userServiceClient;
     @Mock private IdGeneratorFeignClient idGeneratorFeignClient;
-    @Mock private RedisTemplate<String, Object> redisTemplate;
-    @Mock private ValueOperations<String, Object> valueOperations;
     @Mock private HotCursorCodec hotCursorCodec;
     @Mock private TimeCursorCodec timeCursorCodec;
     @Mock private TransactionTemplate transactionTemplate;
@@ -72,11 +72,11 @@ class CommentApplicationServiceTest {
     @BeforeEach
     void setUp() {
         service = new CommentApplicationService(
-                commentRepository, commentDetailCacheService, statsMapper, eventPublisher,
+                commentRepository, commentDetailCacheService, commentDetailCacheStore,
+                commentCounterStore, commentStatsRepository, eventPublisher,
                 postServiceClient, userServiceClient, idGeneratorFeignClient,
-                redisTemplate, hotCursorCodec, timeCursorCodec, transactionTemplate
+                hotCursorCodec, timeCursorCodec, transactionTemplate
         );
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
         // TransactionTemplate 默认直接执行回调
         doAnswer(invocation -> {
@@ -98,19 +98,12 @@ class CommentApplicationServiceTest {
         return post;
     }
 
-    private CreateCommentRequest createTopLevelRequest() {
-        CreateCommentRequest req = new CreateCommentRequest();
-        req.setPostId(POST_ID);
-        req.setContent("这是一条顶级评论");
-        return req;
+    private CreateCommentCommand createTopLevelRequest() {
+        return new CreateCommentCommand(POST_ID, "这是一条顶级评论", null, null, null, null, null);
     }
 
-    private CreateCommentRequest createReplyRequest(Long rootId) {
-        CreateCommentRequest req = new CreateCommentRequest();
-        req.setPostId(POST_ID);
-        req.setContent("这是一条回复");
-        req.setRootId(rootId);
-        return req;
+    private CreateCommentCommand createReplyRequest(Long rootId) {
+        return new CreateCommentCommand(POST_ID, "这是一条回复", rootId, null, null, null, null);
     }
 
     private Comment createTopLevelComment() {
@@ -158,12 +151,12 @@ class CommentApplicationServiceTest {
             ApiResponse<Long> idResp = ApiResponse.success(COMMENT_ID);
             when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(idResp);
 
-            CreateCommentRequest request = createTopLevelRequest();
+            CreateCommentCommand request = createTopLevelRequest();
             Long result = service.createComment(USER_ID, request);
 
             assertEquals(COMMENT_ID, result);
             verify(commentRepository).save(any(Comment.class));
-            verify(eventPublisher).publish(any(CommentCreatedEvent.class));
+            verify(eventPublisher).publishCommentCreated(any(CommentCreatedEvent.class));
         }
 
         @Test
@@ -172,7 +165,7 @@ class CommentApplicationServiceTest {
             ApiResponse<PostDTO> postResp = ApiResponse.fail("文章不存在");
             when(postServiceClient.getPost(POST_ID)).thenReturn(postResp);
 
-            CreateCommentRequest request = createTopLevelRequest();
+            CreateCommentCommand request = createTopLevelRequest();
             BusinessException exception = assertThrows(BusinessException.class,
                     () -> service.createComment(USER_ID, request));
             assertEquals(ResultCode.POST_NOT_FOUND.getCode(), exception.getCode());
@@ -188,7 +181,7 @@ class CommentApplicationServiceTest {
             ApiResponse<Long> idResp = ApiResponse.fail("ID 生成失败");
             when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(idResp);
 
-            CreateCommentRequest request = createTopLevelRequest();
+            CreateCommentCommand request = createTopLevelRequest();
             BusinessException exception = assertThrows(BusinessException.class,
                     () -> service.createComment(USER_ID, request));
             assertEquals(ResultCode.SERVICE_DEGRADED.getCode(), exception.getCode());
@@ -208,11 +201,11 @@ class CommentApplicationServiceTest {
             Comment rootComment = createTopLevelComment();
             when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(rootComment));
 
-            CreateCommentRequest request = createReplyRequest(COMMENT_ID);
+            CreateCommentCommand request = createReplyRequest(COMMENT_ID);
             Long result = service.createComment(USER_ID, request);
 
             assertEquals(replyId, result);
-            verify(statsMapper).incrementReplyCount(COMMENT_ID);
+            verify(commentStatsRepository).incrementReplyCount(COMMENT_ID);
             verify(commentRepository).save(any(Comment.class));
         }
 
@@ -228,7 +221,7 @@ class CommentApplicationServiceTest {
             when(commentRepository.findById(COMMENT_ID))
                     .thenReturn(Optional.of(createDeletedComment()));
 
-            CreateCommentRequest request = createReplyRequest(COMMENT_ID);
+            CreateCommentCommand request = createReplyRequest(COMMENT_ID);
             BusinessException exception = assertThrows(BusinessException.class,
                     () -> service.createComment(USER_ID, request));
             assertEquals(ResultCode.COMMENT_ALREADY_DELETED.getCode(), exception.getCode());
@@ -262,8 +255,7 @@ class CommentApplicationServiceTest {
             Comment comment = createTopLevelComment();
             when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
 
-            UpdateCommentRequest request = new UpdateCommentRequest();
-            request.setContent("更新后的内容");
+            UpdateCommentCommand request = new UpdateCommentCommand("更新后的内容");
 
             DomainException exception = assertThrows(DomainException.class,
                     () -> service.updateComment(9999L, COMMENT_ID, request));
@@ -277,8 +269,7 @@ class CommentApplicationServiceTest {
         void shouldThrow_WhenUpdateDeletedComment() {
             when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createDeletedComment()));
 
-            UpdateCommentRequest request = new UpdateCommentRequest();
-            request.setContent("更新后的内容");
+            UpdateCommentCommand request = new UpdateCommentCommand("更新后的内容");
 
             DomainException exception = assertThrows(DomainException.class,
                     () -> service.updateComment(USER_ID, COMMENT_ID, request));
@@ -333,7 +324,7 @@ class CommentApplicationServiceTest {
 
             service.deleteComment(USER_ID, false, reply.getId());
 
-            verify(statsMapper).decrementReplyCount(COMMENT_ID);
+            verify(commentStatsRepository).decrementReplyCount(COMMENT_ID);
         }
 
         @Test

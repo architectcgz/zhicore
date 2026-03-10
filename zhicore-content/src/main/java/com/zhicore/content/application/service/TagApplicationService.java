@@ -2,7 +2,7 @@ package com.zhicore.content.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.common.cache.CacheConstants;
-import com.zhicore.common.config.CacheProperties;
+import com.zhicore.common.cache.port.CacheResult;
 import com.zhicore.common.exception.ResourceNotFoundException;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.content.application.assembler.PostViewAssembler;
@@ -10,23 +10,23 @@ import com.zhicore.content.application.assembler.TagAssembler;
 import com.zhicore.content.application.dto.PostVO;
 import com.zhicore.content.application.dto.TagDTO;
 import com.zhicore.content.application.dto.TagStatsDTO;
+import com.zhicore.content.application.port.store.TagHotTagsStore;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
-import com.zhicore.content.infrastructure.cache.TagRedisKeys;
-import com.zhicore.content.infrastructure.sentinel.ContentSentinelHandlers;
-import com.zhicore.content.infrastructure.sentinel.ContentSentinelResources;
+import com.zhicore.content.application.sentinel.ContentSentinelHandlers;
+import com.zhicore.content.application.sentinel.ContentSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -58,8 +58,7 @@ public class TagApplicationService {
     private final PostTagRepository postTagRepository;
     private final PostRepository postRepository;
     private final TagAssembler tagAssembler;
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final CacheProperties cacheProperties;
+    private final TagHotTagsStore tagHotTagsStore;
 
     /**
      * 获取标签详情
@@ -222,33 +221,28 @@ public class TagApplicationService {
     )
     public List<TagStatsDTO> getHotTags(int limit) {
         log.debug("Getting hot tags: limit={}", limit);
-        
-        String key = TagRedisKeys.hotTags(limit);
-        
+
         try {
-            // 1. 查缓存
-            Object cached = redisTemplate.opsForValue().get(key);
-            
-            // 2. 命中缓存
-            if (cached != null) {
-                if (CacheConstants.isNullMarker(cached)) {
-                    log.debug("Cache hit (empty list): key={}", key);
-                    return Collections.emptyList();
-                }
-                log.debug("Cache hit: key={}", key);
-                return (List<TagStatsDTO>) cached;
+            CacheResult<List<TagStatsDTO>> cached = tagHotTagsStore.getHotTags(limit);
+            if (cached.isNull()) {
+                log.debug("Cache hit (empty list): limit={}", limit);
+                return Collections.emptyList();
             }
-            
+            if (cached.isHit()) {
+                log.debug("Cache hit: limit={}", limit);
+                return cached.getValue();
+            }
+
             // 3. 缓存未命中，查询数据库
-            log.debug("Cache miss: key={}", key);
+            log.debug("Cache miss: limit={}", limit);
             List<TagStatsDTO> hotTags = queryHotTagsFromDatabase(limit);
-            
+
             // 4. 写入缓存
-            cacheHotTags(key, hotTags);
-            
+            cacheHotTags(limit, hotTags);
+
             return hotTags;
         } catch (Exception e) {
-            log.error("Cache operation failed for key={}, falling back to database", key, e);
+            log.error("Cache operation failed for limit={}, falling back to database", limit, e);
             return queryHotTagsFromDatabase(limit);
         }
     }
@@ -306,24 +300,23 @@ public class TagApplicationService {
     /**
      * 缓存热门标签
      *
-     * @param key Redis key
+     * @param limit 热门标签数量限制
      * @param hotTags 热门标签列表
      */
-    private void cacheHotTags(String key, List<TagStatsDTO> hotTags) {
+    private void cacheHotTags(int limit, List<TagStatsDTO> hotTags) {
         try {
             if (hotTags != null && !hotTags.isEmpty()) {
                 // 缓存实际值，添加随机抖动防止缓存雪崩
-                long ttlWithJitter = CacheConstants.HOT_TAGS_CACHE_TTL_SECONDS + randomJitter();
-                redisTemplate.opsForValue().set(key, hotTags, ttlWithJitter, TimeUnit.SECONDS);
-                log.debug("Cached hot tags: key={}, size={}, ttl={}s", key, hotTags.size(), ttlWithJitter);
+                Duration ttl = Duration.ofSeconds(CacheConstants.HOT_TAGS_CACHE_TTL_SECONDS + randomJitter());
+                tagHotTagsStore.setHotTags(limit, hotTags, ttl);
+                log.debug("Cached hot tags: limit={}, size={}, ttl={}s", limit, hotTags.size(), ttl.getSeconds());
             } else {
                 // 缓存空值防止缓存穿透
-                redisTemplate.opsForValue().set(key, CacheConstants.NULL_MARKER,
-                        CacheConstants.NULL_VALUE_TTL_SECONDS, TimeUnit.SECONDS);
-                log.debug("Cached empty hot tags: key={}", key);
+                tagHotTagsStore.setEmptyHotTags(limit, Duration.ofSeconds(CacheConstants.NULL_VALUE_TTL_SECONDS));
+                log.debug("Cached empty hot tags: limit={}", limit);
             }
         } catch (Exception e) {
-            log.error("Failed to cache hot tags: key={}", key, e);
+            log.error("Failed to cache hot tags: limit={}", limit, e);
         }
     }
 
@@ -334,12 +327,8 @@ public class TagApplicationService {
      */
     public void evictHotTagsCache() {
         try {
-            // 使用通配符删除所有热门标签缓存
-            String pattern = "tags:hot:*";
-            redisTemplate.keys(pattern).forEach(key -> {
-                redisTemplate.delete(key);
-                log.debug("Evicted hot tags cache: key={}", key);
-            });
+            tagHotTagsStore.evictHotTags();
+            log.debug("Evicted hot tags cache");
         } catch (Exception e) {
             log.error("Failed to evict hot tags cache", e);
         }

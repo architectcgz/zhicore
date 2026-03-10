@@ -6,20 +6,19 @@ import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
+import com.zhicore.content.application.port.store.PostFavoriteStore;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostFavorite;
 import com.zhicore.content.domain.model.PostStatus;
 import com.zhicore.content.domain.repository.PostFavoriteRepository;
 import com.zhicore.content.application.port.repo.PostRepository;
-import com.zhicore.content.infrastructure.cache.PostRedisKeys;
-import com.zhicore.content.infrastructure.sentinel.ContentSentinelHandlers;
-import com.zhicore.content.infrastructure.sentinel.ContentSentinelResources;
+import com.zhicore.content.application.sentinel.ContentSentinelHandlers;
+import com.zhicore.content.application.sentinel.ContentSentinelResources;
 import com.zhicore.integration.messaging.post.PostFavoritedIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostUnfavoritedIntegrationEvent;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -27,6 +26,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -42,7 +42,7 @@ public class PostFavoriteApplicationService {
     private final PostFavoriteRepository favoriteRepository;
     private final PostRepository postRepository;
     private final IntegrationEventPublisher integrationEventPublisher;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final PostFavoriteStore postFavoriteStore;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
     private final TransactionTemplate transactionTemplate;
     private final MeterRegistry meterRegistry;
@@ -57,10 +57,7 @@ public class PostFavoriteApplicationService {
      */
     public void favoritePost(Long userId, Long postId) {
         // 检查是否已收藏（先查 Redis）
-        String favoriteKey = PostRedisKeys.userFavorited(userId, postId);
-        Boolean alreadyFavorited = redisTemplate.hasKey(favoriteKey);
-
-        if (Boolean.TRUE.equals(alreadyFavorited)) {
+        if (Boolean.TRUE.equals(postFavoriteStore.isFavorited(userId, postId))) {
             throw new BusinessException("已经收藏过了");
         }
 
@@ -93,8 +90,8 @@ public class PostFavoriteApplicationService {
 
         // 事务提交成功后，更新 Redis 缓存
         try {
-            redisTemplate.opsForValue().increment(PostRedisKeys.favoriteCount(postId));
-            redisTemplate.opsForValue().set(favoriteKey, "1");
+            postFavoriteStore.incrementFavoriteCount(postId);
+            postFavoriteStore.markFavorited(userId, postId);
         } catch (Exception e) {
             handleCacheUpdateFailure("favorite", postId, userId, e);
         }
@@ -123,10 +120,7 @@ public class PostFavoriteApplicationService {
      */
     public void unfavoritePost(Long userId, Long postId) {
         // 检查是否已收藏
-        String favoriteKey = PostRedisKeys.userFavorited(userId, postId);
-        Boolean favorited = redisTemplate.hasKey(favoriteKey);
-
-        if (!Boolean.TRUE.equals(favorited)) {
+        if (!Boolean.TRUE.equals(postFavoriteStore.isFavorited(userId, postId))) {
             // 再查数据库确认
             if (!favoriteRepository.exists(postId, userId)) {
                 throw new BusinessException("尚未收藏");
@@ -140,8 +134,8 @@ public class PostFavoriteApplicationService {
 
         // 事务提交成功后，更新 Redis 缓存
         try {
-            redisTemplate.opsForValue().decrement(PostRedisKeys.favoriteCount(postId));
-            redisTemplate.delete(favoriteKey);
+            postFavoriteStore.decrementFavoriteCount(postId);
+            postFavoriteStore.unmarkFavorited(userId, postId);
         } catch (Exception e) {
             handleCacheUpdateFailure("unfavorite", postId, userId, e);
         }
@@ -174,10 +168,7 @@ public class PostFavoriteApplicationService {
             blockHandler = "handleIsPostFavoritedBlocked"
     )
     public boolean isFavorited(Long userId, Long postId) {
-        String favoriteKey = PostRedisKeys.userFavorited(userId, postId);
-        Boolean favorited = redisTemplate.hasKey(favoriteKey);
-        
-        if (Boolean.TRUE.equals(favorited)) {
+        if (Boolean.TRUE.equals(postFavoriteStore.isFavorited(userId, postId))) {
             return true;
         }
         
@@ -185,7 +176,7 @@ public class PostFavoriteApplicationService {
         boolean exists = favoriteRepository.exists(postId, userId);
         if (exists) {
             // 回填 Redis
-            redisTemplate.opsForValue().set(favoriteKey, "1");
+            postFavoriteStore.markFavorited(userId, postId);
         }
         return exists;
     }
@@ -207,22 +198,12 @@ public class PostFavoriteApplicationService {
             return Collections.emptyMap();
         }
 
-        // 使用 Pipeline 批量查询 Redis
-        List<Object> results = redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
-            for (Long postId : postIds) {
-                String key = PostRedisKeys.userFavorited(userId, postId);
-                connection.keyCommands().exists(key.getBytes());
-            }
-            return null;
-        });
-
         Map<Long, Boolean> favoritedMap = new HashMap<>();
         List<Long> missedIds = new java.util.ArrayList<>();
+        Set<Long> favoritedPostIdsInCache = postFavoriteStore.findFavoritedPostIds(userId, postIds);
 
-        for (int i = 0; i < postIds.size(); i++) {
-            Long postId = postIds.get(i);
-            Object result = results.get(i);
-            if (Boolean.TRUE.equals(result) || (result instanceof Long && (Long) result > 0)) {
+        for (Long postId : postIds) {
+            if (favoritedPostIdsInCache.contains(postId)) {
                 favoritedMap.put(postId, true);
             } else {
                 favoritedMap.put(postId, false);
@@ -236,7 +217,7 @@ public class PostFavoriteApplicationService {
             for (Long postId : favoritedPostIds) {
                 favoritedMap.put(postId, true);
                 // 回填 Redis
-                redisTemplate.opsForValue().set(PostRedisKeys.userFavorited(userId, postId), "1");
+                postFavoriteStore.markFavorited(userId, postId);
             }
         }
 
@@ -255,17 +236,15 @@ public class PostFavoriteApplicationService {
             blockHandler = "handleGetPostFavoriteCountBlocked"
     )
     public int getFavoriteCount(Long postId) {
-        String key = PostRedisKeys.favoriteCount(postId);
-        Object count = redisTemplate.opsForValue().get(key);
-        
+        Integer count = postFavoriteStore.getFavoriteCount(postId);
         if (count != null) {
-            return Integer.parseInt(count.toString());
+            return count;
         }
         
         // Redis 未命中，查数据库
         int dbCount = favoriteRepository.countByPostId(postId);
         // 回填 Redis
-        redisTemplate.opsForValue().set(key, dbCount);
+        postFavoriteStore.cacheFavoriteCount(postId, dbCount);
         return dbCount;
     }
 

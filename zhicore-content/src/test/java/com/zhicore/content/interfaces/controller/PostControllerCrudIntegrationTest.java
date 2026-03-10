@@ -69,6 +69,13 @@ class PostControllerCrudIntegrationTest extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
+        mockMvc.perform(get(BASE + "/{postId}/content", postId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.postId").value(String.valueOf(postId)))
+                .andExpect(jsonPath("$.data.contentType").value("markdown"))
+                .andExpect(jsonPath("$.data.raw").value("更新后的内容"));
+
         // 发布
         mockMvc.perform(
                         post(BASE + "/{postId}/publish", postId)

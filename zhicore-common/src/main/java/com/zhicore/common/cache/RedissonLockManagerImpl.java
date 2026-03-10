@@ -4,11 +4,16 @@ import com.zhicore.common.cache.port.LockManager;
 import lombok.extern.slf4j.Slf4j;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.redisson.RedissonMultiLock;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -40,12 +45,17 @@ public class RedissonLockManagerImpl implements LockManager {
 
     @Override
     public boolean tryLock(String key, Duration waitTime, Duration leaseTime) {
+        return tryLock(key, waitTime, leaseTime, false);
+    }
+
+    @Override
+    public boolean tryLock(String key, Duration waitTime, Duration leaseTime, boolean fair) {
         validateKey(key);
         Duration validatedWaitTime = validateDuration(waitTime, "waitTime");
         Duration validatedLeaseTime = validateLeaseTime(leaseTime);
 
         try {
-            RLock lock = redissonClient.getLock(key);
+            RLock lock = getLock(key, fair);
 
             if (lock.isHeldByCurrentThread()) {
                 log.debug("Lock already held by current thread, skip re-acquire: key={}", key);
@@ -79,11 +89,16 @@ public class RedissonLockManagerImpl implements LockManager {
 
     @Override
     public boolean tryLockWithWatchdog(String key, Duration waitTime) {
+        return tryLockWithWatchdog(key, waitTime, false);
+    }
+
+    @Override
+    public boolean tryLockWithWatchdog(String key, Duration waitTime, boolean fair) {
         validateKey(key);
         Duration validatedWaitTime = validateDuration(waitTime, "waitTime");
 
         try {
-            RLock lock = redissonClient.getLock(key);
+            RLock lock = getLock(key, fair);
 
             if (lock.isHeldByCurrentThread()) {
                 log.debug("Lock already held by current thread, skip re-acquire: key={}", key);
@@ -115,11 +130,60 @@ public class RedissonLockManagerImpl implements LockManager {
     }
 
     @Override
+    public boolean tryLockAll(List<String> keys, Duration waitTime, Duration leaseTime) {
+        if (keys == null || keys.isEmpty()) {
+            return true;
+        }
+
+        Duration validatedWaitTime = validateDuration(waitTime, "waitTime");
+        Duration validatedLeaseTime = validateLeaseTime(leaseTime);
+        List<String> normalizedKeys = normalizeKeys(keys);
+
+        try {
+            List<RLock> locks = normalizedKeys.stream()
+                    .map(redissonClient::getLock)
+                    .toList();
+            if (locks.stream().anyMatch(RLock::isHeldByCurrentThread)) {
+                log.debug("One of the locks is already held by current thread, skip re-acquire: keys={}", normalizedKeys);
+                return false;
+            }
+
+            RedissonMultiLock multiLock = new RedissonMultiLock(locks.toArray(new RLock[0]));
+            boolean acquired = multiLock.tryLock(
+                    validatedWaitTime.toMillis(),
+                    validatedLeaseTime.toMillis(),
+                    TimeUnit.MILLISECONDS
+            );
+
+            if (acquired) {
+                log.debug("Multi lock acquired: keys={}, waitTime={}, leaseTime={}",
+                        normalizedKeys, validatedWaitTime, validatedLeaseTime);
+            } else {
+                log.debug("Failed to acquire multi lock: keys={}, waitTime={}", normalizedKeys, validatedWaitTime);
+            }
+
+            return acquired;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Multi lock acquisition interrupted: keys={}", normalizedKeys, e);
+            return false;
+        } catch (Exception e) {
+            log.error("Failed to acquire multi lock: keys={}", normalizedKeys, e);
+            return false;
+        }
+    }
+
+    @Override
     public void unlock(String key) {
+        unlock(key, false);
+    }
+
+    @Override
+    public void unlock(String key, boolean fair) {
         validateKey(key);
 
         try {
-            RLock lock = redissonClient.getLock(key);
+            RLock lock = getLock(key, fair);
 
             if (lock.isHeldByCurrentThread()) {
                 lock.unlock();
@@ -137,11 +201,27 @@ public class RedissonLockManagerImpl implements LockManager {
     }
 
     @Override
+    public void unlockAll(List<String> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return;
+        }
+        List<String> normalizedKeys = normalizeKeys(keys);
+        for (int i = normalizedKeys.size() - 1; i >= 0; i--) {
+            unlock(normalizedKeys.get(i));
+        }
+    }
+
+    @Override
     public boolean isHeldByCurrentThread(String key) {
+        return isHeldByCurrentThread(key, false);
+    }
+
+    @Override
+    public boolean isHeldByCurrentThread(String key, boolean fair) {
         validateKey(key);
 
         try {
-            RLock lock = redissonClient.getLock(key);
+            RLock lock = getLock(key, fair);
             return lock.isHeldByCurrentThread();
         } catch (Exception e) {
             log.error("Failed to check lock ownership: key={}", key, e);
@@ -156,6 +236,23 @@ public class RedissonLockManagerImpl implements LockManager {
         if (!key.contains(":")) {
             log.warn("Lock key should follow format: {{env}}:{{service}}:{{category}}:{{resource}}:{{action}}:lock, got: {}", key);
         }
+    }
+
+    private RLock getLock(String key, boolean fair) {
+        return fair ? redissonClient.getFairLock(key) : redissonClient.getLock(key);
+    }
+
+    private List<String> normalizeKeys(List<String> keys) {
+        List<String> normalizedKeys = new ArrayList<>();
+        for (String key : keys) {
+            validateKey(key);
+            normalizedKeys.add(key);
+        }
+        return normalizedKeys.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted(Comparator.naturalOrder())
+                .toList();
     }
 
     private Duration validateDuration(Duration duration, String paramName) {

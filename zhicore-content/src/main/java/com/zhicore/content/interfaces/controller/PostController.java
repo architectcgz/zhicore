@@ -5,19 +5,22 @@ import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.HybridPageRequest;
 import com.zhicore.common.result.HybridPageResult;
+import com.zhicore.content.application.command.CreatePostAppCommand;
+import com.zhicore.content.application.command.SaveDraftCommand;
+import com.zhicore.content.application.command.UpdatePostAppCommand;
+import com.zhicore.content.application.dto.DraftVO;
 import com.zhicore.content.application.query.model.PostListQuery;
 import com.zhicore.content.application.query.model.PostListSort;
 import com.zhicore.content.application.dto.PostBriefVO;
+import com.zhicore.content.application.dto.PostContentVO;
 import com.zhicore.content.application.dto.PostVO;
 import com.zhicore.content.application.dto.TagDTO;
 import com.zhicore.content.application.service.PostFacadeService;
-import com.zhicore.content.infrastructure.persistence.mongo.document.PostContent;
 import com.zhicore.content.interfaces.dto.request.AttachTagsRequest;
 import com.zhicore.content.interfaces.dto.request.CreatePostRequest;
 import com.zhicore.content.interfaces.dto.request.SaveDraftRequest;
 import com.zhicore.content.interfaces.dto.request.SchedulePublishRequest;
 import com.zhicore.content.interfaces.dto.request.UpdatePostRequest;
-import com.zhicore.content.interfaces.dto.response.DraftVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -55,7 +58,14 @@ public class PostController {
     @PostMapping
     public ApiResponse<Long> createPost(@Valid @RequestBody CreatePostRequest request) {
         Long userId = UserContext.requireUserId();
-        return ApiResponse.success(postFacadeService.createPost(userId, request));
+        return ApiResponse.success(postFacadeService.createPost(userId, new CreatePostAppCommand(
+                request.getTitle(),
+                request.getContent(),
+                request.getContentType(),
+                request.getTopicId(),
+                request.getCoverImageId(),
+                request.getTags()
+        )));
     }
 
     @Operation(summary = "更新文章", description = "更新文章内容、标题、封面等信息")
@@ -64,7 +74,13 @@ public class PostController {
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId,
             @Valid @RequestBody UpdatePostRequest request) {
         Long userId = UserContext.requireUserId();
-        postFacadeService.updatePost(userId, postId, request);
+        postFacadeService.updatePost(userId, postId, new UpdatePostAppCommand(
+                request.getTitle(),
+                request.getContent(),
+                request.getTopicId(),
+                request.getCoverImageId(),
+                request.getTags()
+        ));
         return ApiResponse.success();
     }
 
@@ -90,7 +106,7 @@ public class PostController {
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId,
             @Valid @RequestBody SchedulePublishRequest request) {
         Long userId = UserContext.requireUserId();
-        postFacadeService.schedulePublish(userId, postId, request);
+        postFacadeService.schedulePublish(userId, postId, request.getScheduledAt());
         return ApiResponse.success();
     }
 
@@ -185,7 +201,7 @@ public class PostController {
     }
 
     @GetMapping("/{postId}/content")
-    public ApiResponse<PostContent> getPostContent(
+    public ApiResponse<PostContentVO> getPostContent(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
         return ApiResponse.success(postFacadeService.getPostContent(postId));
     }
@@ -196,7 +212,12 @@ public class PostController {
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId,
             @Valid @RequestBody SaveDraftRequest request) {
         Long userId = UserContext.requireUserId();
-        postFacadeService.saveDraft(userId, postId, request);
+        postFacadeService.saveDraft(userId, postId, new SaveDraftCommand(
+                request.getContent(),
+                request.getContentType(),
+                request.getIsAutoSave(),
+                request.getDeviceId()
+        ));
         return ApiResponse.success();
     }
 
@@ -239,7 +260,7 @@ public class PostController {
             @Parameter(description = "添加标签请求", required = true)
             @Valid @RequestBody AttachTagsRequest request) {
         Long userId = UserContext.requireUserId();
-        postFacadeService.attachTags(userId, postId, request);
+        postFacadeService.attachTags(userId, postId, request.getTags());
         return ApiResponse.success();
     }
 

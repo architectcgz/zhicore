@@ -77,7 +77,7 @@ public class MessagePushConsumer extends AbstractEventConsumer<MessageSentEvent>
      */
     private UserSimpleDTO fetchUserInfo(Long userId) {
         try {
-            ApiResponse<UserSimpleDTO> response = userServiceClient.getUserSimple(String.valueOf(userId));
+            ApiResponse<UserSimpleDTO> response = userServiceClient.getUserSimple(userId);
             if (response.isSuccess() && response.getData() != null) {
                 return response.getData();
             }

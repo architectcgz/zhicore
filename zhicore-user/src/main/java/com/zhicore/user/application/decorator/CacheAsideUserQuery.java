@@ -2,15 +2,15 @@ package com.zhicore.user.application.decorator;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.dto.user.UserSimpleDTO;
-import com.zhicore.common.cache.port.CacheRepository;
+import com.zhicore.common.cache.port.CacheStore;
 import com.zhicore.common.cache.port.CacheResult;
 import com.zhicore.common.cache.port.LockManager;
 import com.zhicore.common.config.CacheProperties;
 import com.zhicore.user.application.dto.UserVO;
+import com.zhicore.user.application.port.UserCacheKeyResolver;
 import com.zhicore.user.application.port.UserQueryPort;
-import com.zhicore.user.infrastructure.cache.UserRedisKeys;
-import com.zhicore.user.infrastructure.sentinel.UserSentinelHandlers;
-import com.zhicore.user.infrastructure.sentinel.UserSentinelResources;
+import com.zhicore.user.application.sentinel.UserSentinelHandlers;
+import com.zhicore.user.application.sentinel.UserSentinelResources;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Primary;
@@ -39,21 +39,24 @@ import java.util.concurrent.ThreadLocalRandom;
 public class CacheAsideUserQuery implements UserQueryPort {
 
     private final UserQueryPort delegate;
-    private final CacheRepository cacheRepository;
+    private final CacheStore cacheStore;
     private final LockManager lockManager;
     private final CacheProperties cacheProperties;
+    private final UserCacheKeyResolver userCacheKeyResolver;
 
 
     public CacheAsideUserQuery(
             @Qualifier("userApplicationService") UserQueryPort delegate,
-            CacheRepository cacheRepository,
+            CacheStore cacheStore,
             LockManager lockManager,
-            CacheProperties cacheProperties
+            CacheProperties cacheProperties,
+            UserCacheKeyResolver userCacheKeyResolver
     ) {
         this.delegate = delegate;
-        this.cacheRepository = cacheRepository;
+        this.cacheStore = cacheStore;
         this.lockManager = lockManager;
         this.cacheProperties = cacheProperties;
+        this.userCacheKeyResolver = userCacheKeyResolver;
     }
 
     @Override
@@ -63,11 +66,11 @@ public class CacheAsideUserQuery implements UserQueryPort {
             blockHandler = "handleGetUserDetailBlocked"
     )
     public UserVO getUserById(Long userId) {
-        String cacheKey = UserRedisKeys.userDetail(userId);
-        String lockKey = UserRedisKeys.lockDetail(userId);
+        String cacheKey = userCacheKeyResolver.userDetail(userId);
+        String lockKey = userCacheKeyResolver.lockDetail(userId);
 
         // 1. 尝试从缓存获取
-        CacheResult<UserVO> cached = cacheRepository.get(cacheKey, UserVO.class);
+        CacheResult<UserVO> cached = cacheStore.get(cacheKey, UserVO.class);
         if (cached.isHit()) {
             log.debug("Cache hit for user detail: userId={}", userId);
             return cached.getValue();
@@ -86,7 +89,7 @@ public class CacheAsideUserQuery implements UserQueryPort {
 
         try {
             // 3. DCL：获取锁后再次检查缓存
-            CacheResult<UserVO> retried = cacheRepository.get(cacheKey, UserVO.class);
+            CacheResult<UserVO> retried = cacheStore.get(cacheKey, UserVO.class);
             if (retried.isHit()) {
                 return retried.getValue();
             }
@@ -114,10 +117,10 @@ public class CacheAsideUserQuery implements UserQueryPort {
             blockHandler = "handleGetUserSimpleBlocked"
     )
     public UserSimpleDTO getUserSimpleById(Long userId) {
-        String cacheKey = UserRedisKeys.userSimple(userId);
+        String cacheKey = userCacheKeyResolver.userSimple(userId);
 
         // 1. 尝试从缓存获取
-        CacheResult<UserSimpleDTO> cached = cacheRepository.get(cacheKey, UserSimpleDTO.class);
+        CacheResult<UserSimpleDTO> cached = cacheStore.get(cacheKey, UserSimpleDTO.class);
         if (cached.isHit()) {
             log.debug("Cache hit for user simple: userId={}", userId);
             return cached.getValue();
@@ -132,11 +135,11 @@ public class CacheAsideUserQuery implements UserQueryPort {
 
         // 使用 setIfAbsent 防止并发回填覆盖
         if (dto == null) {
-            cacheRepository.setIfAbsent(cacheKey, null, getNullTtl());
+            cacheStore.setIfAbsent(cacheKey, null, getNullTtl());
         } else {
             Duration ttl = getDetailTtl().plus(Duration.ofSeconds(
                     ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
-            cacheRepository.setIfAbsent(cacheKey, dto, ttl);
+            cacheStore.setIfAbsent(cacheKey, dto, ttl);
         }
         return dto;
     }
@@ -157,8 +160,8 @@ public class CacheAsideUserQuery implements UserQueryPort {
 
         // 1. 逐个查缓存
         for (Long userId : userIds) {
-            String cacheKey = UserRedisKeys.userSimple(userId);
-            CacheResult<UserSimpleDTO> cached = cacheRepository.get(cacheKey, UserSimpleDTO.class);
+            String cacheKey = userCacheKeyResolver.userSimple(userId);
+            CacheResult<UserSimpleDTO> cached = cacheStore.get(cacheKey, UserSimpleDTO.class);
             if (cached.isHit()) {
                 result.put(userId, cached.getValue());
             } else if (!cached.isNull()) {
@@ -173,15 +176,15 @@ public class CacheAsideUserQuery implements UserQueryPort {
 
             for (Long missedId : missedIds) {
                 UserSimpleDTO dto = fromDb.get(missedId);
-                String cacheKey = UserRedisKeys.userSimple(missedId);
+                String cacheKey = userCacheKeyResolver.userSimple(missedId);
                 if (dto != null) {
                     // 每个 key 独立计算 jitter，避免批量回填同时过期引发雪崩
                     Duration ttl = getDetailTtl().plus(Duration.ofSeconds(
                             ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
-                    cacheRepository.setIfAbsent(cacheKey, dto, ttl);
+                    cacheStore.setIfAbsent(cacheKey, dto, ttl);
                     result.put(missedId, dto);
                 } else {
-                    cacheRepository.setIfAbsent(cacheKey, null, getNullTtl());
+                    cacheStore.setIfAbsent(cacheKey, null, getNullTtl());
                 }
             }
         }
@@ -196,9 +199,9 @@ public class CacheAsideUserQuery implements UserQueryPort {
             blockHandler = "handleGetStrangerMessageSettingBlocked"
     )
     public boolean isStrangerMessageAllowed(Long userId) {
-        String cacheKey = UserRedisKeys.strangerMessageSetting(userId);
+        String cacheKey = userCacheKeyResolver.strangerMessageSetting(userId);
 
-        CacheResult<Boolean> cached = cacheRepository.get(cacheKey, Boolean.class);
+        CacheResult<Boolean> cached = cacheStore.get(cacheKey, Boolean.class);
         if (cached.isHit()) {
             log.debug("Cache hit for stranger message setting: userId={}", userId);
             return Boolean.TRUE.equals(cached.getValue());
@@ -208,7 +211,7 @@ public class CacheAsideUserQuery implements UserQueryPort {
         boolean allowed = delegate.isStrangerMessageAllowed(userId);
         Duration ttl = getDetailTtl().plus(Duration.ofSeconds(
                 ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
-        cacheRepository.set(cacheKey, allowed, ttl);
+        cacheStore.set(cacheKey, allowed, ttl);
         return allowed;
     }
 
@@ -218,11 +221,11 @@ public class CacheAsideUserQuery implements UserQueryPort {
      */
     private void cacheValue(String key, Object value) {
         if (value == null) {
-            cacheRepository.setIfAbsent(key, null, getNullTtl());
+            cacheStore.setIfAbsent(key, null, getNullTtl());
         } else {
             Duration ttl = getDetailTtl().plus(Duration.ofSeconds(
                     ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
-            cacheRepository.set(key, value, ttl);
+            cacheStore.set(key, value, ttl);
         }
     }
 

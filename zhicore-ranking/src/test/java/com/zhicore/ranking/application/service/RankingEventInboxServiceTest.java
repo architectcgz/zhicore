@@ -1,9 +1,9 @@
 package com.zhicore.ranking.application.service;
 
+import com.zhicore.ranking.application.model.RankingInboxEventRecord;
+import com.zhicore.ranking.application.port.store.RankingEventInboxStore;
 import com.zhicore.ranking.domain.model.RankingMetricType;
 import com.zhicore.ranking.domain.service.HotScoreCalculator;
-import com.zhicore.ranking.infrastructure.mongodb.RankingEventInbox;
-import com.zhicore.ranking.infrastructure.mongodb.RankingEventInboxRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,7 +11,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DuplicateKeyException;
 
 import java.time.LocalDateTime;
 
@@ -27,7 +26,7 @@ import static org.mockito.Mockito.when;
 class RankingEventInboxServiceTest {
 
     @Mock
-    private RankingEventInboxRepository inboxRepository;
+    private RankingEventInboxStore rankingEventInboxStore;
 
     @Mock
     private HotScoreCalculator hotScoreCalculator;
@@ -36,7 +35,7 @@ class RankingEventInboxServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new RankingEventInboxService(inboxRepository, hotScoreCalculator);
+        service = new RankingEventInboxService(rankingEventInboxStore, hotScoreCalculator);
     }
 
     @Test
@@ -45,6 +44,7 @@ class RankingEventInboxServiceTest {
         LocalDateTime occurredAt = LocalDateTime.of(2026, 3, 8, 11, 30);
         LocalDateTime publishedAt = LocalDateTime.of(2026, 3, 1, 8, 0);
         when(hotScoreCalculator.getLikeDelta()).thenReturn(5.0);
+        when(rankingEventInboxStore.saveNewEvent(any(RankingInboxEventRecord.class))).thenReturn(true);
 
         boolean saved = service.saveEvent(
                 "evt-1",
@@ -60,9 +60,9 @@ class RankingEventInboxServiceTest {
 
         assertTrue(saved);
 
-        ArgumentCaptor<RankingEventInbox> captor = ArgumentCaptor.forClass(RankingEventInbox.class);
-        verify(inboxRepository).save(captor.capture());
-        RankingEventInbox inbox = captor.getValue();
+        ArgumentCaptor<RankingInboxEventRecord> captor = ArgumentCaptor.forClass(RankingInboxEventRecord.class);
+        verify(rankingEventInboxStore).saveNewEvent(captor.capture());
+        RankingInboxEventRecord inbox = captor.getValue();
         assertEquals("evt-1", inbox.getEventId());
         assertEquals("PostLikedIntegrationEvent", inbox.getEventType());
         assertEquals(1001L, inbox.getPostId());
@@ -73,7 +73,6 @@ class RankingEventInboxServiceTest {
         assertEquals(5.0, inbox.getScoreDelta());
         assertEquals(occurredAt, inbox.getOccurredAt());
         assertEquals(publishedAt, inbox.getPublishedAt());
-        assertEquals(RankingEventInbox.InboxStatus.NEW, inbox.getStatus());
         assertEquals(0, inbox.getRetryCount());
     }
 
@@ -81,8 +80,7 @@ class RankingEventInboxServiceTest {
     @DisplayName("saveEvent should treat duplicate key as already accepted")
     void saveEventShouldTreatDuplicateKeyAsAccepted() {
         when(hotScoreCalculator.getViewDelta()).thenReturn(1.0);
-        when(inboxRepository.save(any(RankingEventInbox.class)))
-                .thenThrow(new DuplicateKeyException("duplicate"));
+        when(rankingEventInboxStore.saveNewEvent(any(RankingInboxEventRecord.class))).thenReturn(false);
 
         boolean saved = service.saveEvent(
                 "evt-duplicate",

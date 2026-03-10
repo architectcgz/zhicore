@@ -1,10 +1,10 @@
 package com.zhicore.message.application.service;
 
+import com.zhicore.api.client.UserMessagingClient;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
-import com.zhicore.message.infrastructure.feign.UserServiceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,7 +25,7 @@ public class MessageRestrictionService {
     private static final String STRANGER_STATUS_VALIDATION_FAILED_MESSAGE = "无法验证关注关系，请稍后重试";
     private static final String STRANGER_SETTING_VALIDATION_FAILED_MESSAGE = "无法验证陌生人消息设置，请稍后重试";
 
-    private final UserServiceClient userServiceClient;
+    private final UserMessagingClient userServiceClient;
 
     /**
      * 检查是否可以发送消息
@@ -58,7 +58,7 @@ public class MessageRestrictionService {
      */
     private void checkReceiverExists(Long receiverId) {
         try {
-            ApiResponse<UserSimpleDTO> response = userServiceClient.getUserSimple(String.valueOf(receiverId));
+            ApiResponse<UserSimpleDTO> response = userServiceClient.getUserSimple(receiverId);
             if (response == null) {
                 log.warn("Receiver lookup returned null response: receiverId={}", receiverId);
                 throw new BusinessException(ResultCode.SERVICE_DEGRADED, RECEIVER_VALIDATION_FAILED_MESSAGE);
@@ -93,7 +93,7 @@ public class MessageRestrictionService {
      */
     public void checkNotBlocked(Long senderId, Long receiverId) {
         try {
-            ApiResponse<Boolean> response = userServiceClient.isBlocked(String.valueOf(receiverId), String.valueOf(senderId));
+            ApiResponse<Boolean> response = userServiceClient.isBlocked(receiverId, senderId);
             boolean blocked = requireBooleanResponse(response, BLOCK_STATUS_VALIDATION_FAILED_MESSAGE,
                     "block status", senderId, receiverId);
             if (blocked) {
@@ -124,7 +124,7 @@ public class MessageRestrictionService {
                 return;
             }
 
-            ApiResponse<Boolean> allowedResponse = userServiceClient.isStrangerMessageAllowed(String.valueOf(receiverId));
+            ApiResponse<Boolean> allowedResponse = userServiceClient.isStrangerMessageAllowed(receiverId);
             boolean strangerMessageAllowed = requireBooleanResponse(allowedResponse,
                     STRANGER_SETTING_VALIDATION_FAILED_MESSAGE, "stranger message setting", senderId, receiverId);
 
@@ -151,10 +151,10 @@ public class MessageRestrictionService {
     public boolean isStranger(Long userId1, Long userId2) {
         try {
             boolean user1FollowingUser2 = requireBooleanResponse(
-                    userServiceClient.isFollowing(String.valueOf(userId1), String.valueOf(userId2)),
+                    userServiceClient.isFollowing(userId1, userId2),
                     STRANGER_STATUS_VALIDATION_FAILED_MESSAGE, "follow status", userId1, userId2);
             boolean user2FollowingUser1 = requireBooleanResponse(
-                    userServiceClient.isFollowing(String.valueOf(userId2), String.valueOf(userId1)),
+                    userServiceClient.isFollowing(userId2, userId1),
                     STRANGER_STATUS_VALIDATION_FAILED_MESSAGE, "follow status", userId2, userId1);
             return !user1FollowingUser2 || !user2FollowingUser1;
         } catch (BusinessException e) {
@@ -174,7 +174,7 @@ public class MessageRestrictionService {
      */
     public boolean isBlocked(Long userId, Long targetUserId) {
         try {
-            ApiResponse<Boolean> response = userServiceClient.isBlocked(String.valueOf(userId), String.valueOf(targetUserId));
+            ApiResponse<Boolean> response = userServiceClient.isBlocked(userId, targetUserId);
             return requireBooleanResponse(response, BLOCK_STATUS_VALIDATION_FAILED_MESSAGE,
                     "block status", userId, targetUserId);
         } catch (BusinessException e) {

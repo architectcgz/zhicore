@@ -1,5 +1,6 @@
 package com.zhicore.content.infrastructure.alert;
 
+import com.zhicore.content.application.port.alert.ContentAlertPort;
 import com.zhicore.content.infrastructure.config.AlertProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AlertService {
+public class AlertService implements ContentAlertPort {
 
     private final AlertNotifier alertNotifier;
     private final AlertProperties alertProperties;

@@ -1,14 +1,14 @@
 package com.zhicore.admin.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.admin.application.dto.ReportVO;
 import com.zhicore.admin.domain.model.*;
 import com.zhicore.admin.domain.model.*;
 import com.zhicore.admin.domain.repository.AuditLogRepository;
 import com.zhicore.admin.domain.repository.ReportRepository;
-import com.zhicore.admin.infrastructure.feign.IdGeneratorClient;
-import com.zhicore.admin.infrastructure.sentinel.AdminSentinelHandlers;
-import com.zhicore.admin.infrastructure.sentinel.AdminSentinelResources;
+import com.zhicore.admin.application.sentinel.AdminSentinelHandlers;
+import com.zhicore.admin.application.sentinel.AdminSentinelResources;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.ResourceNotFoundException;
 import com.zhicore.common.result.ApiResponse;
@@ -34,7 +34,7 @@ public class ReportManageService {
     private final PostManageService postManageService;
     private final CommentManageService commentManageService;
     private final UserManageService userManageService;
-    private final IdGeneratorClient idGeneratorClient;
+    private final IdGeneratorFeignClient idGeneratorFeignClient;
     
     /**
      * 查询待处理举报列表
@@ -151,7 +151,7 @@ public class ReportManageService {
     }
     
     private Long generateId() {
-        ApiResponse<Long> response = idGeneratorClient.generateSnowflakeId();
+        ApiResponse<Long> response = idGeneratorFeignClient.generateSnowflakeId();
         if (!response.isSuccess()) {
             throw new BusinessException("生成ID失败: " + response.getMessage());
         }

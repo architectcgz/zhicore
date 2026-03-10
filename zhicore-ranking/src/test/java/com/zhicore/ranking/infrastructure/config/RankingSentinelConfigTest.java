@@ -1,8 +1,8 @@
 package com.zhicore.ranking.infrastructure.config;
 
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
+import com.zhicore.ranking.application.sentinel.RankingSentinelResources;
 import com.zhicore.ranking.infrastructure.sentinel.RankingRoutes;
-import com.zhicore.ranking.infrastructure.sentinel.RankingSentinelResources;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

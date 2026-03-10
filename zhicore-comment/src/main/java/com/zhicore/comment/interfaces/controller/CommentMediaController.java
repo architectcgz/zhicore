@@ -1,5 +1,6 @@
 package com.zhicore.comment.interfaces.controller;
 
+import com.zhicore.api.client.UploadMediaUploadClient.FileUploadResponse;
 import com.zhicore.comment.infrastructure.feign.ZhiCoreUploadClient;
 import com.zhicore.common.result.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,7 +43,7 @@ public class CommentMediaController {
             file.getOriginalFilename(), file.getSize());
 
         // 调用 ZhiCore-upload 服务上传图片
-        ApiResponse<ZhiCoreUploadClient.FileUploadResponse> response = ZhiCoreUploadClient.uploadImage(file);
+        ApiResponse<FileUploadResponse> response = ZhiCoreUploadClient.uploadImage(file);
         
         if (!response.isSuccess() || response.getData() == null) {
             log.error("图片上传失败: {}", response.getMessage());
@@ -72,7 +73,7 @@ public class CommentMediaController {
             file.getOriginalFilename(), file.getSize());
 
         // 调用 ZhiCore-upload 服务上传音频
-        ApiResponse<ZhiCoreUploadClient.FileUploadResponse> response = ZhiCoreUploadClient.uploadAudio(file);
+        ApiResponse<FileUploadResponse> response = ZhiCoreUploadClient.uploadAudio(file);
         
         if (!response.isSuccess() || response.getData() == null) {
             log.error("语音上传失败: {}", response.getMessage());

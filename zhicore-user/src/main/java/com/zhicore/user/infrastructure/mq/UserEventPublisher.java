@@ -5,6 +5,7 @@ import com.zhicore.api.event.user.UserFollowedEvent;
 import com.zhicore.api.event.user.UserRegisteredEvent;
 import com.zhicore.common.mq.DomainEventPublisher;
 import com.zhicore.common.mq.TopicConstants;
+import com.zhicore.user.application.port.event.UserEventPort;
 import com.zhicore.user.domain.event.UserProfileUpdatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +22,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @ConditionalOnBean(RocketMQTemplate.class)
-public class UserEventPublisher implements EventPublisher {
+public class UserEventPublisher implements UserEventPort {
 
     private final DomainEventPublisher domainEventPublisher;
 

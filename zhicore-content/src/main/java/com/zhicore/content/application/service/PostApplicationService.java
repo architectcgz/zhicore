@@ -3,6 +3,8 @@ package com.zhicore.content.application.service;
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.api.client.UploadFileClient;
+import com.zhicore.api.client.UserBatchSimpleClient;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.exception.BusinessException;
@@ -12,18 +14,26 @@ import com.zhicore.common.result.HybridPageRequest;
 import com.zhicore.common.result.HybridPageResult;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.content.application.assembler.PostViewAssembler;
+import com.zhicore.content.application.command.CreatePostAppCommand;
+import com.zhicore.content.application.command.SaveDraftCommand;
 import com.zhicore.content.application.command.commands.CreatePostCommand;
 import com.zhicore.content.application.command.commands.DeletePostCommand;
+import com.zhicore.content.application.command.UpdatePostAppCommand;
 import com.zhicore.content.application.command.handlers.DeletePostHandler;
 import com.zhicore.content.application.command.handlers.PurgePostHandler;
 import com.zhicore.content.application.command.commands.UpdatePostContentCommand;
 import com.zhicore.content.application.command.handlers.UpdatePostContentHandler;
 import com.zhicore.content.application.command.commands.UpdatePostMetaCommand;
 import com.zhicore.content.application.command.handlers.UpdatePostMetaHandler;
+import com.zhicore.content.application.dto.DraftVO;
 import com.zhicore.content.application.mapper.EventMapper;
+import com.zhicore.content.application.model.OutboxEventTypes;
+import com.zhicore.content.application.model.OutboxEventRecord;
+import com.zhicore.content.application.model.ScheduledPublishEventRecord;
+import com.zhicore.content.application.port.alert.ContentAlertPort;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
-import com.zhicore.content.application.port.repo.ScheduledPublishEventRepository;
+import com.zhicore.content.application.port.policy.ScheduledPublishPolicy;
 import com.zhicore.content.application.workflow.CreateDraftWorkflow;
 import com.zhicore.content.application.workflow.PublishPostWorkflow;
 import com.zhicore.content.application.query.PostQuery;
@@ -32,7 +42,10 @@ import com.zhicore.content.application.query.model.PostListQuery;
 import com.zhicore.content.application.query.model.PostListSort;
 import com.zhicore.content.application.query.view.PostDetailView;
 import com.zhicore.content.application.port.store.PostContentStore;
+import com.zhicore.content.application.port.store.OutboxEventStore;
+import com.zhicore.content.application.port.store.ScheduledPublishEventStore;
 import com.zhicore.content.application.dto.PostBriefVO;
+import com.zhicore.content.application.dto.PostContentVO;
 import com.zhicore.content.application.dto.PostVO;
 import com.zhicore.content.application.dto.TagDTO;
 import com.zhicore.content.domain.event.DomainEvent;
@@ -54,27 +67,14 @@ import com.zhicore.content.domain.service.TagDomainService;
 import com.zhicore.content.domain.valueobject.DraftSnapshot;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
-import com.zhicore.content.interfaces.dto.request.CreatePostRequest;
-import com.zhicore.content.interfaces.dto.request.UpdatePostRequest;
-import com.zhicore.content.infrastructure.alert.AlertService;
-import com.zhicore.content.infrastructure.feign.ContentUploadServiceClient;
-import com.zhicore.content.infrastructure.feign.ContentUserServiceClient;
-import com.zhicore.content.infrastructure.persistence.mongo.document.PostContent;
-import com.zhicore.content.infrastructure.sentinel.ContentSentinelHandlers;
-import com.zhicore.content.infrastructure.sentinel.ContentSentinelResources;
-import com.zhicore.content.interfaces.dto.request.SaveDraftRequest;
-import com.zhicore.content.interfaces.dto.response.DraftVO;
-import com.zhicore.content.infrastructure.config.ScheduledPublishProperties;
-import com.zhicore.content.infrastructure.messaging.OutboxEventTypes;
+import com.zhicore.content.application.sentinel.ContentSentinelHandlers;
+import com.zhicore.content.application.sentinel.ContentSentinelResources;
 import com.zhicore.integration.messaging.post.AuthorInfoCompensationIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostPublishedIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostScheduledIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostTagsUpdatedIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostUpdatedIntegrationEvent;
-import com.zhicore.content.infrastructure.persistence.pg.entity.OutboxEventEntity;
-import com.zhicore.content.infrastructure.persistence.pg.entity.ScheduledPublishEventEntity;
-import com.zhicore.content.infrastructure.persistence.pg.mapper.OutboxEventMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -102,8 +102,8 @@ public class PostApplicationService {
     private final TagDomainService tagDomainService;
     private final PostTagRepository postTagRepository;
     private final TagRepository tagRepository;
-    private final ContentUploadServiceClient uploadServiceClient;
-    private final ContentUserServiceClient userServiceClient;
+    private final UploadFileClient uploadServiceClient;
+    private final UserBatchSimpleClient userServiceClient;
     
     // 新架构依赖
     private final CreateDraftWorkflow createDraftWorkflow;
@@ -122,12 +122,12 @@ public class PostApplicationService {
     private final EventMapper eventMapper;
 
     // 定时发布（R1）
-    private final ScheduledPublishEventRepository scheduledPublishEventRepository;
-    private final ScheduledPublishProperties scheduledPublishProperties;
+    private final ScheduledPublishEventStore scheduledPublishEventStore;
+    private final ScheduledPublishPolicy scheduledPublishPolicy;
 
     // 告警 & DLQ（TASK-01）
-    private final AlertService alertService;
-    private final OutboxEventMapper outboxEventMapper;
+    private final ContentAlertPort alertService;
+    private final OutboxEventStore outboxEventStore;
     private final ObjectMapper objectMapper;
 
     /**
@@ -139,7 +139,7 @@ public class PostApplicationService {
      * @return 文章ID
      */
     @Transactional
-    public Long createPost(Long userId, CreatePostRequest request) {
+    public Long createPost(Long userId, CreatePostAppCommand request) {
         // 生成文章ID
         ApiResponse<Long> idResponse = idGeneratorFeignClient.generateSnowflakeId();
         if (!idResponse.isSuccess() || idResponse.getData() == null) {
@@ -149,20 +149,20 @@ public class PostApplicationService {
         Long postId = idResponse.getData();
 
         // 验证封面图 fileId 格式
-        if (request.getCoverImageId() != null && !request.getCoverImageId().isEmpty()) {
-            validateFileId(request.getCoverImageId());
+        if (request.coverImageId() != null && !request.coverImageId().isEmpty()) {
+            validateFileId(request.coverImageId());
         }
 
         // 处理标签（查找或创建）
         Set<TagId> tagIds = null;
-        if (request.getTags() != null && !request.getTags().isEmpty()) {
+        if (request.tags() != null && !request.tags().isEmpty()) {
             // 验证标签数量
-            if (request.getTags().size() > 10) {
+            if (request.tags().size() > 10) {
                 throw new BusinessException(ResultCode.PARAM_ERROR, "单篇文章最多只能添加10个标签");
             }
             
             // 查找或创建标签
-            List<Tag> tags = tagDomainService.findOrCreateBatch(request.getTags());
+            List<Tag> tags = tagDomainService.findOrCreateBatch(request.tags());
             tagIds = tags.stream()
                     .map(tag -> TagId.of(tag.getId()))
                     .collect(Collectors.toSet());
@@ -176,14 +176,14 @@ public class PostApplicationService {
             new CreatePostCommand(
                 PostId.of(postId),           // postId (值对象)
                 UserId.of(userId),           // ownerId (值对象)
-                request.getTitle(),          // title
+                request.title(),             // title
                 null,                        // excerpt (自动生成)
-                request.getCoverImageId(),   // coverImage
-                request.getContent(),        // content
+                request.coverImageId(),      // coverImage
+                request.content(),           // content
                 ContentType.MARKDOWN,        // contentType
                 ownerSnapshot,               // ownerSnapshot
                 tagIds,                      // tagIds
-                request.getTopicId() != null ? TopicId.of(request.getTopicId()) : null  // topicId
+                request.topicId() != null ? TopicId.of(request.topicId()) : null  // topicId
             );
 
         // 使用 CreateDraftWorkflow 执行创建（两阶段提交）
@@ -262,18 +262,18 @@ public class PostApplicationService {
      * @param request 更新请求
      */
     @Transactional
-    public void updatePost(Long userId, Long postId, UpdatePostRequest request) {
+    public void updatePost(Long userId, Long postId, UpdatePostAppCommand request) {
         Post post = getPostAndCheckOwnership(postId, userId);
 
         // 如果更新封面图，删除旧的封面图
-        if (request.getCoverImageId() != null && !request.getCoverImageId().isEmpty()) {
+        if (request.coverImageId() != null && !request.coverImageId().isEmpty()) {
             // 验证新的 fileId 格式
-            validateFileId(request.getCoverImageId());
+            validateFileId(request.coverImageId());
             
             // 如果有旧的封面图且与新的不同，删除旧的
             String oldCoverImageId = post.getCoverImageId();
             if (oldCoverImageId != null && !oldCoverImageId.isEmpty() 
-                    && !oldCoverImageId.equals(request.getCoverImageId())) {
+                    && !oldCoverImageId.equals(request.coverImageId())) {
                 try {
                     uploadServiceClient.deleteFile(oldCoverImageId);
                     log.info("删除旧封面图: postId={}, fileId={}", postId, oldCoverImageId);
@@ -286,13 +286,13 @@ public class PostApplicationService {
         }
 
         // 更新话题
-        if (request.getTopicId() != null) {
-            post.setTopic(TopicId.of(request.getTopicId()));
+        if (request.topicId() != null) {
+            post.setTopic(TopicId.of(request.topicId()));
             postRepository.update(post);
         }
 
         // 处理标签更新（如果提供了标签列表）
-        if (request.getTags() != null) {
+        if (request.tags() != null) {
             // 获取旧标签
             List<Long> oldTagIds = postTagRepository.findTagIdsByPostId(postId);
             
@@ -301,8 +301,8 @@ public class PostApplicationService {
             
             // 创建新关联
             List<Long> newTagIds = Collections.emptyList();
-            if (!request.getTags().isEmpty()) {
-                List<Tag> tags = tagDomainService.findOrCreateBatch(request.getTags());
+            if (!request.tags().isEmpty()) {
+                List<Tag> tags = tagDomainService.findOrCreateBatch(request.tags());
                 newTagIds = tags.stream()
                         .map(Tag::getId)
                         .collect(Collectors.toList());
@@ -328,9 +328,9 @@ public class PostApplicationService {
             new UpdatePostMetaCommand(
                 PostId.of(postId),
                 UserId.of(userId),
-                request.getTitle(),
+                request.title(),
                 post.getExcerpt(), // 使用当前的 excerpt，因为 request 中没有
-                request.getCoverImageId()
+                request.coverImageId()
             );
         updatePostMetaHandler.handle(metaCommand);
 
@@ -339,7 +339,7 @@ public class PostApplicationService {
             new UpdatePostContentCommand(
                 PostId.of(postId),
                 UserId.of(userId),
-                request.getContent(),
+                request.content(),
                 ContentType.MARKDOWN
             );
         updatePostContentHandler.handle(contentCommand);
@@ -351,8 +351,8 @@ public class PostApplicationService {
                     Instant.now(),
                     post.getVersion(),
                     postId,
-                    request.getTitle(),
-                    request.getContent(),
+                    request.title(),
+                    request.content(),
                     post.getExcerpt(),
                     Collections.emptyList()
             ));
@@ -496,23 +496,24 @@ public class PostApplicationService {
         postRepository.update(post);
 
         // 统一以数据库时间计算延迟，避免应用节点时钟漂移
-        LocalDateTime dbNow = scheduledPublishEventRepository.dbNow();
+        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
         long initialDelaySeconds = java.time.Duration.between(dbNow, scheduledAt).getSeconds();
         int delayLevel = calculateDelayLevelBySeconds(Math.max(0, initialDelaySeconds));
 
         // 为本次“执行定时发布”创建跟踪事件（与 Outbox/MQ 的 event_id 对齐）
         String scheduleExecuteEventId = newEventId();
-        ScheduledPublishEventEntity record = new ScheduledPublishEventEntity();
-        record.setEventId(scheduleExecuteEventId);
-        record.setPostId(postId);
-        record.setScheduledAt(scheduledAt);
-        record.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.PENDING);
-        record.setRescheduleRetryCount(0);
-        record.setPublishRetryCount(0);
-        record.setLastEnqueueAt(dbNow);
-        record.setCreatedAt(dbNow);
-        record.setUpdatedAt(dbNow);
-        scheduledPublishEventRepository.save(record);
+        ScheduledPublishEventRecord record = ScheduledPublishEventRecord.builder()
+                .eventId(scheduleExecuteEventId)
+                .postId(postId)
+                .scheduledAt(scheduledAt)
+                .status(ScheduledPublishEventRecord.ScheduledPublishStatus.PENDING)
+                .rescheduleRetryCount(0)
+                .publishRetryCount(0)
+                .lastEnqueueAt(dbNow)
+                .createdAt(dbNow)
+                .updatedAt(dbNow)
+                .build();
+        scheduledPublishEventStore.save(record);
 
         // 读取最新版本号作为 aggregateVersion（确保 Outbox 版本语义正确）
         Long aggregateVersion = postRepository.findById(postId)
@@ -595,23 +596,24 @@ public class PostApplicationService {
         Long postId = message.getPostId();
 
         LocalDateTime appNow = LocalDateTime.now();
-        LocalDateTime dbNow = scheduledPublishEventRepository.dbNow();
+        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
         LocalDateTime scheduledAt = LocalDateTime.ofInstant(message.getScheduledAt(), ZoneId.systemDefault());
 
-        ScheduledPublishEventEntity record = scheduledPublishEventRepository.findByEventId(message.getEventId())
-                .or(() -> scheduledPublishEventRepository.findActiveByPostId(postId))
+        ScheduledPublishEventRecord record = scheduledPublishEventStore.findByEventId(message.getEventId())
+                .or(() -> scheduledPublishEventStore.findActiveByPostId(postId))
                 .orElseGet(() -> {
-                    ScheduledPublishEventEntity created = new ScheduledPublishEventEntity();
-                    created.setEventId(message.getEventId());
-                    created.setPostId(postId);
-                    created.setScheduledAt(scheduledAt);
-                    created.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.PENDING);
-                    created.setRescheduleRetryCount(0);
-                    created.setPublishRetryCount(0);
-                    created.setLastEnqueueAt(null);
-                    created.setCreatedAt(dbNow);
-                    created.setUpdatedAt(dbNow);
-                    scheduledPublishEventRepository.save(created);
+                    ScheduledPublishEventRecord created = ScheduledPublishEventRecord.builder()
+                            .eventId(message.getEventId())
+                            .postId(postId)
+                            .scheduledAt(scheduledAt)
+                            .status(ScheduledPublishEventRecord.ScheduledPublishStatus.PENDING)
+                            .rescheduleRetryCount(0)
+                            .publishRetryCount(0)
+                            .lastEnqueueAt(null)
+                            .createdAt(dbNow)
+                            .updatedAt(dbNow)
+                            .build();
+                    scheduledPublishEventStore.save(created);
                     return created;
                 });
 
@@ -640,7 +642,7 @@ public class PostApplicationService {
     }
 
     private void handleNotDue(
-            ScheduledPublishEventEntity record,
+            ScheduledPublishEventRecord record,
             LocalDateTime dbNow,
             LocalDateTime scheduledAt,
             PostScheduleExecuteIntegrationEvent message
@@ -648,22 +650,22 @@ public class PostApplicationService {
         long remainingSeconds = java.time.Duration.between(dbNow, scheduledAt).getSeconds();
         int currentRetry = record.getRescheduleRetryCount() != null ? record.getRescheduleRetryCount() : 0;
 
-        if (currentRetry < scheduledPublishProperties.getMaxRescheduleRetries()) {
+        if (currentRetry < scheduledPublishPolicy.maxRescheduleRetries()) {
             long backoffMinutes = 1L << Math.min(currentRetry, 20); // 防止位移溢出
             long targetDelaySeconds = Math.min(
                     remainingSeconds,
-                    Math.min(backoffMinutes * 60, scheduledPublishProperties.getMaxDelayMinutes() * 60L)
+                    Math.min(backoffMinutes * 60, scheduledPublishPolicy.maxDelayMinutes() * 60L)
             );
 
             int delayLevel = calculateDelayLevelBySeconds(Math.max(1, targetDelaySeconds));
             String newEventId = newEventId();
 
-            record.setEventId(newEventId);
-            record.setRescheduleRetryCount(currentRetry + 1);
-            record.setLastEnqueueAt(dbNow);
-            record.setUpdatedAt(dbNow);
-            record.setLastError("未到点，重入队 remainingSeconds=" + remainingSeconds + ", delayLevel=" + delayLevel);
-            scheduledPublishEventRepository.update(record);
+            record = record.withEventId(newEventId)
+                    .withRescheduleRetryCount(currentRetry + 1)
+                    .withLastEnqueueAt(dbNow)
+                    .withUpdatedAt(dbNow)
+                    .withLastError("未到点，重入队 remainingSeconds=" + remainingSeconds + ", delayLevel=" + delayLevel);
+            scheduledPublishEventStore.update(record);
 
             Long aggregateVersion = postRepository.findById(record.getPostId())
                     .map(Post::getVersion)
@@ -681,20 +683,20 @@ public class PostApplicationService {
             return;
         }
 
-        record.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.SCHEDULED_PENDING);
-        record.setUpdatedAt(dbNow);
-        record.setLastError("未到点且重入队达到上限，转入 SCHEDULED_PENDING 由扫描任务兜底");
-        scheduledPublishEventRepository.update(record);
+        record = record.withStatus(ScheduledPublishEventRecord.ScheduledPublishStatus.SCHEDULED_PENDING)
+                .withUpdatedAt(dbNow)
+                .withLastError("未到点且重入队达到上限，转入 SCHEDULED_PENDING 由扫描任务兜底");
+        scheduledPublishEventStore.update(record);
     }
 
-    private void handleDue(ScheduledPublishEventEntity record, LocalDateTime dbNow, LocalDateTime scheduledAt) {
+    private void handleDue(ScheduledPublishEventRecord record, LocalDateTime dbNow, LocalDateTime scheduledAt) {
         try {
             Optional<Long> newVersion = postRepository.publishScheduledIfNeeded(record.getPostId(), dbNow);
             if (newVersion.isPresent()) {
-                record.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.PUBLISHED);
-                record.setUpdatedAt(dbNow);
-                record.setLastError(null);
-                scheduledPublishEventRepository.update(record);
+                record = record.withStatus(ScheduledPublishEventRecord.ScheduledPublishStatus.PUBLISHED)
+                        .withUpdatedAt(dbNow)
+                        .withLastError(null);
+                scheduledPublishEventStore.update(record);
 
                 integrationEventPublisher.publish(new PostPublishedIntegrationEvent(
                         newEventId(),
@@ -709,39 +711,39 @@ public class PostApplicationService {
             // 幂等 no-op：区分已发布 vs 非法状态/不存在
             Post existing = postRepository.findById(record.getPostId()).orElse(null);
             if (existing == null) {
-                record.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.FAILED);
-                record.setUpdatedAt(dbNow);
-                record.setLastError("发布 no-op 且文章不存在");
-                scheduledPublishEventRepository.update(record);
+                record = record.withStatus(ScheduledPublishEventRecord.ScheduledPublishStatus.FAILED)
+                        .withUpdatedAt(dbNow)
+                        .withLastError("发布 no-op 且文章不存在");
+                scheduledPublishEventStore.update(record);
                 return;
             }
 
             if (existing.getStatus() == PostStatus.PUBLISHED) {
-                record.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.PUBLISHED);
-                record.setUpdatedAt(dbNow);
-                record.setLastError(null);
-                scheduledPublishEventRepository.update(record);
+                record = record.withStatus(ScheduledPublishEventRecord.ScheduledPublishStatus.PUBLISHED)
+                        .withUpdatedAt(dbNow)
+                        .withLastError(null);
+                scheduledPublishEventStore.update(record);
                 return;
             }
 
-            record.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.FAILED);
-            record.setUpdatedAt(dbNow);
-            record.setLastError("发布 no-op 且文章状态非法: " + existing.getStatus());
-            scheduledPublishEventRepository.update(record);
+            record = record.withStatus(ScheduledPublishEventRecord.ScheduledPublishStatus.FAILED)
+                    .withUpdatedAt(dbNow)
+                    .withLastError("发布 no-op 且文章状态非法: " + existing.getStatus());
+            scheduledPublishEventStore.update(record);
         } catch (Exception e) {
             int currentRetry = record.getPublishRetryCount() != null ? record.getPublishRetryCount() : 0;
-            if (currentRetry < scheduledPublishProperties.getMaxPublishRetries()) {
+            if (currentRetry < scheduledPublishPolicy.maxPublishRetries()) {
                 long backoffMinutes = 1L << Math.min(currentRetry, 20);
-                long targetDelaySeconds = Math.min(backoffMinutes * 60, scheduledPublishProperties.getMaxDelayMinutes() * 60L);
+                long targetDelaySeconds = Math.min(backoffMinutes * 60, scheduledPublishPolicy.maxDelayMinutes() * 60L);
                 int delayLevel = calculateDelayLevelBySeconds(Math.max(1, targetDelaySeconds));
 
                 String newEventId = newEventId();
-                record.setEventId(newEventId);
-                record.setPublishRetryCount(currentRetry + 1);
-                record.setLastEnqueueAt(dbNow);
-                record.setUpdatedAt(dbNow);
-                record.setLastError("发布失败重试: " + e.getMessage());
-                scheduledPublishEventRepository.update(record);
+                record = record.withEventId(newEventId)
+                        .withPublishRetryCount(currentRetry + 1)
+                        .withLastEnqueueAt(dbNow)
+                        .withUpdatedAt(dbNow)
+                        .withLastError("发布失败重试: " + e.getMessage());
+                scheduledPublishEventStore.update(record);
 
                 Long aggregateVersion = postRepository.findById(record.getPostId())
                         .map(Post::getVersion)
@@ -759,10 +761,10 @@ public class PostApplicationService {
                 return;
             }
 
-            record.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.FAILED);
-            record.setUpdatedAt(dbNow);
-            record.setLastError("发布失败且达到重试上限: " + e.getMessage());
-            scheduledPublishEventRepository.update(record);
+            record = record.withStatus(ScheduledPublishEventRecord.ScheduledPublishStatus.FAILED)
+                    .withUpdatedAt(dbNow)
+                    .withLastError("发布失败且达到重试上限: " + e.getMessage());
+            scheduledPublishEventStore.update(record);
 
             // 投递 DLQ 与告警（TASK-01）
             try {
@@ -785,7 +787,7 @@ public class PostApplicationService {
         }
     }
 
-    private void emitScheduledPublishDlqEvent(ScheduledPublishEventEntity record, LocalDateTime scheduledAt, Exception e)
+    private void emitScheduledPublishDlqEvent(ScheduledPublishEventRecord record, LocalDateTime scheduledAt, Exception e)
             throws Exception {
         if (record == null || record.getPostId() == null) {
             return;
@@ -805,21 +807,22 @@ public class PostApplicationService {
         payload.put("retryCount", record.getPublishRetryCount());
         payload.put("lastError", record.getLastError());
 
-        OutboxEventEntity entity = new OutboxEventEntity();
-        entity.setEventId(newEventId());
-        entity.setEventType(OutboxEventTypes.SCHEDULED_PUBLISH_DLQ);
-        entity.setAggregateId(postId);
-        entity.setAggregateVersion(aggregateVersion);
-        entity.setSchemaVersion(1);
-        entity.setPayload(objectMapper.writeValueAsString(payload));
         Instant now = Instant.now();
-        entity.setOccurredAt(now);
-        entity.setCreatedAt(now);
-        entity.setUpdatedAt(now);
-        entity.setRetryCount(0);
-        entity.setStatus(OutboxEventEntity.OutboxStatus.PENDING);
+        OutboxEventRecord entity = OutboxEventRecord.builder()
+                .eventId(newEventId())
+                .eventType(OutboxEventTypes.SCHEDULED_PUBLISH_DLQ)
+                .aggregateId(postId)
+                .aggregateVersion(aggregateVersion)
+                .schemaVersion(1)
+                .payload(objectMapper.writeValueAsString(payload))
+                .occurredAt(now)
+                .createdAt(now)
+                .updatedAt(now)
+                .retryCount(0)
+                .status(OutboxEventRecord.OutboxStatus.PENDING)
+                .build();
 
-        outboxEventMapper.insert(entity);
+        outboxEventStore.save(entity);
         log.warn("Scheduled publish DLQ outbox event created: eventId={}, postId={}", entity.getEventId(), postId);
     }
 
@@ -1302,7 +1305,7 @@ public class PostApplicationService {
             blockHandlerClass = ContentSentinelHandlers.class,
             blockHandler = "handleGetPostContentBlocked"
     )
-    public PostContent getPostContent(Long postId) {
+    public PostContentVO getPostContent(Long postId) {
         // 使用 PostContentStore 获取内容
         Optional<PostBody> bodyOpt =
             postContentStore.getContent(PostId.of(postId));
@@ -1311,9 +1314,9 @@ public class PostApplicationService {
             throw new BusinessException(ResultCode.NOT_FOUND, "文章内容不存在");
         }
         
-        // 转换 PostBody 到 PostContent（MongoDB 文档）
+        // 转换 PostBody 到 application DTO，避免向上层暴露 Mongo 文档类型
         PostBody body = bodyOpt.get();
-        PostContent content = new PostContent();
+        PostContentVO content = new PostContentVO();
         content.setPostId(String.valueOf(postId));
         content.setContentType(body.getContentType().getValue());
         content.setRaw(body.getContent());
@@ -1333,7 +1336,7 @@ public class PostApplicationService {
      * @param userId 用户ID
      * @param request 保存草稿请求
      */
-    public void saveDraft(Long postId, Long userId, SaveDraftRequest request) {
+    public void saveDraft(Long postId, Long userId, SaveDraftCommand request) {
         // 验证文章存在且用户有权限
         Post post = getPostAndCheckOwnership(postId, userId);
         
@@ -1341,12 +1344,12 @@ public class PostApplicationService {
         draftService.saveDraft(
             postId,
             userId,
-            request.getContent(),
-            request.getIsAutoSave() != null ? request.getIsAutoSave() : false
+            request.content(),
+            request.autoSave() != null ? request.autoSave() : false
         );
         
         log.info("Draft saved: postId={}, userId={}, isAutoSave={}", 
-            postId, userId, request.getIsAutoSave());
+            postId, userId, request.autoSave());
     }
 
     /**

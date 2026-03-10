@@ -1,11 +1,11 @@
 package com.zhicore.comment.infrastructure.repository;
 
+import com.zhicore.comment.domain.cursor.HotCursorCodec.HotCursor;
+import com.zhicore.comment.domain.cursor.TimeCursorCodec.TimeCursor;
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.model.CommentStats;
 import com.zhicore.comment.domain.model.CommentStatus;
 import com.zhicore.comment.domain.repository.CommentRepository;
-import com.zhicore.comment.infrastructure.cursor.HotCursorCodec.HotCursor;
-import com.zhicore.comment.infrastructure.cursor.TimeCursorCodec.TimeCursor;
 import com.zhicore.comment.infrastructure.repository.mapper.CommentMapper;
 import com.zhicore.comment.infrastructure.repository.mapper.CommentStatsMapper;
 import com.zhicore.comment.infrastructure.repository.po.CommentPO;

@@ -5,14 +5,14 @@ import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
+import com.zhicore.notification.application.port.store.NotificationAggregationStore;
+import com.zhicore.notification.application.port.store.NotificationUnreadCountStore;
 import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.repository.NotificationRepository;
-import com.zhicore.notification.infrastructure.cache.NotificationRedisKeys;
-import com.zhicore.notification.infrastructure.sentinel.NotificationSentinelHandlers;
-import com.zhicore.notification.infrastructure.sentinel.NotificationSentinelResources;
+import com.zhicore.notification.application.sentinel.NotificationSentinelHandlers;
+import com.zhicore.notification.application.sentinel.NotificationSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +31,8 @@ public class NotificationApplicationService {
 
     private final NotificationRepository notificationRepository;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final NotificationUnreadCountStore notificationUnreadCountStore;
+    private final NotificationAggregationStore notificationAggregationStore;
 
     private static final Duration UNREAD_COUNT_TTL = Duration.ofMinutes(5);
 
@@ -235,12 +236,10 @@ public class NotificationApplicationService {
             blockHandler = "handleUnreadCountBlocked"
     )
     public int getUnreadCount(Long userId) {
-        String key = NotificationRedisKeys.unreadCount(String.valueOf(userId));
-        
         try {
-            Object cached = redisTemplate.opsForValue().get(key);
+            Integer cached = notificationUnreadCountStore.get(userId);
             if (cached != null) {
-                return (Integer) cached;
+                return cached;
             }
         } catch (Exception e) {
             log.warn("获取未读计数缓存失败: {}", e.getMessage());
@@ -249,7 +248,7 @@ public class NotificationApplicationService {
         int count = notificationRepository.countUnread(String.valueOf(userId));
         
         try {
-            redisTemplate.opsForValue().set(key, count, UNREAD_COUNT_TTL);
+            notificationUnreadCountStore.set(userId, count, UNREAD_COUNT_TTL);
         } catch (Exception e) {
             log.warn("缓存未读计数失败: {}", e.getMessage());
         }
@@ -274,14 +273,8 @@ public class NotificationApplicationService {
      */
     private void invalidateCache(Long userId) {
         try {
-            // 清除未读计数缓存
-            redisTemplate.delete(NotificationRedisKeys.unreadCount(String.valueOf(userId)));
-            
-            // 清除聚合列表缓存
-            var keys = redisTemplate.keys(NotificationRedisKeys.aggregatedListPattern(String.valueOf(userId)));
-            if (keys != null && !keys.isEmpty()) {
-                redisTemplate.delete(keys);
-            }
+            notificationUnreadCountStore.evict(userId);
+            notificationAggregationStore.evictUser(userId);
         } catch (Exception e) {
             log.warn("清除通知缓存失败: userId={}, error={}", userId, e.getMessage());
         }

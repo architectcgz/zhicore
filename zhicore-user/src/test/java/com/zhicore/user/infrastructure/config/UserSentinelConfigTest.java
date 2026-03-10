@@ -1,7 +1,7 @@
 package com.zhicore.user.infrastructure.config;
 
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
-import com.zhicore.user.infrastructure.sentinel.UserSentinelResources;
+import com.zhicore.user.application.sentinel.UserSentinelResources;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -1,20 +1,20 @@
 package com.zhicore.content.application.decorator;
 
 import com.zhicore.common.cache.CacheConstants;
+import com.zhicore.common.cache.port.CacheResult;
 import com.zhicore.common.config.CacheProperties;
+import com.zhicore.content.application.port.store.DraftCacheStore;
 import com.zhicore.content.domain.service.DraftService;
 import com.zhicore.content.domain.valueobject.DraftSnapshot;
-import com.zhicore.content.infrastructure.cache.PostRedisKeys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Primary;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 草稿读取缓存装饰器
@@ -27,14 +27,14 @@ import java.util.concurrent.TimeUnit;
 public class CacheAsideDraftService implements DraftService {
 
     private final DraftService delegate;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final DraftCacheStore draftCacheStore;
     private final CacheProperties cacheProperties;
 
     public CacheAsideDraftService(
-            RedisTemplate<String, Object> redisTemplate,
+            DraftCacheStore draftCacheStore,
             CacheProperties cacheProperties,
             @Qualifier("draftServiceImpl") DraftService delegate) {
-        this.redisTemplate = redisTemplate;
+        this.draftCacheStore = draftCacheStore;
         this.cacheProperties = cacheProperties;
         this.delegate = delegate;
     }
@@ -51,24 +51,21 @@ public class CacheAsideDraftService implements DraftService {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public Optional<DraftSnapshot> getLatestDraft(Long postId, Long userId) {
-        String key = PostRedisKeys.draft(postId, userId);
-
         try {
-            Object cached = redisTemplate.opsForValue().get(key);
-            if (cached != null) {
-                if (CacheConstants.isNullMarker(cached)) {
-                    log.debug("Cache hit (null value) for draft: key={}", key);
-                    return Optional.empty();
-                }
-                log.debug("Cache hit for draft: key={}", key);
-                return Optional.of((DraftSnapshot) cached);
+            CacheResult<DraftSnapshot> cached = draftCacheStore.getLatestDraft(postId, userId);
+            if (cached.isNull()) {
+                log.debug("Cache hit (null value) for draft: postId={}, userId={}", postId, userId);
+                return Optional.empty();
+            }
+            if (cached.isHit()) {
+                log.debug("Cache hit for draft: postId={}, userId={}", postId, userId);
+                return Optional.of(cached.getValue());
             }
 
-            log.debug("Cache miss for draft: key={}", key);
+            log.debug("Cache miss for draft: postId={}, userId={}", postId, userId);
             Optional<DraftSnapshot> draft = delegate.getLatestDraft(postId, userId);
-            cacheDraft(key, draft.orElse(null));
+            cacheDraft(postId, userId, draft.orElse(null));
             return draft;
         } catch (Exception e) {
             log.warn("Cache lookup failed for draft, falling back to database: {}", e.getMessage());
@@ -77,24 +74,21 @@ public class CacheAsideDraftService implements DraftService {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public List<DraftSnapshot> getUserDrafts(Long userId) {
-        String key = PostRedisKeys.userDrafts(userId);
-
         try {
-            Object cached = redisTemplate.opsForValue().get(key);
-            if (cached != null) {
-                if (CacheConstants.isNullMarker(cached)) {
-                    log.debug("Cache hit (empty list) for user drafts: key={}", key);
-                    return List.of();
-                }
-                log.debug("Cache hit for user drafts: key={}", key);
-                return (List<DraftSnapshot>) cached;
+            CacheResult<List<DraftSnapshot>> cached = draftCacheStore.getUserDrafts(userId);
+            if (cached.isNull()) {
+                log.debug("Cache hit (empty list) for user drafts: userId={}", userId);
+                return List.of();
+            }
+            if (cached.isHit()) {
+                log.debug("Cache hit for user drafts: userId={}", userId);
+                return cached.getValue();
             }
 
-            log.debug("Cache miss for user drafts: key={}", key);
+            log.debug("Cache miss for user drafts: userId={}", userId);
             List<DraftSnapshot> drafts = delegate.getUserDrafts(userId);
-            cacheDraftList(key, drafts);
+            cacheDraftList(userId, drafts);
             return drafts;
         } catch (Exception e) {
             log.warn("Cache lookup failed for user drafts, falling back to database: {}", e.getMessage());
@@ -121,7 +115,7 @@ public class CacheAsideDraftService implements DraftService {
     public void warmUpDraftCache(Long postId, Long userId) {
         try {
             Optional<DraftSnapshot> draft = delegate.getLatestDraft(postId, userId);
-            draft.ifPresent(value -> cacheDraft(PostRedisKeys.draft(postId, userId), value));
+            draft.ifPresent(value -> cacheDraft(postId, userId, value));
             log.debug("Warmed up draft cache for postId={}, userId={}", postId, userId);
         } catch (Exception e) {
             log.warn("Failed to warm up draft cache for postId={}, userId={}: {}",
@@ -132,48 +126,41 @@ public class CacheAsideDraftService implements DraftService {
     public void warmUpUserDraftsCache(Long userId) {
         try {
             List<DraftSnapshot> drafts = delegate.getUserDrafts(userId);
-            cacheDraftList(PostRedisKeys.userDrafts(userId), drafts);
+            cacheDraftList(userId, drafts);
             log.debug("Warmed up user drafts cache for userId={}", userId);
         } catch (Exception e) {
             log.warn("Failed to warm up user drafts cache for userId={}: {}", userId, e.getMessage());
         }
     }
 
-    private void cacheDraft(String key, DraftSnapshot draft) {
+    private void cacheDraft(Long postId, Long userId, DraftSnapshot draft) {
         if (draft != null) {
-            long ttlWithJitter = cacheProperties.getDraft().getTtl() + randomJitter();
-            redisTemplate.opsForValue().set(key, draft, ttlWithJitter, TimeUnit.SECONDS);
-            log.debug("Cached draft: key={}, ttl={}s", key, ttlWithJitter);
+            Duration ttl = Duration.ofSeconds(cacheProperties.getDraft().getTtl() + randomJitter());
+            draftCacheStore.setLatestDraft(postId, userId, draft, ttl);
+            log.debug("Cached draft: postId={}, userId={}, ttl={}s", postId, userId, ttl.getSeconds());
         } else {
-            redisTemplate.opsForValue().set(
-                    key,
-                    CacheConstants.NULL_MARKER,
-                    CacheConstants.NULL_VALUE_TTL_SECONDS,
-                    TimeUnit.SECONDS
+            draftCacheStore.setLatestDraftNull(
+                    postId,
+                    userId,
+                    Duration.ofSeconds(CacheConstants.NULL_VALUE_TTL_SECONDS)
             );
-            log.debug("Cached null value for draft: key={}", key);
+            log.debug("Cached null value for draft: postId={}, userId={}", postId, userId);
         }
     }
 
-    private void cacheDraftList(String key, List<DraftSnapshot> drafts) {
+    private void cacheDraftList(Long userId, List<DraftSnapshot> drafts) {
         if (drafts != null && !drafts.isEmpty()) {
-            long ttlWithJitter = cacheProperties.getDraft().getListTtl() + randomJitter();
-            redisTemplate.opsForValue().set(key, drafts, ttlWithJitter, TimeUnit.SECONDS);
-            log.debug("Cached draft list: key={}, size={}, ttl={}s", key, drafts.size(), ttlWithJitter);
+            Duration ttl = Duration.ofSeconds(cacheProperties.getDraft().getListTtl() + randomJitter());
+            draftCacheStore.setUserDrafts(userId, drafts, ttl);
+            log.debug("Cached draft list: userId={}, size={}, ttl={}s", userId, drafts.size(), ttl.getSeconds());
         } else {
-            redisTemplate.opsForValue().set(
-                    key,
-                    CacheConstants.NULL_MARKER,
-                    CacheConstants.NULL_VALUE_TTL_SECONDS,
-                    TimeUnit.SECONDS
-            );
-            log.debug("Cached empty draft list: key={}", key);
+            draftCacheStore.setUserDraftsEmpty(userId, Duration.ofSeconds(CacheConstants.NULL_VALUE_TTL_SECONDS));
+            log.debug("Cached empty draft list: userId={}", userId);
         }
     }
 
     private void evictDraftCache(Long postId, Long userId) {
-        redisTemplate.delete(PostRedisKeys.draft(postId, userId));
-        redisTemplate.delete(PostRedisKeys.userDrafts(userId));
+        draftCacheStore.evictDraft(postId, userId);
         log.debug("Evicted draft cache for postId={}, userId={}", postId, userId);
     }
 

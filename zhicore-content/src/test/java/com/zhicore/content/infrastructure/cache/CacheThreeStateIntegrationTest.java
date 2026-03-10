@@ -1,6 +1,6 @@
 package com.zhicore.content.infrastructure.cache;
 
-import com.zhicore.common.cache.port.CacheRepository;
+import com.zhicore.common.cache.port.CacheStore;
 import com.zhicore.common.cache.port.CacheResult;
 import com.zhicore.content.infrastructure.IntegrationTestBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CacheThreeStateIntegrationTest extends IntegrationTestBase {
 
     @Autowired
-    private CacheRepository cacheRepository;
+    private CacheStore cacheStore;
 
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
@@ -43,7 +43,7 @@ class CacheThreeStateIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("首次查询缓存不存在返回 MISS")
         void shouldReturnMissWhenKeyNotExists() {
-            CacheResult<String> result = cacheRepository.get("miss:key", String.class);
+            CacheResult<String> result = cacheStore.get("miss:key", String.class);
 
             assertThat(result.isMiss()).isTrue();
             assertThat(result.isHit()).isFalse();
@@ -61,9 +61,9 @@ class CacheThreeStateIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("缓存 NULL 标记后返回 NULL 状态")
         void shouldReturnNullWhenNullMarkerCached() {
-            cacheRepository.set("null:key", null, Duration.ofMinutes(5));
+            cacheStore.set("null:key", null, Duration.ofMinutes(5));
 
-            CacheResult<String> result = cacheRepository.get("null:key", String.class);
+            CacheResult<String> result = cacheStore.get("null:key", String.class);
 
             assertThat(result.isNull()).isTrue();
             assertThat(result.isMiss()).isFalse();
@@ -74,7 +74,7 @@ class CacheThreeStateIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("NULL 标记的 Redis 存储格式包含 type=NULL")
         void nullMarkerShouldContainTypeNull() {
-            cacheRepository.set("null:format", null, Duration.ofMinutes(5));
+            cacheStore.set("null:format", null, Duration.ofMinutes(5));
 
             String raw = stringRedisTemplate.opsForValue().get("null:format");
             assertThat(raw).isNotNull();
@@ -94,9 +94,9 @@ class CacheThreeStateIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("缓存命中返回 HIT 和正确值")
         void shouldReturnHitWithCorrectValue() {
-            cacheRepository.set("hit:key", "hello", Duration.ofMinutes(30));
+            cacheStore.set("hit:key", "hello", Duration.ofMinutes(30));
 
-            CacheResult<String> result = cacheRepository.get("hit:key", String.class);
+            CacheResult<String> result = cacheStore.get("hit:key", String.class);
 
             assertThat(result.isHit()).isTrue();
             assertThat(result.isMiss()).isFalse();
@@ -107,7 +107,7 @@ class CacheThreeStateIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("HIT 的 Redis 存储格式包含 type=HIT 和 value")
         void hitPayloadShouldContainTypeAndValue() {
-            cacheRepository.set("hit:format", "data", Duration.ofMinutes(30));
+            cacheStore.set("hit:format", "data", Duration.ofMinutes(30));
 
             String raw = stringRedisTemplate.opsForValue().get("hit:format");
             assertThat(raw).isNotNull();
@@ -126,8 +126,8 @@ class CacheThreeStateIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("NULL 标记和正常缓存可设置不同 TTL")
         void nullAndHitCanHaveDifferentTtl() {
-            cacheRepository.set("ttl:null", null, Duration.ofMinutes(5));
-            cacheRepository.set("ttl:hit", "value", Duration.ofMinutes(30));
+            cacheStore.set("ttl:null", null, Duration.ofMinutes(5));
+            cacheStore.set("ttl:hit", "value", Duration.ofMinutes(30));
 
             Long nullTtl = stringRedisTemplate.getExpire("ttl:null", TimeUnit.SECONDS);
             Long hitTtl = stringRedisTemplate.getExpire("ttl:hit", TimeUnit.SECONDS);
@@ -148,12 +148,12 @@ class CacheThreeStateIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("删除缓存后再次查询返回 MISS")
         void deleteShouldCauseMiss() {
-            cacheRepository.set("rebuild:key", "old", Duration.ofMinutes(30));
-            assertThat(cacheRepository.get("rebuild:key", String.class).isHit()).isTrue();
+            cacheStore.set("rebuild:key", "old", Duration.ofMinutes(30));
+            assertThat(cacheStore.get("rebuild:key", String.class).isHit()).isTrue();
 
-            cacheRepository.delete("rebuild:key");
+            cacheStore.delete("rebuild:key");
 
-            CacheResult<String> result = cacheRepository.get("rebuild:key", String.class);
+            CacheResult<String> result = cacheStore.get("rebuild:key", String.class);
             assertThat(result.isMiss()).isTrue();
         }
 
@@ -161,16 +161,16 @@ class CacheThreeStateIntegrationTest extends IntegrationTestBase {
         @DisplayName("NULL 标记被删除后可重新写入实际值")
         void nullMarkerCanBeReplacedWithRealValue() {
             // 先缓存 NULL
-            cacheRepository.set("rebuild:null", null, Duration.ofMinutes(5));
-            assertThat(cacheRepository.get("rebuild:null", String.class).isNull()).isTrue();
+            cacheStore.set("rebuild:null", null, Duration.ofMinutes(5));
+            assertThat(cacheStore.get("rebuild:null", String.class).isNull()).isTrue();
 
             // 删除 NULL 标记
-            cacheRepository.delete("rebuild:null");
+            cacheStore.delete("rebuild:null");
 
             // 写入实际值
-            cacheRepository.set("rebuild:null", "new-data", Duration.ofMinutes(30));
+            cacheStore.set("rebuild:null", "new-data", Duration.ofMinutes(30));
 
-            CacheResult<String> result = cacheRepository.get("rebuild:null", String.class);
+            CacheResult<String> result = cacheStore.get("rebuild:null", String.class);
             assertThat(result.isHit()).isTrue();
             assertThat(result.getValue()).isEqualTo("new-data");
         }

@@ -28,27 +28,27 @@ public class UserServiceFallbackFactory implements FallbackFactory<UserServiceCl
         fallbackSupport.onFallbackTriggered(log, cause);
         return new UserServiceClient() {
             @Override
-            public ApiResponse<UserSimpleDTO> getUserSimple(String userId) {
+            public ApiResponse<UserSimpleDTO> getUserSimple(Long userId) {
                 log.warn("获取用户简要信息降级: userId={}, cause={}", userId, failureMessage(cause));
                 return fallbackSupport.degraded("用户服务已降级");
             }
 
             @Override
-            public ApiResponse<Boolean> isBlocked(String userId, String targetUserId) {
-                log.warn("检查用户拉黑状态降级: userId={}, targetUserId={}, cause={}", 
+            public ApiResponse<Boolean> isBlocked(Long userId, Long targetUserId) {
+                log.warn("检查用户拉黑状态降级: userId={}, targetUserId={}, cause={}",
                         userId, targetUserId, failureMessage(cause));
                 return fallbackSupport.degraded("用户服务已降级");
             }
 
             @Override
-            public ApiResponse<Boolean> isFollowing(String userId, String targetUserId) {
+            public ApiResponse<Boolean> isFollowing(Long userId, Long targetUserId) {
                 log.warn("检查关注状态降级: userId={}, targetUserId={}, cause={}",
                         userId, targetUserId, failureMessage(cause));
                 return fallbackSupport.degraded("用户服务已降级");
             }
 
             @Override
-            public ApiResponse<Boolean> isStrangerMessageAllowed(String userId) {
+            public ApiResponse<Boolean> isStrangerMessageAllowed(Long userId) {
                 log.warn("获取陌生人消息设置降级: userId={}, cause={}", userId, failureMessage(cause));
                 return fallbackSupport.degraded("用户服务已降级");
             }

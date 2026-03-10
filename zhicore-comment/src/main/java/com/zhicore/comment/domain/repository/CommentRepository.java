@@ -2,8 +2,8 @@ package com.zhicore.comment.domain.repository;
 
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.model.CommentStats;
-import com.zhicore.comment.infrastructure.cursor.HotCursorCodec.HotCursor;
-import com.zhicore.comment.infrastructure.cursor.TimeCursorCodec.TimeCursor;
+import com.zhicore.comment.domain.cursor.HotCursorCodec.HotCursor;
+import com.zhicore.comment.domain.cursor.TimeCursorCodec.TimeCursor;
 import com.zhicore.common.result.PageResult;
 
 import java.util.List;

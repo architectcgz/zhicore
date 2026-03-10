@@ -56,7 +56,7 @@ class MessagePushConsumerTest {
         sender.setNickname("alice");
         sender.setAvatarId("avatar-1");
 
-        when(userServiceClient.getUserSimple("33")).thenReturn(ApiResponse.success(sender));
+        when(userServiceClient.getUserSimple(33L)).thenReturn(ApiResponse.success(sender));
         doAnswer(invocation -> {
             Runnable runnable = invocation.getArgument(1);
             runnable.run();
@@ -92,7 +92,7 @@ class MessagePushConsumerTest {
                 LocalDateTime.of(2026, 3, 8, 19, 1)
         );
 
-        when(userServiceClient.getUserSimple("34")).thenReturn(ApiResponse.success(null));
+        when(userServiceClient.getUserSimple(34L)).thenReturn(ApiResponse.success(null));
         doAnswer(invocation -> {
             Runnable runnable = invocation.getArgument(1);
             runnable.run();

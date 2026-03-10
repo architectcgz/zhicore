@@ -1,6 +1,9 @@
 package com.zhicore.user.interfaces.controller;
 
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.user.application.command.LoginCommand;
+import com.zhicore.user.application.command.RefreshTokenCommand;
+import com.zhicore.user.application.command.RegisterCommand;
 import com.zhicore.user.application.dto.TokenVO;
 import com.zhicore.user.application.service.AuthApplicationService;
 import com.zhicore.user.application.service.UserApplicationService;
@@ -55,7 +58,11 @@ public class AuthController {
     public ApiResponse<Long> register(
             @Parameter(description = "用户注册信息", required = true)
             @Valid @RequestBody RegisterRequest request) {
-        Long userId = userApplicationService.register(request);
+        Long userId = userApplicationService.register(new RegisterCommand(
+                request.getUserName(),
+                request.getEmail(),
+                request.getPassword()
+        ));
         return ApiResponse.success(userId);
     }
 
@@ -84,7 +91,10 @@ public class AuthController {
     public ApiResponse<TokenVO> login(
             @Parameter(description = "用户登录信息", required = true)
             @Valid @RequestBody LoginRequest request) {
-        TokenVO token = authApplicationService.login(request);
+        TokenVO token = authApplicationService.login(new LoginCommand(
+                request.getEmail(),
+                request.getPassword()
+        ));
         return ApiResponse.success(token);
     }
 
@@ -113,7 +123,9 @@ public class AuthController {
     public ApiResponse<TokenVO> refreshToken(
             @Parameter(description = "刷新令牌信息", required = true)
             @Valid @RequestBody RefreshTokenRequest request) {
-        TokenVO token = authApplicationService.refreshToken(request);
+        TokenVO token = authApplicationService.refreshToken(new RefreshTokenCommand(
+                request.getRefreshToken()
+        ));
         return ApiResponse.success(token);
     }
 }

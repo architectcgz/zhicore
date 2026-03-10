@@ -5,10 +5,11 @@ import com.zhicore.admin.application.dto.PostManageVO;
 import com.zhicore.admin.domain.model.AuditAction;
 import com.zhicore.admin.domain.model.AuditLog;
 import com.zhicore.admin.domain.repository.AuditLogRepository;
-import com.zhicore.admin.infrastructure.feign.AdminPostServiceClient;
-import com.zhicore.admin.infrastructure.sentinel.AdminSentinelHandlers;
-import com.zhicore.admin.infrastructure.sentinel.AdminSentinelResources;
+import com.zhicore.admin.application.sentinel.AdminSentinelHandlers;
+import com.zhicore.admin.application.sentinel.AdminSentinelResources;
+import com.zhicore.api.client.AdminPostClient;
 import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.api.dto.admin.PostManageDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
@@ -28,7 +29,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PostManageService {
     
-    private final AdminPostServiceClient postServiceClient;
+    private final AdminPostClient postServiceClient;
     private final AuditLogRepository auditLogRepository;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
     
@@ -48,14 +49,14 @@ public class PostManageService {
             blockHandler = "handleListPostsBlocked"
     )
     public PageResult<PostManageVO> listPosts(String keyword, String status, Long authorId, int page, int size) {
-        ApiResponse<PageResult<AdminPostServiceClient.PostManageDTO>> response = 
+        ApiResponse<PageResult<PostManageDTO>> response =
                 postServiceClient.queryPosts(keyword, status, authorId, page, size);
         
         if (!response.isSuccess()) {
             throw new BusinessException(response.getMessage());
         }
         
-        PageResult<AdminPostServiceClient.PostManageDTO> result = response.getData();
+        PageResult<PostManageDTO> result = response.getData();
         List<PostManageVO> voList = result.getRecords().stream()
                 .map(this::toVO)
                 .collect(Collectors.toList());
@@ -111,18 +112,18 @@ public class PostManageService {
         return id;
     }
     
-    private PostManageVO toVO(AdminPostServiceClient.PostManageDTO dto) {
+    private PostManageVO toVO(PostManageDTO dto) {
         return PostManageVO.builder()
-                .id(dto.id())
-                .title(dto.title())
-                .authorId(dto.authorId())
-                .authorName(dto.authorName())
-                .status(dto.status())
-                .viewCount(dto.viewCount())
-                .likeCount(dto.likeCount())
-                .commentCount(dto.commentCount())
-                .createdAt(dto.createdAt())
-                .publishedAt(dto.publishedAt())
+                .id(dto.getId())
+                .title(dto.getTitle())
+                .authorId(dto.getAuthorId())
+                .authorName(dto.getAuthorName())
+                .status(dto.getStatus())
+                .viewCount(dto.getViewCount())
+                .likeCount(dto.getLikeCount())
+                .commentCount(dto.getCommentCount())
+                .createdAt(dto.getCreatedAt())
+                .publishedAt(dto.getPublishedAt())
                 .build();
     }
 }

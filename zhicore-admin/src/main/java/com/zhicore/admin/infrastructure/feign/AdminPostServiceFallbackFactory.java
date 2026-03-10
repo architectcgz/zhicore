@@ -1,9 +1,9 @@
 package com.zhicore.admin.infrastructure.feign;
 
+import com.zhicore.api.dto.admin.PostManageDTO;
 import com.zhicore.common.feign.DownstreamFallbackSupport;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
-import com.zhicore.common.result.ResultCode;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.openfeign.FallbackFactory;

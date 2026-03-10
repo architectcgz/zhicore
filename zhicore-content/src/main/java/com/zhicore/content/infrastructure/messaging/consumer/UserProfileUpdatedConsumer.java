@@ -2,7 +2,7 @@ package com.zhicore.content.infrastructure.messaging.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.integration.messaging.user.UserProfileUpdatedIntegrationEvent;
-import com.zhicore.common.cache.port.CacheRepository;
+import com.zhicore.common.cache.port.CacheStore;
 import com.zhicore.content.application.port.repo.ConsumedEventRepository;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.model.OwnerSnapshot;
@@ -59,7 +59,7 @@ import java.util.List;
 public class UserProfileUpdatedConsumer implements RocketMQListener<String> {
     
     private final PostRepository postRepository;
-    private final CacheRepository cacheRepository;
+    private final CacheStore cacheStore;
     private final ConsumedEventRepository consumedEventRepository;
     private final ObjectMapper objectMapper;
     
@@ -152,7 +152,7 @@ public class UserProfileUpdatedConsumer implements RocketMQListener<String> {
                             totalUpdated++;
                             
                             // 7. 失效文章详情缓存
-                            cacheRepository.delete(PostRedisKeys.detail(post.getId()));
+                            cacheStore.delete(PostRedisKeys.detail(post.getId()));
                         }
                     }
                 }
@@ -167,7 +167,7 @@ public class UserProfileUpdatedConsumer implements RocketMQListener<String> {
             
             // 8. 失效作者列表缓存（使用模式匹配）
             try {
-                cacheRepository.deletePattern(PostRedisKeys.listAuthor(userId) + ":*");
+                cacheStore.deletePattern(PostRedisKeys.listAuthor(userId) + ":*");
             } catch (UnsupportedOperationException e) {
                 // 生产环境可能禁用 deletePattern，记录警告但不影响主流程
                 log.warn("无法使用 deletePattern 失效缓存，生产环境建议使用版本号 key: {}", e.getMessage());

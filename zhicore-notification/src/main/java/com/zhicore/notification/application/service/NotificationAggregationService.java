@@ -1,6 +1,7 @@
 package com.zhicore.notification.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.zhicore.api.client.UserBatchSimpleClient;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
@@ -8,19 +9,16 @@ import com.zhicore.common.result.PageResult;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
+import com.zhicore.notification.application.port.policy.NotificationAggregationPolicy;
+import com.zhicore.notification.application.port.store.NotificationAggregationStore;
 import com.zhicore.notification.domain.model.NotificationType;
 import com.zhicore.notification.domain.repository.NotificationRepository;
-import com.zhicore.notification.infrastructure.cache.NotificationRedisKeys;
-import com.zhicore.notification.infrastructure.config.NotificationAggregationProperties;
-import com.zhicore.notification.infrastructure.feign.UserServiceClient;
-import com.zhicore.notification.infrastructure.sentinel.NotificationSentinelHandlers;
-import com.zhicore.notification.infrastructure.sentinel.NotificationSentinelResources;
+import com.zhicore.notification.application.sentinel.NotificationSentinelHandlers;
+import com.zhicore.notification.application.sentinel.NotificationSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -44,9 +42,9 @@ public class NotificationAggregationService {
     private static final String USER_SERVICE_DEGRADED_MESSAGE = "用户服务已降级";
 
     private final NotificationRepository notificationRepository;
-    private final UserServiceClient userServiceClient;
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final NotificationAggregationProperties properties;
+    private final UserBatchSimpleClient userServiceClient;
+    private final NotificationAggregationStore notificationAggregationStore;
+    private final NotificationAggregationPolicy aggregationPolicy;
 
     /**
      * 获取聚合通知列表（带缓存）
@@ -65,8 +63,7 @@ public class NotificationAggregationService {
             Long userId, int page, int size) {
 
         // 1. 尝试从缓存获取
-        String cacheKey = NotificationRedisKeys.aggregatedList(String.valueOf(userId), page, size);
-        PageResult<AggregatedNotificationVO> cached = getCachedResult(cacheKey);
+        PageResult<AggregatedNotificationVO> cached = getCachedResult(userId, page, size);
         if (cached != null) {
             log.debug("从缓存获取聚合通知: userId={}, page={}, size={}", userId, page, size);
             return cached;
@@ -79,7 +76,7 @@ public class NotificationAggregationService {
         if (aggregatedList.isEmpty()) {
             PageResult<AggregatedNotificationVO> emptyResult = PageResult.of(
                     page, size, 0, Collections.emptyList());
-            cacheResult(cacheKey, emptyResult);
+            cacheResult(userId, page, size, emptyResult);
             return emptyResult;
         }
 
@@ -102,7 +99,7 @@ public class NotificationAggregationService {
         PageResult<AggregatedNotificationVO> result = PageResult.of(page, size, totalGroups, voList);
 
         // 6. 缓存结果
-        cacheResult(cacheKey, result);
+        cacheResult(userId, page, size, result);
 
         log.debug("查询聚合通知: userId={}, page={}, size={}, total={}", 
                 userId, page, size, totalGroups);
@@ -117,11 +114,8 @@ public class NotificationAggregationService {
      */
     public void invalidateCache(Long userId) {
         try {
-            Set<String> keys = redisTemplate.keys(NotificationRedisKeys.aggregatedListPattern(String.valueOf(userId)));
-            if (keys != null && !keys.isEmpty()) {
-                redisTemplate.delete(keys);
-                log.debug("清除通知缓存: userId={}, keys={}", userId, keys.size());
-            }
+            notificationAggregationStore.evictUser(userId);
+            log.debug("清除通知缓存: userId={}", userId);
         } catch (Exception e) {
             log.warn("清除通知缓存失败: userId={}, error={}", userId, e.getMessage());
         }
@@ -135,12 +129,19 @@ public class NotificationAggregationService {
             return Collections.emptyMap();
         }
 
+        Set<Long> parsedUserIds = userIds.stream()
+                .map(this::parseUserId)
+                .flatMap(Optional::stream)
+                .collect(Collectors.toSet());
+        if (parsedUserIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
         try {
-            ApiResponse<List<UserSimpleDTO>> response = userServiceClient.getUsersSimple(
-                    new ArrayList<>(userIds));
+            ApiResponse<Map<Long, UserSimpleDTO>> response = userServiceClient.batchGetUsersSimple(parsedUserIds);
 
             if (response != null && response.isSuccess() && response.getData() != null) {
-                return response.getData().stream()
+                return response.getData().values().stream()
                         .collect(Collectors.toMap(
                                 user -> String.valueOf(user.getId()),
                                 Function.identity(),
@@ -155,18 +156,26 @@ public class NotificationAggregationService {
         throw new BusinessException(ResultCode.SERVICE_DEGRADED, USER_SERVICE_DEGRADED_MESSAGE);
     }
 
+    private Optional<Long> parseUserId(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Long.valueOf(userId));
+        } catch (NumberFormatException e) {
+            log.warn("跳过非法用户ID: userId={}", userId);
+            return Optional.empty();
+        }
+    }
+
     /**
      * 从缓存获取聚合结果
      */
-    @SuppressWarnings("unchecked")
-    private PageResult<AggregatedNotificationVO> getCachedResult(String cacheKey) {
+    private PageResult<AggregatedNotificationVO> getCachedResult(Long userId, int page, int size) {
         try {
-            Object cached = redisTemplate.opsForValue().get(cacheKey);
-            if (cached != null) {
-                return (PageResult<AggregatedNotificationVO>) cached;
-            }
+            return notificationAggregationStore.get(userId, page, size);
         } catch (Exception e) {
-            log.warn("获取通知缓存失败: key={}, error={}", cacheKey, e.getMessage());
+            log.warn("获取通知缓存失败: userId={}, page={}, size={}, error={}", userId, page, size, e.getMessage());
         }
         return null;
     }
@@ -174,12 +183,11 @@ public class NotificationAggregationService {
     /**
      * 缓存聚合结果
      */
-    private void cacheResult(String cacheKey, PageResult<AggregatedNotificationVO> result) {
+    private void cacheResult(Long userId, int page, int size, PageResult<AggregatedNotificationVO> result) {
         try {
-            Duration cacheTtl = Duration.ofSeconds(properties.getCache().getTtl());
-            redisTemplate.opsForValue().set(cacheKey, result, cacheTtl);
+            notificationAggregationStore.set(userId, page, size, result, aggregationPolicy.cacheTtl());
         } catch (Exception e) {
-            log.warn("缓存通知结果失败: key={}, error={}", cacheKey, e.getMessage());
+            log.warn("缓存通知结果失败: userId={}, page={}, size={}, error={}", userId, page, size, e.getMessage());
         }
     }
 
@@ -192,7 +200,7 @@ public class NotificationAggregationService {
         // 取最近的几个用户（使用配置的最大值）
         List<UserSimpleDTO> recentActors = Collections.emptyList();
         if (dto.getActorIds() != null && !dto.getActorIds().isEmpty()) {
-            int maxActors = properties.getDisplay().getMaxRecentActors();
+            int maxActors = aggregationPolicy.maxRecentActors();
             recentActors = dto.getActorIds().stream()
                     .limit(maxActors)
                     .map(userMap::get)

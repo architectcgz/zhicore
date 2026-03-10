@@ -1,19 +1,18 @@
 package com.zhicore.content.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhicore.common.exception.ResourceNotFoundException;
 import com.zhicore.common.exception.TooManyRequestsException;
-import com.zhicore.content.infrastructure.sentinel.ContentSentinelHandlers;
-import com.zhicore.content.infrastructure.sentinel.ContentSentinelResources;
-import com.zhicore.content.infrastructure.persistence.pg.entity.OutboxEventEntity;
-import com.zhicore.content.infrastructure.persistence.pg.entity.OutboxRetryAuditEntity;
-import com.zhicore.content.infrastructure.persistence.pg.mapper.OutboxEventMapper;
-import com.zhicore.content.infrastructure.persistence.pg.mapper.OutboxRetryAuditMapper;
-import com.zhicore.content.interfaces.dto.admin.outbox.OutboxFailedEventItem;
-import com.zhicore.content.interfaces.dto.admin.outbox.OutboxFailedPageResponse;
-import com.zhicore.content.interfaces.dto.admin.outbox.OutboxRetryResponse;
+import com.zhicore.common.result.PageResult;
+import com.zhicore.content.application.dto.admin.outbox.OutboxFailedEventItem;
+import com.zhicore.content.application.dto.admin.outbox.OutboxFailedPageResponse;
+import com.zhicore.content.application.dto.admin.outbox.OutboxRetryResponse;
+import com.zhicore.content.application.model.OutboxEventRecord;
+import com.zhicore.content.application.model.OutboxRetryAuditRecord;
+import com.zhicore.content.application.port.store.OutboxEventStore;
+import com.zhicore.content.application.port.store.OutboxRetryAuditStore;
+import com.zhicore.content.application.sentinel.ContentSentinelHandlers;
+import com.zhicore.content.application.sentinel.ContentSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,8 +30,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OutboxAdminApplicationService {
 
-    private final OutboxEventMapper outboxEventMapper;
-    private final OutboxRetryAuditMapper outboxRetryAuditMapper;
+    private final OutboxEventStore outboxEventStore;
+    private final OutboxRetryAuditStore outboxRetryAuditStore;
 
     @Transactional(readOnly = true)
     @SentinelResource(
@@ -43,18 +42,7 @@ public class OutboxAdminApplicationService {
     public OutboxFailedPageResponse listFailed(int page, int size, String eventType) {
         int safePage = Math.max(1, page);
         int safeSize = Math.min(Math.max(1, size), 100);
-
-        Page<OutboxEventEntity> mpPage = new Page<>(safePage, safeSize);
-        LambdaQueryWrapper<OutboxEventEntity> wrapper = new LambdaQueryWrapper<OutboxEventEntity>()
-                .eq(OutboxEventEntity::getStatus, OutboxEventEntity.OutboxStatus.FAILED)
-                .orderByDesc(OutboxEventEntity::getUpdatedAt)
-                .orderByDesc(OutboxEventEntity::getCreatedAt);
-
-        if (eventType != null && !eventType.isBlank()) {
-            wrapper.eq(OutboxEventEntity::getEventType, eventType.trim());
-        }
-
-        Page<OutboxEventEntity> result = outboxEventMapper.selectPage(mpPage, wrapper);
+        PageResult<OutboxEventRecord> result = outboxEventStore.findFailed(safePage, safeSize, normalizeEventType(eventType));
         List<OutboxFailedEventItem> items = result.getRecords().stream()
                 .map(e -> OutboxFailedEventItem.builder()
                         .eventId(e.getEventId())
@@ -71,8 +59,8 @@ public class OutboxAdminApplicationService {
                 .toList();
 
         return OutboxFailedPageResponse.builder()
-                .page(safePage)
-                .size(safeSize)
+                .page((int) result.getCurrent())
+                .size((int) result.getSize())
                 .total(result.getTotal())
                 .items(items)
                 .build();
@@ -87,48 +75,49 @@ public class OutboxAdminApplicationService {
             throw new IllegalArgumentException("operatorId 不能为空");
         }
 
-        OutboxEventEntity entity = outboxEventMapper.selectOne(
-                new LambdaQueryWrapper<OutboxEventEntity>()
-                        .eq(OutboxEventEntity::getEventId, eventId.trim())
-                        .last("LIMIT 1")
-        );
-        if (entity == null) {
-            throw new ResourceNotFoundException("Outbox 事件不存在: " + eventId);
-        }
+        OutboxEventRecord eventRecord = outboxEventStore.findByEventId(eventId.trim())
+                .orElseThrow(() -> new ResourceNotFoundException("Outbox 事件不存在: " + eventId));
 
         Instant since = Instant.now().minus(10, ChronoUnit.MINUTES);
-        long recent = outboxRetryAuditMapper.countRecentRetries(entity.getEventId(), since);
+        long recent = outboxRetryAuditStore.countRecentRetries(eventRecord.getEventId(), since);
         if (recent > 0) {
             throw new TooManyRequestsException("同一事件 10 分钟内仅允许手动重试一次");
         }
 
         // 仅允许对 FAILED 事件进行人工重试，避免误操作
-        if (entity.getStatus() != OutboxEventEntity.OutboxStatus.FAILED) {
+        if (eventRecord.getStatus() != OutboxEventRecord.OutboxStatus.FAILED) {
             throw new IllegalArgumentException("仅允许对 FAILED 状态的事件进行手动重试");
         }
 
         Instant now = Instant.now();
-        entity.setStatus(OutboxEventEntity.OutboxStatus.PENDING);
-        entity.setRetryCount(0);
-        entity.setLastError(null);
-        entity.setDispatchedAt(null);
-        entity.setUpdatedAt(now);
-        outboxEventMapper.updateById(entity);
+        OutboxEventRecord updatedRecord = eventRecord.withStatus(OutboxEventRecord.OutboxStatus.PENDING)
+                .withRetryCount(0)
+                .withLastError(null)
+                .withDispatchedAt(null)
+                .withUpdatedAt(now);
+        outboxEventStore.update(updatedRecord);
 
-        OutboxRetryAuditEntity audit = new OutboxRetryAuditEntity();
-        audit.setEventId(entity.getEventId());
-        audit.setOperatorId(operatorId);
-        audit.setReason(reason);
-        audit.setRetriedAt(now);
-        audit.setResult("ACCEPTED");
-        audit.setCreatedAt(now);
-        outboxRetryAuditMapper.insert(audit);
+        outboxRetryAuditStore.save(OutboxRetryAuditRecord.builder()
+                .eventId(eventRecord.getEventId())
+                .operatorId(operatorId)
+                .reason(reason)
+                .retriedAt(now)
+                .result("ACCEPTED")
+                .createdAt(now)
+                .build());
 
-        log.info("Outbox manual retry accepted: eventId={}, operatorId={}", entity.getEventId(), operatorId);
+        log.info("Outbox manual retry accepted: eventId={}, operatorId={}", eventRecord.getEventId(), operatorId);
 
         return OutboxRetryResponse.builder()
-                .eventId(entity.getEventId())
-                .status(entity.getStatus().name())
+                .eventId(eventRecord.getEventId())
+                .status(updatedRecord.getStatus().name())
                 .build();
+    }
+
+    private String normalizeEventType(String eventType) {
+        if (eventType == null || eventType.isBlank()) {
+            return null;
+        }
+        return eventType.trim();
     }
 }

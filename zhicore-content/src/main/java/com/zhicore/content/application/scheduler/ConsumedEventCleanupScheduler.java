@@ -1,8 +1,8 @@
 package com.zhicore.content.application.scheduler;
 
 import com.zhicore.common.cache.port.LockManager;
+import com.zhicore.content.application.port.cachekey.SchedulerLockKeyResolver;
 import com.zhicore.content.application.port.repo.ConsumedEventRepository;
-import com.zhicore.content.infrastructure.cache.LockKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -34,7 +34,7 @@ public class ConsumedEventCleanupScheduler {
     
     private final ConsumedEventRepository consumedEventRepository;
     private final LockManager lockManager;
-    private final LockKeys lockKeys;
+    private final SchedulerLockKeyResolver schedulerLockKeyResolver;
     
     /**
      * 清理过期的消费记录
@@ -44,7 +44,7 @@ public class ConsumedEventCleanupScheduler {
      */
     @Scheduled(cron = "0 0 2 * * *")
     public void cleanupOldEvents() {
-        String lockKey = lockKeys.consumedEventCleanup();
+        String lockKey = schedulerLockKeyResolver.consumedEventCleanup();
         
         // 尝试获取分布式锁（固定 TTL）
         boolean lockAcquired = lockManager.tryLock(lockKey, LOCK_WAIT_TIME, LOCK_LEASE_TIME);

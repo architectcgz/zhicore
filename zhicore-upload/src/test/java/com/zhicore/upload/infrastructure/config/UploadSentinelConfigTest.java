@@ -2,7 +2,7 @@ package com.zhicore.upload.infrastructure.config;
 
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
 import com.zhicore.upload.infrastructure.sentinel.UploadRoutes;
-import com.zhicore.upload.infrastructure.sentinel.UploadSentinelResources;
+import com.zhicore.upload.service.sentinel.UploadSentinelResources;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

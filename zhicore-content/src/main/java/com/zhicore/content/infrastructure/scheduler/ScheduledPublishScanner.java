@@ -2,10 +2,10 @@ package com.zhicore.content.infrastructure.scheduler;
 
 import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
-import com.zhicore.content.application.port.repo.ScheduledPublishEventRepository;
+import com.zhicore.content.application.model.ScheduledPublishEventRecord;
+import com.zhicore.content.application.port.store.ScheduledPublishEventStore;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.infrastructure.config.ScheduledPublishProperties;
-import com.zhicore.content.infrastructure.persistence.pg.entity.ScheduledPublishEventEntity;
 import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,17 +30,17 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ScheduledPublishScanner {
 
-    private final ScheduledPublishEventRepository scheduledPublishEventRepository;
+    private final ScheduledPublishEventStore scheduledPublishEventStore;
     private final IntegrationEventPublisher integrationEventPublisher;
     private final PostRepository postRepository;
     private final ScheduledPublishProperties properties;
 
     @Scheduled(fixedRate = 60_000, initialDelay = 30_000)
     public void scanAndEnqueue() {
-        LocalDateTime dbNow = scheduledPublishEventRepository.dbNow();
+        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
         LocalDateTime cooldownBefore = dbNow.minusMinutes(properties.getEnqueueCooldownMinutes());
 
-        List<ScheduledPublishEventEntity> dueEvents = scheduledPublishEventRepository.findDueScheduledPending(
+        List<ScheduledPublishEventRecord> dueEvents = scheduledPublishEventStore.findDueScheduledPending(
                 dbNow,
                 cooldownBefore,
                 properties.getScanBatchSize()
@@ -50,9 +50,9 @@ public class ScheduledPublishScanner {
             return;
         }
 
-        for (ScheduledPublishEventEntity event : dueEvents) {
+        for (ScheduledPublishEventRecord event : dueEvents) {
             String newEventId = newEventId();
-            int affected = scheduledPublishEventRepository.casUpdateLastEnqueueAt(event, dbNow, newEventId);
+            int affected = scheduledPublishEventStore.casUpdateLastEnqueueAt(event, dbNow, newEventId);
             if (affected != 1) {
                 continue;
             }
@@ -79,20 +79,21 @@ public class ScheduledPublishScanner {
 
     @Scheduled(fixedRate = 300_000, initialDelay = 60_000)
     public void resetStaleGate() {
-        LocalDateTime dbNow = scheduledPublishEventRepository.dbNow();
+        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
         LocalDateTime staleBefore = dbNow.minusMinutes(10);
 
-        List<ScheduledPublishEventEntity> staleEvents = scheduledPublishEventRepository.findStaleScheduledPending(
+        List<ScheduledPublishEventRecord> staleEvents = scheduledPublishEventStore.findStaleScheduledPending(
                 dbNow,
                 staleBefore,
                 properties.getScanBatchSize()
         );
 
-        for (ScheduledPublishEventEntity event : staleEvents) {
-            event.setLastEnqueueAt(null);
-            event.setUpdatedAt(dbNow);
-            event.setLastError("补扫重置 last_enqueue_at（超过 10 分钟未更新）");
-            scheduledPublishEventRepository.update(event);
+        for (ScheduledPublishEventRecord event : staleEvents) {
+            scheduledPublishEventStore.update(
+                    event.withLastEnqueueAt(null)
+                            .withUpdatedAt(dbNow)
+                            .withLastError("补扫重置 last_enqueue_at（超过 10 分钟未更新）")
+            );
         }
     }
 
@@ -100,4 +101,3 @@ public class ScheduledPublishScanner {
         return UUID.randomUUID().toString().replace("-", "");
     }
 }
-

@@ -2,14 +2,14 @@ package com.zhicore.content.infrastructure.scheduler;
 
 import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
-import com.zhicore.content.application.port.repo.ScheduledPublishEventRepository;
+import com.zhicore.content.application.model.ScheduledPublishEventRecord;
+import com.zhicore.content.application.model.ScheduledPublishEventRecord.ScheduledPublishStatus;
+import com.zhicore.content.application.port.store.ScheduledPublishEventStore;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.PostStatus;
 import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.infrastructure.IntegrationTestBase;
-import com.zhicore.content.infrastructure.persistence.pg.entity.ScheduledPublishEventEntity;
-import com.zhicore.content.infrastructure.persistence.pg.entity.ScheduledPublishEventEntity.ScheduledPublishStatus;
 import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,7 +44,7 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
     private ScheduledPublishScanner scanner;
 
     @Autowired
-    private ScheduledPublishEventRepository scheduledPublishEventRepository;
+    private ScheduledPublishEventStore scheduledPublishEventStore;
 
     @Autowired
     private PostRepository postRepository;
@@ -62,19 +62,20 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
     @Test
     @DisplayName("scanAndEnqueue：到点事件仅入队一次（冷却期内不重复发布）")
     void scanAndEnqueueShouldPublishOnce() {
-        LocalDateTime dbNow = scheduledPublishEventRepository.dbNow();
+        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
 
         // 准备一个到点事件（status=SCHEDULED_PENDING）
-        ScheduledPublishEventEntity e = new ScheduledPublishEventEntity();
-        e.setEventId("init");
-        e.setPostId(1001L);
-        e.setScheduledAt(dbNow.minusMinutes(1));
-        e.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.SCHEDULED_PENDING);
-        e.setRescheduleRetryCount(0);
-        e.setPublishRetryCount(0);
-        e.setCreatedAt(dbNow);
-        e.setUpdatedAt(dbNow);
-        scheduledPublishEventRepository.save(e);
+        ScheduledPublishEventRecord e = ScheduledPublishEventRecord.builder()
+                .eventId("init")
+                .postId(1001L)
+                .scheduledAt(dbNow.minusMinutes(1))
+                .status(ScheduledPublishStatus.SCHEDULED_PENDING)
+                .rescheduleRetryCount(0)
+                .publishRetryCount(0)
+                .createdAt(dbNow)
+                .updatedAt(dbNow)
+                .build();
+        scheduledPublishEventStore.save(e);
 
         scanner.scanAndEnqueue();
         scanner.scanAndEnqueue();
@@ -89,7 +90,7 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
         assertEquals(1001L, published.getPostId());
 
         // 断言：eventId 已被 CAS 写入表中（last_enqueue_at 也应被更新）
-        ScheduledPublishEventEntity stored = scheduledPublishEventRepository.findActiveByPostId(1001L)
+        ScheduledPublishEventRecord stored = scheduledPublishEventStore.findActiveByPostId(1001L)
                 .orElseThrow();
         assertNotNull(stored.getLastEnqueueAt());
         assertNotNull(stored.getEventId());
@@ -99,23 +100,24 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
     @Test
     @DisplayName("resetStaleGate：超过 10 分钟的闸门可被重置")
     void resetStaleGateShouldClearLastEnqueueAt() {
-        LocalDateTime dbNow = scheduledPublishEventRepository.dbNow();
+        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
 
-        ScheduledPublishEventEntity e = new ScheduledPublishEventEntity();
-        e.setEventId("stale-1");
-        e.setPostId(2001L);
-        e.setScheduledAt(dbNow.minusMinutes(1));
-        e.setStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.SCHEDULED_PENDING);
-        e.setRescheduleRetryCount(0);
-        e.setPublishRetryCount(0);
-        e.setLastEnqueueAt(dbNow.minusMinutes(20));
-        e.setCreatedAt(dbNow.minusMinutes(30));
-        e.setUpdatedAt(dbNow.minusMinutes(20));
-        scheduledPublishEventRepository.save(e);
+        ScheduledPublishEventRecord e = ScheduledPublishEventRecord.builder()
+                .eventId("stale-1")
+                .postId(2001L)
+                .scheduledAt(dbNow.minusMinutes(1))
+                .status(ScheduledPublishStatus.SCHEDULED_PENDING)
+                .rescheduleRetryCount(0)
+                .publishRetryCount(0)
+                .lastEnqueueAt(dbNow.minusMinutes(20))
+                .createdAt(dbNow.minusMinutes(30))
+                .updatedAt(dbNow.minusMinutes(20))
+                .build();
+        scheduledPublishEventStore.save(e);
 
         scanner.resetStaleGate();
 
-        ScheduledPublishEventEntity stored = scheduledPublishEventRepository.findActiveByPostId(2001L)
+        ScheduledPublishEventRecord stored = scheduledPublishEventStore.findActiveByPostId(2001L)
                 .orElseThrow();
         assertNull(stored.getLastEnqueueAt());
         assertNotNull(stored.getLastError());
@@ -127,19 +129,20 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
     @Test
     @DisplayName("scanAndEnqueue：未到点事件不应被扫描入队")
     void scanShouldSkipNotYetDueEvents() {
-        LocalDateTime dbNow = scheduledPublishEventRepository.dbNow();
+        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
 
         // 准备一个未到点事件（scheduledAt 在未来）
-        ScheduledPublishEventEntity e = new ScheduledPublishEventEntity();
-        e.setEventId("future-1");
-        e.setPostId(3001L);
-        e.setScheduledAt(dbNow.plusMinutes(30));
-        e.setStatus(ScheduledPublishStatus.SCHEDULED_PENDING);
-        e.setRescheduleRetryCount(0);
-        e.setPublishRetryCount(0);
-        e.setCreatedAt(dbNow);
-        e.setUpdatedAt(dbNow);
-        scheduledPublishEventRepository.save(e);
+        ScheduledPublishEventRecord e = ScheduledPublishEventRecord.builder()
+                .eventId("future-1")
+                .postId(3001L)
+                .scheduledAt(dbNow.plusMinutes(30))
+                .status(ScheduledPublishStatus.SCHEDULED_PENDING)
+                .rescheduleRetryCount(0)
+                .publishRetryCount(0)
+                .createdAt(dbNow)
+                .updatedAt(dbNow)
+                .build();
+        scheduledPublishEventStore.save(e);
 
         scanner.scanAndEnqueue();
 
@@ -147,7 +150,7 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
         verify(integrationEventPublisher, never()).publish(any());
 
         // 事件状态保持 SCHEDULED_PENDING
-        ScheduledPublishEventEntity stored = scheduledPublishEventRepository.findActiveByPostId(3001L)
+        ScheduledPublishEventRecord stored = scheduledPublishEventStore.findActiveByPostId(3001L)
                 .orElseThrow();
         assertEquals(ScheduledPublishStatus.SCHEDULED_PENDING, stored.getStatus());
         assertNull(stored.getLastEnqueueAt());
@@ -182,21 +185,22 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
     @Test
     @DisplayName("CAS 闸门：并发扫描时只有一个实例成功入队")
     void casGateShouldAllowOnlyOneEnqueueConcurrently() throws InterruptedException {
-        LocalDateTime dbNow = scheduledPublishEventRepository.dbNow();
+        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
 
-        ScheduledPublishEventEntity e = new ScheduledPublishEventEntity();
-        e.setEventId("cas-concurrent");
-        e.setPostId(4001L);
-        e.setScheduledAt(dbNow.minusMinutes(1));
-        e.setStatus(ScheduledPublishStatus.SCHEDULED_PENDING);
-        e.setRescheduleRetryCount(0);
-        e.setPublishRetryCount(0);
-        e.setCreatedAt(dbNow);
-        e.setUpdatedAt(dbNow);
-        scheduledPublishEventRepository.save(e);
+        ScheduledPublishEventRecord e = ScheduledPublishEventRecord.builder()
+                .eventId("cas-concurrent")
+                .postId(4001L)
+                .scheduledAt(dbNow.minusMinutes(1))
+                .status(ScheduledPublishStatus.SCHEDULED_PENDING)
+                .rescheduleRetryCount(0)
+                .publishRetryCount(0)
+                .createdAt(dbNow)
+                .updatedAt(dbNow)
+                .build();
+        scheduledPublishEventStore.save(e);
 
         // 重新读取以获取 ID
-        ScheduledPublishEventEntity saved = scheduledPublishEventRepository.findActiveByPostId(4001L)
+        ScheduledPublishEventRecord saved = scheduledPublishEventStore.findActiveByPostId(4001L)
                 .orElseThrow();
 
         int threadCount = 5;
@@ -210,7 +214,7 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
                 try {
                     latch.countDown();
                     latch.await();
-                    int affected = scheduledPublishEventRepository.casUpdateLastEnqueueAt(saved, dbNow, newEventId);
+                    int affected = scheduledPublishEventStore.casUpdateLastEnqueueAt(saved, dbNow, newEventId);
                     if (affected == 1) {
                         successCount.incrementAndGet();
                     }
@@ -231,25 +235,26 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
     @Test
     @DisplayName("resetStaleGate：未到点事件不应被补扫重置")
     void resetStaleGateShouldNotResetFutureEvents() {
-        LocalDateTime dbNow = scheduledPublishEventRepository.dbNow();
+        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
 
         // 准备一个未到点但 lastEnqueueAt 超时的事件
-        ScheduledPublishEventEntity e = new ScheduledPublishEventEntity();
-        e.setEventId("future-stale");
-        e.setPostId(5001L);
-        e.setScheduledAt(dbNow.plusMinutes(30));
-        e.setStatus(ScheduledPublishStatus.SCHEDULED_PENDING);
-        e.setRescheduleRetryCount(0);
-        e.setPublishRetryCount(0);
-        e.setLastEnqueueAt(dbNow.minusMinutes(20));
-        e.setCreatedAt(dbNow.minusMinutes(30));
-        e.setUpdatedAt(dbNow.minusMinutes(20));
-        scheduledPublishEventRepository.save(e);
+        ScheduledPublishEventRecord e = ScheduledPublishEventRecord.builder()
+                .eventId("future-stale")
+                .postId(5001L)
+                .scheduledAt(dbNow.plusMinutes(30))
+                .status(ScheduledPublishStatus.SCHEDULED_PENDING)
+                .rescheduleRetryCount(0)
+                .publishRetryCount(0)
+                .lastEnqueueAt(dbNow.minusMinutes(20))
+                .createdAt(dbNow.minusMinutes(30))
+                .updatedAt(dbNow.minusMinutes(20))
+                .build();
+        scheduledPublishEventStore.save(e);
 
         scanner.resetStaleGate();
 
         // 未到点事件不应被重置（findStaleScheduledPending 限定 scheduledAt <= dbNow）
-        ScheduledPublishEventEntity stored = scheduledPublishEventRepository.findActiveByPostId(5001L)
+        ScheduledPublishEventRecord stored = scheduledPublishEventStore.findActiveByPostId(5001L)
                 .orElseThrow();
         assertNotNull(stored.getLastEnqueueAt(), "未到点事件的 lastEnqueueAt 不应被重置");
     }
@@ -260,7 +265,7 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
     @DisplayName("dbNow：数据库时间与应用时间差异在合理范围内")
     void dbNowShouldBeCloseToAppNow() {
         LocalDateTime appNow = LocalDateTime.now();
-        LocalDateTime dbNow = scheduledPublishEventRepository.dbNow();
+        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
 
         // 数据库时间与应用时间差异不应超过 5 秒（合理的网络/处理延迟）
         long diffSeconds = Math.abs(
@@ -269,4 +274,3 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
         assertThat(diffSeconds).isLessThan(5L);
     }
 }
-

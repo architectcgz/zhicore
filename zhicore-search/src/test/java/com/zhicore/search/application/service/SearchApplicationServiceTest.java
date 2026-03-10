@@ -1,11 +1,11 @@
 package com.zhicore.search.application.service;
 
+import com.zhicore.search.application.dto.PostSearchVO;
+import com.zhicore.search.application.dto.SearchResultVO;
 import com.zhicore.search.domain.model.PostDocument;
 import com.zhicore.search.domain.repository.PostSearchRepository;
 import com.zhicore.search.domain.repository.PostSearchRepository.SearchHit;
 import com.zhicore.search.domain.repository.PostSearchRepository.SearchResult;
-import com.zhicore.search.interfaces.dto.PostSearchVO;
-import com.zhicore.search.interfaces.dto.SearchResultVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

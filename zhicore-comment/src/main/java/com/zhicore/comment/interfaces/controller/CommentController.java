@@ -1,5 +1,7 @@
 package com.zhicore.comment.interfaces.controller;
 
+import com.zhicore.comment.application.command.CreateCommentCommand;
+import com.zhicore.comment.application.command.UpdateCommentCommand;
 import com.zhicore.comment.application.dto.CommentSortType;
 import com.zhicore.comment.application.dto.CommentVO;
 import com.zhicore.comment.application.dto.CursorPage;
@@ -62,7 +64,15 @@ public class CommentController {
             @Parameter(description = "评论创建请求", required = true)
             @RequestBody @Valid CreateCommentRequest request) {
         Long userId = UserContext.requireUserId();
-        Long commentId = commentService.createComment(userId, request);
+        Long commentId = commentService.createComment(userId, new CreateCommentCommand(
+                request.getPostId(),
+                request.getContent(),
+                request.getRootId(),
+                request.getReplyToCommentId(),
+                request.getImageIds(),
+                request.getVoiceId(),
+                request.getVoiceDuration()
+        ));
         return ApiResponse.success(commentId);
     }
 
@@ -96,7 +106,7 @@ public class CommentController {
             @Parameter(description = "评论更新请求", required = true)
             @RequestBody @Valid UpdateCommentRequest request) {
         Long userId = UserContext.requireUserId();
-        commentService.updateComment(userId, commentId, request);
+        commentService.updateComment(userId, commentId, new UpdateCommentCommand(request.getContent()));
         return ApiResponse.success();
     }
 

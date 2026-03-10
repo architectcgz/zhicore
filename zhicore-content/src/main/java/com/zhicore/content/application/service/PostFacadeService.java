@@ -3,23 +3,19 @@ package com.zhicore.content.application.service;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.common.result.HybridPageRequest;
 import com.zhicore.common.result.HybridPageResult;
-import com.zhicore.content.application.query.model.PostListQuery;
+import com.zhicore.content.application.command.CreatePostAppCommand;
+import com.zhicore.content.application.command.SaveDraftCommand;
+import com.zhicore.content.application.command.UpdatePostAppCommand;
 import com.zhicore.content.application.command.commands.RestorePostCommand;
 import com.zhicore.content.application.command.handlers.RestorePostHandler;
+import com.zhicore.content.application.dto.DraftVO;
 import com.zhicore.content.application.dto.PostBriefVO;
+import com.zhicore.content.application.dto.PostContentVO;
 import com.zhicore.content.application.dto.PostVO;
 import com.zhicore.content.application.dto.TagDTO;
+import com.zhicore.content.application.query.model.PostListQuery;
 import com.zhicore.content.domain.model.PostStatus;
-import com.zhicore.content.infrastructure.persistence.mongo.document.PostContent;
-import com.zhicore.content.interfaces.dto.request.AttachTagsRequest;
-import com.zhicore.content.interfaces.dto.request.CreatePostRequest;
-import com.zhicore.content.interfaces.dto.request.SaveDraftRequest;
-import com.zhicore.content.interfaces.dto.request.SchedulePublishRequest;
-import com.zhicore.content.interfaces.dto.request.UpdatePostRequest;
-import com.zhicore.content.interfaces.dto.response.DraftVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -37,11 +33,11 @@ public class PostFacadeService {
     private final RestorePostHandler restorePostHandler;
     private final PostApplicationService postApplicationService;
 
-    public Long createPost(Long userId, CreatePostRequest request) {
+    public Long createPost(Long userId, CreatePostAppCommand request) {
         return postApplicationService.createPost(userId, request);
     }
 
-    public void updatePost(Long userId, Long postId, UpdatePostRequest request) {
+    public void updatePost(Long userId, Long postId, UpdatePostAppCommand request) {
         postApplicationService.updatePost(userId, postId, request);
     }
 
@@ -53,8 +49,8 @@ public class PostFacadeService {
         postApplicationService.unpublishPost(userId, postId);
     }
 
-    public void schedulePublish(Long userId, Long postId, SchedulePublishRequest request) {
-        postApplicationService.schedulePublish(userId, postId, request.getScheduledAt());
+    public void schedulePublish(Long userId, Long postId, LocalDateTime scheduledAt) {
+        postApplicationService.schedulePublish(userId, postId, scheduledAt);
     }
 
     public void cancelSchedule(Long userId, Long postId) {
@@ -107,11 +103,11 @@ public class PostFacadeService {
         return postApplicationService.batchGetPosts(postIds);
     }
 
-    public PostContent getPostContent(Long postId) {
+    public PostContentVO getPostContent(Long postId) {
         return postApplicationService.getPostContent(postId);
     }
 
-    public void saveDraft(Long userId, Long postId, SaveDraftRequest request) {
+    public void saveDraft(Long userId, Long postId, SaveDraftCommand request) {
         postApplicationService.saveDraft(postId, userId, request);
     }
 
@@ -127,8 +123,8 @@ public class PostFacadeService {
         postApplicationService.deleteDraft(postId, userId);
     }
 
-    public void attachTags(Long userId, Long postId, AttachTagsRequest request) {
-        postApplicationService.replacePostTags(userId, postId, request.getTags());
+    public void attachTags(Long userId, Long postId, List<String> tags) {
+        postApplicationService.replacePostTags(userId, postId, tags);
     }
 
     public void detachTag(Long userId, Long postId, String slug) {

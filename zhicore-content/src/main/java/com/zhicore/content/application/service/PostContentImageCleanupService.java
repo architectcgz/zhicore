@@ -1,16 +1,15 @@
 package com.zhicore.content.application.service;
 
+import com.zhicore.api.client.UploadFileDeleteClient;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.content.application.port.alert.ContentAlertPort;
+import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.application.util.ContentImageExtractor;
-import com.zhicore.content.infrastructure.alert.AlertService;
-import com.zhicore.content.infrastructure.feign.ContentUploadServiceClient;
-import com.zhicore.content.infrastructure.persistence.mongo.document.PostContentDocument;
+import com.zhicore.content.domain.model.PostBody;
+import com.zhicore.content.domain.model.PostId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -41,9 +40,9 @@ public class PostContentImageCleanupService {
             Pattern.CASE_INSENSITIVE
     );
 
-    private final MongoTemplate mongoTemplate;
-    private final ContentUploadServiceClient uploadServiceClient;
-    private final AlertService alertService;
+    private final PostContentStore postContentStore;
+    private final UploadFileDeleteClient uploadServiceClient;
+    private final ContentAlertPort alertService;
 
     private static final String[] RELATIVE_ALLOWED_PREFIXES = new String[]{
             "/api/v1/upload/",
@@ -65,20 +64,20 @@ public class PostContentImageCleanupService {
             return;
         }
 
-        PostContentDocument doc;
+        PostBody body;
         try {
-            doc = findContentByPostId(postId).orElse(null);
+            body = postContentStore.loadContent(PostId.of(postId)).orElse(null);
         } catch (Exception e) {
             log.warn("Failed to load post content for image cleanup: postId={}", postId, e);
             alertService.alertContentImageCleanupFailed(postId, "mongo:post_contents", e.getMessage());
             return;
         }
 
-        if (doc == null || doc.getContent() == null || doc.getContent().isBlank()) {
+        if (body == null || body.getContent() == null || body.getContent().isBlank()) {
             return;
         }
 
-        Set<String> imageUrls = ContentImageExtractor.extractImageUrls(doc.getContent(), doc.getContentType());
+        Set<String> imageUrls = ContentImageExtractor.extractImageUrls(body.getContent(), body.getContentTypeValue());
         if (imageUrls.isEmpty()) {
             return;
         }
@@ -114,11 +113,6 @@ public class PostContentImageCleanupService {
                 alertService.alertContentImageCleanupFailed(postId, imageUrl, e.getMessage());
             }
         }
-    }
-
-    private Optional<PostContentDocument> findContentByPostId(Long postId) {
-        Query query = Query.query(Criteria.where("postId").is(postId));
-        return Optional.ofNullable(mongoTemplate.findOne(query, PostContentDocument.class));
     }
 
     private Set<String> buildAllowedHosts() {

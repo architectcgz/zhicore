@@ -1,14 +1,14 @@
 package com.zhicore.ranking.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.zhicore.api.client.PostBatchClient;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.post.TagDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
-import com.zhicore.ranking.infrastructure.feign.PostServiceClient;
-import com.zhicore.ranking.infrastructure.sentinel.RankingSentinelHandlers;
-import com.zhicore.ranking.infrastructure.sentinel.RankingSentinelResources;
+import com.zhicore.ranking.application.sentinel.RankingSentinelHandlers;
+import com.zhicore.ranking.application.sentinel.RankingSentinelResources;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class PostMetadataResolver {
 
-    private final PostServiceClient postServiceClient;
+    private final PostBatchClient postServiceClient;
 
     @SentinelResource(
             value = RankingSentinelResources.RESOLVE_POST_METADATA,

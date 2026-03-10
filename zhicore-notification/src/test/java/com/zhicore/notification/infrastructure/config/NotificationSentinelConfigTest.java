@@ -1,8 +1,8 @@
 package com.zhicore.notification.infrastructure.config;
 
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
+import com.zhicore.notification.application.sentinel.NotificationSentinelResources;
 import com.zhicore.notification.infrastructure.sentinel.NotificationRoutes;
-import com.zhicore.notification.infrastructure.sentinel.NotificationSentinelResources;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

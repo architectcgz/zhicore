@@ -1,5 +1,6 @@
 package com.zhicore.notification.application.service;
 
+import com.zhicore.api.client.UserBatchSimpleClient;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
@@ -7,11 +8,10 @@ import com.zhicore.common.result.PageResult;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
+import com.zhicore.notification.application.port.policy.NotificationAggregationPolicy;
+import com.zhicore.notification.application.port.store.NotificationAggregationStore;
 import com.zhicore.notification.domain.model.NotificationType;
 import com.zhicore.notification.domain.repository.NotificationRepository;
-import com.zhicore.notification.infrastructure.cache.NotificationRedisKeys;
-import com.zhicore.notification.infrastructure.config.NotificationAggregationProperties;
-import com.zhicore.notification.infrastructure.feign.UserServiceClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -20,14 +20,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -46,16 +45,13 @@ class NotificationAggregationServiceTest {
     private NotificationRepository notificationRepository;
 
     @Mock
-    private UserServiceClient userServiceClient;
+    private UserBatchSimpleClient userServiceClient;
 
     @Mock
-    private RedisTemplate<String, Object> redisTemplate;
+    private NotificationAggregationStore notificationAggregationStore;
 
     @Mock
-    private ValueOperations<String, Object> valueOperations;
-
-    @Mock
-    private NotificationAggregationProperties properties;
+    private NotificationAggregationPolicy aggregationPolicy;
 
     @InjectMocks
     private NotificationAggregationService aggregationService;
@@ -64,17 +60,8 @@ class NotificationAggregationServiceTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        NotificationAggregationProperties.CacheConfig cacheConfig =
-            new NotificationAggregationProperties.CacheConfig();
-        cacheConfig.setTtl(300);
-
-        NotificationAggregationProperties.DisplayConfig displayConfig =
-            new NotificationAggregationProperties.DisplayConfig();
-        displayConfig.setMaxRecentActors(3);
-
-        lenient().when(properties.getCache()).thenReturn(cacheConfig);
-        lenient().when(properties.getDisplay()).thenReturn(displayConfig);
+        lenient().when(aggregationPolicy.cacheTtl()).thenReturn(Duration.ofSeconds(300));
+        lenient().when(aggregationPolicy.maxRecentActors()).thenReturn(3);
     }
 
     @Nested
@@ -87,7 +74,7 @@ class NotificationAggregationServiceTest {
             // Given
             PageResult<AggregatedNotificationVO> cachedResult = PageResult.of(
                     0, 20, 0, Collections.emptyList());
-            when(valueOperations.get(anyString())).thenReturn(cachedResult);
+            when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(cachedResult);
 
             // When
             PageResult<AggregatedNotificationVO> result = 
@@ -102,7 +89,7 @@ class NotificationAggregationServiceTest {
         @DisplayName("Cache miss - empty result from database")
         void getAggregatedNotifications_EmptyResult() {
             // Given
-            when(valueOperations.get(anyString())).thenReturn(null);
+            when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
             when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
                     .thenReturn(Collections.emptyList());
 
@@ -120,7 +107,7 @@ class NotificationAggregationServiceTest {
         @DisplayName("Cache miss - returns data from database")
         void getAggregatedNotifications_WithData() {
             // Given
-            when(valueOperations.get(anyString())).thenReturn(null);
+            when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
 
             AggregatedNotificationDTO dto = new AggregatedNotificationDTO();
             dto.setType(NotificationType.LIKE);
@@ -147,8 +134,12 @@ class NotificationAggregationServiceTest {
             user3.setId(999L);
             user3.setNickname("Wang Wu");
 
-            when(userServiceClient.getUsersSimple(anyList()))
-                    .thenReturn(ApiResponse.success(Arrays.asList(user1, user2, user3)));
+            when(userServiceClient.batchGetUsersSimple(anySet()))
+                    .thenReturn(ApiResponse.success(Map.of(
+                            456L, user1,
+                            789L, user2,
+                            999L, user3
+                    )));
 
             // When
             PageResult<AggregatedNotificationVO> result = 
@@ -171,7 +162,7 @@ class NotificationAggregationServiceTest {
         @DisplayName("User service failure - should fail fast without caching partial result")
         void getAggregatedNotifications_UserServiceFailed() {
             // Given
-            when(valueOperations.get(anyString())).thenReturn(null);
+            when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
 
             AggregatedNotificationDTO dto = new AggregatedNotificationDTO();
             dto.setType(NotificationType.FOLLOW);
@@ -182,7 +173,7 @@ class NotificationAggregationServiceTest {
 
             when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
                     .thenReturn(List.of(dto));
-            when(userServiceClient.getUsersSimple(anyList()))
+            when(userServiceClient.batchGetUsersSimple(anySet()))
                     .thenThrow(new RuntimeException("Service unavailable"));
 
             // When
@@ -191,7 +182,7 @@ class NotificationAggregationServiceTest {
 
             // Then
             assertEquals(ResultCode.SERVICE_DEGRADED.getCode(), exception.getCode());
-            verify(valueOperations, never()).set(anyString(), any(), any());
+            verify(notificationAggregationStore, never()).set(anyLong(), anyInt(), anyInt(), any(), any());
         }
     }
 
@@ -202,38 +193,29 @@ class NotificationAggregationServiceTest {
         @Test
         @DisplayName("Invalidate cache - success")
         void invalidateCache_Success() {
-            // Given
-            Set<String> keys = Set.of(
-                    NotificationRedisKeys.aggregatedList(String.valueOf(USER_ID), 0, 20),
-                    NotificationRedisKeys.aggregatedList(String.valueOf(USER_ID), 1, 20)
-            );
-            when(redisTemplate.keys(anyString())).thenReturn(keys);
-
             // When
             aggregationService.invalidateCache(USER_ID);
 
             // Then
-            verify(redisTemplate).delete(keys);
+            verify(notificationAggregationStore).evictUser(USER_ID);
         }
 
         @Test
         @DisplayName("Invalidate cache - no keys found")
         void invalidateCache_NoKeys() {
-            // Given
-            when(redisTemplate.keys(anyString())).thenReturn(Collections.emptySet());
-
             // When
             aggregationService.invalidateCache(USER_ID);
 
             // Then
-            verify(redisTemplate, never()).delete(anyCollection());
+            verify(notificationAggregationStore).evictUser(USER_ID);
         }
 
         @Test
         @DisplayName("Invalidate cache - Redis exception handled gracefully")
         void invalidateCache_RedisException() {
             // Given
-            when(redisTemplate.keys(anyString())).thenThrow(new RuntimeException("Redis error"));
+            doThrow(new RuntimeException("Redis error"))
+                    .when(notificationAggregationStore).evictUser(USER_ID);
 
             // When & Then - should not throw exception
             assertDoesNotThrow(() -> aggregationService.invalidateCache(USER_ID));
@@ -248,7 +230,7 @@ class NotificationAggregationServiceTest {
         @DisplayName("Single person like content")
         void aggregatedContent_SingleLike() {
             // Given
-            when(valueOperations.get(anyString())).thenReturn(null);
+            when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
 
             AggregatedNotificationDTO dto = new AggregatedNotificationDTO();
             dto.setType(NotificationType.LIKE);
@@ -266,8 +248,8 @@ class NotificationAggregationServiceTest {
             UserSimpleDTO user = new UserSimpleDTO();
             user.setId(456L);
             user.setNickname("Zhang San");
-            when(userServiceClient.getUsersSimple(anyList()))
-                    .thenReturn(ApiResponse.success(List.of(user)));
+            when(userServiceClient.batchGetUsersSimple(anySet()))
+                    .thenReturn(ApiResponse.success(Map.of(456L, user)));
 
             // When
             PageResult<AggregatedNotificationVO> result = 
@@ -282,7 +264,7 @@ class NotificationAggregationServiceTest {
         @DisplayName("Multiple people follow content")
         void aggregatedContent_MultipleFollow() {
             // Given
-            when(valueOperations.get(anyString())).thenReturn(null);
+            when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
 
             AggregatedNotificationDTO dto = new AggregatedNotificationDTO();
             dto.setType(NotificationType.FOLLOW);
@@ -298,8 +280,8 @@ class NotificationAggregationServiceTest {
             UserSimpleDTO user = new UserSimpleDTO();
             user.setId(456L);
             user.setNickname("Zhang San");
-            when(userServiceClient.getUsersSimple(anyList()))
-                    .thenReturn(ApiResponse.success(List.of(user)));
+            when(userServiceClient.batchGetUsersSimple(anySet()))
+                    .thenReturn(ApiResponse.success(Map.of(456L, user)));
 
             // When
             PageResult<AggregatedNotificationVO> result = 

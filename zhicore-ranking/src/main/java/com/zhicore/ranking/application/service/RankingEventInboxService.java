@@ -1,12 +1,10 @@
 package com.zhicore.ranking.application.service;
 
+import com.zhicore.ranking.application.model.RankingInboxEventRecord;
+import com.zhicore.ranking.application.port.store.RankingEventInboxStore;
 import com.zhicore.ranking.domain.model.RankingMetricType;
 import com.zhicore.ranking.domain.service.HotScoreCalculator;
-import com.zhicore.ranking.infrastructure.mongodb.RankingEventInbox;
-import com.zhicore.ranking.infrastructure.mongodb.RankingEventInboxRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -14,12 +12,11 @@ import java.time.LocalDateTime;
 /**
  * Ranking 事件 inbox 写入服务。
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RankingEventInboxService {
 
-    private final RankingEventInboxRepository inboxRepository;
+    private final RankingEventInboxStore rankingEventInboxStore;
     private final HotScoreCalculator hotScoreCalculator;
 
     public boolean saveEvent(String eventId,
@@ -45,7 +42,7 @@ public class RankingEventInboxService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        RankingEventInbox entity = RankingEventInbox.builder()
+        RankingInboxEventRecord eventRecord = RankingInboxEventRecord.builder()
                 .eventId(eventId)
                 .eventType(eventType)
                 .postId(postId)
@@ -56,19 +53,11 @@ public class RankingEventInboxService {
                 .scoreDelta(resolveUnitScore(metricType) * countDelta)
                 .occurredAt(occurredAt != null ? occurredAt : now)
                 .publishedAt(publishedAt)
-                .status(RankingEventInbox.InboxStatus.NEW)
                 .retryCount(0)
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
-
-        try {
-            inboxRepository.save(entity);
-            return true;
-        } catch (DuplicateKeyException e) {
-            log.debug("ranking inbox 事件已存在，跳过重复写入: eventId={}", eventId);
-            return false;
-        }
+        return rankingEventInboxStore.saveNewEvent(eventRecord);
     }
 
     private double resolveUnitScore(RankingMetricType metricType) {

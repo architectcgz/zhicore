@@ -3,6 +3,7 @@ package com.zhicore.comment.infrastructure.mq;
 import com.zhicore.api.event.DomainEvent;
 import com.zhicore.api.event.comment.CommentCreatedEvent;
 import com.zhicore.api.event.comment.CommentDeletedEvent;
+import com.zhicore.comment.application.port.event.CommentEventPort;
 import com.zhicore.common.mq.DomainEventPublisher;
 import com.zhicore.common.mq.TopicConstants;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class CommentEventPublisher {
+public class CommentEventPublisher implements CommentEventPort {
 
     private final DomainEventPublisher domainEventPublisher;
 
@@ -36,6 +37,7 @@ public class CommentEventPublisher {
     /**
      * 发布评论创建事件
      */
+    @Override
     public void publishCommentCreated(CommentCreatedEvent event) {
         publish(event);
     }
@@ -43,6 +45,7 @@ public class CommentEventPublisher {
     /**
      * 发布评论删除事件
      */
+    @Override
     public void publishCommentDeleted(CommentDeletedEvent event) {
         publish(event);
     }

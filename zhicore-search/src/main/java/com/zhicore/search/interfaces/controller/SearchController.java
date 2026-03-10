@@ -2,10 +2,10 @@ package com.zhicore.search.interfaces.controller;
 
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.search.application.dto.PostSearchVO;
+import com.zhicore.search.application.dto.SearchResultVO;
 import com.zhicore.search.application.service.SearchApplicationService;
 import com.zhicore.search.application.service.SuggestionService;
-import com.zhicore.search.interfaces.dto.PostSearchVO;
-import com.zhicore.search.interfaces.dto.SearchResultVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
