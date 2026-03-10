@@ -12,6 +12,7 @@
 target/
 *.jar
 *.war
+**/.jqwik-database
 
 # Logs
 logs/
