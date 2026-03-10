@@ -2,9 +2,8 @@ package com.zhicore.user.infrastructure.sentinel;
 
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.zhicore.api.dto.user.UserSimpleDTO;
-import com.zhicore.common.exception.BusinessException;
+import com.zhicore.common.exception.TooManyRequestsException;
 import com.zhicore.common.result.PageResult;
-import com.zhicore.common.result.ResultCode;
 import com.zhicore.user.application.dto.CheckInVO;
 import com.zhicore.user.application.dto.FollowStatsVO;
 import com.zhicore.user.application.dto.UserVO;
@@ -76,7 +75,7 @@ public final class UserSentinelHandlers {
         throw tooManyRequests("后台用户查询请求过于频繁，请稍后重试");
     }
 
-    private static BusinessException tooManyRequests(String message) {
-        return new BusinessException(ResultCode.TOO_MANY_REQUESTS, message);
+    private static TooManyRequestsException tooManyRequests(String message) {
+        return new TooManyRequestsException(message);
     }
 }

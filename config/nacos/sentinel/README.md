@@ -82,23 +82,23 @@
 {
   "resource": "getPostFullDetail",  // 资源名称
   "grade": 0,                       // 降级策略（0=慢调用比例，1=异常比例，2=异常数）
-  "count": 0.5,                     // 阈值（慢调用比例：0.5 = 50%）
+  "count": 1000,                    // 慢调用阈值（毫秒），超过此时间视为慢调用（grade=0 时生效）
   "timeWindow": 10,                 // 熔断时长（秒）
   "minRequestAmount": 5,            // 最小请求数
   "statIntervalMs": 1000,           // 统计时长（毫秒）
-  "slowRatioThreshold": 0.5         // 慢调用比例阈值
+  "slowRatioThreshold": 0.5         // 慢调用比例阈值（0-1，grade=0 时生效）
 }
 ```
 
 **当前配置：**
 
 查询操作（慢调用比例降级）：
-- `getPostFullDetail`: 50% 慢调用比例，熔断 10 秒
-- `getPostContent`: 50% 慢调用比例，熔断 10 秒
+- `getPostFullDetail`: RT > 1000ms 视为慢调用；慢调用比例 50%，熔断 10 秒
+- `getPostContent`: RT > 1000ms 视为慢调用；慢调用比例 50%，熔断 10 秒
 
-写操作（异常数降级）：
-- `createPost`: 50% 异常比例，熔断 10 秒
-- `updatePost`: 50% 异常比例，熔断 10 秒
+写操作（异常比例降级）：
+- `createPost`: 异常比例 50%，熔断 10 秒
+- `updatePost`: 异常比例 50%，熔断 10 秒
 
 ### 系统规则 (System Rules)
 
@@ -127,7 +127,7 @@
 - **降级行为**: 仅返回 PostgreSQL 数据（不包含完整内容）
 - **恢复时间**: 10 秒后自动尝试恢复
 
-实现位置：`DualStorageManagerImpl.getPostFullDetailBlockHandler()`
+实现示例：见 `zhicore-content/SENTINEL_MIGRATION_GUIDE.md`（`SentinelDualStorageManager` 的 blockHandler / fallback 示例）
 
 ### 其他操作降级策略
 
@@ -166,4 +166,4 @@
 - [Sentinel 官方文档](https://sentinelguard.io/zh-cn/docs/introduction.html)
 - [Spring Cloud Alibaba Sentinel](https://github.com/alibaba/spring-cloud-alibaba/wiki/Sentinel)
 - [Sentinel 规则配置](https://sentinelguard.io/zh-cn/docs/flow-control.html)
-- [项目迁移指南](../../../ZhiCore-post/SENTINEL_MIGRATION_GUIDE.md)
+- [项目迁移指南](../../../zhicore-content/SENTINEL_MIGRATION_GUIDE.md)

@@ -61,8 +61,8 @@ public class SentinelConfig {
         // Post Service 熔断规则 - 基于慢调用比例
         DegradeRule postServiceRule = new DegradeRule("post-service")
                 .setGrade(CircuitBreakerStrategy.SLOW_REQUEST_RATIO.getType())
-                .setCount(properties.getSlowRatioThreshold())
-                .setSlowRatioThreshold(properties.getSlowRequestMs())
+                .setCount(properties.getSlowRequestMs())
+                .setSlowRatioThreshold(properties.getSlowRatioThreshold())
                 .setTimeWindow(properties.getRecoveryTimeoutSeconds())
                 .setMinRequestAmount(properties.getMinRequestAmount())
                 .setStatIntervalMs(properties.getStatIntervalMs());
@@ -98,8 +98,8 @@ public class SentinelConfig {
         // Search Service 熔断规则 - 基于慢调用比例
         DegradeRule searchServiceRule = new DegradeRule("search-service")
                 .setGrade(CircuitBreakerStrategy.SLOW_REQUEST_RATIO.getType())
-                .setCount(properties.getSlowRatioThreshold())
-                .setSlowRatioThreshold(properties.getSlowRequestMs())
+                .setCount(properties.getSlowRequestMs())
+                .setSlowRatioThreshold(properties.getSlowRatioThreshold())
                 .setTimeWindow(properties.getRecoveryTimeoutSeconds())
                 .setMinRequestAmount(properties.getMinRequestAmount())
                 .setStatIntervalMs(properties.getStatIntervalMs());

@@ -5,9 +5,8 @@ import com.zhicore.comment.application.dto.CommentSortType;
 import com.zhicore.comment.application.dto.CommentVO;
 import com.zhicore.comment.application.dto.CursorPage;
 import com.zhicore.comment.interfaces.dto.response.CommentManageDTO;
-import com.zhicore.common.exception.BusinessException;
+import com.zhicore.common.exception.TooManyRequestsException;
 import com.zhicore.common.result.PageResult;
-import com.zhicore.common.result.ResultCode;
 
 import java.util.List;
 import java.util.Map;
@@ -62,7 +61,7 @@ public final class CommentSentinelHandlers {
         throw tooManyRequests("后台评论查询请求过于频繁，请稍后重试");
     }
 
-    private static BusinessException tooManyRequests(String message) {
-        return new BusinessException(ResultCode.TOO_MANY_REQUESTS, message);
+    private static TooManyRequestsException tooManyRequests(String message) {
+        return new TooManyRequestsException(message);
     }
 }

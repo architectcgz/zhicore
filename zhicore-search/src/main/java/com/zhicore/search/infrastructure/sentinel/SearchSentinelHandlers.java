@@ -1,8 +1,7 @@
 package com.zhicore.search.infrastructure.sentinel;
 
 import com.alibaba.csp.sentinel.slots.block.BlockException;
-import com.zhicore.common.exception.BusinessException;
-import com.zhicore.common.result.ResultCode;
+import com.zhicore.common.exception.TooManyRequestsException;
 import com.zhicore.search.interfaces.dto.PostSearchVO;
 import com.zhicore.search.interfaces.dto.SearchResultVO;
 
@@ -34,7 +33,7 @@ public final class SearchSentinelHandlers {
         throw tooManyRequests("搜索历史请求过于频繁，请稍后重试");
     }
 
-    private static BusinessException tooManyRequests(String message) {
-        return new BusinessException(ResultCode.TOO_MANY_REQUESTS, message);
+    private static TooManyRequestsException tooManyRequests(String message) {
+        return new TooManyRequestsException(message);
     }
 }

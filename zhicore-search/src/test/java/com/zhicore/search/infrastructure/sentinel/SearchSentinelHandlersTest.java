@@ -1,7 +1,7 @@
 package com.zhicore.search.infrastructure.sentinel;
 
 import com.alibaba.csp.sentinel.slots.block.flow.FlowException;
-import com.zhicore.common.exception.BusinessException;
+import com.zhicore.common.exception.TooManyRequestsException;
 import com.zhicore.common.result.ResultCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,7 +15,7 @@ class SearchSentinelHandlersTest {
     @Test
     @DisplayName("搜索文章 block 时应该抛出 429 业务异常")
     void shouldThrowTooManyRequestsForSearchPosts() {
-        BusinessException exception = assertThrows(BusinessException.class,
+        TooManyRequestsException exception = assertThrows(TooManyRequestsException.class,
                 () -> SearchSentinelHandlers.handleSearchPostsBlocked("spring", 0, 10, new FlowException("blocked")));
 
         assertEquals(ResultCode.TOO_MANY_REQUESTS.getCode(), exception.getCode());

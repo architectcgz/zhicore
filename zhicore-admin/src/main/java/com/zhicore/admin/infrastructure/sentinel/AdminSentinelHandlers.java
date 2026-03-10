@@ -5,9 +5,8 @@ import com.zhicore.admin.application.dto.CommentManageVO;
 import com.zhicore.admin.application.dto.PostManageVO;
 import com.zhicore.admin.application.dto.ReportVO;
 import com.zhicore.admin.application.dto.UserManageVO;
-import com.zhicore.common.exception.BusinessException;
+import com.zhicore.common.exception.TooManyRequestsException;
 import com.zhicore.common.result.PageResult;
-import com.zhicore.common.result.ResultCode;
 
 /**
  * 管理服务 Sentinel 方法级 block 处理器。
@@ -41,7 +40,7 @@ public final class AdminSentinelHandlers {
         throw tooManyRequests("后台举报查询请求过于频繁，请稍后重试");
     }
 
-    private static BusinessException tooManyRequests(String message) {
-        return new BusinessException(ResultCode.TOO_MANY_REQUESTS, message);
+    private static TooManyRequestsException tooManyRequests(String message) {
+        return new TooManyRequestsException(message);
     }
 }

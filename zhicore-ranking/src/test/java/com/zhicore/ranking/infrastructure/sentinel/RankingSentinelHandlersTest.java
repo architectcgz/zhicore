@@ -1,7 +1,7 @@
 package com.zhicore.ranking.infrastructure.sentinel;
 
 import com.alibaba.csp.sentinel.slots.block.flow.FlowException;
-import com.zhicore.common.exception.BusinessException;
+import com.zhicore.common.exception.TooManyRequestsException;
 import com.zhicore.common.result.ResultCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,7 +17,7 @@ class RankingSentinelHandlersTest {
     @Test
     @DisplayName("热门文章详情 block 时应该抛出 429 业务异常")
     void shouldThrowTooManyRequestsForHotPostDetails() {
-        BusinessException exception = assertThrows(BusinessException.class,
+        TooManyRequestsException exception = assertThrows(TooManyRequestsException.class,
                 () -> RankingSentinelHandlers.handleHotPostDetailsBlocked(0, 10, new FlowException("blocked")));
 
         assertEquals(ResultCode.TOO_MANY_REQUESTS.getCode(), exception.getCode());
@@ -26,7 +26,7 @@ class RankingSentinelHandlersTest {
     @Test
     @DisplayName("文章元数据解析 block 时应该抛出 429 业务异常")
     void shouldThrowTooManyRequestsForResolvePostMetadata() {
-        BusinessException exception = assertThrows(BusinessException.class,
+        TooManyRequestsException exception = assertThrows(TooManyRequestsException.class,
                 () -> RankingSentinelHandlers.handleResolvePostMetadataBlocked(List.of(1L), new FlowException("blocked")));
 
         assertEquals(ResultCode.TOO_MANY_REQUESTS.getCode(), exception.getCode());

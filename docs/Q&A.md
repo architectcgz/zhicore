@@ -68,7 +68,8 @@
 - `search` 已切到服务内 `PostServiceClient + PostServiceFallbackFactory`，不再直接注册无本地 fallback 的共享文章客户端
 - `common` 已统一提供 `SentinelResourceAspect`，各服务不再各自重复注册切面
 - `search` 的 `searchPosts/getSuggestions/getHotKeywords/getUserHistory` 和 `ranking` 的热点聚合方法，已经补上显式 `@SentinelResource`
-- 方法级 block 统一抛 `TOO_MANY_REQUESTS`，不返回伪数据；对应规则也已落到 `FlowRuleManager`
+- 方法级 blockHandler 统一抛 `TooManyRequestsException`，由 `GlobalExceptionHandler` 返回真实 `HTTP 429 + ApiResponse(ResultCode.TOO_MANY_REQUESTS)`，不返回伪数据
+- `NotificationAggregationService` / `AdminCommentApplicationService` / `ConversationApplicationService` 在下游降级时直接失败（`SERVICE_DEGRADED`），避免返回或缓存残缺数据
 - `notification` 已补聚合通知和未读数的 URL 级 + 方法级规则，`content` 已补文章详情、文章列表、正文内容、标签详情/列表/搜索、标签文章、热门标签、点赞/收藏状态与计数、后台文章列表、Outbox 失败事件分页的热点读规则
 - `message` 已补会话列表、会话详情、消息历史、未读数的热点读规则，`admin` 已补用户/帖子/评论/举报列表查询的热点读规则
 - `comment` 已补评论详情、顶级评论分页/游标、回复分页/游标、点赞状态/计数、后台评论列表的热点读规则，`user` 已补用户详情、用户简要信息、批量简要信息、陌生人消息设置、粉丝/关注列表、关注统计、关注关系查询、签到统计、月度签到记录、拉黑列表、拉黑关系查询、后台用户查询的热点读规则
