@@ -1,8 +1,10 @@
 package com.zhicore.notification.application.service;
 
 import com.zhicore.api.dto.user.UserSimpleDTO;
+import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
+import com.zhicore.common.result.ResultCode;
 import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
 import com.zhicore.notification.domain.model.NotificationType;
@@ -166,7 +168,7 @@ class NotificationAggregationServiceTest {
         }
 
         @Test
-        @DisplayName("User service failure - graceful degradation")
+        @DisplayName("User service failure - should fail fast without caching partial result")
         void getAggregatedNotifications_UserServiceFailed() {
             // Given
             when(valueOperations.get(anyString())).thenReturn(null);
@@ -180,19 +182,16 @@ class NotificationAggregationServiceTest {
 
             when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
                     .thenReturn(List.of(dto));
-            when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(1);
             when(userServiceClient.getUsersSimple(anyList()))
                     .thenThrow(new RuntimeException("Service unavailable"));
 
             // When
-            PageResult<AggregatedNotificationVO> result = 
-                    aggregationService.getAggregatedNotifications(USER_ID, 0, 20);
+            BusinessException exception = assertThrows(BusinessException.class,
+                    () -> aggregationService.getAggregatedNotifications(USER_ID, 0, 20));
 
             // Then
-            assertNotNull(result);
-            assertEquals(1, result.getRecords().size());
-            // User info fetch failed, recentActors should be empty
-            assertTrue(result.getRecords().get(0).getRecentActors().isEmpty());
+            assertEquals(ResultCode.SERVICE_DEGRADED.getCode(), exception.getCode());
+            verify(valueOperations, never()).set(anyString(), any(), any());
         }
     }
 

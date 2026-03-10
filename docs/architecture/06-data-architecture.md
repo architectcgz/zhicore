@@ -651,19 +651,17 @@ public class PostRepositoryImpl implements PostRepository {
 }
 ```
 
-### 示例2：缓存仓储装饰器
+### 示例2：Application 层缓存查询服务
 
 ```java
-@Primary
-@Repository
-public class CachedCommentRepository implements CommentRepository {
+@Service
+public class CommentDetailCacheService {
 
-    private final CommentRepository delegate;
+    private final CommentRepository commentRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final RedissonClient redissonClient;
     private final HotDataIdentifier hotDataIdentifier;
 
-    @Override
     public Optional<Comment> findById(Long id) {
         String cacheKey = CommentRedisKeys.detail(id);
         
@@ -700,7 +698,7 @@ public class CachedCommentRepository implements CommentRepository {
             boolean acquired = lock.tryLock(5, 10, TimeUnit.SECONDS);
             if (!acquired) {
                 // 超时降级：直接查询数据库
-                return delegate.findById(commentId);
+                return commentRepository.findById(commentId);
             }
 
             try {
@@ -714,7 +712,7 @@ public class CachedCommentRepository implements CommentRepository {
                 }
 
                 // Step 4: 查询数据库
-                Optional<Comment> result = delegate.findById(commentId);
+                Optional<Comment> result = commentRepository.findById(commentId);
 
                 // Step 5: 写入缓存
                 if (result.isPresent()) {
@@ -735,18 +733,17 @@ public class CachedCommentRepository implements CommentRepository {
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return delegate.findById(commentId);
+            return commentRepository.findById(commentId);
         }
-    }
-
-    @Override
-    public void update(Comment comment) {
-        delegate.update(comment);
-        // 删除缓存（Cache-Aside 模式）
-        redisTemplate.delete(CommentRedisKeys.detail(comment.getId()));
     }
 }
 ```
+
+边界约束：
+
+- `CommentRepository` / `CommentRepositoryImpl` 保持纯数据库仓储
+- 评论详情缓存、热点锁、降级策略放在 application 层查询服务
+- 写路径更新数据库后，由 application service 负责删除详情缓存
 
 
 ### 示例3：Redis Key 管理

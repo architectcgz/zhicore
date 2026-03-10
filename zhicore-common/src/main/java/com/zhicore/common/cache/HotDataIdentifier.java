@@ -24,7 +24,7 @@ public class HotDataIdentifier {
 
     /**
      * 热点数据计数器前缀
-     * Key: hotdata:counter:{entityType}:{entityId}
+     * Key: {namespace}:hotdata:counter:{entityType}:{entityId}
      */
     private static String counterPrefix() {
         return CacheConstants.withNamespace("hotdata") + ":counter";
@@ -32,7 +32,7 @@ public class HotDataIdentifier {
 
     /**
      * 手动标记热点数据前缀
-     * Key: hotdata:manual:{entityType}:{entityId}
+     * Key: {namespace}:hotdata:manual:{entityType}:{entityId}
      */
     private static String manualPrefix() {
         return CacheConstants.withNamespace("hotdata") + ":manual";

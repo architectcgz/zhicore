@@ -31,6 +31,8 @@ import static org.mockito.Mockito.lenient;
 @DisplayName("热点数据识别器单元测试")
 class HotDataIdentifierTest {
 
+    private static final String HOTDATA_PREFIX = CacheConstants.withNamespace("hotdata");
+
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
 
@@ -56,6 +58,14 @@ class HotDataIdentifierTest {
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
 
+    private static String counterKey(String entityType, Long entityId) {
+        return HOTDATA_PREFIX + ":counter:" + entityType + ":" + entityId;
+    }
+
+    private static String manualKey(String entityType, Long entityId) {
+        return HOTDATA_PREFIX + ":manual:" + entityType + ":" + entityId;
+    }
+
     // ==================== Section 1: 访问记录功能测试 ====================
 
     @Test
@@ -64,7 +74,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String expectedKey = "hotdata:counter:post:123";
+        String expectedKey = counterKey(entityType, entityId);
 
         // When
         hotDataIdentifier.recordAccess(entityType, entityId);
@@ -146,9 +156,9 @@ class HotDataIdentifierTest {
         }
 
         // Then
-        verify(valueOperations).increment("hotdata:counter:post:123");
-        verify(valueOperations).increment("hotdata:counter:user:123");
-        verify(valueOperations).increment("hotdata:counter:comment:123");
+        verify(valueOperations).increment(counterKey("post", entityId));
+        verify(valueOperations).increment(counterKey("user", entityId));
+        verify(valueOperations).increment(counterKey("comment", entityId));
     }
 
     // ==================== Section 2: 热点数据判断逻辑测试 ====================
@@ -159,7 +169,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String expectedKey = "hotdata:counter:post:123";
+        String expectedKey = counterKey(entityType, entityId);
         when(valueOperations.get(expectedKey)).thenReturn(150);
 
         // When
@@ -176,7 +186,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String expectedKey = "hotdata:counter:post:123";
+        String expectedKey = counterKey(entityType, entityId);
         when(valueOperations.get(expectedKey)).thenReturn(100);
 
         // When
@@ -192,7 +202,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String expectedKey = "hotdata:counter:post:123";
+        String expectedKey = counterKey(entityType, entityId);
         when(valueOperations.get(expectedKey)).thenReturn(50);
 
         // When
@@ -208,7 +218,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String expectedKey = "hotdata:counter:post:123";
+        String expectedKey = counterKey(entityType, entityId);
         when(valueOperations.get(expectedKey)).thenReturn(null);
 
         // When
@@ -286,7 +296,7 @@ class HotDataIdentifierTest {
         cacheProperties.getHotData().setThreshold(50);
         String entityType = "post";
         Long entityId = 123L;
-        String expectedKey = "hotdata:counter:post:123";
+        String expectedKey = counterKey(entityType, entityId);
         when(valueOperations.get(expectedKey)).thenReturn(60);
 
         // When
@@ -304,7 +314,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String expectedKey = "hotdata:manual:post:123";
+        String expectedKey = manualKey(entityType, entityId);
 
         // When
         hotDataIdentifier.markAsHot(entityType, entityId);
@@ -361,7 +371,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String expectedKey = "hotdata:manual:post:123";
+        String expectedKey = manualKey(entityType, entityId);
         when(redisTemplate.hasKey(expectedKey)).thenReturn(true);
 
         // When
@@ -378,7 +388,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String expectedKey = "hotdata:manual:post:123";
+        String expectedKey = manualKey(entityType, entityId);
         when(redisTemplate.hasKey(expectedKey)).thenReturn(false);
 
         // When
@@ -439,7 +449,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String expectedKey = "hotdata:manual:post:123";
+        String expectedKey = manualKey(entityType, entityId);
 
         // When
         hotDataIdentifier.unmarkAsHot(entityType, entityId);
@@ -484,7 +494,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String expectedKey = "hotdata:counter:post:123";
+        String expectedKey = counterKey(entityType, entityId);
         when(valueOperations.get(expectedKey)).thenReturn(150);
 
         // When
@@ -500,7 +510,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String expectedKey = "hotdata:counter:post:123";
+        String expectedKey = counterKey(entityType, entityId);
         when(valueOperations.get(expectedKey)).thenReturn(null);
 
         // When
@@ -546,7 +556,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String expectedKey = "hotdata:counter:post:123";
+        String expectedKey = counterKey(entityType, entityId);
 
         // When
         hotDataIdentifier.resetAccessCount(entityType, entityId);
@@ -590,7 +600,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String counterKey = "hotdata:counter:post:123";
+        String counterKey = counterKey(entityType, entityId);
         
         // 模拟记录访问后的计数
         when(valueOperations.get(counterKey)).thenReturn(150);
@@ -611,7 +621,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String manualKey = "hotdata:manual:post:123";
+        String manualKey = manualKey(entityType, entityId);
         when(redisTemplate.hasKey(manualKey)).thenReturn(true);
 
         // When
@@ -630,7 +640,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String manualKey = "hotdata:manual:post:123";
+        String manualKey = manualKey(entityType, entityId);
         
         // 第一次检查返回 true，取消标记后返回 false
         when(redisTemplate.hasKey(manualKey)).thenReturn(true, false);
@@ -653,7 +663,7 @@ class HotDataIdentifierTest {
         // Given
         String entityType = "post";
         Long entityId = 123L;
-        String counterKey = "hotdata:counter:post:123";
+        String counterKey = counterKey(entityType, entityId);
         
         // 第一次返回 150，重置后返回 null
         when(valueOperations.get(counterKey)).thenReturn(150, null);

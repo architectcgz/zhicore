@@ -37,6 +37,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AdminCommentApplicationService {
 
+    private static final String USER_SERVICE_DEGRADED_MESSAGE = "用户服务已降级";
+    private static final String POST_SERVICE_DEGRADED_MESSAGE = "文章服务已降级";
+
     private final CommentRepository commentRepository;
     private final UserServiceClient userServiceClient;
     private final PostServiceClient postServiceClient;
@@ -90,6 +93,8 @@ public class AdminCommentApplicationService {
 
             return PageResult.of(page, size, total, dtoList);
 
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Failed to query comments: keyword={}, postId={}, userId={}, page={}, size={}",
                     keyword, postId, userId, page, size, e);
@@ -124,30 +129,40 @@ public class AdminCommentApplicationService {
      * 批量获取用户信息
      */
     private Map<Long, UserSimpleDTO> batchGetUsers(Set<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Map.of();
+        }
+
         try {
             ApiResponse<Map<Long, UserSimpleDTO>> response = userServiceClient.batchGetUsers(userIds);
-            if (response.isSuccess() && response.getData() != null) {
+            if (response != null && response.isSuccess() && response.getData() != null) {
                 return response.getData();
             }
         } catch (Exception e) {
             log.warn("Failed to batch get users", e);
+            throw new BusinessException(ResultCode.SERVICE_DEGRADED, USER_SERVICE_DEGRADED_MESSAGE);
         }
-        return Map.of();
+        throw new BusinessException(ResultCode.SERVICE_DEGRADED, USER_SERVICE_DEGRADED_MESSAGE);
     }
 
     /**
      * 批量获取文章信息
      */
     private Map<Long, PostDTO> batchGetPosts(Set<Long> postIds) {
+        if (postIds == null || postIds.isEmpty()) {
+            return Map.of();
+        }
+
         try {
             ApiResponse<Map<Long, PostDTO>> response = postServiceClient.batchGetPosts(postIds);
-            if (response.isSuccess() && response.getData() != null) {
+            if (response != null && response.isSuccess() && response.getData() != null) {
                 return response.getData();
             }
         } catch (Exception e) {
             log.warn("Failed to batch get posts", e);
+            throw new BusinessException(ResultCode.SERVICE_DEGRADED, POST_SERVICE_DEGRADED_MESSAGE);
         }
-        return Map.of();
+        throw new BusinessException(ResultCode.SERVICE_DEGRADED, POST_SERVICE_DEGRADED_MESSAGE);
     }
 
     /**

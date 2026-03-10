@@ -2,8 +2,10 @@ package com.zhicore.notification.application.service;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.dto.user.UserSimpleDTO;
+import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
+import com.zhicore.common.result.ResultCode;
 import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
 import com.zhicore.notification.domain.model.NotificationType;
@@ -38,6 +40,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class NotificationAggregationService {
+
+    private static final String USER_SERVICE_DEGRADED_MESSAGE = "用户服务已降级";
 
     private final NotificationRepository notificationRepository;
     private final UserServiceClient userServiceClient;
@@ -134,7 +138,7 @@ public class NotificationAggregationService {
         try {
             ApiResponse<List<UserSimpleDTO>> response = userServiceClient.getUsersSimple(
                     new ArrayList<>(userIds));
-            
+
             if (response != null && response.isSuccess() && response.getData() != null) {
                 return response.getData().stream()
                         .collect(Collectors.toMap(
@@ -145,9 +149,10 @@ public class NotificationAggregationService {
             }
         } catch (Exception e) {
             log.warn("批量获取用户信息失败: userIds={}, error={}", userIds, e.getMessage());
+            throw new BusinessException(ResultCode.SERVICE_DEGRADED, USER_SERVICE_DEGRADED_MESSAGE);
         }
 
-        return Collections.emptyMap();
+        throw new BusinessException(ResultCode.SERVICE_DEGRADED, USER_SERVICE_DEGRADED_MESSAGE);
     }
 
     /**

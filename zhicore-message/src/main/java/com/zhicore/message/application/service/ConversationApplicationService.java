@@ -33,6 +33,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ConversationApplicationService {
 
+    private static final String USER_SERVICE_DEGRADED_MESSAGE = "用户服务已降级";
+
     private final ConversationRepository conversationRepository;
     private final MessageDomainService messageDomainService;
     private final UserServiceClient userServiceClient;
@@ -146,9 +148,12 @@ public class ConversationApplicationService {
      * 批量获取用户信息
      */
     private Map<Long, UserSimpleDTO> fetchUserInfoBatch(Set<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Map.of();
+        }
+
         return userIds.stream()
                 .map(id -> Map.entry(id, fetchUserInfo(id)))
-                .filter(entry -> entry.getValue() != null)
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
@@ -163,8 +168,9 @@ public class ConversationApplicationService {
             }
         } catch (Exception e) {
             log.warn("Failed to fetch user info: userId={}", userId, e);
+            throw new BusinessException(ResultCode.SERVICE_DEGRADED, USER_SERVICE_DEGRADED_MESSAGE);
         }
-        return null;
+        throw new BusinessException(ResultCode.SERVICE_DEGRADED, USER_SERVICE_DEGRADED_MESSAGE);
     }
 
     /**
