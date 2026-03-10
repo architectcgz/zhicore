@@ -1,6 +1,7 @@
 package com.zhicore.gateway.security;
 
 import com.zhicore.gateway.config.JwtProperties;
+import com.zhicore.gateway.service.store.TokenValidationStore;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,7 +29,7 @@ import static org.mockito.Mockito.*;
 class JwtTokenValidatorTest {
 
     @Mock
-    private TokenValidationCache mockCache;
+    private TokenValidationStore mockStore;
 
     @Mock
     private JwtMetricsCollector mockMetrics;
@@ -47,10 +48,10 @@ class JwtTokenValidatorTest {
         secretKey = Keys.hmacShaKeyFor(testSecret.getBytes(StandardCharsets.UTF_8));
 
         // 模拟缓存未命中
-        when(mockCache.get(any())).thenReturn(Optional.empty());
+        when(mockStore.get(any())).thenReturn(Optional.empty());
 
         // 创建验证器
-        validator = new JwtTokenValidator(jwtProperties, mockCache, mockMetrics);
+        validator = new JwtTokenValidator(jwtProperties, mockStore, mockMetrics);
     }
 
     @Test
@@ -71,7 +72,7 @@ class JwtTokenValidatorTest {
         verify(mockMetrics).recordSuccess();
         verify(mockMetrics).recordCacheMiss();
         verify(mockMetrics).recordValidationTime(anyLong());
-        verify(mockCache).put(eq(token), any(ValidationResult.class));
+        verify(mockStore).put(eq(token), any(ValidationResult.class));
     }
 
     @Test
@@ -88,7 +89,7 @@ class JwtTokenValidatorTest {
         // 验证指标记录
         verify(mockMetrics).recordExpired();
         verify(mockMetrics).recordValidationTime(anyLong());
-        verify(mockCache, never()).put(any(), any());
+        verify(mockStore, never()).put(any(), any());
     }
 
     @Test
@@ -116,7 +117,7 @@ class JwtTokenValidatorTest {
         // 验证指标记录
         verify(mockMetrics).recordFailure(anyString());
         verify(mockMetrics).recordValidationTime(anyLong());
-        verify(mockCache, never()).put(any(), any());
+        verify(mockStore, never()).put(any(), any());
     }
 
     @Test
@@ -181,7 +182,7 @@ class JwtTokenValidatorTest {
                 .userName("cacheduser")
                 .roles("ROLE_ADMIN")
                 .build();
-        when(mockCache.get(token)).thenReturn(Optional.of(cachedResult));
+        when(mockStore.get(token)).thenReturn(Optional.of(cachedResult));
 
         // 验证 Token
         Optional<ValidationResult> result = validator.validate(token);
@@ -194,7 +195,7 @@ class JwtTokenValidatorTest {
         verify(mockMetrics).recordCacheHit();
         verify(mockMetrics).recordValidationTime(anyLong());
         verify(mockMetrics, never()).recordSuccess();
-        verify(mockCache, never()).put(any(), any());
+        verify(mockStore, never()).put(any(), any());
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.zhicore.gateway.security;
 
 import com.zhicore.gateway.config.JwtProperties;
+import com.zhicore.gateway.service.store.TokenValidationStore;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtParser;
@@ -33,11 +34,11 @@ public class JwtTokenValidator {
     // 预构建的不可变 JwtParser（线程安全，单例）
     private final JwtParser jwtParser;
     
-    private final TokenValidationCache validationCache;
+    private final TokenValidationStore tokenValidationStore;
     private final JwtMetricsCollector metricsCollector;
     
     public JwtTokenValidator(JwtProperties jwtProperties,
-                            TokenValidationCache validationCache,
+                            TokenValidationStore tokenValidationStore,
                             JwtMetricsCollector metricsCollector) {
         // 启动时预计算密钥（不可变）
         this.secretKey = Keys.hmacShaKeyFor(
@@ -53,7 +54,7 @@ public class JwtTokenValidator {
                 .verifyWith(secretKey)
                 .build();
         
-        this.validationCache = validationCache;
+        this.tokenValidationStore = tokenValidationStore;
         this.metricsCollector = metricsCollector;
         
         log.info("JwtTokenValidator initialized with pre-built JwtParser (thread-safe singleton)");
@@ -72,7 +73,7 @@ public class JwtTokenValidator {
         
         try {
             // 首先检查缓存
-            Optional<ValidationResult> cached = validationCache.get(token);
+            Optional<ValidationResult> cached = tokenValidationStore.get(token);
             if (cached.isPresent()) {
                 metricsCollector.recordCacheHit();
                 metricsCollector.recordValidationTime(System.nanoTime() - startTime);
@@ -94,7 +95,7 @@ public class JwtTokenValidator {
                     .build();
             
             // 缓存结果
-            validationCache.put(token, result);
+            tokenValidationStore.put(token, result);
             
             metricsCollector.recordSuccess();
             metricsCollector.recordValidationTime(System.nanoTime() - startTime);
