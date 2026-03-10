@@ -1,4 +1,4 @@
-package com.zhicore.comment.infrastructure.repository;
+package com.zhicore.comment.application.service;
 
 import com.zhicore.comment.domain.repository.CommentRepository;
 import com.zhicore.comment.infrastructure.cache.CommentRedisKeys;
@@ -30,7 +30,7 @@ import static org.mockito.Mockito.*;
  * 
  * @author ZhiCore Team
  */
-class CachedCommentRepositoryExceptionLockReleasePropertyTest {
+class CommentDetailCacheServiceExceptionLockReleasePropertyTest {
 
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
@@ -59,7 +59,7 @@ class CachedCommentRepositoryExceptionLockReleasePropertyTest {
     @Mock
     private CommentRepository delegate;
 
-    private CachedCommentRepository cachedRepository;
+    private CommentDetailCacheService cachedRepository;
 
     private static final String ENTITY_TYPE_COMMENT = "comment";
 
@@ -81,7 +81,7 @@ class CachedCommentRepositoryExceptionLockReleasePropertyTest {
         when(ttlProperties.getEntityDetail()).thenReturn(600L);
 
         // 创建被测试对象 (正确的参数顺序: delegate, redisTemplate, redissonClient, cacheProperties, hotDataIdentifier, objectMapper)
-        cachedRepository = new CachedCommentRepository(
+        cachedRepository = new CommentDetailCacheService(
                 delegate,
                 redisTemplate,
                 redissonClient,

@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: zhicore-comment-test
+  main:
+    lazy-initialization: true
+  datasource:
+    url: jdbc:h2:mem:commenttest;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+
+file-service:
+  client:
+    server-url: http://localhost:8089
+    tenant-id: zhicore-test
+
+knife4j:
+  enable: false
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

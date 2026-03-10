@@ -51,6 +51,7 @@ import java.util.stream.Collectors;
 public class CommentApplicationService {
 
     private final CommentRepository commentRepository;
+    private final CommentDetailCacheService commentDetailCacheService;
     private final CommentStatsMapper statsMapper;
     private final CommentEventPublisher eventPublisher;
     private final PostServiceClient postServiceClient;
@@ -254,7 +255,7 @@ public class CommentApplicationService {
     )
     @Transactional(readOnly = true)
     public CommentVO getComment(Long commentId) {
-        Comment comment = commentRepository.findById(commentId)
+        Comment comment = commentDetailCacheService.findById(commentId)
                 .orElseThrow(() -> new BusinessException(ResultCode.COMMENT_NOT_FOUND));
 
         return assembleCommentVO(comment);

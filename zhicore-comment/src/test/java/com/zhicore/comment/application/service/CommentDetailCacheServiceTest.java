@@ -1,4 +1,4 @@
-package com.zhicore.comment.infrastructure.repository;
+package com.zhicore.comment.application.service;
 
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.model.CommentStats;
@@ -44,8 +44,8 @@ import static org.mockito.Mockito.*;
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("CachedCommentRepository 缓存击穿防护测试")
-class CachedCommentRepositoryTest {
+@DisplayName("CommentDetailCacheService 缓存击穿防护测试")
+class CommentDetailCacheServiceTest {
 
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
@@ -77,7 +77,7 @@ class CachedCommentRepositoryTest {
     @Mock
     private ObjectMapper objectMapper;
 
-    private CachedCommentRepository cachedRepository;
+    private CommentDetailCacheService cachedRepository;
 
     private static final Long TEST_COMMENT_ID = 1L;
     private static final Long TEST_POST_ID = 100L;
@@ -98,7 +98,7 @@ class CachedCommentRepositoryTest {
         when(ttlProperties.getNullValue()).thenReturn(60L);
 
         // 创建被测试对象
-        cachedRepository = new CachedCommentRepository(
+        cachedRepository = new CommentDetailCacheService(
                 delegate,
                 redisTemplate,
                 redissonClient,

@@ -1,4 +1,4 @@
-package com.zhicore.comment.infrastructure.repository;
+package com.zhicore.comment.application.service;
 
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.model.CommentStats;
@@ -40,8 +40,8 @@ import static org.mockito.Mockito.*;
  * @author ZhiCore Team
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("CachedCommentRepository 异常处理测试")
-class CachedCommentRepositoryExceptionTest {
+@DisplayName("CommentDetailCacheService 异常处理测试")
+class CommentDetailCacheServiceExceptionTest {
 
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
@@ -58,19 +58,12 @@ class CachedCommentRepositoryExceptionTest {
     @Mock
     private HotDataIdentifier hotDataIdentifier;
 
-    @Mock
     private CacheProperties cacheProperties;
-
-    @Mock
-    private CacheProperties.Lock lockProperties;
-
-    @Mock
-    private CacheProperties.Ttl ttlProperties;
 
     @Mock
     private CommentRepository delegate;
 
-    private CachedCommentRepository cachedRepository;
+    private CommentDetailCacheService cachedRepository;
 
     private static final Long TEST_COMMENT_ID = 1L;
     private static final String ENTITY_TYPE_COMMENT = "comment";
@@ -80,15 +73,14 @@ class CachedCommentRepositoryExceptionTest {
         // 配置 RedisTemplate mock
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
-        // 配置 CacheProperties mock
-        when(cacheProperties.getLock()).thenReturn(lockProperties);
-        when(cacheProperties.getTtl()).thenReturn(ttlProperties);
-        when(lockProperties.getWaitTime()).thenReturn(5L);
-        when(lockProperties.getLeaseTime()).thenReturn(10L);
-        when(ttlProperties.getEntityDetail()).thenReturn(600L);
+        cacheProperties = new CacheProperties();
+        cacheProperties.getLock().setWaitTime(5);
+        cacheProperties.getLock().setLeaseTime(10);
+        cacheProperties.getTtl().setEntityDetail(600);
+        cacheProperties.getTtl().setNullValue(60);
 
         // 创建被测试对象 (正确的参数顺序: delegate, redisTemplate, redissonClient, cacheProperties, hotDataIdentifier, objectMapper)
-        cachedRepository = new CachedCommentRepository(
+        cachedRepository = new CommentDetailCacheService(
                 delegate,
                 redisTemplate,
                 redissonClient,
@@ -336,7 +328,6 @@ class CachedCommentRepositoryExceptionTest {
         
         when(valueOperations.get(cacheKey)).thenReturn(null);
         when(hotDataIdentifier.isHotData(ENTITY_TYPE_COMMENT, TEST_COMMENT_ID)).thenReturn(false);
-        when(hotDataIdentifier.isManuallyMarkedAsHot(ENTITY_TYPE_COMMENT, TEST_COMMENT_ID)).thenReturn(false);
         when(delegate.findById(TEST_COMMENT_ID))
                 .thenThrow(new RuntimeException("Database error"));
 

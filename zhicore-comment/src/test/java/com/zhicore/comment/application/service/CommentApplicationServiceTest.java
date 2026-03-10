@@ -9,7 +9,6 @@ import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.model.CommentStats;
 import com.zhicore.comment.domain.model.CommentStatus;
 import com.zhicore.comment.domain.repository.CommentRepository;
-import com.zhicore.comment.infrastructure.cache.CommentRedisKeys;
 import com.zhicore.comment.infrastructure.cursor.HotCursorCodec;
 import com.zhicore.comment.infrastructure.cursor.TimeCursorCodec;
 import com.zhicore.comment.infrastructure.feign.PostServiceClient;
@@ -51,6 +50,7 @@ import static org.mockito.Mockito.*;
 class CommentApplicationServiceTest {
 
     @Mock private CommentRepository commentRepository;
+    @Mock private CommentDetailCacheService commentDetailCacheService;
     @Mock private CommentStatsMapper statsMapper;
     @Mock private CommentEventPublisher eventPublisher;
     @Mock private PostServiceClient postServiceClient;
@@ -72,7 +72,7 @@ class CommentApplicationServiceTest {
     @BeforeEach
     void setUp() {
         service = new CommentApplicationService(
-                commentRepository, statsMapper, eventPublisher,
+                commentRepository, commentDetailCacheService, statsMapper, eventPublisher,
                 postServiceClient, userServiceClient, idGeneratorFeignClient,
                 redisTemplate, hotCursorCodec, timeCursorCodec, transactionTemplate
         );
@@ -394,7 +394,7 @@ class CommentApplicationServiceTest {
         @DisplayName("获取评论详情成功")
         void shouldReturnCommentVO() {
             Comment comment = createTopLevelComment();
-            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
+            when(commentDetailCacheService.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
 
             UserSimpleDTO user = new UserSimpleDTO();
             user.setId(USER_ID);
@@ -413,7 +413,7 @@ class CommentApplicationServiceTest {
         @DisplayName("用户服务失败时不返回伪造作者")
         void shouldNotFabricateAuthorWhenUserServiceUnavailable() {
             Comment comment = createTopLevelComment();
-            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
+            when(commentDetailCacheService.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
             when(userServiceClient.getUserSimple(USER_ID))
                     .thenReturn(ApiResponse.fail(ResultCode.SERVICE_UNAVAILABLE, "用户服务暂时不可用"));
 
@@ -426,7 +426,7 @@ class CommentApplicationServiceTest {
         @Test
         @DisplayName("评论不存在时抛出异常")
         void shouldThrow_WhenNotFound() {
-            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.empty());
+            when(commentDetailCacheService.findById(COMMENT_ID)).thenReturn(Optional.empty());
 
             assertThrows(BusinessException.class,
                     () -> service.getComment(COMMENT_ID));

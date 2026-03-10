@@ -1,4 +1,4 @@
-package com.zhicore.comment.infrastructure.repository;
+package com.zhicore.comment.application.service;
 
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.repository.CommentRepository;
@@ -38,7 +38,7 @@ import static org.mockito.Mockito.*;
  * @author ZhiCore Team
  */
 @ExtendWith(MockitoExtension.class)
-class CachedCommentRepositoryLockFairnessTest {
+class CommentDetailCacheServiceLockFairnessTest {
 
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
@@ -62,7 +62,7 @@ class CachedCommentRepositoryLockFairnessTest {
     private RLock nonFairLock;
 
     private CacheProperties cacheProperties;
-    private CachedCommentRepository cachedRepository;
+    private CommentDetailCacheService cachedRepository;
 
     @BeforeEach
     void setUp() {
@@ -72,9 +72,9 @@ class CachedCommentRepositoryLockFairnessTest {
         cacheProperties.getLock().setWaitTime(5);
         cacheProperties.getLock().setLeaseTime(10);
         
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         
-        cachedRepository = new CachedCommentRepository(
+        cachedRepository = new CommentDetailCacheService(
                 delegate,
                 redisTemplate,
                 redissonClient,
@@ -100,7 +100,6 @@ class CachedCommentRepositoryLockFairnessTest {
         // Mock: 缓存未命中，热点数据
         when(valueOperations.get(anyString())).thenReturn(null);
         when(hotDataIdentifier.isHotData(anyString(), anyLong())).thenReturn(true);
-        when(hotDataIdentifier.isManuallyMarkedAsHot(anyString(), anyLong())).thenReturn(false);
         
         // Mock: 公平锁
         when(redissonClient.getFairLock(lockKey)).thenReturn(fairLock);
@@ -138,7 +137,6 @@ class CachedCommentRepositoryLockFairnessTest {
         // Mock: 缓存未命中，热点数据
         when(valueOperations.get(anyString())).thenReturn(null);
         when(hotDataIdentifier.isHotData(anyString(), anyLong())).thenReturn(true);
-        when(hotDataIdentifier.isManuallyMarkedAsHot(anyString(), anyLong())).thenReturn(false);
         
         // Mock: 非公平锁
         when(redissonClient.getLock(lockKey)).thenReturn(nonFairLock);
@@ -178,7 +176,6 @@ class CachedCommentRepositoryLockFairnessTest {
         // Mock: 缓存未命中，热点数据
         when(valueOperations.get(anyString())).thenReturn(null);
         when(hotDataIdentifier.isHotData(anyString(), anyLong())).thenReturn(true);
-        when(hotDataIdentifier.isManuallyMarkedAsHot(anyString(), anyLong())).thenReturn(false);
         
         // Mock: 公平锁
         when(redissonClient.getFairLock(lockKey)).thenReturn(fairLock);
@@ -244,7 +241,6 @@ class CachedCommentRepositoryLockFairnessTest {
         // Mock: 缓存未命中，热点数据
         when(valueOperations.get(anyString())).thenReturn(null);
         when(hotDataIdentifier.isHotData(anyString(), anyLong())).thenReturn(true);
-        when(hotDataIdentifier.isManuallyMarkedAsHot(anyString(), anyLong())).thenReturn(false);
         
         // Mock: 非公平锁
         when(redissonClient.getLock(lockKey)).thenReturn(nonFairLock);
@@ -324,7 +320,6 @@ class CachedCommentRepositoryLockFairnessTest {
         // Mock: 缓存未命中，热点数据
         when(valueOperations.get(anyString())).thenReturn(null);
         when(hotDataIdentifier.isHotData(anyString(), anyLong())).thenReturn(true);
-        when(hotDataIdentifier.isManuallyMarkedAsHot(anyString(), anyLong())).thenReturn(false);
         
         // Mock: 公平锁
         when(redissonClient.getFairLock(lockKey)).thenReturn(fairLock);
@@ -382,7 +377,6 @@ class CachedCommentRepositoryLockFairnessTest {
         
         when(valueOperations.get(anyString())).thenReturn(null);
         when(hotDataIdentifier.isHotData(anyString(), anyLong())).thenReturn(true);
-        when(hotDataIdentifier.isManuallyMarkedAsHot(anyString(), anyLong())).thenReturn(false);
         when(redissonClient.getLock(lockKey1)).thenReturn(nonFairLock);
         when(nonFairLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
         when(nonFairLock.isHeldByCurrentThread()).thenReturn(true);
@@ -425,7 +419,6 @@ class CachedCommentRepositoryLockFairnessTest {
         // Mock: 缓存未命中，热点数据
         when(valueOperations.get(anyString())).thenReturn(null);
         when(hotDataIdentifier.isHotData(anyString(), anyLong())).thenReturn(true);
-        when(hotDataIdentifier.isManuallyMarkedAsHot(anyString(), anyLong())).thenReturn(false);
         
         // Mock: 数据库查询
         Comment comment = Comment.createTopLevel(1L, 1L, 1L, "Test comment", null, null, null);
