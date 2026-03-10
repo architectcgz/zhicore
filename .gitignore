@@ -17,6 +17,10 @@ target/
 logs/
 *.log
 
+# Documentation
+/docs/
+**/docs/
+
 # Sensitive files
 *.key
 *.pem
