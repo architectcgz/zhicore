@@ -37,7 +37,7 @@ class GatewayIntegrationTest {
     @DisplayName("未认证请求访问受保护资源应返回 401")
     void protectedEndpoint_withoutToken_shouldReturn401() {
         ResponseEntity<String> response = restTemplate.getForEntity(
-            "/api/users/me", String.class);
+            "/api/v1/users/me", String.class);
         
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
@@ -46,7 +46,7 @@ class GatewayIntegrationTest {
     @DisplayName("公开端点应允许匿名访问")
     void publicEndpoint_shouldAllowAnonymousAccess() {
         ResponseEntity<String> response = restTemplate.getForEntity(
-            "/api/posts/hot", String.class);
+            "/api/v1/posts/hot", String.class);
         
         // 即使下游服务不可用，也不应该是 401
         assertThat(response.getStatusCode()).isNotEqualTo(HttpStatus.UNAUTHORIZED);

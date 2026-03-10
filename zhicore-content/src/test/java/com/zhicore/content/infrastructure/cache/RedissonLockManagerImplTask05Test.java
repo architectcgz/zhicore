@@ -27,7 +27,7 @@ class RedissonLockManagerImplTask05Test {
         lockManager.unlock("k");
 
         double count = meterRegistry
-                .get("content.lock.release.failure")
+                .get("cache.lock.release.failure")
                 .tag("component", "redisson")
                 .counter()
                 .count();

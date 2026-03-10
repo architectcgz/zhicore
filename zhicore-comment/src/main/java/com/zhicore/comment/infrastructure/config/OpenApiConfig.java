@@ -46,7 +46,7 @@ public class OpenApiConfig {
         return GroupedOpenApi.builder()
                 .group("default")
                 .pathsToMatch("/**")
-                .packagesToScan("com.ZhiCore.comment")
+                .packagesToScan("com.zhicore.comment")
                 .build();
     }
     
@@ -55,7 +55,7 @@ public class OpenApiConfig {
         return GroupedOpenApi.builder()
                 .group("全部接口")
                 .pathsToMatch("/**")
-                .packagesToScan("com.ZhiCore.comment")
+                .packagesToScan("com.zhicore.comment")
                 .build();
     }
 
@@ -64,7 +64,7 @@ public class OpenApiConfig {
         return GroupedOpenApi.builder()
                 .group("评论接口")
                 .pathsToMatch("/api/v1/comments/**")
-                .packagesToScan("com.ZhiCore.comment")
+                .packagesToScan("com.zhicore.comment")
                 .build();
     }
 
@@ -73,7 +73,7 @@ public class OpenApiConfig {
         return GroupedOpenApi.builder()
                 .group("管理接口")
                 .pathsToMatch("/api/v1/admin/**")
-                .packagesToScan("com.ZhiCore.comment")
+                .packagesToScan("com.zhicore.comment")
                 .build();
     }
 }

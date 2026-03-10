@@ -46,7 +46,7 @@ public class OpenApiConfig {
         return GroupedOpenApi.builder()
                 .group("default")  // 使用 "default" 作为默认分组名
                 .pathsToMatch("/**")
-                .packagesToScan("com.ZhiCore.user")
+                .packagesToScan("com.zhicore.user")
                 .build();
     }
     
@@ -55,7 +55,7 @@ public class OpenApiConfig {
         return GroupedOpenApi.builder()
                 .group("全部接口")
                 .pathsToMatch("/**")
-                .packagesToScan("com.ZhiCore.user")
+                .packagesToScan("com.zhicore.user")
                 .build();
     }
 }

@@ -12,7 +12,7 @@ spring:
 file-service:
   client:
     server-url: http://localhost:8089
-    tenant-id: ZhiCore-test
+    tenant-id: zhicore-test
     connect-timeout: 5000
     read-timeout: 10000
 

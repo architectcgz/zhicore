@@ -13,13 +13,13 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  *
  * @author ZhiCore Team
  */
-@SpringBootApplication(scanBasePackages = {"com.ZhiCore.user", "com.zhicore.common", "com.zhicore.api"})
+@SpringBootApplication(scanBasePackages = {"com.zhicore.user", "com.zhicore.common", "com.zhicore.api"})
 @EnableDiscoveryClient
 @EnableFeignClients(clients = {
         IdGeneratorFeignClient.class,
         ZhiCoreUploadClient.class
 })
-@MapperScan("com.ZhiCore.user.infrastructure.repository.mapper")
+@MapperScan("com.zhicore.user.infrastructure.repository.mapper")
 public class UserApplication {
 
     public static void main(String[] args) {

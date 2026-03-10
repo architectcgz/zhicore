@@ -3,8 +3,10 @@ package com.zhicore.comment.integration;
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.result.ApiResponse;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.Arrays;
 import java.util.List;
@@ -18,15 +20,19 @@ import static org.mockito.Mockito.when;
  * 验证 ZhiCore-comment 服务能够正确使用 IdGeneratorFeignClient
  */
 @SpringBootTest
+@ActiveProfiles("test")
 class IdGeneratorIntegrationTest {
 
     @MockBean
     private IdGeneratorFeignClient idGeneratorFeignClient;
 
+    @Autowired
+    private IdGeneratorFeignClient injectedClient;
+
     @Test
     void shouldInjectIdGeneratorFeignClient() {
         // 验证 IdGeneratorFeignClient 能够被正确注入
-        assertThat(idGeneratorFeignClient).isNotNull();
+        assertThat(injectedClient).isNotNull();
     }
 
     @Test

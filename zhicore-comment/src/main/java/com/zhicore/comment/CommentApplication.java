@@ -15,7 +15,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  *
  * @author ZhiCore Team
  */
-@SpringBootApplication(scanBasePackages = {"com.ZhiCore.comment", "com.zhicore.common", "com.zhicore.api"})
+@SpringBootApplication(scanBasePackages = {"com.zhicore.comment", "com.zhicore.common", "com.zhicore.api"})
 @EnableDiscoveryClient
 @EnableFeignClients(clients = {
         IdGeneratorFeignClient.class,
@@ -23,7 +23,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
         UserServiceClient.class,
         ZhiCoreUploadClient.class
 })
-@MapperScan("com.ZhiCore.comment.infrastructure.repository.mapper")
+@MapperScan("com.zhicore.comment.infrastructure.repository.mapper")
 public class CommentApplication {
 
     public static void main(String[] args) {

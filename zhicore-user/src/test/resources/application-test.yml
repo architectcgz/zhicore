@@ -36,6 +36,7 @@ mybatis-plus:
 spring.data.redis:
   host: localhost
   port: 6379
+  password: redis123456
 
 # RocketMQ 测试配置
 rocketmq:
@@ -53,10 +54,14 @@ jwt:
 # 缓存配置
 cache:
   ttl:
-    entity-detail: 10m
-    list: 5m
+    entity-detail: 600
+    list: 300
     stats: -1
-    session: 7d
+    session: 604800
+
+file-service:
+  client:
+    tenant-id: zhicore-test
 
 # Actuator 配置
 management:
@@ -67,6 +72,12 @@ management:
   endpoint:
     health:
       show-details: always
+    prometheus:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 
 # 日志配置
 logging:

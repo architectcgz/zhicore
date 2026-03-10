@@ -10,7 +10,15 @@ spring:
       discovery:
         enabled: false
     gateway:
-      routes: []
+      routes:
+        - id: protected-test-route
+          uri: forward:/__test/protected
+          predicates:
+            - Path=/api/v1/users/me
+        - id: public-test-route
+          uri: forward:/__test/public
+          predicates:
+            - Path=/api/v1/posts/hot
 
 # 禁用 Nacos 配置
   config:
@@ -35,3 +43,9 @@ management:
   endpoint:
     health:
       show-details: always
+    prometheus:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true

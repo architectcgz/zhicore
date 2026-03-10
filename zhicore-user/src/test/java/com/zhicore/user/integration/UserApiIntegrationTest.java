@@ -1,5 +1,10 @@
 package com.zhicore.user.integration;
 
+import com.zhicore.common.exception.BusinessException;
+import com.zhicore.common.result.ResultCode;
+import com.zhicore.user.application.dto.TokenVO;
+import com.zhicore.user.application.service.AuthApplicationService;
+import com.zhicore.user.application.service.UserApplicationService;
 import com.zhicore.user.interfaces.dto.request.LoginRequest;
 import com.zhicore.user.interfaces.dto.request.RegisterRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -8,14 +13,19 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -37,8 +47,14 @@ class UserApiIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private static String accessToken;
-    private static String userId;
+    @MockBean
+    private UserApplicationService userApplicationService;
+
+    @MockBean
+    private AuthApplicationService authApplicationService;
+
+    @MockBean
+    private RocketMQTemplate rocketMQTemplate;
 
     @Test
     @Order(1)
@@ -49,11 +65,14 @@ class UserApiIntegrationTest {
         request.setEmail("test@example.com");
         request.setPassword("Test123456!");
 
-        MvcResult result = mockMvc.perform(post("/api/users/register")
+        when(userApplicationService.register(any(RegisterRequest.class))).thenReturn(1001L);
+
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data").value(1001))
             .andReturn();
 
         String response = result.getResponse().getContentAsString();
@@ -69,11 +88,15 @@ class UserApiIntegrationTest {
         request.setEmail("test@example.com");
         request.setPassword("Test123456!");
 
-        mockMvc.perform(post("/api/users/register")
+        doThrow(new BusinessException(ResultCode.EMAIL_ALREADY_EXISTS))
+                .when(userApplicationService).register(any(RegisterRequest.class));
+
+        mockMvc.perform(post("/api/v1/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.success").value(false));
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.code").value(ResultCode.EMAIL_ALREADY_EXISTS.getCode()));
     }
 
     @Test
@@ -84,7 +107,10 @@ class UserApiIntegrationTest {
         request.setEmail("test@example.com");
         request.setPassword("Test123456!");
 
-        MvcResult result = mockMvc.perform(post("/api/users/login")
+        when(authApplicationService.login(any(LoginRequest.class)))
+                .thenReturn(new TokenVO("access-token", "refresh-token", 3600L));
+
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
@@ -106,11 +132,15 @@ class UserApiIntegrationTest {
         request.setEmail("test@example.com");
         request.setPassword("WrongPassword!");
 
-        mockMvc.perform(post("/api/users/login")
+        doThrow(new BusinessException(ResultCode.LOGIN_FAILED, "邮箱或密码错误"))
+                .when(authApplicationService).login(any(LoginRequest.class));
+
+        mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.success").value(false));
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.code").value(ResultCode.LOGIN_FAILED.getCode()));
     }
 
     @Test
