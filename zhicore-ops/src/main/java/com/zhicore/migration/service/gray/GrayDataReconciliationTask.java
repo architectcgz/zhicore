@@ -1,6 +1,5 @@
 package com.zhicore.migration.service.gray;
 
-import com.zhicore.migration.infrastructure.config.GrayReleaseProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBucket;
@@ -20,7 +19,7 @@ import java.util.List;
 public class GrayDataReconciliationTask {
 
     private final RedissonClient redissonClient;
-    private final GrayReleaseProperties properties;
+    private final GrayReleaseSettings settings;
 
     private static final String RECONCILIATION_RESULT_KEY = "gray:reconciliation:result";
     private static final String RECONCILIATION_HISTORY_KEY = "gray:reconciliation:history";
@@ -31,7 +30,7 @@ public class GrayDataReconciliationTask {
      */
     @Scheduled(fixedDelayString = "${gray.reconciliation-interval:300}000")
     public void reconcile() {
-        if (!properties.isEnabled()) {
+        if (!settings.enabled()) {
             return;
         }
 

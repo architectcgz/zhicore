@@ -1,6 +1,5 @@
 package com.zhicore.migration.service.gray;
 
-import com.zhicore.migration.infrastructure.config.GrayReleaseProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBucket;
@@ -17,7 +16,7 @@ import java.time.Duration;
 public class GrayRollbackService {
 
     private final RedissonClient redissonClient;
-    private final GrayReleaseProperties properties;
+    private final GrayReleaseSettings settings;
 
     private static final String GRAY_CONFIG_KEY = "gray:config";
     private static final String GRAY_STATUS_KEY = "gray:status";
@@ -144,17 +143,17 @@ public class GrayRollbackService {
         // 检查错误率
         if (status.getTotalRequests() > 0) {
             double errorRate = (double) status.getErrorCount() / status.getTotalRequests();
-            if (errorRate > properties.getAlert().getErrorRateThreshold()) {
+            if (errorRate > settings.alert().errorRateThreshold()) {
                 log.warn("错误率超过阈值: {}% > {}%", 
-                        errorRate * 100, properties.getAlert().getErrorRateThreshold() * 100);
+                        errorRate * 100, settings.alert().errorRateThreshold() * 100);
                 return true;
             }
         }
 
         // 检查延迟
-        if (status.getAvgLatencyMs() > properties.getAlert().getLatencyThresholdMs()) {
+        if (status.getAvgLatencyMs() > settings.alert().latencyThresholdMs()) {
             log.warn("平均延迟超过阈值: {}ms > {}ms", 
-                    status.getAvgLatencyMs(), properties.getAlert().getLatencyThresholdMs());
+                    status.getAvgLatencyMs(), settings.alert().latencyThresholdMs());
             return true;
         }
 

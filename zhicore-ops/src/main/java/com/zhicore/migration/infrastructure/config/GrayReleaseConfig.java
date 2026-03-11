@@ -3,6 +3,7 @@ package com.zhicore.migration.infrastructure.config;
 import com.zhicore.migration.service.gray.GrayConfig;
 import com.zhicore.migration.service.gray.GrayDataReconciliationTask;
 import com.zhicore.migration.service.gray.GrayPhase;
+import com.zhicore.migration.service.gray.GrayReleaseSettings;
 import com.zhicore.migration.service.gray.GrayRollbackService;
 import com.zhicore.migration.service.gray.GrayRouter;
 import com.zhicore.migration.service.gray.GrayStatus;
@@ -15,6 +16,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
+import java.util.Set;
 
 /**
  * 灰度发布配置
@@ -37,7 +39,7 @@ public class GrayReleaseConfig {
      */
     @Bean
     public GrayRouter grayRouter() {
-        return new GrayRouter(properties, redissonClient);
+        return new GrayRouter(toSettings(), redissonClient);
     }
 
     /**
@@ -45,7 +47,7 @@ public class GrayReleaseConfig {
      */
     @Bean
     public GrayDataReconciliationTask grayDataReconciliationTask() {
-        return new GrayDataReconciliationTask(redissonClient, properties);
+        return new GrayDataReconciliationTask(redissonClient, toSettings());
     }
 
     /**
@@ -53,7 +55,7 @@ public class GrayReleaseConfig {
      */
     @Bean
     public GrayRollbackService grayRollbackService() {
-        return new GrayRollbackService(redissonClient, properties);
+        return new GrayRollbackService(redissonClient, toSettings());
     }
 
     /**
@@ -62,6 +64,19 @@ public class GrayReleaseConfig {
     @Bean
     public GrayConfigInitializer grayConfigInitializer() {
         return new GrayConfigInitializer(properties, redissonClient);
+    }
+
+    private GrayReleaseSettings toSettings() {
+        return new GrayReleaseSettings(
+                properties.isEnabled(),
+                properties.getTrafficRatio(),
+                Set.copyOf(properties.getWhitelistUsers()),
+                Set.copyOf(properties.getBlacklistUsers()),
+                new GrayReleaseSettings.AlertSettings(
+                        properties.getAlert().getErrorRateThreshold(),
+                        properties.getAlert().getLatencyThresholdMs()
+                )
+        );
     }
 
     /**

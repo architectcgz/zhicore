@@ -1,6 +1,5 @@
 package com.zhicore.migration.service.gray;
 
-import com.zhicore.migration.infrastructure.config.GrayReleaseProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBucket;
@@ -16,7 +15,7 @@ import java.util.concurrent.ThreadLocalRandom;
 @RequiredArgsConstructor
 public class GrayRouter {
 
-    private final GrayReleaseProperties properties;
+    private final GrayReleaseSettings settings;
     private final RedissonClient redissonClient;
 
     private static final String GRAY_CONFIG_KEY = "gray:config";
@@ -29,7 +28,7 @@ public class GrayRouter {
      * @return true 表示应该路由到灰度环境
      */
     public boolean shouldRouteToGray(String userId) {
-        if (!properties.isEnabled()) {
+        if (!settings.enabled()) {
             return false;
         }
 
@@ -72,7 +71,7 @@ public class GrayRouter {
      * @return true 表示应该路由到灰度环境
      */
     public boolean shouldRouteToGrayByRequestKey(String requestKey) {
-        if (!properties.isEnabled()) {
+        if (!settings.enabled()) {
             return false;
         }
 
