@@ -3,7 +3,8 @@ package com.zhicore.content.interfaces.controller;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.result.ResultCode;
-import com.zhicore.content.application.service.PostFacadeService;
+import com.zhicore.content.application.service.PostCommandService;
+import com.zhicore.content.application.service.PostReadService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,8 +29,10 @@ class PostControllerAuthTest {
     @Test
     @DisplayName("未登录创建文章时应该返回未授权")
     void shouldReturnUnauthorizedWhenCreatePostWithoutLogin() throws Exception {
-        PostController controller = new PostController(mock(PostFacadeService.class));
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
+                        new PostCommandController(mock(PostCommandService.class)),
+                        new PostQueryController(mock(PostReadService.class))
+                )
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
 
@@ -48,8 +51,10 @@ class PostControllerAuthTest {
     @Test
     @DisplayName("未登录查询我的文章列表时应该返回未授权")
     void shouldReturnUnauthorizedWhenGetMyPostsWithoutLogin() throws Exception {
-        PostController controller = new PostController(mock(PostFacadeService.class));
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
+                        new PostCommandController(mock(PostCommandService.class)),
+                        new PostQueryController(mock(PostReadService.class))
+                )
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
 

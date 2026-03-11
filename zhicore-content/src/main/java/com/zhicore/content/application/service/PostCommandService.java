@@ -1,37 +1,28 @@
 package com.zhicore.content.application.service;
 
-import com.zhicore.api.dto.post.PostDTO;
-import com.zhicore.common.result.HybridPageRequest;
-import com.zhicore.common.result.HybridPageResult;
 import com.zhicore.content.application.command.CreatePostAppCommand;
 import com.zhicore.content.application.command.SaveDraftCommand;
 import com.zhicore.content.application.command.UpdatePostAppCommand;
 import com.zhicore.content.application.command.commands.RestorePostCommand;
 import com.zhicore.content.application.command.handlers.RestorePostHandler;
-import com.zhicore.content.application.dto.DraftVO;
-import com.zhicore.content.application.dto.PostBriefVO;
-import com.zhicore.content.application.dto.PostContentVO;
-import com.zhicore.content.application.dto.PostVO;
-import com.zhicore.content.application.dto.TagDTO;
-import com.zhicore.content.application.query.model.PostListQuery;
-import com.zhicore.content.domain.model.PostStatus;
+import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
- * 面向接口层的文章门面服务。
+ * 文章写服务。
+ *
+ * 负责文章、草稿、标签与定时发布的写操作，不承载查询职责。
  */
 @Service
 @RequiredArgsConstructor
-public class PostFacadeService {
+public class PostCommandService {
 
-    private final RestorePostHandler restorePostHandler;
     private final PostApplicationService postApplicationService;
+    private final RestorePostHandler restorePostHandler;
 
     public Long createPost(Long userId, CreatePostAppCommand request) {
         return postApplicationService.createPost(userId, request);
@@ -68,55 +59,8 @@ public class PostFacadeService {
         ));
     }
 
-    public PostVO getPost(Long postId) {
-        return postApplicationService.getPostById(postId);
-    }
-
-    public PostVO getMyPost(Long userId, Long postId) {
-        return postApplicationService.getUserPostById(userId, postId);
-    }
-
-    public List<PostBriefVO> getMyPosts(Long userId, String status, int page, int size) {
-        return postApplicationService.getUserPosts(userId, PostStatus.valueOf(status), page, size);
-    }
-
-    public HybridPageResult<PostBriefVO> getPublishedPosts(Integer page, int size) {
-        HybridPageRequest request = new HybridPageRequest();
-        request.setPage(page);
-        request.setSize(size);
-        return postApplicationService.getPublishedPostsHybrid(request);
-    }
-
-    public HybridPageResult<PostBriefVO> getPostList(PostListQuery query) {
-        return postApplicationService.getPostList(query);
-    }
-
-    public List<PostBriefVO> getPublishedPostsCursor(LocalDateTime cursor, int size) {
-        return postApplicationService.getPublishedPostsCursor(cursor, size);
-    }
-
-    public HybridPageResult<PostBriefVO> getPublishedPostsHybrid(HybridPageRequest request) {
-        return postApplicationService.getPublishedPostsHybrid(request);
-    }
-
-    public Map<Long, PostDTO> batchGetPosts(Set<Long> postIds) {
-        return postApplicationService.batchGetPosts(postIds);
-    }
-
-    public PostContentVO getPostContent(Long postId) {
-        return postApplicationService.getPostContent(postId);
-    }
-
     public void saveDraft(Long userId, Long postId, SaveDraftCommand request) {
         postApplicationService.saveDraft(postId, userId, request);
-    }
-
-    public DraftVO getDraft(Long userId, Long postId) {
-        return postApplicationService.getDraft(postId, userId);
-    }
-
-    public List<DraftVO> getUserDrafts(Long userId) {
-        return postApplicationService.getUserDrafts(userId);
     }
 
     public void deleteDraft(Long userId, Long postId) {
@@ -130,14 +74,12 @@ public class PostFacadeService {
     public void detachTag(Long userId, Long postId, String slug) {
         List<String> remainingTagNames = postApplicationService.getPostTags(postId).stream()
                 .filter(tag -> !tag.getSlug().equals(slug))
-                .map(TagDTO::getName)
+                .map(com.zhicore.content.application.dto.TagDTO::getName)
                 .toList();
         postApplicationService.replacePostTags(userId, postId, remainingTagNames);
     }
 
-    public List<TagDTO> getPostTags(Long postId) {
-        return postApplicationService.getPostTags(postId);
+    public void consumeScheduledPublish(PostScheduleExecuteIntegrationEvent event) {
+        postApplicationService.consumeScheduledPublish(event);
     }
-
 }
-
