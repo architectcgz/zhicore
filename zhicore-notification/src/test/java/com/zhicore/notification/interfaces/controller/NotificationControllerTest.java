@@ -8,7 +8,8 @@ import com.zhicore.common.result.ResultCode;
 import com.zhicore.common.test.web.ControllerTestSupport;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
 import com.zhicore.notification.application.service.NotificationAggregationService;
-import com.zhicore.notification.application.service.NotificationApplicationService;
+import com.zhicore.notification.application.service.NotificationCommandService;
+import com.zhicore.notification.application.service.NotificationQueryService;
 import com.zhicore.notification.domain.model.NotificationType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,11 +27,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("NotificationController 测试")
+@DisplayName("Notification query/command controller 测试")
 class NotificationControllerTest extends ControllerTestSupport {
 
     @Mock
-    private NotificationApplicationService notificationApplicationService;
+    private NotificationCommandService notificationCommandService;
+
+    @Mock
+    private NotificationQueryService notificationQueryService;
 
     @Mock
     private NotificationAggregationService notificationAggregationService;
@@ -38,8 +42,8 @@ class NotificationControllerTest extends ControllerTestSupport {
     @Test
     @DisplayName("获取聚合通知列表成功时应该返回分页结果")
     void shouldReturnAggregatedNotifications() throws Exception {
-        NotificationController controller = new NotificationController(
-                notificationApplicationService,
+        NotificationQueryController controller = new NotificationQueryController(
+                notificationQueryService,
                 notificationAggregationService
         );
         MockMvc mockMvc = buildMockMvc(controller);
@@ -72,8 +76,8 @@ class NotificationControllerTest extends ControllerTestSupport {
     @Test
     @DisplayName("未登录查询聚合通知时应该返回未授权")
     void shouldReturnUnauthorizedWhenGetNotificationsWithoutLogin() throws Exception {
-        NotificationController controller = new NotificationController(
-                notificationApplicationService,
+        NotificationQueryController controller = new NotificationQueryController(
+                notificationQueryService,
                 notificationAggregationService
         );
         MockMvc mockMvc = buildMockMvc(controller);
@@ -93,8 +97,8 @@ class NotificationControllerTest extends ControllerTestSupport {
     @Test
     @DisplayName("聚合通知查询失败时应该返回业务错误响应")
     void shouldReturnBusinessErrorWhenGetNotificationsFails() throws Exception {
-        NotificationController controller = new NotificationController(
-                notificationApplicationService,
+        NotificationQueryController controller = new NotificationQueryController(
+                notificationQueryService,
                 notificationAggregationService
         );
         MockMvc mockMvc = buildMockMvc(controller);
@@ -116,13 +120,12 @@ class NotificationControllerTest extends ControllerTestSupport {
     @Test
     @DisplayName("标记通知已读失败时应该返回业务错误响应")
     void shouldReturnBusinessErrorWhenNotificationNotFound() throws Exception {
-        NotificationController controller = new NotificationController(
-                notificationApplicationService,
-                notificationAggregationService
+        NotificationCommandController controller = new NotificationCommandController(
+                notificationCommandService
         );
         MockMvc mockMvc = buildMockMvc(controller);
         doThrow(new BusinessException(ResultCode.NOTIFICATION_NOT_FOUND))
-                .when(notificationApplicationService).markAsRead(101L, 11L);
+                .when(notificationCommandService).markAsRead(101L, 11L);
 
         try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
             userContext.when(UserContext::requireUserId).thenReturn(11L);
@@ -137,13 +140,12 @@ class NotificationControllerTest extends ControllerTestSupport {
     @Test
     @DisplayName("读取他人通知时应该返回资源访问拒绝")
     void shouldReturnAccessDeniedWhenMarkingOthersNotificationAsRead() throws Exception {
-        NotificationController controller = new NotificationController(
-                notificationApplicationService,
-                notificationAggregationService
+        NotificationCommandController controller = new NotificationCommandController(
+                notificationCommandService
         );
         MockMvc mockMvc = buildMockMvc(controller);
         doThrow(new BusinessException(ResultCode.RESOURCE_ACCESS_DENIED, "无权访问该通知"))
-                .when(notificationApplicationService).markAsRead(101L, 11L);
+                .when(notificationCommandService).markAsRead(101L, 11L);
 
         try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
             userContext.when(UserContext::requireUserId).thenReturn(11L);
@@ -158,11 +160,8 @@ class NotificationControllerTest extends ControllerTestSupport {
     @Test
     @DisplayName("通知ID非法时应该命中方法参数校验")
     void shouldRejectInvalidNotificationId() throws Exception {
-        NotificationController controller = new NotificationController(
-                notificationApplicationService,
-                notificationAggregationService
-        );
-        var method = NotificationController.class.getMethod("markAsRead", Long.class);
+        NotificationCommandController controller = new NotificationCommandController(notificationCommandService);
+        var method = NotificationCommandController.class.getMethod("markAsRead", Long.class);
         var violations = executableValidator.validateParameters(controller, method, new Object[]{0L});
 
         org.junit.jupiter.api.Assertions.assertEquals(1, violations.size());
@@ -172,11 +171,11 @@ class NotificationControllerTest extends ControllerTestSupport {
     @Test
     @DisplayName("分页参数非法时应该命中方法参数校验")
     void shouldRejectInvalidPageSize() throws Exception {
-        NotificationController controller = new NotificationController(
-                notificationApplicationService,
+        NotificationQueryController controller = new NotificationQueryController(
+                notificationQueryService,
                 notificationAggregationService
         );
-        var method = NotificationController.class.getMethod("getNotifications", int.class, int.class);
+        var method = NotificationQueryController.class.getMethod("getNotifications", int.class, int.class);
         var violations = executableValidator.validateParameters(controller, method, new Object[]{-1, 0});
 
         org.junit.jupiter.api.Assertions.assertEquals(2, violations.size());
@@ -185,11 +184,11 @@ class NotificationControllerTest extends ControllerTestSupport {
     @Test
     @DisplayName("超大分页大小时应该命中方法参数校验")
     void shouldRejectOversizedPageSize() throws Exception {
-        NotificationController controller = new NotificationController(
-                notificationApplicationService,
+        NotificationQueryController controller = new NotificationQueryController(
+                notificationQueryService,
                 notificationAggregationService
         );
-        var method = NotificationController.class.getMethod("getNotifications", int.class, int.class);
+        var method = NotificationQueryController.class.getMethod("getNotifications", int.class, int.class);
         var violations = executableValidator.validateParameters(controller, method, new Object[]{0, 101});
 
         org.junit.jupiter.api.Assertions.assertEquals(1, violations.size());

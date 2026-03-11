@@ -4,7 +4,7 @@ import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.search.application.dto.PostSearchVO;
 import com.zhicore.search.application.dto.SearchResultVO;
-import com.zhicore.search.application.service.SearchApplicationService;
+import com.zhicore.search.application.service.SearchQueryService;
 import com.zhicore.search.application.service.SuggestionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -36,7 +36,7 @@ import java.util.List;
 @Validated
 public class SearchController {
 
-    private final SearchApplicationService searchApplicationService;
+    private final SearchQueryService searchQueryService;
     private final SuggestionService suggestionService;
 
     /**
@@ -77,7 +77,7 @@ public class SearchController {
         Long userId = UserContext.getUserId();
         suggestionService.recordSearch(keyword, userId != null ? String.valueOf(userId) : null);
         
-        SearchResultVO<PostSearchVO> result = searchApplicationService.searchPosts(keyword, page, size);
+        SearchResultVO<PostSearchVO> result = searchQueryService.searchPosts(keyword, page, size);
         
         return ApiResponse.success(result);
     }

@@ -20,15 +20,15 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("NotificationApplicationService 测试")
+@DisplayName("Notification query/command service 测试")
 class NotificationApplicationServiceTest {
 
     @Mock
@@ -43,11 +43,11 @@ class NotificationApplicationServiceTest {
     @Mock
     private NotificationAggregationStore notificationAggregationStore;
 
-    private NotificationApplicationService notificationApplicationService;
+    private NotificationCommandService notificationCommandService;
 
     @BeforeEach
     void setUp() {
-        notificationApplicationService = new NotificationApplicationService(
+        notificationCommandService = new NotificationCommandService(
                 notificationRepository,
                 idGeneratorFeignClient,
                 notificationUnreadCountStore,
@@ -60,7 +60,7 @@ class NotificationApplicationServiceTest {
     void shouldCreateNotificationWhenAbsent() {
         when(notificationRepository.saveIfAbsent(any(Notification.class))).thenReturn(true);
 
-        Optional<Notification> result = notificationApplicationService.createFollowNotificationIfAbsent(101L, 11L, 22L);
+        Optional<Notification> result = notificationCommandService.createFollowNotificationIfAbsent(101L, 11L, 22L);
 
         assertTrue(result.isPresent());
         assertEquals(101L, result.get().getId());
@@ -74,7 +74,7 @@ class NotificationApplicationServiceTest {
     void shouldSkipCacheInvalidationWhenDuplicate() {
         when(notificationRepository.saveIfAbsent(any(Notification.class))).thenReturn(false);
 
-        Optional<Notification> result = notificationApplicationService.createLikeNotificationIfAbsent(
+        Optional<Notification> result = notificationCommandService.createLikeNotificationIfAbsent(
                 202L, 33L, 44L, "post", 55L);
 
         assertTrue(result.isEmpty());
@@ -90,7 +90,7 @@ class NotificationApplicationServiceTest {
                 .thenReturn(ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "ID服务不可用"));
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> notificationApplicationService.createFollowNotification(11L, 22L));
+                () -> notificationCommandService.createFollowNotification(11L, 22L));
 
         assertEquals(ResultCode.SERVICE_DEGRADED.getCode(), exception.getCode());
         assertEquals("通知ID生成失败", exception.getMessage());
@@ -103,7 +103,7 @@ class NotificationApplicationServiceTest {
         when(notificationRepository.findById(101L)).thenReturn(Optional.of(notification));
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> notificationApplicationService.markAsRead(101L, 11L));
+                () -> notificationCommandService.markAsRead(101L, 11L));
 
         assertEquals(ResultCode.RESOURCE_ACCESS_DENIED.getCode(), exception.getCode());
         assertEquals("无权访问该通知", exception.getMessage());
@@ -118,7 +118,7 @@ class NotificationApplicationServiceTest {
         Notification notification = Notification.createFollowNotification(202L, 11L, 33L);
         when(notificationRepository.findById(202L)).thenReturn(Optional.of(notification));
 
-        notificationApplicationService.markAsRead(202L, 11L);
+        notificationCommandService.markAsRead(202L, 11L);
 
         verify(notificationRepository).markAsRead(202L, "11");
         verify(notificationUnreadCountStore).evict(11L);

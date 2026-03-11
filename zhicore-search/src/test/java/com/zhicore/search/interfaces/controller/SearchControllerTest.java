@@ -4,7 +4,7 @@ import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.exception.UnauthorizedException;
 import com.zhicore.common.result.ResultCode;
-import com.zhicore.search.application.service.SearchApplicationService;
+import com.zhicore.search.application.service.SearchQueryService;
 import com.zhicore.search.application.service.SuggestionService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,7 +25,7 @@ class SearchControllerTest {
     @DisplayName("未登录获取搜索历史时应该返回未授权")
     void shouldReturnUnauthorizedWhenGetHistoryWithoutLogin() throws Exception {
         SearchController controller = new SearchController(
-                mock(SearchApplicationService.class),
+                mock(SearchQueryService.class),
                 mock(SuggestionService.class));
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
@@ -45,7 +45,7 @@ class SearchControllerTest {
     @DisplayName("未登录清空搜索历史时应该返回未授权")
     void shouldReturnUnauthorizedWhenClearHistoryWithoutLogin() throws Exception {
         SearchController controller = new SearchController(
-                mock(SearchApplicationService.class),
+                mock(SearchQueryService.class),
                 mock(SuggestionService.class));
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())

@@ -4,7 +4,7 @@ import com.zhicore.api.event.comment.CommentCreatedEvent;
 import com.zhicore.common.mq.AbstractEventConsumer;
 import com.zhicore.common.mq.StatefulIdempotentHandler;
 import com.zhicore.common.mq.TopicConstants;
-import com.zhicore.notification.application.service.NotificationApplicationService;
+import com.zhicore.notification.application.service.NotificationCommandService;
 import com.zhicore.notification.infrastructure.push.NotificationPushService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
@@ -28,11 +28,11 @@ import org.springframework.stereotype.Component;
 )
 public class CommentCreatedNotificationConsumer extends AbstractEventConsumer<CommentCreatedEvent> {
 
-    private final NotificationApplicationService notificationService;
+    private final NotificationCommandService notificationService;
     private final NotificationPushService pushService;
 
     public CommentCreatedNotificationConsumer(StatefulIdempotentHandler idempotentHandler,
-                                              NotificationApplicationService notificationService,
+                                              NotificationCommandService notificationService,
                                               NotificationPushService pushService) {
         super(idempotentHandler, CommentCreatedEvent.class);
         this.notificationService = notificationService;

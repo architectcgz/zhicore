@@ -2,7 +2,7 @@ package com.zhicore.notification.infrastructure.mq;
 
 import com.zhicore.api.event.post.PostLikedEvent;
 import com.zhicore.common.mq.StatefulIdempotentHandler;
-import com.zhicore.notification.application.service.NotificationApplicationService;
+import com.zhicore.notification.application.service.NotificationCommandService;
 import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.infrastructure.push.NotificationPushService;
 import org.junit.jupiter.api.DisplayName;
@@ -29,7 +29,7 @@ class PostLikedNotificationConsumerTest {
     private StatefulIdempotentHandler idempotentHandler;
 
     @Mock
-    private NotificationApplicationService notificationService;
+    private NotificationCommandService notificationService;
 
     @Mock
     private NotificationPushService pushService;
