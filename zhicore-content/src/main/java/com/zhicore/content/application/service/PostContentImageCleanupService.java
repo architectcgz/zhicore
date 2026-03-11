@@ -1,8 +1,7 @@
 package com.zhicore.content.application.service;
 
-import com.zhicore.api.client.UploadFileDeleteClient;
-import com.zhicore.common.result.ApiResponse;
 import com.zhicore.content.application.port.alert.ContentAlertPort;
+import com.zhicore.content.application.port.client.FileResourceClient;
 import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.application.util.ContentImageExtractor;
 import com.zhicore.content.domain.model.PostBody;
@@ -41,7 +40,7 @@ public class PostContentImageCleanupService {
     );
 
     private final PostContentStore postContentStore;
-    private final UploadFileDeleteClient uploadServiceClient;
+    private final FileResourceClient fileResourceClient;
     private final ContentAlertPort alertService;
 
     private static final String[] RELATIVE_ALLOWED_PREFIXES = new String[]{
@@ -99,9 +98,9 @@ public class PostContentImageCleanupService {
             }
 
             try {
-                ApiResponse<Void> response = uploadServiceClient.deleteFile(fileId);
-                if (response == null || !response.isSuccess()) {
-                    String errorMessage = response != null ? response.getMessage() : "null response";
+                FileResourceClient.DeleteResult result = fileResourceClient.deleteFile(fileId);
+                if (!result.success()) {
+                    String errorMessage = result.message() != null ? result.message() : "delete failed";
                     log.warn("Content image cleanup failed: postId={}, fileId={}, url={}, error={}",
                             postId, fileId, imageUrl, errorMessage);
                     alertService.alertContentImageCleanupFailed(postId, imageUrl, errorMessage);

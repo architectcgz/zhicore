@@ -2,7 +2,6 @@ package com.zhicore.content.application.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.api.client.IdGeneratorFeignClient;
-import com.zhicore.api.client.UploadFileClient;
 import com.zhicore.content.application.command.handlers.DeletePostHandler;
 import com.zhicore.content.application.command.handlers.PurgePostHandler;
 import com.zhicore.content.application.command.handlers.UpdatePostContentHandler;
@@ -56,7 +55,7 @@ class PostApplicationServiceTask01Test {
     @Mock private DraftCommandService draftCommandService;
     @Mock private TagCommandService tagCommandService;
     @Mock private PostTagCommandService postTagCommandService;
-    @Mock private UploadFileClient uploadServiceClient;
+    @Mock private PostCoverImageCommandService postCoverImageCommandService;
     @Mock private UserProfileClient userProfileClient;
     @Mock private CreateDraftWorkflow createDraftWorkflow;
     @Mock private PublishPostWorkflow publishPostWorkflow;

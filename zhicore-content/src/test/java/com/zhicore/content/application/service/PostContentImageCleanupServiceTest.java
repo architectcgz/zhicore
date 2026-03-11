@@ -1,8 +1,7 @@
 package com.zhicore.content.application.service;
 
-import com.zhicore.api.client.UploadFileDeleteClient;
-import com.zhicore.common.result.ApiResponse;
 import com.zhicore.content.application.port.alert.ContentAlertPort;
+import com.zhicore.content.application.port.client.FileResourceClient;
 import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.domain.model.ContentType;
 import com.zhicore.content.domain.model.PostBody;
@@ -29,7 +28,7 @@ class PostContentImageCleanupServiceTest {
     private PostContentStore postContentStore;
 
     @Mock
-    private UploadFileDeleteClient uploadServiceClient;
+    private FileResourceClient fileResourceClient;
 
     @Mock
     private ContentAlertPort alertService;
@@ -38,7 +37,7 @@ class PostContentImageCleanupServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PostContentImageCleanupService(postContentStore, uploadServiceClient, alertService);
+        service = new PostContentImageCleanupService(postContentStore, fileResourceClient, alertService);
         ReflectionTestUtils.setField(service, "fileServiceServerUrl", "https://files.zhicore.test");
         ReflectionTestUtils.setField(service, "fileServiceCustomDomain", "");
         ReflectionTestUtils.setField(service, "fileServiceCdnDomain", "cdn.zhicore.test");
@@ -49,7 +48,7 @@ class PostContentImageCleanupServiceTest {
         service.cleanupContentImagesAsync(null);
 
         verify(postContentStore, never()).loadContent(any());
-        verify(uploadServiceClient, never()).deleteFile(any());
+        verify(fileResourceClient, never()).deleteFile(any());
     }
 
     @Test
@@ -59,7 +58,7 @@ class PostContentImageCleanupServiceTest {
         service.cleanupContentImagesAsync(1001L);
 
         verify(alertService).alertContentImageCleanupFailed(1001L, "mongo:post_contents", "mongo down");
-        verify(uploadServiceClient, never()).deleteFile(any());
+        verify(fileResourceClient, never()).deleteFile(any());
     }
 
     @Test
@@ -68,7 +67,7 @@ class PostContentImageCleanupServiceTest {
 
         service.cleanupContentImagesAsync(1001L);
 
-        verify(uploadServiceClient, never()).deleteFile(any());
+        verify(fileResourceClient, never()).deleteFile(any());
         verify(alertService, never()).alertContentImageCleanupFailed(eq(1001L), any(), any());
     }
 
@@ -83,12 +82,13 @@ class PostContentImageCleanupServiceTest {
                 ContentType.MARKDOWN
         );
         when(postContentStore.loadContent(PostId.of(1001L))).thenReturn(Optional.of(body));
-        when(uploadServiceClient.deleteFile("018f2f4a-1234-7abc-8def-1234567890ab")).thenReturn(ApiResponse.success(null));
+        when(fileResourceClient.deleteFile("018f2f4a-1234-7abc-8def-1234567890ab"))
+                .thenReturn(FileResourceClient.DeleteResult.ok());
 
         service.cleanupContentImagesAsync(1001L);
 
-        verify(uploadServiceClient).deleteFile("018f2f4a-1234-7abc-8def-1234567890ab");
-        verify(uploadServiceClient, never()).deleteFile("018f2f4a-1234-7abc-8def-1234567890ac");
+        verify(fileResourceClient).deleteFile("018f2f4a-1234-7abc-8def-1234567890ab");
+        verify(fileResourceClient, never()).deleteFile("018f2f4a-1234-7abc-8def-1234567890ac");
         verify(alertService, never()).alertContentImageCleanupFailed(eq(1001L), any(), any());
     }
 
@@ -100,8 +100,8 @@ class PostContentImageCleanupServiceTest {
                 ContentType.HTML
         );
         when(postContentStore.loadContent(PostId.of(1001L))).thenReturn(Optional.of(body));
-        when(uploadServiceClient.deleteFile("018f2f4a-1234-7abc-8def-1234567890ab"))
-                .thenReturn(ApiResponse.fail("delete failed"));
+        when(fileResourceClient.deleteFile("018f2f4a-1234-7abc-8def-1234567890ab"))
+                .thenReturn(FileResourceClient.DeleteResult.fail("delete failed"));
 
         service.cleanupContentImagesAsync(1001L);
 

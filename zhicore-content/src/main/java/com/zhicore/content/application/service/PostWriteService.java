@@ -2,7 +2,6 @@ package com.zhicore.content.application.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.api.client.IdGeneratorFeignClient;
-import com.zhicore.api.client.UploadFileClient;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.ForbiddenException;
 import com.zhicore.common.result.ApiResponse;
@@ -75,7 +74,7 @@ public class PostWriteService {
     private final DraftCommandService draftCommandService;
     private final TagCommandService tagCommandService;
     private final PostTagCommandService postTagCommandService;
-    private final UploadFileClient uploadServiceClient;
+    private final PostCoverImageCommandService postCoverImageCommandService;
     private final UserProfileClient userProfileClient;
     
     // 新架构依赖
@@ -119,9 +118,7 @@ public class PostWriteService {
         Long postId = idResponse.getData();
 
         // 验证封面图 fileId 格式
-        if (request.coverImageId() != null && !request.coverImageId().isEmpty()) {
-            validateFileId(request.coverImageId());
-        }
+        postCoverImageCommandService.validateFileId(request.coverImageId());
 
         // 处理标签（查找或创建）
         Set<TagId> tagIds = null;
@@ -215,24 +212,7 @@ public class PostWriteService {
         Post post = getPostAndCheckOwnership(postId, userId);
 
         // 如果更新封面图，删除旧的封面图
-        if (request.coverImageId() != null && !request.coverImageId().isEmpty()) {
-            // 验证新的 fileId 格式
-            validateFileId(request.coverImageId());
-            
-            // 如果有旧的封面图且与新的不同，删除旧的
-            String oldCoverImageId = post.getCoverImageId();
-            if (oldCoverImageId != null && !oldCoverImageId.isEmpty() 
-                    && !oldCoverImageId.equals(request.coverImageId())) {
-                try {
-                    uploadServiceClient.deleteFile(oldCoverImageId);
-                    log.info("删除旧封面图: postId={}, fileId={}", postId, oldCoverImageId);
-                } catch (Exception e) {
-                    log.error("删除旧封面图失败: postId={}, fileId={}, error={}", 
-                        postId, oldCoverImageId, e.getMessage(), e);
-                    // 不影响主流程，继续执行
-                }
-            }
-        }
+        postCoverImageCommandService.handleCoverImageChange(postId, post.getCoverImageId(), request.coverImageId());
 
         // 更新话题
         if (request.topicId() != null) {
@@ -769,16 +749,7 @@ public class PostWriteService {
         Post post = getPostAndCheckOwnership(postId, userId);
 
         // 删除封面图
-        if (post.getCoverImageId() != null && !post.getCoverImageId().isEmpty()) {
-            try {
-                uploadServiceClient.deleteFile(post.getCoverImageId());
-                log.info("删除封面图: postId={}, fileId={}", postId, post.getCoverImageId());
-            } catch (Exception e) {
-                log.error("删除封面图失败: postId={}, fileId={}, error={}", 
-                    postId, post.getCoverImageId(), e.getMessage(), e);
-                // 不影响主流程，继续执行
-            }
-        }
+        postCoverImageCommandService.deleteCoverImage(postId, post.getCoverImageId());
 
         // 使用 DeletePostHandler 软删除
         DeletePostCommand command = 
@@ -879,26 +850,6 @@ public class PostWriteService {
         draftCommandService.deleteDraft(postId, userId);
         
         log.info("Draft deleted: postId={}, userId={}", postId, userId);
-    }
-
-    /**
-     * 验证 fileId 格式（UUIDv7）
-     * 
-     * UUIDv7 格式：8-4-4-4-12 字符，第13位必须为7
-     * 
-     * @param fileId 文件ID
-     * @throws IllegalArgumentException 如果格式无效
-     */
-    private void validateFileId(String fileId) {
-        if (fileId == null || fileId.isEmpty()) {
-            return; // 允许为空
-        }
-        
-        // UUIDv7 格式验证：8-4-4-4-12，第13位为7
-        String uuidv7Pattern = "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$";
-        if (!fileId.matches(uuidv7Pattern)) {
-            throw new IllegalArgumentException("无效的 fileId 格式: " + fileId);
-        }
     }
 
     private String newEventId() {
