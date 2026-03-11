@@ -22,6 +22,8 @@ import java.util.List;
 public class PostCommandService {
 
     private final PostCreateCommandService postCreateCommandService;
+    private final PostDraftCommandService postDraftCommandService;
+    private final PostLifecycleCommandService postLifecycleCommandService;
     private final PostPublishCommandService postPublishCommandService;
     private final PostWriteService postWriteService;
     private final ScheduledPublishCommandService scheduledPublishCommandService;
@@ -40,7 +42,7 @@ public class PostCommandService {
     }
 
     public void unpublishPost(Long userId, Long postId) {
-        postWriteService.unpublishPost(userId, postId);
+        postLifecycleCommandService.unpublishPost(userId, postId);
     }
 
     public void schedulePublish(Long userId, Long postId, LocalDateTime scheduledAt) {
@@ -52,7 +54,7 @@ public class PostCommandService {
     }
 
     public void deletePost(Long userId, Long postId) {
-        postWriteService.deletePost(userId, postId);
+        postLifecycleCommandService.deletePost(userId, postId);
     }
 
     public void restorePost(Long userId, Long postId) {
@@ -63,11 +65,11 @@ public class PostCommandService {
     }
 
     public void saveDraft(Long userId, Long postId, SaveDraftCommand request) {
-        postWriteService.saveDraft(postId, userId, request);
+        postDraftCommandService.saveDraft(userId, postId, request);
     }
 
     public void deleteDraft(Long userId, Long postId) {
-        postWriteService.deleteDraft(postId, userId);
+        postDraftCommandService.deleteDraft(userId, postId);
     }
 
     public void attachTags(Long userId, Long postId, List<String> tags) {

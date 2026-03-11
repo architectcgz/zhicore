@@ -41,6 +41,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class PostApplicationServiceTask01Test {
 
+    @Mock private OwnedPostLoadService ownedPostLoadService;
     @Mock private PostRepository postRepository;
     @Mock private IntegrationEventPublisher integrationEventPublisher;
     @Mock private ScheduledPublishEventStore scheduledPublishEventStore;
@@ -60,6 +61,7 @@ class PostApplicationServiceTask01Test {
         LocalDateTime scheduledAt = dbNow.plusMinutes(5);
         Post post = Post.createDraft(PostId.of(postId), UserId.of(userId), "title");
 
+        when(ownedPostLoadService.load(postId, userId)).thenReturn(post);
         when(postRepository.findById(postId)).thenReturn(Optional.of(post), Optional.of(post));
         when(scheduledPublishEventStore.dbNow()).thenReturn(dbNow);
 

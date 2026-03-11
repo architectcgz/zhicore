@@ -22,6 +22,12 @@ class PostCommandServiceTest {
     private PostCreateCommandService postCreateCommandService;
 
     @Mock
+    private PostDraftCommandService postDraftCommandService;
+
+    @Mock
+    private PostLifecycleCommandService postLifecycleCommandService;
+
+    @Mock
     private PostPublishCommandService postPublishCommandService;
 
     @Mock
@@ -62,10 +68,10 @@ class PostCommandServiceTest {
         postCommandService.detachTag(1001L, 2001L, "java");
 
         verify(postWriteService).updatePost(1001L, 2001L, updateCommand);
-        verify(postWriteService).unpublishPost(1001L, 2001L);
-        verify(postWriteService).deletePost(1001L, 2001L);
-        verify(postWriteService).saveDraft(2001L, 1001L, saveDraftCommand);
-        verify(postWriteService).deleteDraft(2001L, 1001L);
+        verify(postLifecycleCommandService).unpublishPost(1001L, 2001L);
+        verify(postLifecycleCommandService).deletePost(1001L, 2001L);
+        verify(postDraftCommandService).saveDraft(1001L, 2001L, saveDraftCommand);
+        verify(postDraftCommandService).deleteDraft(1001L, 2001L);
         verify(postWriteService).replacePostTags(1001L, 2001L, List.of("Java"));
         verify(postWriteService).detachTag(1001L, 2001L, "java");
     }

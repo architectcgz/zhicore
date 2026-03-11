@@ -13,18 +13,15 @@ import com.zhicore.content.application.dto.PostBriefVO;
 import com.zhicore.content.application.dto.PostContentVO;
 import com.zhicore.content.application.dto.PostVO;
 import com.zhicore.content.application.dto.TagDTO;
-import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.application.query.PostQuery;
 import com.zhicore.content.application.query.model.PostListQuery;
 import com.zhicore.content.application.query.view.PostDetailView;
 import com.zhicore.content.application.sentinel.ContentSentinelHandlers;
 import com.zhicore.content.application.sentinel.ContentSentinelResources;
-import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostBody;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.PostStatus;
-import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.service.DraftQueryService;
 import com.zhicore.content.domain.valueobject.DraftSnapshot;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +46,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PostReadService {
 
-    private final PostRepository postRepository;
+    private final OwnedPostLoadService ownedPostLoadService;
     private final PostQuery postQuery;
     private final PostContentStore postContentStore;
     private final PublishedPostQueryService publishedPostQueryService;
@@ -137,7 +134,7 @@ public class PostReadService {
 
     @Transactional(readOnly = true)
     public DraftVO getDraft(Long userId, Long postId) {
-        getPostAndCheckOwnership(postId, userId);
+        ownedPostLoadService.load(postId, userId);
         DraftSnapshot draft = draftQueryService.getLatestDraft(postId, userId)
                 .orElseThrow(() -> new BusinessException(ResultCode.NOT_FOUND, "草稿不存在"));
         return toDraftVO(draft);
@@ -196,12 +193,4 @@ public class PostReadService {
                 .build();
     }
 
-    private Post getPostAndCheckOwnership(Long postId, Long userId) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new BusinessException(ResultCode.NOT_FOUND, "文章不存在"));
-        if (!post.isOwnedBy(UserId.of(userId))) {
-            throw new ForbiddenException("无权操作此文章");
-        }
-        return post;
-    }
 }

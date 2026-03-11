@@ -1,8 +1,6 @@
 package com.zhicore.content.application.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zhicore.common.exception.BusinessException;
-import com.zhicore.common.exception.ForbiddenException;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.content.application.model.OutboxEventRecord;
 import com.zhicore.content.application.model.OutboxEventTypes;
@@ -43,6 +41,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ScheduledPublishCommandService {
 
+    private final OwnedPostLoadService ownedPostLoadService;
     private final PostRepository postRepository;
     private final ScheduledPublishEventStore scheduledPublishEventStore;
     private final ScheduledPublishPolicy scheduledPublishPolicy;
@@ -53,7 +52,7 @@ public class ScheduledPublishCommandService {
 
     @Transactional
     public void schedulePublish(Long userId, Long postId, LocalDateTime scheduledAt) {
-        Post post = getPostAndCheckOwnership(postId, userId);
+        Post post = ownedPostLoadService.load(postId, userId);
 
         post.schedulePublish(scheduledAt);
         postRepository.update(post);
@@ -104,7 +103,7 @@ public class ScheduledPublishCommandService {
 
     @Transactional
     public void cancelSchedule(Long userId, Long postId) {
-        Post post = getPostAndCheckOwnership(postId, userId);
+        Post post = ownedPostLoadService.load(postId, userId);
         post.cancelSchedule();
         postRepository.update(post);
         log.info("Post schedule cancelled: postId={}, userId={}", postId, userId);
@@ -361,17 +360,6 @@ public class ScheduledPublishCommandService {
 
         outboxEventStore.save(entity);
         log.warn("Scheduled publish DLQ outbox event created: eventId={}, postId={}", entity.getEventId(), postId);
-    }
-
-    private Post getPostAndCheckOwnership(Long postId, Long userId) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new BusinessException(ResultCode.NOT_FOUND, "文章不存在"));
-
-        if (!post.isOwnedBy(UserId.of(userId))) {
-            throw new ForbiddenException("无权操作此文章");
-        }
-
-        return post;
     }
 
     private int calculateDelayLevelBySeconds(long delaySeconds) {
