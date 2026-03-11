@@ -3,7 +3,6 @@ package com.zhicore.user.application.service;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.user.application.dto.UserVO;
-import com.zhicore.user.application.query.UserSimpleQuery;
 import com.zhicore.user.application.query.view.UserSimpleView;
 import com.zhicore.user.domain.model.Role;
 import com.zhicore.user.domain.model.User;
@@ -31,7 +30,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,9 +45,6 @@ class UserQueryServiceTest {
 
     @Mock
     private UserFollowRepository userFollowRepository;
-
-    @Mock
-    private UserSimpleQuery userSimpleQuery;
 
     @InjectMocks
     private UserQueryService userQueryService;
@@ -114,45 +109,37 @@ class UserQueryServiceTest {
     @Test
     @DisplayName("应该成功获取用户简要信息")
     void shouldGetUserSimpleSuccessfully() {
-        UserSimpleView simpleView = new UserSimpleView();
-        simpleView.setId(123L);
-        simpleView.setUserName("testuser");
-        simpleView.setNickname("测试用户");
-        when(userSimpleQuery.findById(123L)).thenReturn(Optional.of(simpleView));
+        when(userRepository.findById(123L)).thenReturn(Optional.of(testUser));
 
         UserSimpleView dto = userQueryService.getUserSimpleById(123L);
 
         assertEquals(123L, dto.getId());
         assertEquals("testuser", dto.getUserName());
         assertEquals("测试用户", dto.getNickname());
-        verify(userRepository, never()).findById(123L);
+        verify(userRepository).findById(123L);
     }
 
     @Test
     @DisplayName("应该成功批量获取用户简要信息")
     void shouldBatchGetUsersSimpleSuccessfully() {
-        UserSimpleView simpleView = new UserSimpleView();
-        simpleView.setId(123L);
-        simpleView.setUserName("testuser");
-        simpleView.setNickname("测试用户");
-        when(userSimpleQuery.findByIds(Set.of(123L))).thenReturn(Map.of(123L, simpleView));
+        when(userRepository.findByIds(Set.of(123L))).thenReturn(java.util.List.of(testUser));
 
         Map<Long, UserSimpleView> result = userQueryService.batchGetUsersSimple(Set.of(123L));
 
         assertEquals(1, result.size());
         assertEquals("testuser", result.get(123L).getUserName());
-        verify(userRepository, never()).findByIds(Set.of(123L));
+        verify(userRepository).findByIds(Set.of(123L));
     }
 
     @Test
     @DisplayName("应该成功获取陌生人消息设置")
     void shouldGetStrangerMessageSettingSuccessfully() {
-        when(userSimpleQuery.findStrangerMessageAllowed(123L)).thenReturn(Optional.of(true));
+        when(userRepository.findById(123L)).thenReturn(Optional.of(testUser));
 
         boolean result = userQueryService.isStrangerMessageAllowed(123L);
 
         assertTrue(result);
-        verify(userRepository, never()).findById(123L);
+        verify(userRepository).findById(123L);
     }
 
     @Test

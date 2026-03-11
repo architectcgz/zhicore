@@ -9,7 +9,11 @@ public interface TagCacheKeyResolver {
 
     String bySlug(String slug);
 
+    String list(int limit);
+
     String hotTags(int limit);
+
+    String lockById(Long tagId);
 
     String lockBySlug(String slug);
 

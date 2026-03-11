@@ -1,10 +1,9 @@
 package com.zhicore.content.application.command.handlers;
 
 import com.zhicore.content.application.command.commands.UpdatePostTagsCommand;
-import com.zhicore.common.cache.port.CacheStore;
-import com.zhicore.content.application.port.cachekey.PostCacheKeyResolver;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
+import com.zhicore.content.application.port.store.PostCacheInvalidationStore;
 import com.zhicore.common.exception.OptimisticLockException;
 import com.zhicore.content.domain.event.PostTagsUpdatedDomainEvent;
 import com.zhicore.content.domain.exception.PostErrorMessages;
@@ -35,8 +34,7 @@ public class UpdatePostTagsHandler {
     
     private final PostRepository postRepository;
     private final EventPublisher eventPublisher;
-    private final CacheStore cacheStore;
-    private final PostCacheKeyResolver postCacheKeyResolver;
+    private final PostCacheInvalidationStore postCacheInvalidationStore;
     
     /**
      * 处理更新标签命令
@@ -99,12 +97,9 @@ public class UpdatePostTagsHandler {
      * @param newTags 新标签集合
      */
     private void invalidateCache(PostId postId, Set<TagId> oldTags, Set<TagId> newTags) {
-        // 文章详情精确 key 直接删除
-        cacheStore.delete(postCacheKeyResolver.detail(postId));
-
-        // 标签列表缓存包含分页/size 等维度，统一使用 pattern 失效
-        oldTags.forEach(tag -> cacheStore.deletePattern(postCacheKeyResolver.listTagPattern(tag)));
-        newTags.forEach(tag -> cacheStore.deletePattern(postCacheKeyResolver.listTagPattern(tag)));
+        postCacheInvalidationStore.evictDetail(postId);
+        postCacheInvalidationStore.evictTagLists(oldTags);
+        postCacheInvalidationStore.evictTagLists(newTags);
 
         log.debug("Invalidated cache for post and tags: postId={}, oldTags={}, newTags={}",
                 postId, oldTags.size(), newTags.size());

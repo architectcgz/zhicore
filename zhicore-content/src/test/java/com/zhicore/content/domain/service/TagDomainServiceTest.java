@@ -1,6 +1,7 @@
 package com.zhicore.content.domain.service;
 
 import com.zhicore.content.domain.model.Tag;
+import com.zhicore.content.application.service.TagCommandService;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.infrastructure.service.TagDomainServiceImpl;
 import com.zhicore.api.client.IdGeneratorFeignClient;
@@ -37,11 +38,13 @@ class TagDomainServiceTest {
     private IdGeneratorFeignClient idGeneratorFeignClient;
 
     private TagDomainService tagDomainService;
+    private TagCommandService tagCommandService;
 
     @BeforeEach
     void setUp() {
         lenient().when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(1L));
-        tagDomainService = new TagDomainServiceImpl(tagRepository, idGeneratorFeignClient);
+        tagDomainService = new TagDomainServiceImpl();
+        tagCommandService = new TagCommandService(tagRepository, idGeneratorFeignClient, tagDomainService);
     }
 
     // ==================== Slug 规范化测试 ====================
@@ -320,7 +323,7 @@ class TagDomainServiceTest {
         when(tagRepository.findBySlug(slug)).thenReturn(Optional.of(existingTag));
 
         // When
-        Tag result = tagDomainService.findOrCreate(name);
+        Tag result = tagCommandService.findOrCreate(name);
 
         // Then
         assertNotNull(result);
@@ -341,7 +344,7 @@ class TagDomainServiceTest {
         when(tagRepository.save(any(Tag.class))).thenReturn(newTag);
 
         // When
-        Tag result = tagDomainService.findOrCreate(name);
+        Tag result = tagCommandService.findOrCreate(name);
 
         // Then
         assertNotNull(result);
@@ -359,7 +362,7 @@ class TagDomainServiceTest {
 
         // When & Then
         assertThrows(IllegalArgumentException.class, () -> {
-            tagDomainService.findOrCreate(name);
+            tagCommandService.findOrCreate(name);
         });
     }
 
@@ -382,7 +385,7 @@ class TagDomainServiceTest {
                 .thenReturn(tag3);
 
         // When
-        List<Tag> results = tagDomainService.findOrCreateBatch(names);
+        List<Tag> results = tagCommandService.findOrCreateBatch(names);
 
         // Then
         assertNotNull(results);
@@ -398,7 +401,7 @@ class TagDomainServiceTest {
         List<String> names = Arrays.asList();
 
         // When
-        List<Tag> results = tagDomainService.findOrCreateBatch(names);
+        List<Tag> results = tagCommandService.findOrCreateBatch(names);
 
         // Then
         assertNotNull(results);
@@ -420,7 +423,7 @@ class TagDomainServiceTest {
         when(tagRepository.save(any(Tag.class))).thenReturn(tag2);
 
         // When
-        List<Tag> results = tagDomainService.findOrCreateBatch(names);
+        List<Tag> results = tagCommandService.findOrCreateBatch(names);
 
         // Then
         assertNotNull(results);

@@ -1,11 +1,10 @@
 package com.zhicore.content.application.command.handlers;
 
 import com.zhicore.content.application.command.commands.UpdatePostContentCommand;
-import com.zhicore.common.cache.port.CacheStore;
-import com.zhicore.content.application.port.cachekey.PostCacheKeyResolver;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostContentStore;
+import com.zhicore.content.application.port.store.PostCacheInvalidationStore;
 import com.zhicore.content.domain.event.DomainEventFactory;
 import com.zhicore.content.domain.event.PostContentUpdatedEvent;
 import com.zhicore.content.domain.exception.PostErrorMessages;
@@ -31,9 +30,8 @@ public class UpdatePostContentHandler {
     private final PostRepository postRepository;
     private final PostContentStore postContentStore;
     private final EventPublisher eventPublisher;
-    private final CacheStore cacheStore;
+    private final PostCacheInvalidationStore postCacheInvalidationStore;
     private final DomainEventFactory eventFactory;
-    private final PostCacheKeyResolver postCacheKeyResolver;
     
     /**
      * 处理更新内容命令
@@ -99,11 +97,8 @@ public class UpdatePostContentHandler {
      * @param postId 文章 ID（领域类型）
      */
     private void invalidateCache(PostId postId) {
-        // 失效详情缓存
-        cacheStore.delete(postCacheKeyResolver.detail(postId));
-        
-        // 失效内容缓存
-        cacheStore.delete(postCacheKeyResolver.content(postId));
+        postCacheInvalidationStore.evictDetail(postId);
+        postCacheInvalidationStore.evictContent(postId);
         
         log.debug("Invalidated cache for post: {}", postId);
     }

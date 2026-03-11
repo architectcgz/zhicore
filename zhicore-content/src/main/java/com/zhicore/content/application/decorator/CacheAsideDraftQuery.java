@@ -4,7 +4,7 @@ import com.zhicore.common.cache.CacheConstants;
 import com.zhicore.common.cache.port.CacheResult;
 import com.zhicore.common.config.CacheProperties;
 import com.zhicore.content.application.port.store.DraftCacheStore;
-import com.zhicore.content.domain.service.DraftService;
+import com.zhicore.content.domain.service.DraftQueryService;
 import com.zhicore.content.domain.valueobject.DraftSnapshot;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -17,37 +17,26 @@ import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 草稿读取缓存装饰器
+ * 草稿查询缓存装饰器。
  *
- * 装饰 DraftService，实现 Cache-Aside 草稿缓存策略。
+ * 装饰 DraftQueryService，实现 Cache-Aside 草稿查询缓存策略。
  */
 @Slf4j
 @Primary
 @Service
-public class CacheAsideDraftService implements DraftService {
+public class CacheAsideDraftQuery implements DraftQueryService {
 
-    private final DraftService delegate;
+    private final DraftQueryService delegate;
     private final DraftCacheStore draftCacheStore;
     private final CacheProperties cacheProperties;
 
-    public CacheAsideDraftService(
+    public CacheAsideDraftQuery(
             DraftCacheStore draftCacheStore,
             CacheProperties cacheProperties,
-            @Qualifier("draftServiceImpl") DraftService delegate) {
+            @Qualifier("draftServiceImpl") DraftQueryService delegate) {
         this.draftCacheStore = draftCacheStore;
         this.cacheProperties = cacheProperties;
         this.delegate = delegate;
-    }
-
-    @Override
-    public void saveDraft(Long postId, Long userId, String content, boolean isAutoSave) {
-        delegate.saveDraft(postId, userId, content, isAutoSave);
-
-        try {
-            evictDraftCache(postId, userId);
-        } catch (Exception e) {
-            log.warn("Failed to evict draft cache after save: {}", e.getMessage());
-        }
     }
 
     @Override
@@ -96,22 +85,6 @@ public class CacheAsideDraftService implements DraftService {
         }
     }
 
-    @Override
-    public void deleteDraft(Long postId, Long userId) {
-        delegate.deleteDraft(postId, userId);
-
-        try {
-            evictDraftCache(postId, userId);
-        } catch (Exception e) {
-            log.warn("Failed to evict draft cache after delete: {}", e.getMessage());
-        }
-    }
-
-    @Override
-    public long cleanExpiredDrafts(int expireDays) {
-        return delegate.cleanExpiredDrafts(expireDays);
-    }
-
     public void warmUpDraftCache(Long postId, Long userId) {
         try {
             Optional<DraftSnapshot> draft = delegate.getLatestDraft(postId, userId);
@@ -157,11 +130,6 @@ public class CacheAsideDraftService implements DraftService {
             draftCacheStore.setUserDraftsEmpty(userId, Duration.ofSeconds(CacheConstants.NULL_VALUE_TTL_SECONDS));
             log.debug("Cached empty draft list: userId={}", userId);
         }
-    }
-
-    private void evictDraftCache(Long postId, Long userId) {
-        draftCacheStore.evictDraft(postId, userId);
-        log.debug("Evicted draft cache for postId={}, userId={}", postId, userId);
     }
 
     private int randomJitter() {

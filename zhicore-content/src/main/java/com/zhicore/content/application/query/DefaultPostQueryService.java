@@ -31,9 +31,9 @@ import java.util.stream.Collectors;
  * @author ZhiCore Team
  */
 @Slf4j
-@Service("postQueryService")
+@Service("postSourceQuery")
 @RequiredArgsConstructor
-public class PostQueryServiceImpl implements PostQuery {
+public class DefaultPostQueryService implements PostQuery {
     
     private final PostRepository postRepository;
     private final PostContentStore contentStore;

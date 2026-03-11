@@ -5,7 +5,6 @@ import com.zhicore.common.result.ResultCode;
 import com.zhicore.user.application.assembler.UserAssembler;
 import com.zhicore.user.application.dto.UserVO;
 import com.zhicore.user.application.port.UserQueryPort;
-import com.zhicore.user.application.query.UserSimpleQuery;
 import com.zhicore.user.application.query.view.UserSimpleView;
 import com.zhicore.user.domain.model.User;
 import com.zhicore.user.domain.repository.UserFollowRepository;
@@ -14,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -31,7 +31,6 @@ public class UserQueryService implements UserQueryPort {
 
     private final UserRepository userRepository;
     private final UserFollowRepository userFollowRepository;
-    private final UserSimpleQuery userSimpleQuery;
 
     /**
      * 根据 ID 获取用户详情。
@@ -61,8 +60,9 @@ public class UserQueryService implements UserQueryPort {
      */
     @Override
     public UserSimpleView getUserSimpleById(Long userId) {
-        return userSimpleQuery.findById(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ResultCode.USER_NOT_FOUND));
+        return UserAssembler.toSimpleView(user);
     }
 
     /**
@@ -74,9 +74,13 @@ public class UserQueryService implements UserQueryPort {
     @Override
     public Map<Long, UserSimpleView> batchGetUsersSimple(Set<Long> userIds) {
         if (userIds == null || userIds.isEmpty()) {
-            return new HashMap<>();
+            return Collections.emptyMap();
         }
-        return new HashMap<>(userSimpleQuery.findByIds(userIds));
+        Map<Long, UserSimpleView> users = new HashMap<>();
+        for (User user : userRepository.findByIds(userIds)) {
+            users.put(user.getId(), UserAssembler.toSimpleView(user));
+        }
+        return users;
     }
 
     /**
@@ -87,8 +91,9 @@ public class UserQueryService implements UserQueryPort {
      */
     @Override
     public boolean isStrangerMessageAllowed(Long userId) {
-        return userSimpleQuery.findStrangerMessageAllowed(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ResultCode.USER_NOT_FOUND));
+        return user.isStrangerMessageAllowed();
     }
 
     /**

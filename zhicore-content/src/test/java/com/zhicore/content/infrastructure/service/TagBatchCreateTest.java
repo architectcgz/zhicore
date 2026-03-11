@@ -1,16 +1,16 @@
 package com.zhicore.content.infrastructure.service;
 
 import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.content.application.service.TagCommandService;
 import com.zhicore.common.exception.ServiceUnavailableException;
-import com.zhicore.common.exception.ValidationException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.TagRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -36,8 +36,12 @@ class TagBatchCreateTest {
     @Mock
     private IdGeneratorFeignClient idGeneratorFeignClient;
 
-    @InjectMocks
-    private TagDomainServiceImpl tagDomainService;
+    private TagCommandService tagCommandService;
+
+    @BeforeEach
+    void setUp() {
+        tagCommandService = new TagCommandService(tagRepository, idGeneratorFeignClient, new TagDomainServiceImpl());
+    }
 
     // ==================== 13.5 批量创建成功 ====================
 
@@ -54,7 +58,7 @@ class TagBatchCreateTest {
                     .thenReturn(ApiResponse.success(2L));
             when(tagRepository.save(any(Tag.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            List<Tag> result = tagDomainService.findOrCreateBatch(List.of("标签A", "标签B"));
+            List<Tag> result = tagCommandService.findOrCreateBatch(List.of("标签A", "标签B"));
 
             assertThat(result).hasSize(2);
         }
@@ -62,7 +66,7 @@ class TagBatchCreateTest {
         @Test
         @DisplayName("空列表输入返回空列表")
         void emptyInputShouldReturnEmptyList() {
-            List<Tag> result = tagDomainService.findOrCreateBatch(List.of());
+            List<Tag> result = tagCommandService.findOrCreateBatch(List.of());
             assertThat(result).isEmpty();
         }
     }
@@ -81,7 +85,7 @@ class TagBatchCreateTest {
                     .thenThrow(new RuntimeException("连接超时"));
 
             assertThatThrownBy(() ->
-                    tagDomainService.findOrCreateBatch(List.of("标签A", "标签B"))
+                    tagCommandService.findOrCreateBatch(List.of("标签A", "标签B"))
             ).isInstanceOf(ServiceUnavailableException.class);
         }
 
@@ -90,7 +94,7 @@ class TagBatchCreateTest {
         void invalidTagNameShouldThrowWithDetails() {
             // 空标签名会触发 validateTagName 中的 IllegalArgumentException
             assertThatThrownBy(() ->
-                    tagDomainService.findOrCreateBatch(List.of("正常标签", ""))
+                    tagCommandService.findOrCreateBatch(List.of("正常标签", ""))
             ).isInstanceOf(Exception.class);
         }
 
@@ -103,7 +107,7 @@ class TagBatchCreateTest {
             when(tagRepository.save(any(Tag.class)))
                     .thenAnswer(inv -> inv.getArgument(0));
 
-            List<Tag> result = tagDomainService.findOrCreateBatch(
+            List<Tag> result = tagCommandService.findOrCreateBatch(
                     List.of("标签A", "标签A"));
 
             assertThat(result).hasSize(1);

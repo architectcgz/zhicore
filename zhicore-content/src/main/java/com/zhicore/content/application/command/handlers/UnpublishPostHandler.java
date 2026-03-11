@@ -1,10 +1,9 @@
 package com.zhicore.content.application.command.handlers;
 
 import com.zhicore.content.application.command.commands.UnpublishPostCommand;
-import com.zhicore.common.cache.port.CacheStore;
-import com.zhicore.content.application.port.cachekey.PostCacheKeyResolver;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
+import com.zhicore.content.application.port.store.PostCacheInvalidationStore;
 import com.zhicore.content.domain.event.PostUnpublishedEvent;
 import com.zhicore.content.domain.exception.PostErrorMessages;
 import com.zhicore.content.domain.exception.PostOwnershipException;
@@ -32,8 +31,7 @@ public class UnpublishPostHandler {
     
     private final PostRepository postRepository;
     private final EventPublisher eventPublisher;
-    private final CacheStore cacheStore;
-    private final PostCacheKeyResolver postCacheKeyResolver;
+    private final PostCacheInvalidationStore postCacheInvalidationStore;
     
     /**
      * 处理撤回文章命令
@@ -86,9 +84,9 @@ public class UnpublishPostHandler {
      * @param post 文章对象
      */
     private void invalidateCache(PostId postId, Post post) {
-        cacheStore.delete(postCacheKeyResolver.detail(postId));
-        cacheStore.deletePattern(postCacheKeyResolver.listLatestPattern());
-        cacheStore.deletePattern(postCacheKeyResolver.listAuthorPattern(post.getOwnerId()));
+        postCacheInvalidationStore.evictDetail(postId);
+        postCacheInvalidationStore.evictLatestList();
+        postCacheInvalidationStore.evictAuthorLists(post.getOwnerId());
         log.debug("Invalidated cache for unpublished post: {}", postId);
     }
 }

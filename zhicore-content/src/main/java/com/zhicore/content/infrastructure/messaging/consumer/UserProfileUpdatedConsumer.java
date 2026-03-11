@@ -2,14 +2,13 @@ package com.zhicore.content.infrastructure.messaging.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.integration.messaging.user.UserProfileUpdatedIntegrationEvent;
-import com.zhicore.common.cache.port.CacheStore;
 import com.zhicore.content.application.port.repo.ConsumedEventRepository;
 import com.zhicore.content.application.port.repo.PostRepository;
+import com.zhicore.content.application.port.store.PostCacheInvalidationStore;
 import com.zhicore.content.domain.model.OwnerSnapshot;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.UserId;
-import com.zhicore.content.infrastructure.cache.PostRedisKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
@@ -59,7 +58,7 @@ import java.util.List;
 public class UserProfileUpdatedConsumer implements RocketMQListener<String> {
     
     private final PostRepository postRepository;
-    private final CacheStore cacheStore;
+    private final PostCacheInvalidationStore postCacheInvalidationStore;
     private final ConsumedEventRepository consumedEventRepository;
     private final ObjectMapper objectMapper;
     
@@ -152,7 +151,7 @@ public class UserProfileUpdatedConsumer implements RocketMQListener<String> {
                             totalUpdated++;
                             
                             // 7. 失效文章详情缓存
-                            cacheStore.delete(PostRedisKeys.detail(post.getId()));
+                            postCacheInvalidationStore.evictDetail(post.getId());
                         }
                     }
                 }
@@ -167,7 +166,7 @@ public class UserProfileUpdatedConsumer implements RocketMQListener<String> {
             
             // 8. 失效作者列表缓存（使用模式匹配）
             try {
-                cacheStore.deletePattern(PostRedisKeys.listAuthor(userId) + ":*");
+                postCacheInvalidationStore.evictAuthorLists(userId);
             } catch (UnsupportedOperationException e) {
                 // 生产环境可能禁用 deletePattern，记录警告但不影响主流程
                 log.warn("无法使用 deletePattern 失效缓存，生产环境建议使用版本号 key: {}", e.getMessage());

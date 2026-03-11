@@ -3,7 +3,7 @@ package com.zhicore.content.application.decorator;
 import com.zhicore.common.cache.port.CacheResult;
 import com.zhicore.common.config.CacheProperties;
 import com.zhicore.content.application.port.store.DraftCacheStore;
-import com.zhicore.content.domain.service.DraftService;
+import com.zhicore.content.domain.service.DraftQueryService;
 import com.zhicore.content.domain.valueobject.DraftSnapshot;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,19 +18,18 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("CacheAsideDraftService 单元测试")
-class CacheAsideDraftServiceTest {
+@DisplayName("CacheAsideDraftQuery 单元测试")
+class CacheAsideDraftQueryTest {
 
     @Mock private DraftCacheStore draftCacheStore;
-    @Mock private DraftService delegate;
+    @Mock private DraftQueryService delegate;
 
-    private CacheAsideDraftService service;
+    private CacheAsideDraftQuery service;
 
     private static final Long POST_ID = 1001L;
     private static final Long USER_ID = 2001L;
@@ -42,7 +41,7 @@ class CacheAsideDraftServiceTest {
         cacheProperties.getDraft().setListTtl(180);
         cacheProperties.getJitter().setMaxSeconds(5);
 
-        service = new CacheAsideDraftService(draftCacheStore, cacheProperties, delegate);
+        service = new CacheAsideDraftQuery(draftCacheStore, cacheProperties, delegate);
     }
 
     private DraftSnapshot createDraft() {
@@ -132,25 +131,6 @@ class CacheAsideDraftServiceTest {
             assertTrue(result.isEmpty());
             verify(delegate, never()).getUserDrafts(USER_ID);
         }
-    }
-
-    @Test
-    @DisplayName("删除草稿后应失效缓存")
-    void shouldEvictCacheAfterDeleteDraft() {
-        service.deleteDraft(POST_ID, USER_ID);
-
-        verify(delegate).deleteDraft(POST_ID, USER_ID);
-        verify(draftCacheStore).evictDraft(POST_ID, USER_ID);
-    }
-
-    @Test
-    @DisplayName("缓存删除失败不应影响保存流程")
-    void shouldIgnoreCacheEvictionFailureAfterSave() {
-        doThrow(new RuntimeException("redis down")).when(draftCacheStore).evictDraft(POST_ID, USER_ID);
-
-        service.saveDraft(POST_ID, USER_ID, "content", true);
-
-        verify(delegate).saveDraft(POST_ID, USER_ID, "content", true);
     }
 
     @Test

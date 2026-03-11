@@ -25,8 +25,7 @@ import com.zhicore.content.application.workflow.CreateDraftWorkflow;
 import com.zhicore.content.application.workflow.PublishPostWorkflow;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
-import com.zhicore.content.domain.service.DraftService;
-import com.zhicore.content.domain.service.TagDomainService;
+import com.zhicore.content.domain.service.DraftCommandService;
 import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,8 +53,8 @@ class PostApplicationServiceTask01Test {
 
     @Mock private PostRepository postRepository;
     @Mock private IdGeneratorFeignClient idGeneratorFeignClient;
-    @Mock private DraftService draftService;
-    @Mock private TagDomainService tagDomainService;
+    @Mock private DraftCommandService draftCommandService;
+    @Mock private TagCommandService tagCommandService;
     @Mock private PostTagRepository postTagRepository;
     @Mock private TagRepository tagRepository;
     @Mock private UploadFileClient uploadServiceClient;

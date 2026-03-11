@@ -10,7 +10,6 @@ import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
-import com.zhicore.content.domain.service.TagDomainService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,7 +56,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
     private PostTagRepository postTagRepository;
 
     @Autowired
-    private TagDomainService tagDomainService;
+    private TagCommandService tagCommandService;
 
     private Tag testTag;
     private List<Post> testPosts;
@@ -65,7 +64,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
     @BeforeEach
     void setUp() {
         // 创建测试标签
-        testTag = tagDomainService.findOrCreate("Integration Test Tag");
+        testTag = tagCommandService.findOrCreate("Integration Test Tag");
         
         // 创建测试文章列表
         testPosts = new ArrayList<>();
@@ -133,7 +132,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
     @Test
     void getPostsByTagWithNoPostsShouldReturnEmptyList() {
         // Given: 创建一个没有关联文章的标签
-        Tag emptyTag = tagDomainService.findOrCreate("Empty Tag " + System.currentTimeMillis());
+        Tag emptyTag = tagCommandService.findOrCreate("Empty Tag " + System.currentTimeMillis());
 
         // When: 查询标签下的文章
         PageResult<PostVO> result = tagApplicationService.getPostsByTag(emptyTag.getSlug(), 0, 20);
@@ -261,7 +260,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
         
         for (int postCount : postCounts) {
             // Given: 创建一个标签和指定数量的文章
-            Tag tag = tagDomainService.findOrCreate("Property Test Tag " + System.currentTimeMillis());
+            Tag tag = tagCommandService.findOrCreate("Property Test Tag " + System.currentTimeMillis());
             List<Post> posts = new ArrayList<>();
             
             for (int i = 0; i < postCount; i++) {
@@ -323,7 +322,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
             int size = testCase[2];
             
             // Given: 创建一个标签和指定数量的文章
-            Tag tag = tagDomainService.findOrCreate("Consistency Test Tag " + System.currentTimeMillis());
+            Tag tag = tagCommandService.findOrCreate("Consistency Test Tag " + System.currentTimeMillis());
             
             for (int i = 0; i < postCount; i++) {
                 Post post = createAndSavePost("Consistency Test Post " + i + " " + System.currentTimeMillis(), 1000L);
@@ -378,7 +377,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
             int pageSize = testCase[1];
             
             // Given: 创建一个标签和指定数量的文章
-            Tag tag = tagDomainService.findOrCreate("Completeness Test Tag " + System.currentTimeMillis());
+            Tag tag = tagCommandService.findOrCreate("Completeness Test Tag " + System.currentTimeMillis());
             Set<Long> expectedPostIds = new HashSet<>();
             
             for (int i = 0; i < postCount; i++) {

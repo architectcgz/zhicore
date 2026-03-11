@@ -2,10 +2,9 @@ package com.zhicore.content.application.command.handlers;
 
 import com.zhicore.common.context.UserContext;
 import com.zhicore.content.application.command.commands.PurgePostCommand;
-import com.zhicore.common.cache.port.CacheStore;
-import com.zhicore.content.application.port.cachekey.PostCacheKeyResolver;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
+import com.zhicore.content.application.port.store.PostCacheInvalidationStore;
 import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.domain.event.PostPurgedEvent;
 import com.zhicore.content.domain.exception.PostErrorMessages;
@@ -38,8 +37,7 @@ public class PurgePostHandler {
     private final PostRepository postRepository;
     private final PostContentStore postContentStore;
     private final EventPublisher eventPublisher;
-    private final CacheStore cacheStore;
-    private final PostCacheKeyResolver postCacheKeyResolver;
+    private final PostCacheInvalidationStore postCacheInvalidationStore;
     
     /**
      * 处理物理删除文章命令
@@ -127,23 +125,11 @@ public class PurgePostHandler {
      * @param post 文章对象
      */
     private void clearAllCache(PostId postId, Post post) {
-        // 使用 deletePattern 删除所有相关缓存
-        cacheStore.deletePattern(postCacheKeyResolver.allRelatedPattern(postId));
-        
-        // 删除详情缓存
-        cacheStore.delete(postCacheKeyResolver.detail(postId));
-        
-        // 删除列表缓存（分页/size 等维度下为多 key，统一用 pattern 失效）
-        cacheStore.deletePattern(postCacheKeyResolver.listLatestPattern());
-        cacheStore.deletePattern(postCacheKeyResolver.listAuthorPattern(post.getOwnerId()));
-        
-        // 删除统计缓存
-        cacheStore.delete(
-                postCacheKeyResolver.viewCount(postId),
-                postCacheKeyResolver.likeCount(postId),
-                postCacheKeyResolver.commentCount(postId),
-                postCacheKeyResolver.favoriteCount(postId)
-        );
+        postCacheInvalidationStore.evictAllRelated(postId);
+        postCacheInvalidationStore.evictDetail(postId);
+        postCacheInvalidationStore.evictLatestList();
+        postCacheInvalidationStore.evictAuthorLists(post.getOwnerId());
+        postCacheInvalidationStore.evictStats(postId);
         
         log.debug("Cleared all cache for post: {}", postId);
     }

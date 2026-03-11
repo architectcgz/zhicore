@@ -30,28 +30,10 @@ public interface UserMapper extends BaseMapper<UserPO> {
     UserPO selectByUserName(@Param("userName") String userName);
 
     /**
-     * 根据 ID 查询用户简要信息。
-     */
-    @Select("SELECT id, username, nick_name, avatar_id, profile_version FROM users WHERE id = #{userId}")
-    UserPO selectSimpleById(@Param("userId") Long userId);
-
-    /**
      * 根据ID集合批量查询用户
      */
     @Select("<script>SELECT * FROM users WHERE id IN <foreach collection='userIds' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
     List<UserPO> selectByIds(@Param("userIds") Set<Long> userIds);
-
-    /**
-     * 根据 ID 集合批量查询用户简要信息。
-     */
-    @Select("<script>SELECT id, username, nick_name, avatar_id, profile_version FROM users WHERE id IN <foreach collection='userIds' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
-    List<UserPO> selectSimpleByIds(@Param("userIds") Set<Long> userIds);
-
-    /**
-     * 根据 ID 查询陌生人消息设置。
-     */
-    @Select("SELECT allow_stranger_message FROM users WHERE id = #{userId}")
-    Boolean selectAllowStrangerMessageById(@Param("userId") Long userId);
 
     /**
      * 检查邮箱是否存在

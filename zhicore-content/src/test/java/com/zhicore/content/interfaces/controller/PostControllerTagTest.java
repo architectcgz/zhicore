@@ -11,7 +11,6 @@ import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
-import com.zhicore.content.domain.service.TagDomainService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,9 +50,6 @@ class PostControllerTagTest {
 
     @Autowired
     private PostTagRepository postTagRepository;
-
-    @Autowired
-    private TagDomainService tagDomainService;
 
     private Long testUserId;
     private Long testPostId;
@@ -155,13 +151,8 @@ class PostControllerTagTest {
         List<String> tagNames = Arrays.asList("Java", "Spring Boot", "后端开发");
         postCommandService.attachTags(testUserId, testPostId, tagNames);
 
-        // When: 移除一个标签（通过获取当前标签并过滤）
-        List<TagDTO> currentTags = postQueryService.getPostTags(testPostId);
-        List<String> remainingTagNames = currentTags.stream()
-                .filter(tag -> !tag.getSlug().equals("spring-boot"))
-                .map(TagDTO::getName)
-                .toList();
-        postCommandService.attachTags(testUserId, testPostId, remainingTagNames);
+        // When: 移除一个标签
+        postCommandService.detachTag(testUserId, testPostId, "spring-boot");
 
         // Then: 验证标签已移除
         List<TagDTO> tags = postQueryService.getPostTags(testPostId);

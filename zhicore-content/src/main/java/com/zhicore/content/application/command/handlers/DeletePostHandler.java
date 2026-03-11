@@ -1,10 +1,9 @@
 package com.zhicore.content.application.command.handlers;
 
 import com.zhicore.content.application.command.commands.DeletePostCommand;
-import com.zhicore.common.cache.port.CacheStore;
-import com.zhicore.content.application.port.cachekey.PostCacheKeyResolver;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
+import com.zhicore.content.application.port.store.PostCacheInvalidationStore;
 import com.zhicore.content.domain.event.DomainEventFactory;
 import com.zhicore.content.domain.event.PostDeletedEvent;
 import com.zhicore.content.domain.exception.PostErrorMessages;
@@ -30,9 +29,8 @@ public class DeletePostHandler {
     
     private final PostRepository postRepository;
     private final EventPublisher eventPublisher;
-    private final CacheStore cacheStore;
+    private final PostCacheInvalidationStore postCacheInvalidationStore;
     private final DomainEventFactory eventFactory;
-    private final PostCacheKeyResolver postCacheKeyResolver;
     
     /**
      * 处理删除文章命令
@@ -78,24 +76,17 @@ public class DeletePostHandler {
      * 使用领域类型参数的原因：
      * 1. 类型安全：编译期检查，避免传递错误的 ID 类型
      * 2. 语义清晰：明确表示这是文章 ID，而不是普通字符串
-     * 3. 一致性：与 PostRedisKeys 工具类的设计保持一致
+     * 3. 语义一致：与缓存失效 store 的接口语义保持一致
      * 4. 封装性：PostId 封装了 ID 的验证和转换逻辑
      * 
      * @param postId 文章 ID（领域类型）
      * @param post 文章对象
      */
     private void invalidateAllCache(PostId postId, Post post) {
-        // 使用 deletePattern 删除所有相关缓存
-        cacheStore.deletePattern(postCacheKeyResolver.allRelatedPattern(postId));
-        
-        // 删除列表缓存（分页/size 等维度下为多 key，统一用 pattern 失效）
-        cacheStore.deletePattern(postCacheKeyResolver.listLatestPattern());
-        cacheStore.deletePattern(postCacheKeyResolver.listAuthorPattern(post.getOwnerSnapshot().getOwnerId()));
-        
-        // 删除标签列表缓存（分页/size 等维度下为多 key，统一用 pattern 失效）
-        post.getTagIds().forEach(tagId ->
-                cacheStore.deletePattern(postCacheKeyResolver.listTagPattern(tagId))
-        );
+        postCacheInvalidationStore.evictAllRelated(postId);
+        postCacheInvalidationStore.evictLatestList();
+        postCacheInvalidationStore.evictAuthorLists(post.getOwnerSnapshot().getOwnerId());
+        postCacheInvalidationStore.evictTagLists(post.getTagIds());
         
         log.debug("Invalidated all cache for post: {}", postId);
     }

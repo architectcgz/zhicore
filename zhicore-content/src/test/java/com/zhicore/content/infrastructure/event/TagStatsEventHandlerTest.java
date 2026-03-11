@@ -3,10 +3,10 @@ package com.zhicore.content.infrastructure.event;
 import com.zhicore.content.domain.event.PostCreatedDomainEvent;
 import com.zhicore.content.domain.event.PostDeletedEvent;
 import com.zhicore.content.domain.event.PostTagsUpdatedDomainEvent;
+import com.zhicore.content.application.port.store.TagStatsCacheStore;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.model.UserId;
-import com.zhicore.content.infrastructure.cache.TagRedisKeys;
 import com.zhicore.content.infrastructure.persistence.pg.mapper.TagStatsEntityMyBatisMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,7 +15,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.RedisTemplate;
 
 import java.time.Instant;
 import java.util.List;
@@ -34,7 +33,7 @@ class TagStatsEventHandlerTest {
     private TagStatsEntityMyBatisMapper tagStatsMapper;
 
     @Mock
-    private RedisTemplate<String, Object> redisTemplate;
+    private TagStatsCacheStore tagStatsCacheStore;
 
     @InjectMocks
     private TagStatsEventHandler eventHandler;
@@ -76,9 +75,6 @@ class TagStatsEventHandlerTest {
 
     @Test
     void handlePostCreated_shouldUpdateTagStats() {
-        when(redisTemplate.keys(anyString())).thenReturn(Set.of());
-        when(redisTemplate.delete(anyString())).thenReturn(true);
-
         eventHandler.handlePostCreated(createdEvent);
 
         ArgumentCaptor<List<Long>> captor = ArgumentCaptor.forClass(List.class);
@@ -87,23 +83,19 @@ class TagStatsEventHandlerTest {
         assertEquals(2, ids.size());
         assertTrue(ids.contains(1001L));
         assertTrue(ids.contains(1002L));
+        verify(tagStatsCacheStore).evictTagStats(ids);
+        verify(tagStatsCacheStore).evictHotTags();
     }
 
     @Test
     void handlePostDeleted_shouldInvalidateHotTagCache() {
-        when(redisTemplate.keys(TagRedisKeys.hotTagsPattern())).thenReturn(Set.of("k1"));
-        when(redisTemplate.delete(Set.of("k1"))).thenReturn(1L);
-
         eventHandler.handlePostDeleted(deletedEvent);
 
-        verify(redisTemplate).keys(TagRedisKeys.hotTagsPattern());
+        verify(tagStatsCacheStore).evictHotTags();
     }
 
     @Test
     void handlePostTagsUpdated_shouldMergeOldAndNewTags() {
-        when(redisTemplate.keys(anyString())).thenReturn(Set.of());
-        when(redisTemplate.delete(anyString())).thenReturn(true);
-
         eventHandler.handlePostTagsUpdated(tagsUpdatedEvent);
 
         ArgumentCaptor<List<Long>> captor = ArgumentCaptor.forClass(List.class);
@@ -113,5 +105,7 @@ class TagStatsEventHandlerTest {
         assertTrue(ids.contains(1001L));
         assertTrue(ids.contains(1002L));
         assertTrue(ids.contains(1003L));
+        verify(tagStatsCacheStore).evictTagStats(ids);
+        verify(tagStatsCacheStore).evictHotTags();
     }
 }

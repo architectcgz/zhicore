@@ -1,7 +1,8 @@
 package com.zhicore.content.infrastructure.service;
 
 import com.zhicore.content.domain.model.ContentType;
-import com.zhicore.content.domain.service.DraftService;
+import com.zhicore.content.domain.service.DraftCommandService;
+import com.zhicore.content.domain.service.DraftQueryService;
 import com.zhicore.content.domain.valueobject.DraftSnapshot;
 import com.zhicore.content.infrastructure.persistence.mongo.document.PostDraft;
 import com.zhicore.content.infrastructure.persistence.mongo.repository.PostDraftRepository;
@@ -24,7 +25,7 @@ import java.util.regex.Pattern;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class DraftServiceImpl implements DraftService {
+public class DraftServiceImpl implements DraftQueryService, DraftCommandService {
 
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 

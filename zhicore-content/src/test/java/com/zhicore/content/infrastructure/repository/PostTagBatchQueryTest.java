@@ -3,7 +3,7 @@ package com.zhicore.content.infrastructure.repository;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
-import com.zhicore.content.domain.service.TagDomainService;
+import com.zhicore.content.application.service.TagCommandService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,7 +36,7 @@ class PostTagBatchQueryTest {
     private TagRepository tagRepository;
 
     @Autowired
-    private TagDomainService tagDomainService;
+    private TagCommandService tagCommandService;
 
     private Long postId1;
     private Long postId2;
@@ -53,9 +53,9 @@ class PostTagBatchQueryTest {
         postId3 = 1003L;
 
         // 创建标签
-        tag1 = tagDomainService.findOrCreate("Java");
-        tag2 = tagDomainService.findOrCreate("Spring Boot");
-        tag3 = tagDomainService.findOrCreate("PostgreSQL");
+        tag1 = tagCommandService.findOrCreate("Java");
+        tag2 = tagCommandService.findOrCreate("Spring Boot");
+        tag3 = tagCommandService.findOrCreate("PostgreSQL");
 
         // 建立关联
         // Post 1: Java, Spring Boot

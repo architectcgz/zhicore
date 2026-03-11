@@ -25,9 +25,9 @@ import java.util.stream.Collectors;
  * @author ZhiCore Team
  */
 @Slf4j
-@Service("tagQueryService")
+@Service("tagSourceQuery")
 @RequiredArgsConstructor
-public class TagQueryServiceImpl implements TagQuery {
+public class DefaultTagQueryService implements TagQuery {
     
     private final TagRepository tagRepository;
     

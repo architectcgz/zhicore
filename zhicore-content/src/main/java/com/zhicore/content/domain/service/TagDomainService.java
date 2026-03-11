@@ -1,16 +1,11 @@
 package com.zhicore.content.domain.service;
 
-import com.zhicore.content.domain.model.Tag;
-
-import java.util.List;
-
 /**
  * Tag 领域服务接口
  * 
  * 负责 Tag 相关的领域逻辑：
  * 1. Slug 规范化
  * 2. Tag 验证
- * 3. Tag 查找或创建（幂等操作）
  *
  * @author ZhiCore Team
  */
@@ -55,26 +50,4 @@ public interface TagDomainService {
      */
     void validateTagName(String name);
 
-    /**
-     * 查找或创建标签（幂等操作）
-     * 
-     * 流程：
-     * 1. 验证标签名称
-     * 2. 规范化为 slug
-     * 3. 根据 slug 查询是否已存在
-     * 4. 如果存在则返回，不存在则创建
-     * 5. 处理并发冲突（唯一索引冲突时重新查询）
-     * 
-     * @param name 标签名称
-     * @return Tag 实例
-     */
-    Tag findOrCreate(String name);
-
-    /**
-     * 批量查找或创建标签
-     * 
-     * @param names 标签名称列表
-     * @return Tag 列表
-     */
-    List<Tag> findOrCreateBatch(List<String> names);
 }

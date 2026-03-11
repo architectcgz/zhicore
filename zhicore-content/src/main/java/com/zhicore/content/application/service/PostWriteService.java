@@ -44,9 +44,9 @@ import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.model.TopicId;
 import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.application.port.repo.PostRepository;
-import com.zhicore.content.domain.service.DraftService;
-import com.zhicore.content.domain.service.TagDomainService;
+import com.zhicore.content.domain.service.DraftCommandService;
 import com.zhicore.content.domain.repository.PostTagRepository;
+import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.integration.messaging.post.PostPublishedIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostScheduledIntegrationEvent;
@@ -75,9 +75,10 @@ public class PostWriteService {
 
     private final PostRepository postRepository;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
-    private final DraftService draftService;
-    private final TagDomainService tagDomainService;
+    private final DraftCommandService draftCommandService;
+    private final TagCommandService tagCommandService;
     private final PostTagRepository postTagRepository;
+    private final TagRepository tagRepository;
     private final UploadFileClient uploadServiceClient;
     private final UserBatchSimpleClient userServiceClient;
     
@@ -135,7 +136,7 @@ public class PostWriteService {
             }
             
             // 查找或创建标签
-            List<Tag> tags = tagDomainService.findOrCreateBatch(request.tags());
+            List<Tag> tags = tagCommandService.findOrCreateBatch(request.tags());
             tagIds = tags.stream()
                     .map(tag -> TagId.of(tag.getId()))
                     .collect(Collectors.toSet());
@@ -275,7 +276,7 @@ public class PostWriteService {
             // 创建新关联
             List<Long> newTagIds = Collections.emptyList();
             if (!request.tags().isEmpty()) {
-                List<Tag> tags = tagDomainService.findOrCreateBatch(request.tags());
+                List<Tag> tags = tagCommandService.findOrCreateBatch(request.tags());
                 newTagIds = tags.stream()
                         .map(Tag::getId)
                         .collect(Collectors.toList());
@@ -369,7 +370,7 @@ public class PostWriteService {
         List<Long> newTagIds = Collections.emptyList();
         if (tagNames != null && !tagNames.isEmpty()) {
             // 查找或创建标签
-            List<Tag> tags = tagDomainService.findOrCreateBatch(tagNames);
+            List<Tag> tags = tagCommandService.findOrCreateBatch(tagNames);
             newTagIds = tags.stream()
                     .map(Tag::getId)
                     .collect(Collectors.toList());
@@ -392,6 +393,31 @@ public class PostWriteService {
 
         log.info("Post tags replaced: postId={}, userId={}, newTagCount={}", 
                 postId, userId, tagNames != null ? tagNames.size() : 0);
+    }
+
+    /**
+     * 移除文章指定标签。
+     *
+     * 基于当前标签关联计算剩余标签后复用替换逻辑，避免 command 层反向依赖 read service。
+     *
+     * @param userId 用户 ID
+     * @param postId 文章 ID
+     * @param slug 标签 slug
+     */
+    @Transactional
+    public void detachTag(Long userId, Long postId, String slug) {
+        getPostAndCheckOwnership(postId, userId);
+
+        List<Long> tagIds = postTagRepository.findTagIdsByPostId(postId);
+        if (tagIds.isEmpty()) {
+            return;
+        }
+
+        List<String> remainingTagNames = tagRepository.findByIdIn(tagIds).stream()
+                .filter(tag -> !tag.getSlug().equals(slug))
+                .map(Tag::getName)
+                .toList();
+        replacePostTags(userId, postId, remainingTagNames);
     }
 
     /**
@@ -895,7 +921,7 @@ public class PostWriteService {
         Post post = getPostAndCheckOwnership(postId, userId);
         
         // 调用 DraftManager 保存草稿
-        draftService.saveDraft(
+        draftCommandService.saveDraft(
             postId,
             userId,
             request.content(),
@@ -918,7 +944,7 @@ public class PostWriteService {
         Post post = getPostAndCheckOwnership(postId, userId);
         
         // 调用 DraftManager 删除草稿
-        draftService.deleteDraft(postId, userId);
+        draftCommandService.deleteDraft(postId, userId);
         
         log.info("Draft deleted: postId={}, userId={}", postId, userId);
     }

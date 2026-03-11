@@ -3,6 +3,7 @@ package com.zhicore.content.infrastructure.repository;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
+import com.zhicore.content.application.service.TagCommandService;
 import com.zhicore.content.domain.service.TagDomainService;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.LongRange;
@@ -46,6 +47,9 @@ class DataIntegrityPropertyTest {
     private PostTagRepository postTagRepository;
 
     @Autowired
+    private TagCommandService tagCommandService;
+
+    @Autowired
     private TagDomainService tagDomainService;
 
     // ==================== Property 12: Tag 删除级联 ====================
@@ -68,7 +72,7 @@ class DataIntegrityPropertyTest {
             @ForAll("postIdLists") List<Long> postIds
     ) {
         // Given: 创建一个 Tag 并关联多个 Post
-        Tag tag = tagDomainService.findOrCreate(tagName);
+        Tag tag = tagCommandService.findOrCreate(tagName);
         Long tagId = tag.getId();
         
         // 建立 Post-Tag 关联
@@ -137,7 +141,7 @@ class DataIntegrityPropertyTest {
             @ForAll("tagNameLists") List<String> tagNames
     ) {
         // Given: 创建多个 Tag 并关联到一个 Post
-        List<Tag> tags = tagDomainService.findOrCreateBatch(tagNames);
+        List<Tag> tags = tagCommandService.findOrCreateBatch(tagNames);
         List<Long> tagIds = tags.stream().map(Tag::getId).collect(Collectors.toList());
         
         // 建立 Post-Tag 关联
@@ -219,9 +223,9 @@ class DataIntegrityPropertyTest {
                 .isEqualTo(slug3);
         
         // 验证 findOrCreate 的幂等性
-        Tag tag1 = tagDomainService.findOrCreate(lowercase);
-        Tag tag2 = tagDomainService.findOrCreate(uppercase);
-        Tag tag3 = tagDomainService.findOrCreate(mixedCase);
+        Tag tag1 = tagCommandService.findOrCreate(lowercase);
+        Tag tag2 = tagCommandService.findOrCreate(uppercase);
+        Tag tag3 = tagCommandService.findOrCreate(mixedCase);
         
         assertThat(tag1.getId())
                 .as("大小写变体应该返回同一个 Tag")
@@ -261,8 +265,8 @@ class DataIntegrityPropertyTest {
                 .isEqualTo(slug1);
         
         // 验证它们生成不同的 Tag
-        Tag tag1 = tagDomainService.findOrCreate(withSpace);
-        Tag tag2 = tagDomainService.findOrCreate(withoutSpace);
+        Tag tag1 = tagCommandService.findOrCreate(withSpace);
+        Tag tag2 = tagCommandService.findOrCreate(withoutSpace);
         
         assertThat(tag1.getId())
                 .as("带空格和不带空格的名称应该生成不同的 Tag")
@@ -295,8 +299,8 @@ class DataIntegrityPropertyTest {
                     .isNotEqualTo(slug2);
 
             // 验证它们生成不同的 Tag
-            Tag tag1 = tagDomainService.findOrCreate(abbreviation);
-            Tag tag2 = tagDomainService.findOrCreate(fullName);
+            Tag tag1 = tagCommandService.findOrCreate(abbreviation);
+            Tag tag2 = tagCommandService.findOrCreate(fullName);
 
             assertThat(tag1.getId())
                     .as("缩写 '%s' 和全称 '%s' 应该生成不同的 Tag", abbreviation, fullName)
@@ -329,9 +333,9 @@ class DataIntegrityPropertyTest {
                     .hasSize(1);
 
             // 验证它们生成同一个 Tag
-            Tag tag1 = tagDomainService.findOrCreate(testCase[0]);
-            Tag tag2 = tagDomainService.findOrCreate(testCase[1]);
-            Tag tag3 = tagDomainService.findOrCreate(testCase[2]);
+            Tag tag1 = tagCommandService.findOrCreate(testCase[0]);
+            Tag tag2 = tagCommandService.findOrCreate(testCase[1]);
+            Tag tag3 = tagCommandService.findOrCreate(testCase[2]);
 
             assertThat(tag1.getId())
                     .as("大小写变体应该返回同一个 Tag")

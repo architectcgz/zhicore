@@ -2,12 +2,11 @@ package com.zhicore.content.infrastructure.messaging.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.integration.messaging.post.PostStatsUpdatedIntegrationEvent;
-import com.zhicore.common.cache.port.CacheStore;
 import com.zhicore.content.application.port.repo.ConsumedEventRepository;
 import com.zhicore.content.application.port.repo.PostStatsRepository;
+import com.zhicore.content.application.port.store.PostCacheInvalidationStore;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.PostStats;
-import com.zhicore.content.infrastructure.cache.PostRedisKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
@@ -56,7 +55,7 @@ import java.time.ZoneId;
 public class StatsUpdatedConsumer implements RocketMQListener<String> {
     
     private final PostStatsRepository postStatsRepository;
-    private final CacheStore cacheStore;
+    private final PostCacheInvalidationStore postCacheInvalidationStore;
     private final ConsumedEventRepository consumedEventRepository;
     private final ObjectMapper objectMapper;
     
@@ -132,14 +131,10 @@ public class StatsUpdatedConsumer implements RocketMQListener<String> {
                     event.getFavoriteCount(), event.getCommentCount());
             
             // 6. 失效文章详情缓存
-            cacheStore.delete(PostRedisKeys.detail(postId));
+            postCacheInvalidationStore.evictDetail(postId);
             
             // 7. 失效统计信息缓存（如果有单独的统计缓存）
-            cacheStore.delete(
-                    PostRedisKeys.viewCount(postId),
-                    PostRedisKeys.likeCount(postId),
-                    PostRedisKeys.commentCount(postId)
-            );
+            postCacheInvalidationStore.evictStats(postId);
             
             log.info("文章统计信息更新处理完成: eventId={}, postId={}", 
                     event.getEventId(), event.getPostId());

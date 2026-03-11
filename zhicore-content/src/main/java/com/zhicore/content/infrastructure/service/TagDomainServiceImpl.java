@@ -1,12 +1,6 @@
 package com.zhicore.content.infrastructure.service;
 
-import com.zhicore.api.client.IdGeneratorFeignClient;
-import com.zhicore.common.exception.ServiceUnavailableException;
-import com.zhicore.common.result.ApiResponse;
-import com.zhicore.content.domain.model.Tag;
-import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.domain.service.TagDomainService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.sourceforge.pinyin4j.PinyinHelper;
 import net.sourceforge.pinyin4j.format.HanyuPinyinCaseType;
@@ -14,30 +8,19 @@ import net.sourceforge.pinyin4j.format.HanyuPinyinOutputFormat;
 import net.sourceforge.pinyin4j.format.HanyuPinyinToneType;
 import net.sourceforge.pinyin4j.format.HanyuPinyinVCharType;
 import net.sourceforge.pinyin4j.format.exception.BadHanyuPinyinOutputFormatCombination;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
- * 标签领域服务实现
+ * 标签领域服务实现。
  *
- * @author ZhiCore Team
- * @refactored 2026-02-19 从 domain.service.impl 移动到 infrastructure.service
+ * 仅负责标签名称规则和 slug 规范化，不承担标签持久化与 ID 生成编排。
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class TagDomainServiceImpl implements TagDomainService {
-
-    private final TagRepository tagRepository;
-    private final IdGeneratorFeignClient idGeneratorFeignClient;
 
     /** 连续空白字符 */
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
@@ -52,56 +35,26 @@ public class TagDomainServiceImpl implements TagDomainService {
     /** 中文字符 */
     private static final Pattern CHINESE_CHAR = Pattern.compile("[\\u4e00-\\u9fa5]");
 
-    /**
-     * 规范化标签名称为 slug
-     * 
-     * 规范化流程（7步）：
-     * 1. 对原始名称进行 trim
-     * 2. 中文转拼音（使用 pinyin4j 库）
-     * 3. 转换为小写
-     * 4. 将所有空白字符统一替换为 `-`
-     * 5. 合并连续的 `-` 为单个 `-`
-     * 6. 移除首尾的 `-`
-     * 7. 过滤非法字符，仅保留 `[a-z0-9-]`
-     */
     @Override
     public String normalizeToSlug(String name) {
         if (!StringUtils.hasText(name)) {
             throw new IllegalArgumentException("标签名称不能为空");
         }
 
-        // Step 1: Trim
         String result = name.trim();
-
-        // Step 2: 中文转拼音
         result = convertChineseToPinyin(result);
-
-        // Step 3: 转换为小写
         result = result.toLowerCase();
-
-        // Step 4: 将所有空白字符统一替换为 `-`
         result = WHITESPACE.matcher(result).replaceAll("-");
-
-        // Step 5: 合并连续的 `-` 为单个 `-`
         result = MULTI_DASH.matcher(result).replaceAll("-");
-
-        // Step 6: 移除首尾的 `-`
         result = LEADING_TRAILING_DASH.matcher(result).replaceAll("");
-
-        // Step 7: 过滤非法字符，仅保留 `[a-z0-9-]`
         result = ILLEGAL_SLUG_CHARS.matcher(result).replaceAll("");
 
-        // 验证结果不为空
         if (!StringUtils.hasText(result)) {
             throw new IllegalArgumentException("标签名称规范化后为空，无法创建标签");
         }
-
         return result;
     }
 
-    /**
-     * 验证标签名称合法性
-     */
     @Override
     public void validateTagName(String name) {
         if (!StringUtils.hasText(name)) {
@@ -109,103 +62,14 @@ public class TagDomainServiceImpl implements TagDomainService {
         }
 
         String trimmedName = name.trim();
-
         if (trimmedName.length() > 50) {
             throw new IllegalArgumentException("标签名称不能超过50字符");
         }
-
-        // 验证名称只能包含中文、英文、数字、空格、连字符和下划线
         if (!VALID_TAG_NAME.matcher(trimmedName).matches()) {
             throw new IllegalArgumentException("标签名称只能包含中文、英文、数字、空格、连字符和下划线");
         }
     }
 
-    /**
-     * 查找或创建标签（幂等操作）
-     */
-    @Override
-    public Tag findOrCreate(String name) {
-        // 1. 验证标签名称
-        validateTagName(name);
-
-        // 2. 规范化为 slug
-        String slug = normalizeToSlug(name);
-
-        // 3. 根据 slug 查询是否已存在
-        Optional<Tag> existing = tagRepository.findBySlug(slug);
-        if (existing.isPresent()) {
-            log.debug("Tag already exists with slug: {}", slug);
-            return existing.get();
-        }
-
-        // 4. 不存在则创建
-        try {
-            Long id = generateIdOrThrow();
-            Tag tag = Tag.create(id, name.trim(), slug);
-            Tag saved = tagRepository.save(tag);
-            log.info("Created new tag: id={}, name={}, slug={}", saved.getId(), saved.getName(), saved.getSlug());
-            return saved;
-        } catch (DataIntegrityViolationException e) {
-            // 5. 处理并发冲突（唯一索引冲突时重新查询）
-            log.warn("Concurrent tag creation detected for slug: {}, retrying query", slug);
-            return tagRepository.findBySlug(slug)
-                    .orElseThrow(() -> new IllegalStateException("创建标签失败，且无法查询到已存在的标签: " + slug));
-        }
-    }
-
-    /**
-     * 批量查找或创建标签
-     */
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public List<Tag> findOrCreateBatch(List<String> names) {
-        if (names == null || names.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        // 去重并验证
-        List<String> uniqueNames = names.stream()
-                .distinct()
-                .collect(Collectors.toList());
-
-        // 逐个处理：任一失败则整批回滚，并返回失败标签与原因（R17）
-        List<Tag> tags = new ArrayList<>();
-        List<com.zhicore.common.exception.ValidationException.FieldError> errors = new ArrayList<>();
-
-        for (String name : uniqueNames) {
-            try {
-                Tag tag = findOrCreate(name);
-                tags.add(tag);
-            } catch (ServiceUnavailableException e) {
-                // ID 服务不可用等场景，直接按 503 返回，整批回滚
-                throw e;
-            } catch (IllegalArgumentException e) {
-                errors.add(new com.zhicore.common.exception.ValidationException.FieldError(
-                        "tags",
-                        "标签【" + name + "】创建失败: " + e.getMessage()
-                ));
-            } catch (Exception e) {
-                log.error("批量创建标签失败: name={}", name, e);
-                errors.add(new com.zhicore.common.exception.ValidationException.FieldError(
-                        "tags",
-                        "标签【" + name + "】创建失败: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName())
-                ));
-            }
-        }
-
-        if (!errors.isEmpty()) {
-            throw new com.zhicore.common.exception.ValidationException(errors);
-        }
-
-        return tags;
-    }
-
-    /**
-     * 中文转拼音
-     * 
-     * @param text 原始文本
-     * @return 拼音文本
-     */
     private String convertChineseToPinyin(String text) {
         if (!StringUtils.hasText(text)) {
             return "";
@@ -218,10 +82,8 @@ public class TagDomainServiceImpl implements TagDomainService {
 
         StringBuilder result = new StringBuilder();
         char[] chars = text.toCharArray();
-
         for (char c : chars) {
             if (CHINESE_CHAR.matcher(Character.toString(c)).matches()) {
-                // 中文字符，转换为拼音
                 try {
                     String[] pinyinArray = PinyinHelper.toHanyuPinyinStringArray(c, format);
                     if (pinyinArray != null && pinyinArray.length > 0) {
@@ -234,34 +96,9 @@ public class TagDomainServiceImpl implements TagDomainService {
                     result.append(c);
                 }
             } else {
-                // 非中文字符，直接保留
                 result.append(c);
             }
         }
-
         return result.toString();
-    }
-
-    /**
-     * 生成标签 ID（R16）
-     *
-     * 约束：
-     * - 必须调用 ID 服务；不允许本地 UUID/随机数降级；
-     * - ID 服务不可用时抛出 503，交由上层返回给客户端。
-     */
-    private Long generateIdOrThrow() {
-        try {
-            ApiResponse<Long> response = idGeneratorFeignClient.generateSnowflakeId();
-            if (response == null || !response.isSuccess() || response.getData() == null || response.getData() <= 0) {
-                log.error("ID 服务返回异常，无法生成标签ID: response={}", response);
-                throw new ServiceUnavailableException("ID 服务不可用，无法创建标签，请稍后重试");
-            }
-            return response.getData();
-        } catch (ServiceUnavailableException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("调用 ID 服务生成标签ID失败", e);
-            throw new ServiceUnavailableException("ID 服务不可用，无法创建标签，请稍后重试", e);
-        }
     }
 }

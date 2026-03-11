@@ -1,11 +1,10 @@
 package com.zhicore.content.application.decorator;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.zhicore.common.cache.port.CacheStore;
 import com.zhicore.common.cache.port.CacheResult;
 import com.zhicore.common.cache.port.LockManager;
 import com.zhicore.common.config.CacheProperties;
 import com.zhicore.content.application.port.cachekey.TagCacheKeyResolver;
+import com.zhicore.content.application.port.store.TagQueryCacheStore;
 import com.zhicore.content.application.query.TagQuery;
 import com.zhicore.content.application.query.view.HotTagView;
 import com.zhicore.content.application.query.view.TagDetailView;
@@ -39,21 +38,21 @@ import java.util.function.Supplier;
 public class CacheAsideTagQuery implements TagQuery {
 
     private final TagQuery delegate;
-    private final CacheStore cacheStore;
+    private final TagQueryCacheStore tagQueryCacheStore;
     private final LockManager lockManager;
     private final CacheProperties cacheProperties;
     private final TagCacheKeyResolver tagCacheKeyResolver;
 
 
     public CacheAsideTagQuery(
-            @Qualifier("tagQueryService") TagQuery delegate,
-            CacheStore cacheStore,
+            @Qualifier("tagSourceQuery") TagQuery delegate,
+            TagQueryCacheStore tagQueryCacheStore,
             LockManager lockManager,
             CacheProperties cacheProperties,
             TagCacheKeyResolver tagCacheKeyResolver
     ) {
         this.delegate = delegate;
-        this.cacheStore = cacheStore;
+        this.tagQueryCacheStore = tagQueryCacheStore;
         this.lockManager = lockManager;
         this.cacheProperties = cacheProperties;
         this.tagCacheKeyResolver = tagCacheKeyResolver;
@@ -61,28 +60,37 @@ public class CacheAsideTagQuery implements TagQuery {
     
     @Override
     public TagDetailView getDetail(Long tagId) {
-        String cacheKey = tagCacheKeyResolver.byId(tagId);
-        String lockKey = tagCacheKeyResolver.lockBySlug(String.valueOf(tagId));
-        
-        return getCachedDetail(cacheKey, lockKey, () -> delegate.getDetail(tagId));
+        String lockKey = tagCacheKeyResolver.lockById(tagId);
+
+        return getCachedDetail(
+                () -> tagQueryCacheStore.getDetail(tagId),
+                view -> tagQueryCacheStore.setDetail(tagId, view, getDetailTtlWithJitter()),
+                () -> tagQueryCacheStore.setDetailNull(tagId, getNullTtl()),
+                lockKey,
+                () -> delegate.getDetail(tagId)
+        );
     }
     
     @Override
     public TagDetailView getDetailBySlug(String slug) {
-        String cacheKey = tagCacheKeyResolver.bySlug(slug);
         String lockKey = tagCacheKeyResolver.lockBySlug(slug);
-        
-        return getCachedDetail(cacheKey, lockKey, () -> delegate.getDetailBySlug(slug));
+
+        return getCachedDetail(
+                () -> tagQueryCacheStore.getDetailBySlug(slug),
+                view -> tagQueryCacheStore.setDetailBySlug(slug, view, getDetailTtlWithJitter()),
+                () -> tagQueryCacheStore.setDetailBySlugNull(slug, getNullTtl()),
+                lockKey,
+                () -> delegate.getDetailBySlug(slug)
+        );
     }
     
     @Override
     public List<TagListItemView> getList(int limit) {
-        String cacheKey = "tag:list:" + limit;
-        
         return getCachedList(
-                cacheKey,
+                () -> tagQueryCacheStore.getList(limit),
+                result -> tagQueryCacheStore.setList(limit, result, getListTtlWithJitter()),
                 () -> delegate.getList(limit),
-                getListTtl()
+                "tag list limit=" + limit
         );
     }
     
@@ -95,12 +103,10 @@ public class CacheAsideTagQuery implements TagQuery {
     
     @Override
     public List<HotTagView> getHotTags(int limit) {
-        String cacheKey = tagCacheKeyResolver.hotTags(limit);
         String lockKey = tagCacheKeyResolver.lockHotTags(limit);
 
         // 1. 尝试从缓存获取
-        CacheResult<List<HotTagView>> cached =
-                cacheStore.get(cacheKey, new TypeReference<List<HotTagView>>() {});
+        CacheResult<List<HotTagView>> cached = tagQueryCacheStore.getHotTags(limit);
 
         if (cached.isHit()) {
             log.debug("Cache hit for hot tags: limit={}", limit);
@@ -121,8 +127,7 @@ public class CacheAsideTagQuery implements TagQuery {
 
         try {
             // 3. DCL：获取锁后再次检查缓存
-            CacheResult<List<HotTagView>> retried =
-                    cacheStore.get(cacheKey, new TypeReference<List<HotTagView>>() {});
+            CacheResult<List<HotTagView>> retried = tagQueryCacheStore.getHotTags(limit);
             if (retried.isHit()) {
                 return retried.getValue();
             }
@@ -136,11 +141,9 @@ public class CacheAsideTagQuery implements TagQuery {
 
             // 5. 缓存结果
             if (result == null || result.isEmpty()) {
-                cacheStore.setIfAbsent(cacheKey, result, getNullTtl());
+                tagQueryCacheStore.setHotTagsEmpty(limit, getNullTtl());
             } else {
-                Duration ttl = getHotTagsTtl().plus(Duration.ofSeconds(
-                        ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
-                cacheStore.set(cacheKey, result, ttl);
+                tagQueryCacheStore.setHotTags(limit, result, getHotTagsTtlWithJitter());
             }
 
             return result;
@@ -155,16 +158,24 @@ public class CacheAsideTagQuery implements TagQuery {
      * 
      * 使用分布式锁防止缓存击穿
      * 
-     * @param cacheKey 缓存键
+     * @param cacheLoader 缓存读取器
+     * @param cacheWriter 缓存写入器
+     * @param nullWriter 空值写入器
      * @param lockKey 锁键
      * @param supplier 数据源提供者
      * @return 详情数据
      */
-    private TagDetailView getCachedDetail(String cacheKey, String lockKey, Supplier<TagDetailView> supplier) {
+    private TagDetailView getCachedDetail(
+            Supplier<CacheResult<TagDetailView>> cacheLoader,
+            java.util.function.Consumer<TagDetailView> cacheWriter,
+            Runnable nullWriter,
+            String lockKey,
+            Supplier<TagDetailView> supplier
+    ) {
         // 1. 尝试从缓存获取
-        CacheResult<TagDetailView> cached = cacheStore.get(cacheKey, TagDetailView.class);
+        CacheResult<TagDetailView> cached = cacheLoader.get();
         if (cached.isHit()) {
-            log.debug("Cache hit for tag detail: {}", cacheKey);
+            log.debug("Cache hit for tag detail");
             return cached.getValue();
         }
         if (cached.isNull()) {
@@ -176,13 +187,13 @@ public class CacheAsideTagQuery implements TagQuery {
 
         if (!lockAcquired) {
             // 未获取到锁，降级直接查数据源
-            log.debug("Failed to acquire lock, fallback to source: {}", cacheKey);
+            log.debug("Failed to acquire lock, fallback to source: {}", lockKey);
             return supplier.get();
         }
 
         try {
             // 3. DCL：获取锁后再次检查缓存
-            CacheResult<TagDetailView> retried = cacheStore.get(cacheKey, TagDetailView.class);
+            CacheResult<TagDetailView> retried = cacheLoader.get();
             if (retried.isHit()) {
                 return retried.getValue();
             }
@@ -191,16 +202,14 @@ public class CacheAsideTagQuery implements TagQuery {
             }
 
             // 4. 从数据源获取
-            log.debug("Cache miss for tag detail, fetching from source: {}", cacheKey);
+            log.debug("Cache miss for tag detail, fetching from source");
             TagDetailView view = supplier.get();
 
             // 5. 缓存结果
             if (view == null) {
-                cacheStore.setIfAbsent(cacheKey, null, getNullTtl());
+                nullWriter.run();
             } else {
-                Duration ttl = getDetailTtl().plus(Duration.ofSeconds(
-                        ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
-                cacheStore.set(cacheKey, view, ttl);
+                cacheWriter.accept(view);
             }
 
             return view;
@@ -215,29 +224,32 @@ public class CacheAsideTagQuery implements TagQuery {
      * 
      * 使用 TypeReference 处理泛型类型
      * 
-     * @param cacheKey 缓存键
+     * @param cacheLoader 缓存读取器
+     * @param cacheWriter 缓存写入器
      * @param supplier 数据源提供者
-     * @param baseTtl 基础 TTL
+     * @param queryName 查询名
      * @return 列表数据
      */
-    private List<TagListItemView> getCachedList(String cacheKey, Supplier<List<TagListItemView>> supplier, Duration baseTtl) {
-        CacheResult<List<TagListItemView>> cached =
-                cacheStore.get(cacheKey, new TypeReference<List<TagListItemView>>() {});
+    private List<TagListItemView> getCachedList(
+            Supplier<CacheResult<List<TagListItemView>>> cacheLoader,
+            java.util.function.Consumer<List<TagListItemView>> cacheWriter,
+            Supplier<List<TagListItemView>> supplier,
+            String queryName
+    ) {
+        CacheResult<List<TagListItemView>> cached = cacheLoader.get();
 
         if (cached.isHit()) {
-            log.debug("Cache hit for list: {}", cacheKey);
+            log.debug("Cache hit for {}", queryName);
             return cached.getValue();
         }
         if (cached.isNull()) {
             return List.of();
         }
 
-        log.debug("Cache miss for list, fetching from source: {}", cacheKey);
+        log.debug("Cache miss for {}, fetching from source", queryName);
         List<TagListItemView> result = supplier.get();
 
-        Duration ttl = baseTtl.plus(Duration.ofSeconds(
-                ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
-        cacheStore.set(cacheKey, result, ttl);
+        cacheWriter.accept(result);
 
         return result;
     }
@@ -246,12 +258,27 @@ public class CacheAsideTagQuery implements TagQuery {
         return Duration.ofSeconds(cacheProperties.getTtl().getEntityDetail());
     }
 
+    private Duration getDetailTtlWithJitter() {
+        return getDetailTtl().plus(Duration.ofSeconds(
+                ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
+    }
+
     private Duration getListTtl() {
         return Duration.ofSeconds(cacheProperties.getTtl().getList());
     }
 
+    private Duration getListTtlWithJitter() {
+        return getListTtl().plus(Duration.ofSeconds(
+                ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
+    }
+
     private Duration getHotTagsTtl() {
         return Duration.ofSeconds(cacheProperties.getTtl().getStats());
+    }
+
+    private Duration getHotTagsTtlWithJitter() {
+        return getHotTagsTtl().plus(Duration.ofSeconds(
+                ThreadLocalRandom.current().nextInt(getJitterMaxSeconds())));
     }
 
     private Duration getNullTtl() {

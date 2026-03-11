@@ -2,11 +2,10 @@ package com.zhicore.content.application.command.handlers;
 
 import com.zhicore.common.context.UserContext;
 import com.zhicore.content.application.command.commands.PurgePostCommand;
-import com.zhicore.common.cache.port.CacheStore;
-import com.zhicore.content.application.port.cachekey.PostCacheKeyResolver;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostContentStore;
+import com.zhicore.content.application.port.store.PostCacheInvalidationStore;
 import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
@@ -27,8 +26,7 @@ class PurgePostHandlerTask03Test {
     @Mock private PostRepository postRepository;
     @Mock private PostContentStore postContentStore;
     @Mock private EventPublisher eventPublisher;
-    @Mock private CacheStore cacheStore;
-    @Mock private PostCacheKeyResolver postCacheKeyResolver;
+    @Mock private PostCacheInvalidationStore postCacheInvalidationStore;
 
     @AfterEach
     void tearDown() {
@@ -47,7 +45,7 @@ class PurgePostHandlerTask03Test {
         setRole(operatorId, "user");
 
         PurgePostHandler handler = new PurgePostHandler(
-                postRepository, postContentStore, eventPublisher, cacheStore, postCacheKeyResolver);
+                postRepository, postContentStore, eventPublisher, postCacheInvalidationStore);
         PurgePostCommand command = new PurgePostCommand(PostId.of(postId), UserId.of(operatorId));
 
         assertThatThrownBy(() -> handler.handle(command))
@@ -67,7 +65,7 @@ class PurgePostHandlerTask03Test {
         setRole(operatorId, "admin");
 
         PurgePostHandler handler = new PurgePostHandler(
-                postRepository, postContentStore, eventPublisher, cacheStore, postCacheKeyResolver);
+                postRepository, postContentStore, eventPublisher, postCacheInvalidationStore);
         PurgePostCommand command = new PurgePostCommand(PostId.of(postId), UserId.of(operatorId));
 
         handler.handle(command);
@@ -86,7 +84,7 @@ class PurgePostHandlerTask03Test {
         setRole(ownerId, "user");
 
         PurgePostHandler handler = new PurgePostHandler(
-                postRepository, postContentStore, eventPublisher, cacheStore, postCacheKeyResolver);
+                postRepository, postContentStore, eventPublisher, postCacheInvalidationStore);
         PurgePostCommand command = new PurgePostCommand(PostId.of(postId), UserId.of(ownerId));
 
         handler.handle(command);
@@ -106,7 +104,7 @@ class PurgePostHandlerTask03Test {
         setRole(operatorId, "admin");
 
         PurgePostHandler handler = new PurgePostHandler(
-                postRepository, postContentStore, eventPublisher, cacheStore, postCacheKeyResolver);
+                postRepository, postContentStore, eventPublisher, postCacheInvalidationStore);
         PurgePostCommand command = new PurgePostCommand(PostId.of(postId), UserId.of(operatorId));
 
         handler.handle(command);
@@ -126,7 +124,7 @@ class PurgePostHandlerTask03Test {
         setRole(operatorId, "user");
 
         PurgePostHandler handler = new PurgePostHandler(
-                postRepository, postContentStore, eventPublisher, cacheStore, postCacheKeyResolver);
+                postRepository, postContentStore, eventPublisher, postCacheInvalidationStore);
         PurgePostCommand command = new PurgePostCommand(PostId.of(postId), UserId.of(operatorId));
 
         assertThatThrownBy(() -> handler.handle(command))

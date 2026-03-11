@@ -3,12 +3,11 @@ package com.zhicore.content.infrastructure.event;
 import com.zhicore.content.domain.event.PostCreatedDomainEvent;
 import com.zhicore.content.domain.event.PostDeletedEvent;
 import com.zhicore.content.domain.event.PostTagsUpdatedDomainEvent;
+import com.zhicore.content.application.port.store.TagStatsCacheStore;
 import com.zhicore.content.domain.model.TagId;
-import com.zhicore.content.infrastructure.cache.TagRedisKeys;
 import com.zhicore.content.infrastructure.persistence.pg.mapper.TagStatsEntityMyBatisMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -39,7 +38,7 @@ import java.util.Set;
 public class TagStatsEventHandler {
 
     private final TagStatsEntityMyBatisMapper tagStatsMapper;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final TagStatsCacheStore tagStatsCacheStore;
 
     /**
      * 处理文章创建事件
@@ -192,15 +191,8 @@ public class TagStatsEventHandler {
         }
 
         try {
-            // 1. 清除单个标签统计缓存
-            for (Long tagId : tagIds) {
-                String statsKey = TagRedisKeys.tagStats(tagId);
-                redisTemplate.delete(statsKey);
-                log.debug("Invalidated tag stats cache: key={}", statsKey);
-            }
-
-            // 2. 清除热门标签缓存
-            invalidateHotTagsCache();
+            tagStatsCacheStore.evictTagStats(tagIds);
+            tagStatsCacheStore.evictHotTags();
 
         } catch (Exception e) {
             log.error("Failed to invalidate tag stats cache for tagIds={}", tagIds, e);
@@ -215,12 +207,7 @@ public class TagStatsEventHandler {
      */
     private void invalidateHotTagsCache() {
         try {
-            // 清除所有热门标签缓存（包含不同 limit 参数的缓存）
-            Set<String> keys = redisTemplate.keys(TagRedisKeys.hotTagsPattern());
-            if (keys != null && !keys.isEmpty()) {
-                redisTemplate.delete(keys);
-                log.debug("Invalidated {} hot tags cache keys", keys.size());
-            }
+            tagStatsCacheStore.evictHotTags();
         } catch (Exception e) {
             log.error("Failed to invalidate hot tags cache", e);
             // 缓存失效失败不影响主流程，只记录日志

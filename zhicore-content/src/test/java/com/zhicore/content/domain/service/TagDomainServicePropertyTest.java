@@ -1,5 +1,6 @@
 package com.zhicore.content.domain.service;
 
+import com.zhicore.content.application.service.TagCommandService;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.infrastructure.service.TagDomainServiceImpl;
@@ -26,11 +27,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class TagDomainServicePropertyTest {
 
     // 为每个测试创建新的服务实例
-    private TagDomainService createService() {
-        TagRepository mockRepository = Mockito.mock(TagRepository.class);
-        IdGeneratorFeignClient mockIdClient = Mockito.mock(IdGeneratorFeignClient.class);
-        Mockito.when(mockIdClient.generateSnowflakeId()).thenReturn(ApiResponse.success(1L));
-        return new TagDomainServiceImpl(mockRepository, mockIdClient);
+    private TagDomainService createDomainService() {
+        return new TagDomainServiceImpl();
+    }
+
+    private TagCommandService createCommandService(TagRepository repository, IdGeneratorFeignClient idClient) {
+        return new TagCommandService(repository, idClient, new TagDomainServiceImpl());
     }
 
     // ==================== Property 2: Slug 规范化一致性 ====================
@@ -53,7 +55,7 @@ class TagDomainServicePropertyTest {
             return;
         }
         
-        TagDomainService service = createService();
+        TagDomainService service = createDomainService();
         
         try {
             // When: 对同一个 Tag 名称多次调用 normalizeToSlug()
@@ -102,7 +104,7 @@ class TagDomainServicePropertyTest {
             return;
         }
         
-        TagDomainService service = createService();
+        TagDomainService service = createDomainService();
         
         try {
             // Given: 生成不同的大小写和空格变体
@@ -169,7 +171,7 @@ class TagDomainServicePropertyTest {
             return;
         }
         
-        TagDomainService service = createService();
+        TagDomainService service = createDomainService();
         
         try {
             // Given: 创建不同的组合
@@ -223,7 +225,7 @@ class TagDomainServicePropertyTest {
             return;
         }
         
-        TagDomainService service = createService();
+        TagDomainService service = createDomainService();
         
         try {
             // Given: 添加各种特殊字符
@@ -288,11 +290,12 @@ class TagDomainServicePropertyTest {
         TagRepository mockRepository = Mockito.mock(TagRepository.class);
         IdGeneratorFeignClient mockIdClient = Mockito.mock(IdGeneratorFeignClient.class);
         Mockito.when(mockIdClient.generateSnowflakeId()).thenReturn(ApiResponse.success(11111L));
-        TagDomainService service = new TagDomainServiceImpl(mockRepository, mockIdClient);
+        TagDomainService ruleService = createDomainService();
+        TagCommandService service = createCommandService(mockRepository, mockIdClient);
         
         try {
             // 规范化 slug
-            String slug = service.normalizeToSlug(tagName);
+            String slug = ruleService.normalizeToSlug(tagName);
             
             // 创建一个 Tag 实例用于模拟返回
             Long tagId = 12345L;
@@ -366,11 +369,12 @@ class TagDomainServicePropertyTest {
         TagRepository mockRepository = Mockito.mock(TagRepository.class);
         IdGeneratorFeignClient mockIdClient = Mockito.mock(IdGeneratorFeignClient.class);
         Mockito.when(mockIdClient.generateSnowflakeId()).thenReturn(ApiResponse.success(67890L));
-        TagDomainService service = new TagDomainServiceImpl(mockRepository, mockIdClient);
+        TagDomainService ruleService = createDomainService();
+        TagCommandService service = createCommandService(mockRepository, mockIdClient);
         
         try {
             // 规范化 slug
-            String slug = service.normalizeToSlug(baseTagName);
+            String slug = ruleService.normalizeToSlug(baseTagName);
             
             // 创建一个 Tag 实例用于模拟返回
             Long tagId = 67890L;
@@ -457,11 +461,12 @@ class TagDomainServicePropertyTest {
         TagRepository mockRepository = Mockito.mock(TagRepository.class);
         IdGeneratorFeignClient mockIdClient = Mockito.mock(IdGeneratorFeignClient.class);
         Mockito.when(mockIdClient.generateSnowflakeId()).thenReturn(ApiResponse.success(11111L));
-        TagDomainService service = new TagDomainServiceImpl(mockRepository, mockIdClient);
+        TagDomainService ruleService = createDomainService();
+        TagCommandService service = createCommandService(mockRepository, mockIdClient);
         
         try {
             // 规范化 slug
-            String slug = service.normalizeToSlug(tagName);
+            String slug = ruleService.normalizeToSlug(tagName);
             
             // 创建一个 Tag 实例用于模拟返回
             Long tagId = 11111L;

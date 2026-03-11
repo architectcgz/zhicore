@@ -20,8 +20,18 @@ public class DefaultTagCacheKeyResolver implements TagCacheKeyResolver {
     }
 
     @Override
+    public String list(int limit) {
+        return "tag:list:" + limit;
+    }
+
+    @Override
     public String hotTags(int limit) {
         return TagRedisKeys.hotTags(limit);
+    }
+
+    @Override
+    public String lockById(Long tagId) {
+        return "lock:tag:id:" + tagId;
     }
 
     @Override
