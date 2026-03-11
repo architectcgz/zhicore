@@ -30,7 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class OutboxAdminApplicationServiceTest {
+class OutboxAdminServicesTest {
 
     @Mock
     private OutboxEventStore outboxEventStore;
@@ -39,7 +39,10 @@ class OutboxAdminApplicationServiceTest {
     private OutboxRetryAuditStore outboxRetryAuditStore;
 
     @InjectMocks
-    private OutboxAdminApplicationService outboxAdminApplicationService;
+    private OutboxAdminQueryService outboxAdminQueryService;
+
+    @InjectMocks
+    private OutboxAdminCommandService outboxAdminCommandService;
 
     @Test
     void listFailedShouldNormalizePaginationAndMapRecords() {
@@ -47,7 +50,7 @@ class OutboxAdminApplicationServiceTest {
         when(outboxEventStore.findFailed(1, 100, "TYPE_A"))
                 .thenReturn(PageResult.of(1, 100, 1, List.of(record)));
 
-        OutboxFailedPageResponse response = outboxAdminApplicationService.listFailed(0, 1000, "  TYPE_A  ");
+        OutboxFailedPageResponse response = outboxAdminQueryService.listFailed(0, 1000, "  TYPE_A  ");
 
         assertEquals(1, response.getPage());
         assertEquals(100, response.getSize());
@@ -64,7 +67,7 @@ class OutboxAdminApplicationServiceTest {
         when(outboxEventStore.findByEventId("EVENT_1")).thenReturn(Optional.of(record));
         when(outboxRetryAuditStore.countRecentRetries(eq("EVENT_1"), any())).thenReturn(0L);
 
-        OutboxRetryResponse response = outboxAdminApplicationService.retryFailed(" EVENT_1 ", 2001L, "manual retry");
+        OutboxRetryResponse response = outboxAdminCommandService.retryFailed(" EVENT_1 ", 2001L, "manual retry");
 
         assertEquals("EVENT_1", response.getEventId());
         assertEquals("PENDING", response.getStatus());
@@ -92,7 +95,7 @@ class OutboxAdminApplicationServiceTest {
         when(outboxRetryAuditStore.countRecentRetries(eq("EVENT_1"), any())).thenReturn(1L);
 
         assertThrows(TooManyRequestsException.class,
-                () -> outboxAdminApplicationService.retryFailed("EVENT_1", 2001L, "manual retry"));
+                () -> outboxAdminCommandService.retryFailed("EVENT_1", 2001L, "manual retry"));
 
         verify(outboxEventStore, never()).update(any());
         verify(outboxRetryAuditStore, never()).save(any());
@@ -105,7 +108,7 @@ class OutboxAdminApplicationServiceTest {
         when(outboxRetryAuditStore.countRecentRetries(eq("EVENT_1"), any())).thenReturn(0L);
 
         assertThrows(IllegalArgumentException.class,
-                () -> outboxAdminApplicationService.retryFailed("EVENT_1", 2001L, "manual retry"));
+                () -> outboxAdminCommandService.retryFailed("EVENT_1", 2001L, "manual retry"));
 
         verify(outboxEventStore, never()).update(any());
         verify(outboxRetryAuditStore, never()).save(any());
@@ -116,7 +119,7 @@ class OutboxAdminApplicationServiceTest {
         when(outboxEventStore.findByEventId("EVENT_404")).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class,
-                () -> outboxAdminApplicationService.retryFailed("EVENT_404", 2001L, "manual retry"));
+                () -> outboxAdminCommandService.retryFailed("EVENT_404", 2001L, "manual retry"));
 
         verify(outboxRetryAuditStore, never()).countRecentRetries(any(), any());
         verify(outboxEventStore, never()).update(any());
