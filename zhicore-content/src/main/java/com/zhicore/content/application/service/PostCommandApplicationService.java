@@ -64,14 +64,14 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 文章应用服务
+ * 文章写应用服务
  *
  * @author ZhiCore Team
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PostApplicationService {
+public class PostCommandApplicationService {
 
     private final PostRepository postRepository;
     private final IdGeneratorFeignClient idGeneratorFeignClient;

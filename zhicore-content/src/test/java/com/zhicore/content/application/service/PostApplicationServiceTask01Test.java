@@ -79,7 +79,7 @@ class PostApplicationServiceTask01Test {
     @Spy private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
-    private PostApplicationService postApplicationService;
+    private PostCommandApplicationService postApplicationService;
 
     @Test
     void consumeScheduledPublish_retryExhausted_emitsDlqAndAlert() {

@@ -21,36 +21,36 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PostCommandService {
 
-    private final PostApplicationService postApplicationService;
+    private final PostCommandApplicationService postCommandApplicationService;
     private final PostReadService postReadService;
     private final RestorePostHandler restorePostHandler;
 
     public Long createPost(Long userId, CreatePostAppCommand request) {
-        return postApplicationService.createPost(userId, request);
+        return postCommandApplicationService.createPost(userId, request);
     }
 
     public void updatePost(Long userId, Long postId, UpdatePostAppCommand request) {
-        postApplicationService.updatePost(userId, postId, request);
+        postCommandApplicationService.updatePost(userId, postId, request);
     }
 
     public void publishPost(Long userId, Long postId) {
-        postApplicationService.publishPost(userId, postId);
+        postCommandApplicationService.publishPost(userId, postId);
     }
 
     public void unpublishPost(Long userId, Long postId) {
-        postApplicationService.unpublishPost(userId, postId);
+        postCommandApplicationService.unpublishPost(userId, postId);
     }
 
     public void schedulePublish(Long userId, Long postId, LocalDateTime scheduledAt) {
-        postApplicationService.schedulePublish(userId, postId, scheduledAt);
+        postCommandApplicationService.schedulePublish(userId, postId, scheduledAt);
     }
 
     public void cancelSchedule(Long userId, Long postId) {
-        postApplicationService.cancelSchedule(userId, postId);
+        postCommandApplicationService.cancelSchedule(userId, postId);
     }
 
     public void deletePost(Long userId, Long postId) {
-        postApplicationService.deletePost(userId, postId);
+        postCommandApplicationService.deletePost(userId, postId);
     }
 
     public void restorePost(Long userId, Long postId) {
@@ -61,15 +61,15 @@ public class PostCommandService {
     }
 
     public void saveDraft(Long userId, Long postId, SaveDraftCommand request) {
-        postApplicationService.saveDraft(postId, userId, request);
+        postCommandApplicationService.saveDraft(postId, userId, request);
     }
 
     public void deleteDraft(Long userId, Long postId) {
-        postApplicationService.deleteDraft(postId, userId);
+        postCommandApplicationService.deleteDraft(postId, userId);
     }
 
     public void attachTags(Long userId, Long postId, List<String> tags) {
-        postApplicationService.replacePostTags(userId, postId, tags);
+        postCommandApplicationService.replacePostTags(userId, postId, tags);
     }
 
     public void detachTag(Long userId, Long postId, String slug) {
@@ -77,10 +77,10 @@ public class PostCommandService {
                 .filter(tag -> !tag.getSlug().equals(slug))
                 .map(com.zhicore.content.application.dto.TagDTO::getName)
                 .toList();
-        postApplicationService.replacePostTags(userId, postId, remainingTagNames);
+        postCommandApplicationService.replacePostTags(userId, postId, remainingTagNames);
     }
 
     public void consumeScheduledPublish(PostScheduleExecuteIntegrationEvent event) {
-        postApplicationService.consumeScheduledPublish(event);
+        postCommandApplicationService.consumeScheduledPublish(event);
     }
 }
