@@ -1,6 +1,6 @@
 package com.zhicore.gateway.infrastructure.filter;
 
-import com.zhicore.gateway.config.GrayReleaseProperties;
+import com.zhicore.gateway.application.service.GrayRouteService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -27,14 +27,10 @@ public class GrayRouteFilter implements GlobalFilter, Ordered {
     private static final String GRAY_VERSION_HEADER = "X-Gray-Version";
     private static final String GRAY_TAG = "gray";
 
-    private final GrayReleaseProperties grayProperties;
+    private final GrayRouteService grayRouteService;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        if (!grayProperties.isEnabled()) {
-            return chain.filter(exchange);
-        }
-
         ServerHttpRequest request = exchange.getRequest();
 
         // 检查是否已有灰度标记
@@ -61,25 +57,11 @@ public class GrayRouteFilter implements GlobalFilter, Ordered {
      * 判断是否应该路由到灰度版本
      */
     private boolean shouldRouteToGray(ServerHttpRequest request) {
-        // 策略1：基于用户ID的灰度
         String userId = request.getHeaders().getFirst("X-User-Id");
-        if (StringUtils.hasText(userId) && grayProperties.getGrayUserIds().contains(userId)) {
-            return true;
-        }
-
-        // 策略2：基于百分比的灰度
-        if (grayProperties.getPercentage() > 0) {
-            // 使用请求的某个稳定特征（如用户ID或IP）来决定
-            String identifier = userId != null ? userId : 
-                    request.getRemoteAddress() != null ? 
-                            request.getRemoteAddress().getAddress().getHostAddress() : 
-                            String.valueOf(System.nanoTime());
-            
-            int hash = Math.abs(identifier.hashCode());
-            return (hash % 100) < grayProperties.getPercentage();
-        }
-
-        return false;
+        String clientAddress = request.getRemoteAddress() != null
+                ? request.getRemoteAddress().getAddress().getHostAddress()
+                : null;
+        return grayRouteService.shouldRouteToGray(userId, clientAddress, String.valueOf(System.nanoTime()));
     }
 
     @Override
