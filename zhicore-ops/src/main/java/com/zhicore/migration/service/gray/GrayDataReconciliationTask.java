@@ -1,9 +1,8 @@
 package com.zhicore.migration.service.gray;
 
+import com.zhicore.migration.service.gray.store.GrayReleaseStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RBucket;
-import org.redisson.api.RedissonClient;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import java.time.LocalDateTime;
@@ -18,11 +17,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class GrayDataReconciliationTask {
 
-    private final RedissonClient redissonClient;
+    private final GrayReleaseStore store;
     private final GrayReleaseSettings settings;
-
-    private static final String RECONCILIATION_RESULT_KEY = "gray:reconciliation:result";
-    private static final String RECONCILIATION_HISTORY_KEY = "gray:reconciliation:history";
 
     /**
      * 定时执行数据对账
@@ -164,20 +160,14 @@ public class GrayDataReconciliationTask {
      * 保存对账结果
      */
     private void saveResult(ReconciliationResult result) {
-        // 保存最新结果
-        RBucket<ReconciliationResult> bucket = redissonClient.getBucket(RECONCILIATION_RESULT_KEY);
-        bucket.set(result);
-
-        // 添加到历史记录
-        redissonClient.getList(RECONCILIATION_HISTORY_KEY).add(result);
+        store.saveReconciliationResult(result);
     }
 
     /**
      * 获取最新对账结果
      */
     public ReconciliationResult getLatestResult() {
-        RBucket<ReconciliationResult> bucket = redissonClient.getBucket(RECONCILIATION_RESULT_KEY);
-        return bucket.get();
+        return store.getLatestReconciliationResult();
     }
 
     /**

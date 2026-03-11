@@ -1,5 +1,6 @@
 package com.zhicore.migration.infrastructure.config;
 
+import com.zhicore.migration.infrastructure.store.RedisGrayReleaseStore;
 import com.zhicore.migration.service.gray.GrayConfig;
 import com.zhicore.migration.service.gray.GrayDataReconciliationTask;
 import com.zhicore.migration.service.gray.GrayPhase;
@@ -7,15 +8,14 @@ import com.zhicore.migration.service.gray.GrayReleaseSettings;
 import com.zhicore.migration.service.gray.GrayRollbackService;
 import com.zhicore.migration.service.gray.GrayRouter;
 import com.zhicore.migration.service.gray.GrayStatus;
+import com.zhicore.migration.service.gray.store.GrayReleaseStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.time.Duration;
 import java.util.Set;
 
 /**
@@ -31,39 +31,44 @@ public class GrayReleaseConfig {
     private final GrayReleaseProperties properties;
     private final RedissonClient redissonClient;
 
-    private static final String GRAY_CONFIG_KEY = "gray:config";
-    private static final String GRAY_STATUS_KEY = "gray:status";
+    /**
+     * 灰度状态存储
+     */
+    @Bean
+    public GrayReleaseStore grayReleaseStore() {
+        return new RedisGrayReleaseStore(redissonClient);
+    }
 
     /**
      * 灰度路由器
      */
     @Bean
-    public GrayRouter grayRouter() {
-        return new GrayRouter(toSettings(), redissonClient);
+    public GrayRouter grayRouter(GrayReleaseStore grayReleaseStore) {
+        return new GrayRouter(toSettings(), grayReleaseStore);
     }
 
     /**
      * 灰度数据对账任务
      */
     @Bean
-    public GrayDataReconciliationTask grayDataReconciliationTask() {
-        return new GrayDataReconciliationTask(redissonClient, toSettings());
+    public GrayDataReconciliationTask grayDataReconciliationTask(GrayReleaseStore grayReleaseStore) {
+        return new GrayDataReconciliationTask(grayReleaseStore, toSettings());
     }
 
     /**
      * 灰度回滚服务
      */
     @Bean
-    public GrayRollbackService grayRollbackService() {
-        return new GrayRollbackService(redissonClient, toSettings());
+    public GrayRollbackService grayRollbackService(GrayReleaseStore grayReleaseStore) {
+        return new GrayRollbackService(grayReleaseStore, toSettings());
     }
 
     /**
      * 初始化灰度配置到 Redis
      */
     @Bean
-    public GrayConfigInitializer grayConfigInitializer() {
-        return new GrayConfigInitializer(properties, redissonClient);
+    public GrayConfigInitializer grayConfigInitializer(GrayReleaseStore grayReleaseStore) {
+        return new GrayConfigInitializer(properties, grayReleaseStore);
     }
 
     private GrayReleaseSettings toSettings() {
@@ -85,35 +90,29 @@ public class GrayReleaseConfig {
     public static class GrayConfigInitializer {
         
         private final GrayReleaseProperties properties;
-        private final RedissonClient redissonClient;
+        private final GrayReleaseStore grayReleaseStore;
 
-        public GrayConfigInitializer(GrayReleaseProperties properties, RedissonClient redissonClient) {
+        public GrayConfigInitializer(GrayReleaseProperties properties, GrayReleaseStore grayReleaseStore) {
             this.properties = properties;
-            this.redissonClient = redissonClient;
+            this.grayReleaseStore = grayReleaseStore;
             initConfig();
         }
 
         private void initConfig() {
-            // 存储灰度配置到 Redis
-            RBucket<GrayConfig> configBucket = redissonClient.getBucket(GRAY_CONFIG_KEY);
             GrayConfig config = GrayConfig.builder()
                     .enabled(properties.isEnabled())
                     .trafficRatio(properties.getTrafficRatio())
                     .whitelistUsers(properties.getWhitelistUsers())
                     .blacklistUsers(properties.getBlacklistUsers())
                     .build();
-            configBucket.set(config, Duration.ofDays(7));
+            grayReleaseStore.initializeConfig(config);
 
-            // 初始化灰度状态
-            RBucket<GrayStatus> statusBucket = redissonClient.getBucket(GRAY_STATUS_KEY);
-            if (!statusBucket.isExists()) {
-                GrayStatus status = GrayStatus.builder()
-                        .phase(GrayPhase.INITIAL)
-                        .currentRatio(properties.getTrafficRatio())
-                        .startTime(System.currentTimeMillis())
-                        .build();
-                statusBucket.set(status, Duration.ofDays(7));
-            }
+            GrayStatus status = GrayStatus.builder()
+                    .phase(GrayPhase.INITIAL)
+                    .currentRatio(properties.getTrafficRatio())
+                    .startTime(System.currentTimeMillis())
+                    .build();
+            grayReleaseStore.initializeStatusIfAbsent(status);
 
             log.info("灰度发布配置初始化完成: enabled={}, trafficRatio={}%", 
                     properties.isEnabled(), properties.getTrafficRatio());

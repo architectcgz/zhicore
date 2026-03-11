@@ -1,11 +1,8 @@
 package com.zhicore.migration.service.gray;
 
+import com.zhicore.migration.service.gray.store.GrayReleaseStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RBucket;
-import org.redisson.api.RedissonClient;
-
-import java.time.Duration;
 
 /**
  * 灰度回滚服务
@@ -15,12 +12,8 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class GrayRollbackService {
 
-    private final RedissonClient redissonClient;
+    private final GrayReleaseStore store;
     private final GrayReleaseSettings settings;
-
-    private static final String GRAY_CONFIG_KEY = "gray:config";
-    private static final String GRAY_STATUS_KEY = "gray:status";
-    private static final String ROLLBACK_HISTORY_KEY = "gray:rollback:history";
 
     /**
      * 执行快速回滚
@@ -56,7 +49,7 @@ public class GrayRollbackService {
             clearAllUserGrayFlags();
 
             // 4. 记录回滚历史
-            saveRollbackHistory(result);
+            store.saveRollbackHistory(result);
 
             result.setSuccess(true);
             log.info("灰度回滚完成");
@@ -161,31 +154,23 @@ public class GrayRollbackService {
     }
 
     private GrayConfig getConfig() {
-        RBucket<GrayConfig> bucket = redissonClient.getBucket(GRAY_CONFIG_KEY);
-        return bucket.get();
+        return store.getConfig();
     }
 
     private void updateConfig(GrayConfig config) {
-        RBucket<GrayConfig> bucket = redissonClient.getBucket(GRAY_CONFIG_KEY);
-        bucket.set(config, Duration.ofDays(7));
+        store.saveConfig(config);
     }
 
     private GrayStatus getStatus() {
-        RBucket<GrayStatus> bucket = redissonClient.getBucket(GRAY_STATUS_KEY);
-        return bucket.get();
+        return store.getStatus();
     }
 
     private void updateStatus(GrayStatus status) {
-        RBucket<GrayStatus> bucket = redissonClient.getBucket(GRAY_STATUS_KEY);
-        bucket.set(status, Duration.ofDays(7));
+        store.saveStatus(status);
     }
 
     private void clearAllUserGrayFlags() {
-        redissonClient.getKeys().deleteByPattern("gray:user:*");
-    }
-
-    private void saveRollbackHistory(RollbackResult result) {
-        redissonClient.getList(ROLLBACK_HISTORY_KEY).add(result);
+        store.clearAllUserGrayFlags();
     }
 
     /**

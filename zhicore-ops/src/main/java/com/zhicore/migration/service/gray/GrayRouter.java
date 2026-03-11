@@ -1,9 +1,8 @@
 package com.zhicore.migration.service.gray;
 
+import com.zhicore.migration.service.gray.store.GrayReleaseStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RBucket;
-import org.redisson.api.RedissonClient;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -16,10 +15,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class GrayRouter {
 
     private final GrayReleaseSettings settings;
-    private final RedissonClient redissonClient;
-
-    private static final String GRAY_CONFIG_KEY = "gray:config";
-    private static final String USER_GRAY_FLAG_PREFIX = "gray:user:";
+    private final GrayReleaseStore store;
 
     /**
      * 判断用户是否应该进入灰度
@@ -89,16 +85,14 @@ public class GrayRouter {
      * 获取灰度配置
      */
     public GrayConfig getConfig() {
-        RBucket<GrayConfig> bucket = redissonClient.getBucket(GRAY_CONFIG_KEY);
-        return bucket.get();
+        return store.getConfig();
     }
 
     /**
      * 更新灰度配置
      */
     public void updateConfig(GrayConfig config) {
-        RBucket<GrayConfig> bucket = redissonClient.getBucket(GRAY_CONFIG_KEY);
-        bucket.set(config);
+        store.saveConfig(config);
         log.info("灰度配置已更新: trafficRatio={}%", config.getTrafficRatio());
     }
 
@@ -106,33 +100,28 @@ public class GrayRouter {
      * 获取用户的灰度标记
      */
     private Boolean getUserGrayFlag(String userId) {
-        String key = USER_GRAY_FLAG_PREFIX + userId;
-        RBucket<Boolean> bucket = redissonClient.getBucket(key);
-        return bucket.get();
+        return store.getUserGrayFlag(userId);
     }
 
     /**
      * 设置用户的灰度标记
      */
     private void setUserGrayFlag(String userId, boolean isGray) {
-        String key = USER_GRAY_FLAG_PREFIX + userId;
-        RBucket<Boolean> bucket = redissonClient.getBucket(key);
-        bucket.set(isGray);
+        store.saveUserGrayFlag(userId, isGray);
     }
 
     /**
      * 清除用户的灰度标记
      */
     public void clearUserGrayFlag(String userId) {
-        String key = USER_GRAY_FLAG_PREFIX + userId;
-        redissonClient.getBucket(key).delete();
+        store.clearUserGrayFlag(userId);
     }
 
     /**
      * 清除所有用户的灰度标记
      */
     public void clearAllUserGrayFlags() {
-        redissonClient.getKeys().deleteByPattern(USER_GRAY_FLAG_PREFIX + "*");
+        store.clearAllUserGrayFlags();
         log.info("已清除所有用户灰度标记");
     }
 }
