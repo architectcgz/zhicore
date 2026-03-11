@@ -4,7 +4,7 @@ import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.content.application.service.PostCommandFacade;
-import com.zhicore.content.application.service.PostReadService;
+import com.zhicore.content.application.service.PostQueryFacade;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ class PostControllerAuthTest {
     void shouldReturnUnauthorizedWhenCreatePostWithoutLogin() throws Exception {
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
                         new PostCommandController(mock(PostCommandFacade.class)),
-                        new PostQueryController(mock(PostReadService.class))
+                        new PostQueryController(mock(PostQueryFacade.class))
                 )
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -53,7 +53,7 @@ class PostControllerAuthTest {
     void shouldReturnUnauthorizedWhenGetMyPostsWithoutLogin() throws Exception {
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
                         new PostCommandController(mock(PostCommandFacade.class)),
-                        new PostQueryController(mock(PostReadService.class))
+                        new PostQueryController(mock(PostQueryFacade.class))
                 )
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();

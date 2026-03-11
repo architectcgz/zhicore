@@ -4,7 +4,7 @@ import com.zhicore.common.context.UserContext;
 import com.zhicore.content.application.dto.TagDTO;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.service.PostCommandFacade;
-import com.zhicore.content.application.service.PostReadService;
+import com.zhicore.content.application.service.PostQueryFacade;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.Tag;
@@ -40,7 +40,7 @@ class PostControllerTagTest {
     private PostCommandFacade postCommandFacade;
 
     @Autowired
-    private PostReadService postQueryService;
+    private PostQueryFacade postQueryFacade;
 
     @Autowired
     private PostRepository postRepository;
@@ -114,7 +114,7 @@ class PostControllerTagTest {
         postCommandFacade.attachTags(testUserId, testPostId, tagNames);
 
         // When: 获取标签列表
-        List<TagDTO> tags = postQueryService.getPostTags(testPostId);
+        List<TagDTO> tags = postQueryFacade.getPostTags(testPostId);
 
         // Then: 验证标签列表
         assertNotNull(tags);
@@ -132,7 +132,7 @@ class PostControllerTagTest {
     @Test
     void testGetPostTagsWhenNoTags() {
         // When: 获取没有标签的文章
-        List<TagDTO> tags = postQueryService.getPostTags(testPostId);
+        List<TagDTO> tags = postQueryFacade.getPostTags(testPostId);
 
         // Then: 返回空列表
         assertNotNull(tags);
@@ -155,7 +155,7 @@ class PostControllerTagTest {
         postCommandFacade.detachTag(testUserId, testPostId, "spring-boot");
 
         // Then: 验证标签已移除
-        List<TagDTO> tags = postQueryService.getPostTags(testPostId);
+        List<TagDTO> tags = postQueryFacade.getPostTags(testPostId);
         assertEquals(2, tags.size());
         assertFalse(tags.stream().anyMatch(tag -> tag.getSlug().equals("spring-boot")));
         assertTrue(tags.stream().anyMatch(tag -> tag.getName().equals("Java")));
@@ -179,7 +179,7 @@ class PostControllerTagTest {
         postCommandFacade.attachTags(testUserId, testPostId, newTagNames);
 
         // Then: 验证标签已替换
-        List<TagDTO> tags = postQueryService.getPostTags(testPostId);
+        List<TagDTO> tags = postQueryFacade.getPostTags(testPostId);
         assertEquals(3, tags.size());
         assertFalse(tags.stream().anyMatch(tag -> tag.getName().equals("Java")));
         assertFalse(tags.stream().anyMatch(tag -> tag.getName().equals("Spring Boot")));
@@ -204,7 +204,7 @@ class PostControllerTagTest {
         postCommandFacade.attachTags(testUserId, testPostId, Arrays.asList());
 
         // Then: 验证所有标签已移除
-        List<TagDTO> tags = postQueryService.getPostTags(testPostId);
+        List<TagDTO> tags = postQueryFacade.getPostTags(testPostId);
         assertTrue(tags.isEmpty());
     }
 }

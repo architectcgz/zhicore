@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * TagReadService.getPostsByTag 集成测试
+ * TagQueryFacade.getPostsByTag 集成测试
  * 
  * 测试按 Tag 查询 Post 的功能，包括：
  * - Property 9: 按 Tag 查询 Post 的正确性
@@ -39,12 +39,12 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-class TagApplicationServiceGetPostsByTagIntegrationTest {
+class TagQueryFacadeGetPostsByTagIntegrationTest {
 
     private static final AtomicLong POST_ID_SEQ = new AtomicLong(System.currentTimeMillis());
 
     @Autowired
-    private TagReadService tagApplicationService;
+    private TagQueryFacade tagQueryFacade;
 
     @Autowired
     private TagRepository tagRepository;
@@ -87,7 +87,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
         }
 
         // When: 查询标签下的文章
-        PageResult<PostVO> result = tagApplicationService.getPostsByTag(testTag.getSlug(), 0, 20);
+        PageResult<PostVO> result = tagQueryFacade.getPostsByTag(testTag.getSlug(), 0, 20);
 
         // Then: 验证结果
         assertNotNull(result);
@@ -117,7 +117,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
 
         // When & Then: 应抛出 ResourceNotFoundException
         ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () -> {
-            tagApplicationService.getPostsByTag(nonExistentSlug, 0, 20);
+            tagQueryFacade.getPostsByTag(nonExistentSlug, 0, 20);
         });
 
         assertTrue(exception.getMessage().contains("标签不存在"));
@@ -135,7 +135,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
         Tag emptyTag = tagCommandService.findOrCreate("Empty Tag " + System.currentTimeMillis());
 
         // When: 查询标签下的文章
-        PageResult<PostVO> result = tagApplicationService.getPostsByTag(emptyTag.getSlug(), 0, 20);
+        PageResult<PostVO> result = tagQueryFacade.getPostsByTag(emptyTag.getSlug(), 0, 20);
 
         // Then: 应返回空列表
         assertNotNull(result);
@@ -158,7 +158,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
         }
 
         // When: 查询第一页（每页 10 条）
-        PageResult<PostVO> result = tagApplicationService.getPostsByTag(testTag.getSlug(), 0, 10);
+        PageResult<PostVO> result = tagQueryFacade.getPostsByTag(testTag.getSlug(), 0, 10);
 
         // Then: 验证结果
         assertNotNull(result);
@@ -183,7 +183,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
         }
 
         // When: 查询第二页（每页 10 条）
-        PageResult<PostVO> result = tagApplicationService.getPostsByTag(testTag.getSlug(), 1, 10);
+        PageResult<PostVO> result = tagQueryFacade.getPostsByTag(testTag.getSlug(), 1, 10);
 
         // Then: 验证结果
         assertNotNull(result);
@@ -208,7 +208,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
         }
 
         // When: 查询第三页（每页 10 条，最后一页只有 5 条）
-        PageResult<PostVO> result = tagApplicationService.getPostsByTag(testTag.getSlug(), 2, 10);
+        PageResult<PostVO> result = tagQueryFacade.getPostsByTag(testTag.getSlug(), 2, 10);
 
         // Then: 验证结果
         assertNotNull(result);
@@ -233,7 +233,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
         }
 
         // When: 查询第 10 页（超出范围）
-        PageResult<PostVO> result = tagApplicationService.getPostsByTag(testTag.getSlug(), 10, 10);
+        PageResult<PostVO> result = tagQueryFacade.getPostsByTag(testTag.getSlug(), 10, 10);
 
         // Then: 应返回空列表
         assertNotNull(result);
@@ -275,7 +275,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
             }
             
             // When: 查询标签下的所有文章（使用大页面大小确保获取所有文章）
-            PageResult<PostVO> result = tagApplicationService.getPostsByTag(tag.getSlug(), 0, 100);
+            PageResult<PostVO> result = tagQueryFacade.getPostsByTag(tag.getSlug(), 0, 100);
             
             // Then: 验证所有返回的文章都关联了该标签
             assertNotNull(result);
@@ -330,9 +330,9 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
             }
             
             // When: 多次查询同一页
-            PageResult<PostVO> result1 = tagApplicationService.getPostsByTag(tag.getSlug(), page, size);
-            PageResult<PostVO> result2 = tagApplicationService.getPostsByTag(tag.getSlug(), page, size);
-            PageResult<PostVO> result3 = tagApplicationService.getPostsByTag(tag.getSlug(), page, size);
+            PageResult<PostVO> result1 = tagQueryFacade.getPostsByTag(tag.getSlug(), page, size);
+            PageResult<PostVO> result2 = tagQueryFacade.getPostsByTag(tag.getSlug(), page, size);
+            PageResult<PostVO> result3 = tagQueryFacade.getPostsByTag(tag.getSlug(), page, size);
             
             // Then: 验证多次查询结果一致
             assertNotNull(result1);
@@ -392,7 +392,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
             int totalPages = (postCount + pageSize - 1) / pageSize;
             
             for (int page = 0; page < totalPages; page++) {
-                PageResult<PostVO> result = tagApplicationService.getPostsByTag(tag.getSlug(), page, pageSize);
+                PageResult<PostVO> result = tagQueryFacade.getPostsByTag(tag.getSlug(), page, pageSize);
                 
                 for (PostVO postVO : result.getRecords()) {
                     actualPostIds.add(postVO.getId());
@@ -411,7 +411,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
                     "遍历所有分页不应该有重复的文章");
             
             // 验证总数正确
-            PageResult<PostVO> firstPage = tagApplicationService.getPostsByTag(tag.getSlug(), 0, pageSize);
+            PageResult<PostVO> firstPage = tagQueryFacade.getPostsByTag(tag.getSlug(), 0, pageSize);
             assertEquals(postCount, firstPage.getTotal(), 
                     "第一页返回的总数应该等于实际文章数");
         }

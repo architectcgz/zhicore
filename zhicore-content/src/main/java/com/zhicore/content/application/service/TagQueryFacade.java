@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 标签读服务。
+ * 标签查询门面。
  *
  * 对外提供标签相关查询能力，并负责接口层 DTO 转换。
  * 其中详情、搜索、热门标签统一经 TagQuery 读模型获取；
@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class TagReadService {
+public class TagQueryFacade {
 
     private final TagQuery tagQuery;
     private final TagListQueryService tagListQueryService;

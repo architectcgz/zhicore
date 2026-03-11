@@ -31,14 +31,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class TagApplicationServiceTest {
+class TagQueryFacadeTest {
 
     @Mock private TagQuery tagQuery;
     @Mock private TagListQueryService tagListQueryService;
     @Mock private TagPostQueryService tagPostQueryService;
 
     @InjectMocks
-    private TagReadService tagApplicationService;
+    private TagQueryFacade tagQueryFacade;
 
     private Tag testTag;
     private TagDTO testTagDTO;
@@ -67,7 +67,7 @@ class TagApplicationServiceTest {
                 .updatedAt(testTagDTO.getUpdatedAt())
                 .build());
 
-        TagDTO result = tagApplicationService.getTag("java");
+        TagDTO result = tagQueryFacade.getTag("java");
 
         assertEquals(testTagDTO.getId(), result.getId());
         assertEquals(testTagDTO.getName(), result.getName());
@@ -80,7 +80,7 @@ class TagApplicationServiceTest {
 
         ResourceNotFoundException exception = assertThrows(
                 ResourceNotFoundException.class,
-                () -> tagApplicationService.getTag("nonexistent")
+                () -> tagQueryFacade.getTag("nonexistent")
         );
 
         assertTrue(exception.getMessage().contains("标签不存在"));
@@ -92,7 +92,7 @@ class TagApplicationServiceTest {
         PageResult<TagDTO> pageResult = PageResult.of(0, 20, 1, List.of(testTagDTO));
         when(tagListQueryService.listTags(0, 20)).thenReturn(pageResult);
 
-        PageResult<TagDTO> result = tagApplicationService.listTags(0, 20);
+        PageResult<TagDTO> result = tagQueryFacade.listTags(0, 20);
 
         assertEquals(0, result.getCurrent());
         assertEquals(20, result.getSize());
@@ -106,7 +106,7 @@ class TagApplicationServiceTest {
         when(tagListQueryService.listTags(0, 20))
                 .thenReturn(PageResult.of(0, 20, 0, Collections.emptyList()));
 
-        PageResult<TagDTO> result = tagApplicationService.listTags(0, 20);
+        PageResult<TagDTO> result = tagQueryFacade.listTags(0, 20);
 
         assertEquals(0L, result.getTotal());
         assertTrue(result.getRecords().isEmpty());
@@ -115,7 +115,7 @@ class TagApplicationServiceTest {
 
     @Test
     void searchTagsWithBlankKeywordShouldReturnEmptyList() {
-        List<TagDTO> result = tagApplicationService.searchTags("   ", 10);
+        List<TagDTO> result = tagQueryFacade.searchTags("   ", 10);
 
         assertTrue(result.isEmpty());
         verify(tagQuery, never()).searchByName(anyString(), anyInt());
@@ -128,7 +128,7 @@ class TagApplicationServiceTest {
                 TagListItemView.builder().id(1001L).name("JavaScript").slug("javascript").build()
         ));
 
-        List<TagDTO> result = tagApplicationService.searchTags("  java  ", 10);
+        List<TagDTO> result = tagQueryFacade.searchTags("  java  ", 10);
 
         assertEquals(2, result.size());
         assertEquals("Java", result.get(0).getName());
@@ -142,7 +142,7 @@ class TagApplicationServiceTest {
                 HotTagView.builder().id(1002L).name("Python").slug("python").postCount(80L).build()
         ));
 
-        List<TagStatsDTO> result = tagApplicationService.getHotTags(10);
+        List<TagStatsDTO> result = tagQueryFacade.getHotTags(10);
 
         assertEquals(2, result.size());
         assertEquals(100, result.get(0).getPostCount());
@@ -154,7 +154,7 @@ class TagApplicationServiceTest {
     void getHotTagsWithNoDataShouldReturnEmptyList() {
         when(tagQuery.getHotTags(10)).thenReturn(Collections.emptyList());
 
-        List<TagStatsDTO> result = tagApplicationService.getHotTags(10);
+        List<TagStatsDTO> result = tagQueryFacade.getHotTags(10);
 
         assertTrue(result.isEmpty());
         verify(tagQuery, times(1)).getHotTags(10);

@@ -12,7 +12,7 @@ import com.zhicore.content.application.dto.PostVO;
 import com.zhicore.content.application.dto.TagDTO;
 import com.zhicore.content.application.query.model.PostListQuery;
 import com.zhicore.content.application.query.model.PostListSort;
-import com.zhicore.content.application.service.PostReadService;
+import com.zhicore.content.application.service.PostQueryFacade;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -41,20 +41,20 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class PostQueryController {
 
-    private final PostReadService postReadService;
+    private final PostQueryFacade postQueryFacade;
 
     @Operation(summary = "获取文章详情", description = "获取已发布文章的详细信息")
     @GetMapping("/{postId}")
     public ApiResponse<PostVO> getPost(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        return ApiResponse.success(postReadService.getPost(postId));
+        return ApiResponse.success(postQueryFacade.getPost(postId));
     }
 
     @GetMapping("/my/{postId}")
     public ApiResponse<PostVO> getMyPost(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
         Long userId = UserContext.requireUserId();
-        return ApiResponse.success(postReadService.getMyPost(userId, postId));
+        return ApiResponse.success(postQueryFacade.getMyPost(userId, postId));
     }
 
     @GetMapping("/my")
@@ -63,7 +63,7 @@ public class PostQueryController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         Long userId = UserContext.requireUserId();
-        return ApiResponse.success(postReadService.getMyPosts(userId, status, page, size));
+        return ApiResponse.success(postQueryFacade.getMyPosts(userId, status, page, size));
     }
 
     @Operation(summary = "获取已发布文章列表", description = "分页获取所有已发布的文章列表")
@@ -81,14 +81,14 @@ public class PostQueryController {
                 .sort(PostListSort.parse(sort))
                 .status(status)
                 .build();
-        return ApiResponse.success(postReadService.getPostList(query));
+        return ApiResponse.success(postQueryFacade.getPostList(query));
     }
 
     @GetMapping("/cursor")
     public ApiResponse<List<PostBriefVO>> getPublishedPostsCursor(
             @RequestParam(required = false) LocalDateTime cursor,
             @RequestParam(defaultValue = "20") int size) {
-        return ApiResponse.success(postReadService.getPublishedPostsCursor(cursor, size));
+        return ApiResponse.success(postQueryFacade.getPublishedPostsCursor(cursor, size));
     }
 
     @GetMapping("/hybrid")
@@ -100,31 +100,31 @@ public class PostQueryController {
         request.setPage(page);
         request.setCursor(cursor);
         request.setSize(size);
-        return ApiResponse.success(postReadService.getPublishedPostsHybrid(request));
+        return ApiResponse.success(postQueryFacade.getPublishedPostsHybrid(request));
     }
 
     @PostMapping("/batch")
     public ApiResponse<Map<Long, PostDTO>> batchGetPosts(@RequestBody Set<Long> postIds) {
-        return ApiResponse.success(postReadService.batchGetPosts(postIds));
+        return ApiResponse.success(postQueryFacade.batchGetPosts(postIds));
     }
 
     @GetMapping("/{postId}/content")
     public ApiResponse<PostContentVO> getPostContent(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        return ApiResponse.success(postReadService.getPostContent(postId));
+        return ApiResponse.success(postQueryFacade.getPostContent(postId));
     }
 
     @GetMapping("/{postId}/draft")
     public ApiResponse<DraftVO> getDraft(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
         Long userId = UserContext.requireUserId();
-        return ApiResponse.success(postReadService.getDraft(userId, postId));
+        return ApiResponse.success(postQueryFacade.getDraft(userId, postId));
     }
 
     @GetMapping("/drafts")
     public ApiResponse<List<DraftVO>> getUserDrafts() {
         Long userId = UserContext.requireUserId();
-        return ApiResponse.success(postReadService.getUserDrafts(userId));
+        return ApiResponse.success(postQueryFacade.getUserDrafts(userId));
     }
 
     @Operation(summary = "获取文章的标签列表", description = "获取指定文章的所有标签，按创建时间排序。公开接口，无需认证。")
@@ -136,6 +136,6 @@ public class PostQueryController {
     public ApiResponse<List<TagDTO>> getPostTags(
             @Parameter(description = "文章ID", required = true, example = "1234567890123456789")
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
-        return ApiResponse.success(postReadService.getPostTags(postId));
+        return ApiResponse.success(postQueryFacade.getPostTags(postId));
     }
 }

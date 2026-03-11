@@ -8,7 +8,7 @@ import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.sentinel.web.ApiResponseBlockExceptionHandler;
-import com.zhicore.content.application.service.TagReadService;
+import com.zhicore.content.application.service.TagQueryFacade;
 import com.zhicore.content.infrastructure.sentinel.ContentRoutes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,13 +35,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class TagControllerSentinelWebTest {
 
     @Mock
-    private TagReadService tagApplicationService;
+    private TagQueryFacade tagQueryFacade;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        TagQueryController controller = new TagQueryController(tagApplicationService);
+        TagQueryController controller = new TagQueryController(tagQueryFacade);
         SentinelWebMvcConfig config = new SentinelWebMvcConfig();
         config.setBlockExceptionHandler(new ApiResponseBlockExceptionHandler(new ObjectMapper()));
 
@@ -60,7 +60,7 @@ class TagControllerSentinelWebTest {
     @DisplayName("热门标签接口命中 Sentinel 后应该返回 429 和统一响应体")
     void shouldReturnTooManyRequestsWhenHotTagsBlocked() throws Exception {
         FlowRuleManager.loadRules(List.of(buildUrlRule(ContentRoutes.TAGS_HOT)));
-        when(tagApplicationService.getHotTags(10)).thenReturn(List.of());
+        when(tagQueryFacade.getHotTags(10)).thenReturn(List.of());
 
         mockMvc.perform(get(ContentRoutes.TAGS_HOT).param("limit", "10"))
                 .andExpect(status().isOk())
@@ -71,7 +71,7 @@ class TagControllerSentinelWebTest {
                 .andExpect(jsonPath("$.code").value(429))
                 .andExpect(jsonPath("$.message").value("请求过于频繁"));
 
-        verify(tagApplicationService, times(1)).getHotTags(10);
+        verify(tagQueryFacade, times(1)).getHotTags(10);
     }
 
     private FlowRule buildUrlRule(String resource) {

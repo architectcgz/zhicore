@@ -5,7 +5,7 @@ import com.zhicore.common.result.PageResult;
 import com.zhicore.content.application.dto.PostVO;
 import com.zhicore.content.application.dto.TagDTO;
 import com.zhicore.content.application.dto.TagStatsDTO;
-import com.zhicore.content.application.service.TagReadService;
+import com.zhicore.content.application.service.TagQueryFacade;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -40,7 +40,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TagQueryController {
 
-    private final TagReadService tagReadService;
+    private final TagQueryFacade tagQueryFacade;
 
     /**
      * 获取标签详情
@@ -72,7 +72,7 @@ public class TagQueryController {
             @Parameter(description = "标签 slug（URL 友好标识）", required = true, example = "spring-boot")
             @PathVariable String slug) {
         log.info("Getting tag by slug: {}", slug);
-        TagDTO tag = tagReadService.getTag(slug);
+        TagDTO tag = tagQueryFacade.getTag(slug);
         return ApiResponse.success(tag);
     }
 
@@ -109,7 +109,7 @@ public class TagQueryController {
             @Max(value = 100, message = "每页大小不能大于 100")
             int size) {
         log.info("Listing tags: page={}, size={}", page, size);
-        PageResult<TagDTO> result = tagReadService.listTags(page, size);
+        PageResult<TagDTO> result = tagQueryFacade.listTags(page, size);
         return ApiResponse.success(result);
     }
 
@@ -145,7 +145,7 @@ public class TagQueryController {
             @Max(value = 50, message = "返回数量不能大于 50")
             int limit) {
         log.info("Searching tags: keyword={}, limit={}", keyword, limit);
-        List<TagDTO> tags = tagReadService.searchTags(keyword, limit);
+        List<TagDTO> tags = tagQueryFacade.searchTags(keyword, limit);
         return ApiResponse.success(tags);
     }
 
@@ -195,7 +195,7 @@ public class TagQueryController {
             @Max(value = 100, message = "每页大小不能大于 100")
             int size) {
         log.info("Getting posts by tag: slug={}, page={}, size={}", slug, page, size);
-        PageResult<PostVO> result = tagReadService.getPostsByTag(slug, page, size);
+        PageResult<PostVO> result = tagQueryFacade.getPostsByTag(slug, page, size);
         return ApiResponse.success(result);
     }
 
@@ -232,7 +232,7 @@ public class TagQueryController {
             @Max(value = 50, message = "返回数量不能大于 50")
             int limit) {
         log.info("Getting hot tags: limit={}", limit);
-        List<TagStatsDTO> hotTags = tagReadService.getHotTags(limit);
+        List<TagStatsDTO> hotTags = tagQueryFacade.getHotTags(limit);
         return ApiResponse.success(hotTags);
     }
 }

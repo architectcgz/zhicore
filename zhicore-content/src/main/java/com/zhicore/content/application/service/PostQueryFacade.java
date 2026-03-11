@@ -37,14 +37,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 文章读服务。
+ * 文章查询门面。
  *
- * 负责文章、草稿、标签的查询，不承载写操作。
+ * 负责文章、草稿、标签的查询入口编排，不承载写操作。
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PostReadService {
+public class PostQueryFacade {
 
     private final OwnedPostLoadService ownedPostLoadService;
     private final PostQuery postQuery;
