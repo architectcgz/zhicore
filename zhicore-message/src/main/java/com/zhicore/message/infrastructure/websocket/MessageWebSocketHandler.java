@@ -1,7 +1,10 @@
-package com.zhicore.message.interfaces.websocket;
+package com.zhicore.message.infrastructure.websocket;
 
-import com.zhicore.message.infrastructure.push.*;
-import com.zhicore.message.infrastructure.push.*;
+import com.zhicore.message.infrastructure.push.Device;
+import com.zhicore.message.infrastructure.push.DeviceRegistry;
+import com.zhicore.message.infrastructure.push.DeviceType;
+import com.zhicore.message.infrastructure.push.LocalConnectionRegistry;
+import com.zhicore.message.infrastructure.push.MultiChannelPushService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
