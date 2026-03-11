@@ -71,7 +71,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PostCommandApplicationService {
+public class PostWriteService {
 
     private final PostRepository postRepository;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
