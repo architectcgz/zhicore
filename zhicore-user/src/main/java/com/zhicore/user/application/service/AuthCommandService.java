@@ -112,26 +112,6 @@ public class AuthCommandService {
     }
 
     /**
-     * 验证Token
-     *
-     * @param token Token
-     * @return 是否有效
-     */
-    public boolean validateToken(String token) {
-        return jwtTokenProvider.validateToken(token);
-    }
-
-    /**
-     * 从Token获取用户ID
-     *
-     * @param token Token
-     * @return 用户ID
-     */
-    public String getUserIdFromToken(String token) {
-        return jwtTokenProvider.getUserIdFromToken(token);
-    }
-
-    /**
      * 用户登出：吊销当前 Refresh Token
      *
      * @param userId 用户ID
