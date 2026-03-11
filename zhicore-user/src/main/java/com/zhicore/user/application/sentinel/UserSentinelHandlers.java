@@ -1,13 +1,13 @@
 package com.zhicore.user.application.sentinel;
 
 import com.alibaba.csp.sentinel.slots.block.BlockException;
-import com.zhicore.api.dto.admin.UserManageDTO;
-import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.exception.TooManyRequestsException;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.user.application.dto.CheckInVO;
 import com.zhicore.user.application.dto.FollowStatsVO;
+import com.zhicore.user.application.query.view.UserManageView;
 import com.zhicore.user.application.dto.UserVO;
+import com.zhicore.user.application.query.view.UserSimpleView;
 
 import java.time.YearMonth;
 import java.util.List;
@@ -26,11 +26,11 @@ public final class UserSentinelHandlers {
         throw tooManyRequests("用户详情请求过于频繁，请稍后重试");
     }
 
-    public static UserSimpleDTO handleGetUserSimpleBlocked(Long userId, BlockException ex) {
+    public static UserSimpleView handleGetUserSimpleBlocked(Long userId, BlockException ex) {
         throw tooManyRequests("用户简要信息请求过于频繁，请稍后重试");
     }
 
-    public static Map<Long, UserSimpleDTO> handleBatchGetUsersSimpleBlocked(Set<Long> userIds, BlockException ex) {
+    public static Map<Long, UserSimpleView> handleBatchGetUsersSimpleBlocked(Set<Long> userIds, BlockException ex) {
         throw tooManyRequests("批量用户信息请求过于频繁，请稍后重试");
     }
 
@@ -70,7 +70,7 @@ public final class UserSentinelHandlers {
         throw tooManyRequests("拉黑关系查询过于频繁，请稍后重试");
     }
 
-    public static PageResult<UserManageDTO> handleQueryUsersBlocked(
+    public static PageResult<UserManageView> handleQueryUsersBlocked(
             String keyword, String status, int page, int size, BlockException ex) {
         throw tooManyRequests("后台用户查询请求过于频繁，请稍后重试");
     }

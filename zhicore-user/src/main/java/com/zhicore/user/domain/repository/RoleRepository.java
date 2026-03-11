@@ -2,6 +2,7 @@ package com.zhicore.user.domain.repository;
 
 import com.zhicore.user.domain.model.Role;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -35,6 +36,14 @@ public interface RoleRepository {
      * @return 角色集合
      */
     Set<Role> findByUserId(Long userId);
+
+    /**
+     * 批量查询用户角色。
+     *
+     * @param userIds 用户ID集合
+     * @return 用户ID到角色集合的映射
+     */
+    Map<Long, Set<Role>> findByUserIds(Set<Long> userIds);
 
     /**
      * 保存用户角色关联

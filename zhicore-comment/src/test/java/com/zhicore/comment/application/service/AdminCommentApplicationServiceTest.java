@@ -3,7 +3,6 @@ package com.zhicore.comment.application.service;
 import com.zhicore.api.client.PostBatchClient;
 import com.zhicore.api.client.UserBatchSimpleClient;
 import com.zhicore.api.dto.user.UserSimpleDTO;
-import com.zhicore.comment.application.port.event.CommentEventPort;
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.model.CommentStats;
 import com.zhicore.comment.domain.model.CommentStatus;
@@ -30,7 +29,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("AdminCommentApplicationService 单元测试")
+@DisplayName("AdminCommentQueryService 单元测试")
 class AdminCommentApplicationServiceTest {
 
     private static final Long COMMENT_ID = 1001L;
@@ -46,18 +45,14 @@ class AdminCommentApplicationServiceTest {
     @Mock
     private PostBatchClient postServiceClient;
 
-    @Mock
-    private CommentEventPort eventPublisher;
-
-    private AdminCommentApplicationService service;
+    private AdminCommentQueryService service;
 
     @BeforeEach
     void setUp() {
-        service = new AdminCommentApplicationService(
+        service = new AdminCommentQueryService(
                 commentRepository,
                 userServiceClient,
-                postServiceClient,
-                eventPublisher
+                postServiceClient
         );
     }
 

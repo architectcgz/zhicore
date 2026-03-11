@@ -1,7 +1,6 @@
 package com.zhicore.user.application.decorator;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
-import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.cache.port.CacheStore;
 import com.zhicore.common.cache.port.CacheResult;
 import com.zhicore.common.cache.port.LockManager;
@@ -9,6 +8,7 @@ import com.zhicore.common.config.CacheProperties;
 import com.zhicore.user.application.dto.UserVO;
 import com.zhicore.user.application.port.UserCacheKeyResolver;
 import com.zhicore.user.application.port.UserQueryPort;
+import com.zhicore.user.application.query.view.UserSimpleView;
 import com.zhicore.user.application.sentinel.UserSentinelHandlers;
 import com.zhicore.user.application.sentinel.UserSentinelResources;
 import lombok.extern.slf4j.Slf4j;
@@ -46,7 +46,7 @@ public class CacheAsideUserQuery implements UserQueryPort {
 
 
     public CacheAsideUserQuery(
-            @Qualifier("userApplicationService") UserQueryPort delegate,
+            @Qualifier("userQueryService") UserQueryPort delegate,
             CacheStore cacheStore,
             LockManager lockManager,
             CacheProperties cacheProperties,
@@ -116,11 +116,11 @@ public class CacheAsideUserQuery implements UserQueryPort {
             blockHandlerClass = UserSentinelHandlers.class,
             blockHandler = "handleGetUserSimpleBlocked"
     )
-    public UserSimpleDTO getUserSimpleById(Long userId) {
+    public UserSimpleView getUserSimpleById(Long userId) {
         String cacheKey = userCacheKeyResolver.userSimple(userId);
 
         // 1. 尝试从缓存获取
-        CacheResult<UserSimpleDTO> cached = cacheStore.get(cacheKey, UserSimpleDTO.class);
+        CacheResult<UserSimpleView> cached = cacheStore.get(cacheKey, UserSimpleView.class);
         if (cached.isHit()) {
             log.debug("Cache hit for user simple: userId={}", userId);
             return cached.getValue();
@@ -131,7 +131,7 @@ public class CacheAsideUserQuery implements UserQueryPort {
 
         // 2. 缓存未命中，查数据源
         log.debug("Cache miss for user simple, fetching from source: userId={}", userId);
-        UserSimpleDTO dto = delegate.getUserSimpleById(userId);
+        UserSimpleView dto = delegate.getUserSimpleById(userId);
 
         // 使用 setIfAbsent 防止并发回填覆盖
         if (dto == null) {
@@ -150,18 +150,18 @@ public class CacheAsideUserQuery implements UserQueryPort {
             blockHandlerClass = UserSentinelHandlers.class,
             blockHandler = "handleBatchGetUsersSimpleBlocked"
     )
-    public Map<Long, UserSimpleDTO> batchGetUsersSimple(Set<Long> userIds) {
+    public Map<Long, UserSimpleView> batchGetUsersSimple(Set<Long> userIds) {
         if (userIds == null || userIds.isEmpty()) {
             return new HashMap<>();
         }
 
-        Map<Long, UserSimpleDTO> result = new HashMap<>();
+        Map<Long, UserSimpleView> result = new HashMap<>();
         Set<Long> missedIds = new HashSet<>();
 
         // 1. 逐个查缓存
         for (Long userId : userIds) {
             String cacheKey = userCacheKeyResolver.userSimple(userId);
-            CacheResult<UserSimpleDTO> cached = cacheStore.get(cacheKey, UserSimpleDTO.class);
+            CacheResult<UserSimpleView> cached = cacheStore.get(cacheKey, UserSimpleView.class);
             if (cached.isHit()) {
                 result.put(userId, cached.getValue());
             } else if (!cached.isNull()) {
@@ -172,10 +172,10 @@ public class CacheAsideUserQuery implements UserQueryPort {
 
         // 2. 批量查库回填 miss 的 ID
         if (!missedIds.isEmpty()) {
-            Map<Long, UserSimpleDTO> fromDb = delegate.batchGetUsersSimple(missedIds);
+            Map<Long, UserSimpleView> fromDb = delegate.batchGetUsersSimple(missedIds);
 
             for (Long missedId : missedIds) {
-                UserSimpleDTO dto = fromDb.get(missedId);
+                UserSimpleView dto = fromDb.get(missedId);
                 String cacheKey = userCacheKeyResolver.userSimple(missedId);
                 if (dto != null) {
                     // 每个 key 独立计算 jitter，避免批量回填同时过期引发雪崩

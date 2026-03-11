@@ -5,8 +5,8 @@ import com.zhicore.user.application.command.LoginCommand;
 import com.zhicore.user.application.command.RefreshTokenCommand;
 import com.zhicore.user.application.command.RegisterCommand;
 import com.zhicore.user.application.dto.TokenVO;
-import com.zhicore.user.application.service.AuthApplicationService;
-import com.zhicore.user.application.service.UserApplicationService;
+import com.zhicore.user.application.service.AuthCommandService;
+import com.zhicore.user.application.service.UserCommandService;
 import com.zhicore.user.interfaces.dto.request.LoginRequest;
 import com.zhicore.user.interfaces.dto.request.RefreshTokenRequest;
 import com.zhicore.user.interfaces.dto.request.RegisterRequest;
@@ -30,8 +30,8 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final AuthApplicationService authApplicationService;
-    private final UserApplicationService userApplicationService;
+    private final AuthCommandService authCommandService;
+    private final UserCommandService userCommandService;
 
     /**
      * 用户注册
@@ -58,7 +58,7 @@ public class AuthController {
     public ApiResponse<Long> register(
             @Parameter(description = "用户注册信息", required = true)
             @Valid @RequestBody RegisterRequest request) {
-        Long userId = userApplicationService.register(new RegisterCommand(
+        Long userId = userCommandService.register(new RegisterCommand(
                 request.getUserName(),
                 request.getEmail(),
                 request.getPassword()
@@ -91,7 +91,7 @@ public class AuthController {
     public ApiResponse<TokenVO> login(
             @Parameter(description = "用户登录信息", required = true)
             @Valid @RequestBody LoginRequest request) {
-        TokenVO token = authApplicationService.login(new LoginCommand(
+        TokenVO token = authCommandService.login(new LoginCommand(
                 request.getEmail(),
                 request.getPassword()
         ));
@@ -123,7 +123,7 @@ public class AuthController {
     public ApiResponse<TokenVO> refreshToken(
             @Parameter(description = "刷新令牌信息", required = true)
             @Valid @RequestBody RefreshTokenRequest request) {
-        TokenVO token = authApplicationService.refreshToken(new RefreshTokenCommand(
+        TokenVO token = authCommandService.refreshToken(new RefreshTokenCommand(
                 request.getRefreshToken()
         ));
         return ApiResponse.success(token);

@@ -1,6 +1,5 @@
 package com.zhicore.user.application.decorator;
 
-import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.cache.port.CacheStore;
 import com.zhicore.common.cache.port.CacheResult;
 import com.zhicore.common.cache.port.LockManager;
@@ -8,6 +7,7 @@ import com.zhicore.common.config.CacheProperties;
 import com.zhicore.user.application.dto.UserVO;
 import com.zhicore.user.application.port.UserCacheKeyResolver;
 import com.zhicore.user.application.port.UserQueryPort;
+import com.zhicore.user.application.query.view.UserSimpleView;
 import com.zhicore.user.infrastructure.cache.UserRedisKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -70,8 +70,8 @@ class CacheAsideUserQueryTest {
         return vo;
     }
 
-    private UserSimpleDTO buildSimpleDTO(Long userId) {
-        UserSimpleDTO dto = new UserSimpleDTO();
+    private UserSimpleView buildSimpleDTO(Long userId) {
+        UserSimpleView dto = new UserSimpleView();
         dto.setId(userId);
         dto.setUserName("testuser");
         dto.setNickname("测试用户");
@@ -196,11 +196,11 @@ class CacheAsideUserQueryTest {
         @Test
         @DisplayName("缓存命中时应直接返回")
         void shouldReturnFromCacheWhenHit() {
-            UserSimpleDTO cached = buildSimpleDTO(1L);
-            when(cacheStore.get(UserRedisKeys.userSimple(1L), UserSimpleDTO.class))
+            UserSimpleView cached = buildSimpleDTO(1L);
+            when(cacheStore.get(UserRedisKeys.userSimple(1L), UserSimpleView.class))
                     .thenReturn(CacheResult.hit(cached));
 
-            UserSimpleDTO result = cacheAsideUserQuery.getUserSimpleById(1L);
+            UserSimpleView result = cacheAsideUserQuery.getUserSimpleById(1L);
 
             assertSame(cached, result);
             verifyNoInteractions(delegate);
@@ -209,10 +209,10 @@ class CacheAsideUserQueryTest {
         @Test
         @DisplayName("缓存为空值标记时应返回 null")
         void shouldReturnNullWhenCacheIsNullValue() {
-            when(cacheStore.get(UserRedisKeys.userSimple(1L), UserSimpleDTO.class))
+            when(cacheStore.get(UserRedisKeys.userSimple(1L), UserSimpleView.class))
                     .thenReturn(CacheResult.nullValue());
 
-            UserSimpleDTO result = cacheAsideUserQuery.getUserSimpleById(1L);
+            UserSimpleView result = cacheAsideUserQuery.getUserSimpleById(1L);
 
             assertNull(result);
             verifyNoInteractions(delegate);
@@ -221,14 +221,14 @@ class CacheAsideUserQueryTest {
         @Test
         @DisplayName("缓存未命中时应查数据源并用 setIfAbsent 回填")
         void shouldFetchAndSetIfAbsentWhenMiss() {
-            UserSimpleDTO fromDb = buildSimpleDTO(1L);
+            UserSimpleView fromDb = buildSimpleDTO(1L);
             String cacheKey = UserRedisKeys.userSimple(1L);
 
-            when(cacheStore.get(cacheKey, UserSimpleDTO.class))
+            when(cacheStore.get(cacheKey, UserSimpleView.class))
                     .thenReturn(CacheResult.miss());
             when(delegate.getUserSimpleById(1L)).thenReturn(fromDb);
 
-            UserSimpleDTO result = cacheAsideUserQuery.getUserSimpleById(1L);
+            UserSimpleView result = cacheAsideUserQuery.getUserSimpleById(1L);
 
             assertSame(fromDb, result);
             verify(cacheStore).setIfAbsent(eq(cacheKey), eq(fromDb), any(Duration.class));
@@ -239,11 +239,11 @@ class CacheAsideUserQueryTest {
         void shouldCacheNullWithSetIfAbsent() {
             String cacheKey = UserRedisKeys.userSimple(1L);
 
-            when(cacheStore.get(cacheKey, UserSimpleDTO.class))
+            when(cacheStore.get(cacheKey, UserSimpleView.class))
                     .thenReturn(CacheResult.miss());
             when(delegate.getUserSimpleById(1L)).thenReturn(null);
 
-            UserSimpleDTO result = cacheAsideUserQuery.getUserSimpleById(1L);
+            UserSimpleView result = cacheAsideUserQuery.getUserSimpleById(1L);
 
             assertNull(result);
             verify(cacheStore).setIfAbsent(eq(cacheKey), isNull(), any(Duration.class));
@@ -257,7 +257,7 @@ class CacheAsideUserQueryTest {
         @Test
         @DisplayName("空集合应直接返回空 Map")
         void shouldReturnEmptyMapForEmptyInput() {
-            Map<Long, UserSimpleDTO> result = cacheAsideUserQuery.batchGetUsersSimple(Set.of());
+            Map<Long, UserSimpleView> result = cacheAsideUserQuery.batchGetUsersSimple(Set.of());
             assertTrue(result.isEmpty());
             verifyNoInteractions(cacheStore);
             verifyNoInteractions(delegate);
@@ -266,22 +266,22 @@ class CacheAsideUserQueryTest {
         @Test
         @DisplayName("null 输入应直接返回空 Map")
         void shouldReturnEmptyMapForNullInput() {
-            Map<Long, UserSimpleDTO> result = cacheAsideUserQuery.batchGetUsersSimple(null);
+            Map<Long, UserSimpleView> result = cacheAsideUserQuery.batchGetUsersSimple(null);
             assertTrue(result.isEmpty());
         }
 
         @Test
         @DisplayName("全部缓存命中时不应查数据源")
         void shouldNotQuerySourceWhenAllCacheHit() {
-            UserSimpleDTO dto1 = buildSimpleDTO(1L);
-            UserSimpleDTO dto2 = buildSimpleDTO(2L);
+            UserSimpleView dto1 = buildSimpleDTO(1L);
+            UserSimpleView dto2 = buildSimpleDTO(2L);
 
-            when(cacheStore.get(UserRedisKeys.userSimple(1L), UserSimpleDTO.class))
+            when(cacheStore.get(UserRedisKeys.userSimple(1L), UserSimpleView.class))
                     .thenReturn(CacheResult.hit(dto1));
-            when(cacheStore.get(UserRedisKeys.userSimple(2L), UserSimpleDTO.class))
+            when(cacheStore.get(UserRedisKeys.userSimple(2L), UserSimpleView.class))
                     .thenReturn(CacheResult.hit(dto2));
 
-            Map<Long, UserSimpleDTO> result = cacheAsideUserQuery.batchGetUsersSimple(Set.of(1L, 2L));
+            Map<Long, UserSimpleView> result = cacheAsideUserQuery.batchGetUsersSimple(Set.of(1L, 2L));
 
             assertEquals(2, result.size());
             assertSame(dto1, result.get(1L));
@@ -292,19 +292,19 @@ class CacheAsideUserQueryTest {
         @Test
         @DisplayName("部分缓存未命中时应只查未命中的 ID 并回填")
         void shouldOnlyQueryMissedIdsFromSource() {
-            UserSimpleDTO cached1 = buildSimpleDTO(1L);
-            UserSimpleDTO fromDb2 = buildSimpleDTO(2L);
+            UserSimpleView cached1 = buildSimpleDTO(1L);
+            UserSimpleView fromDb2 = buildSimpleDTO(2L);
 
-            when(cacheStore.get(UserRedisKeys.userSimple(1L), UserSimpleDTO.class))
+            when(cacheStore.get(UserRedisKeys.userSimple(1L), UserSimpleView.class))
                     .thenReturn(CacheResult.hit(cached1));
-            when(cacheStore.get(UserRedisKeys.userSimple(2L), UserSimpleDTO.class))
+            when(cacheStore.get(UserRedisKeys.userSimple(2L), UserSimpleView.class))
                     .thenReturn(CacheResult.miss());
 
-            Map<Long, UserSimpleDTO> dbResult = new HashMap<>();
+            Map<Long, UserSimpleView> dbResult = new HashMap<>();
             dbResult.put(2L, fromDb2);
             when(delegate.batchGetUsersSimple(Set.of(2L))).thenReturn(dbResult);
 
-            Map<Long, UserSimpleDTO> result = cacheAsideUserQuery.batchGetUsersSimple(Set.of(1L, 2L));
+            Map<Long, UserSimpleView> result = cacheAsideUserQuery.batchGetUsersSimple(Set.of(1L, 2L));
 
             assertEquals(2, result.size());
             assertSame(cached1, result.get(1L));
@@ -315,10 +315,10 @@ class CacheAsideUserQueryTest {
         @Test
         @DisplayName("空值标记的 ID 应跳过，不查数据源")
         void shouldSkipNullValueIds() {
-            when(cacheStore.get(UserRedisKeys.userSimple(1L), UserSimpleDTO.class))
+            when(cacheStore.get(UserRedisKeys.userSimple(1L), UserSimpleView.class))
                     .thenReturn(CacheResult.nullValue());
 
-            Map<Long, UserSimpleDTO> result = cacheAsideUserQuery.batchGetUsersSimple(Set.of(1L));
+            Map<Long, UserSimpleView> result = cacheAsideUserQuery.batchGetUsersSimple(Set.of(1L));
 
             assertTrue(result.isEmpty());
             verifyNoInteractions(delegate);

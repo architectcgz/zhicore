@@ -17,7 +17,9 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -47,9 +49,10 @@ public class UserRepositoryImpl implements UserRepository {
             return new ArrayList<>();
         }
         List<UserPO> poList = userMapper.selectByIds(userIds);
+        Map<Long, Set<Role>> rolesByUserId = roleRepository.findByUserIds(userIds);
         List<User> users = new ArrayList<>();
         for (UserPO po : poList) {
-            User user = toDomain(po);
+            User user = toDomain(po, rolesByUserId.getOrDefault(po.getId(), Set.of()));
             if (user != null) {
                 users.add(user);
             }
@@ -195,8 +198,14 @@ public class UserRepositoryImpl implements UserRepository {
 
         // 查询用户角色
         Set<Role> roles = roleRepository.findByUserId(po.getId());
+        return toDomain(po, roles);
+    }
 
-        // 根据 is_active 字段推断状态
+    private User toDomain(UserPO po, Set<Role> roles) {
+        if (po == null) {
+            return null;
+        }
+
         UserStatus status = Boolean.TRUE.equals(po.getIsActive()) ? UserStatus.ACTIVE : UserStatus.DISABLED;
 
         return User.reconstitute(new User.Snapshot(

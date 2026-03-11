@@ -1,12 +1,11 @@
 package com.zhicore.comment.application.service;
 
+import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.api.client.PostCommentClient;
 import com.zhicore.api.client.UserSimpleBatchClient;
-import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.api.event.comment.CommentCreatedEvent;
-import com.zhicore.api.event.comment.CommentDeletedEvent;
 import com.zhicore.comment.application.command.CreateCommentCommand;
 import com.zhicore.comment.application.command.UpdateCommentCommand;
 import com.zhicore.comment.application.port.event.CommentEventPort;
@@ -24,7 +23,10 @@ import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.DomainException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -35,18 +37,25 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
- * 评论应用服务单元测试
- *
- * @author ZhiCore Team
+ * 评论 query/command 服务单元测试。
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("CommentApplicationService 单元测试")
+@DisplayName("Comment query/command 服务单元测试")
 class CommentApplicationServiceTest {
 
     @Mock private CommentRepository commentRepository;
@@ -62,7 +71,8 @@ class CommentApplicationServiceTest {
     @Mock private TimeCursorCodec timeCursorCodec;
     @Mock private TransactionTemplate transactionTemplate;
 
-    private CommentApplicationService service;
+    private CommentCommandService commandService;
+    private CommentQueryService queryService;
 
     private static final Long USER_ID = 1001L;
     private static final Long COMMENT_ID = 2001L;
@@ -71,14 +81,16 @@ class CommentApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CommentApplicationService(
-                commentRepository, commentDetailCacheService, commentDetailCacheStore,
-                commentCounterStore, commentStatsRepository, eventPublisher,
-                postServiceClient, userServiceClient, idGeneratorFeignClient,
-                hotCursorCodec, timeCursorCodec, transactionTemplate
+        commandService = new CommentCommandService(
+                commentRepository, commentDetailCacheStore, commentCounterStore,
+                commentStatsRepository, eventPublisher, postServiceClient,
+                idGeneratorFeignClient, transactionTemplate
+        );
+        queryService = new CommentQueryService(
+                commentRepository, commentDetailCacheService, userServiceClient,
+                hotCursorCodec, timeCursorCodec
         );
 
-        // TransactionTemplate 默认直接执行回调
         doAnswer(invocation -> {
             @SuppressWarnings("unchecked")
             java.util.function.Consumer<org.springframework.transaction.TransactionStatus> action =
@@ -87,8 +99,6 @@ class CommentApplicationServiceTest {
             return null;
         }).when(transactionTemplate).executeWithoutResult(any());
     }
-
-    // ==================== 辅助方法 ====================
 
     private PostDTO createPostDTO() {
         PostDTO post = new PostDTO();
@@ -136,8 +146,6 @@ class CommentApplicationServiceTest {
         );
     }
 
-    // ==================== 创建评论测试 ====================
-
     @Nested
     @DisplayName("createComment 创建评论")
     class CreateCommentTest {
@@ -145,14 +153,10 @@ class CommentApplicationServiceTest {
         @Test
         @DisplayName("创建顶级评论成功")
         void shouldCreateTopLevelComment() {
-            ApiResponse<PostDTO> postResp = ApiResponse.success(createPostDTO());
-            when(postServiceClient.getPost(POST_ID)).thenReturn(postResp);
+            when(postServiceClient.getPost(POST_ID)).thenReturn(ApiResponse.success(createPostDTO()));
+            when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(COMMENT_ID));
 
-            ApiResponse<Long> idResp = ApiResponse.success(COMMENT_ID);
-            when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(idResp);
-
-            CreateCommentCommand request = createTopLevelRequest();
-            Long result = service.createComment(USER_ID, request);
+            Long result = commandService.createComment(USER_ID, createTopLevelRequest());
 
             assertEquals(COMMENT_ID, result);
             verify(commentRepository).save(any(Comment.class));
@@ -161,48 +165,36 @@ class CommentApplicationServiceTest {
 
         @Test
         @DisplayName("文章不存在时抛出异常")
-        void shouldThrow_WhenPostNotFound() {
-            ApiResponse<PostDTO> postResp = ApiResponse.fail("文章不存在");
-            when(postServiceClient.getPost(POST_ID)).thenReturn(postResp);
+        void shouldThrowWhenPostNotFound() {
+            when(postServiceClient.getPost(POST_ID)).thenReturn(ApiResponse.fail("文章不存在"));
 
-            CreateCommentCommand request = createTopLevelRequest();
             BusinessException exception = assertThrows(BusinessException.class,
-                    () -> service.createComment(USER_ID, request));
+                    () -> commandService.createComment(USER_ID, createTopLevelRequest()));
             assertEquals(ResultCode.POST_NOT_FOUND.getCode(), exception.getCode());
             verify(commentRepository, never()).save(any());
         }
 
         @Test
         @DisplayName("ID 生成失败时抛出异常")
-        void shouldThrow_WhenIdGenerationFails() {
-            ApiResponse<PostDTO> postResp = ApiResponse.success(createPostDTO());
-            when(postServiceClient.getPost(POST_ID)).thenReturn(postResp);
+        void shouldThrowWhenIdGenerationFails() {
+            when(postServiceClient.getPost(POST_ID)).thenReturn(ApiResponse.success(createPostDTO()));
+            when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.fail("ID 生成失败"));
 
-            ApiResponse<Long> idResp = ApiResponse.fail("ID 生成失败");
-            when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(idResp);
-
-            CreateCommentCommand request = createTopLevelRequest();
             BusinessException exception = assertThrows(BusinessException.class,
-                    () -> service.createComment(USER_ID, request));
+                    () -> commandService.createComment(USER_ID, createTopLevelRequest()));
             assertEquals(ResultCode.SERVICE_DEGRADED.getCode(), exception.getCode());
             assertEquals("评论ID生成失败", exception.getMessage());
         }
 
         @Test
         @DisplayName("创建回复评论成功，更新顶级评论回复数")
-        void shouldCreateReply_AndIncrementReplyCount() {
-            ApiResponse<PostDTO> postResp = ApiResponse.success(createPostDTO());
-            when(postServiceClient.getPost(POST_ID)).thenReturn(postResp);
-
+        void shouldCreateReplyAndIncrementReplyCount() {
             Long replyId = COMMENT_ID + 1;
-            ApiResponse<Long> idResp = ApiResponse.success(replyId);
-            when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(idResp);
+            when(postServiceClient.getPost(POST_ID)).thenReturn(ApiResponse.success(createPostDTO()));
+            when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(replyId));
+            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createTopLevelComment()));
 
-            Comment rootComment = createTopLevelComment();
-            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(rootComment));
-
-            CreateCommentCommand request = createReplyRequest(COMMENT_ID);
-            Long result = service.createComment(USER_ID, request);
+            Long result = commandService.createComment(USER_ID, createReplyRequest(COMMENT_ID));
 
             assertEquals(replyId, result);
             verify(commentStatsRepository).incrementReplyCount(COMMENT_ID);
@@ -211,39 +203,30 @@ class CommentApplicationServiceTest {
 
         @Test
         @DisplayName("回复已删除的评论时抛出异常")
-        void shouldThrow_WhenReplyToDeletedComment() {
-            ApiResponse<PostDTO> postResp = ApiResponse.success(createPostDTO());
-            when(postServiceClient.getPost(POST_ID)).thenReturn(postResp);
+        void shouldThrowWhenReplyToDeletedComment() {
+            when(postServiceClient.getPost(POST_ID)).thenReturn(ApiResponse.success(createPostDTO()));
+            when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(COMMENT_ID + 1));
+            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createDeletedComment()));
 
-            ApiResponse<Long> idResp = ApiResponse.success(COMMENT_ID + 1);
-            when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(idResp);
-
-            when(commentRepository.findById(COMMENT_ID))
-                    .thenReturn(Optional.of(createDeletedComment()));
-
-            CreateCommentCommand request = createReplyRequest(COMMENT_ID);
             BusinessException exception = assertThrows(BusinessException.class,
-                    () -> service.createComment(USER_ID, request));
+                    () -> commandService.createComment(USER_ID, createReplyRequest(COMMENT_ID)));
             assertEquals(ResultCode.COMMENT_ALREADY_DELETED.getCode(), exception.getCode());
             assertEquals("不能回复已删除的评论", exception.getMessage());
         }
 
         @Test
         @DisplayName("根评论不存在时应该返回专属错误码")
-        void shouldThrow_WhenRootCommentNotFound() {
+        void shouldThrowWhenRootCommentNotFound() {
             when(postServiceClient.getPost(POST_ID)).thenReturn(ApiResponse.success(createPostDTO()));
             when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(COMMENT_ID + 1));
             when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.empty());
 
             BusinessException exception = assertThrows(BusinessException.class,
-                    () -> service.createComment(USER_ID, createReplyRequest(COMMENT_ID)));
-
+                    () -> commandService.createComment(USER_ID, createReplyRequest(COMMENT_ID)));
             assertEquals(ResultCode.ROOT_COMMENT_NOT_FOUND.getCode(), exception.getCode());
             assertEquals(ResultCode.ROOT_COMMENT_NOT_FOUND.getMessage(), exception.getMessage());
         }
     }
-
-    // ==================== 删除评论测试 ====================
 
     @Nested
     @DisplayName("updateComment 更新评论")
@@ -251,14 +234,11 @@ class CommentApplicationServiceTest {
 
         @Test
         @DisplayName("非作者更新评论时应返回操作不允许错误码")
-        void shouldThrow_WhenUpdateByNonAuthor() {
-            Comment comment = createTopLevelComment();
-            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
-
-            UpdateCommentCommand request = new UpdateCommentCommand("更新后的内容");
+        void shouldThrowWhenUpdateByNonAuthor() {
+            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createTopLevelComment()));
 
             DomainException exception = assertThrows(DomainException.class,
-                    () -> service.updateComment(9999L, COMMENT_ID, request));
+                    () -> commandService.updateComment(9999L, COMMENT_ID, new UpdateCommentCommand("更新后的内容")));
 
             assertEquals(ResultCode.OPERATION_NOT_ALLOWED.getCode(), exception.getCode());
             assertEquals("只能编辑自己的评论", exception.getMessage());
@@ -266,13 +246,11 @@ class CommentApplicationServiceTest {
 
         @Test
         @DisplayName("更新已删除评论时应返回评论已删除错误码")
-        void shouldThrow_WhenUpdateDeletedComment() {
+        void shouldThrowWhenUpdateDeletedComment() {
             when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createDeletedComment()));
 
-            UpdateCommentCommand request = new UpdateCommentCommand("更新后的内容");
-
             DomainException exception = assertThrows(DomainException.class,
-                    () -> service.updateComment(USER_ID, COMMENT_ID, request));
+                    () -> commandService.updateComment(USER_ID, COMMENT_ID, new UpdateCommentCommand("更新后的内容")));
 
             assertEquals(ResultCode.COMMENT_ALREADY_DELETED.getCode(), exception.getCode());
             assertEquals("已删除的评论不能编辑", exception.getMessage());
@@ -287,7 +265,7 @@ class CommentApplicationServiceTest {
         @DisplayName("传统分页超出查询窗口时应该拒绝并提示改用游标分页")
         void shouldRejectDeepOffsetPagination() {
             BusinessException exception = assertThrows(BusinessException.class,
-                    () -> service.getTopLevelCommentsByPage(POST_ID, 50, 100, com.zhicore.comment.application.dto.CommentSortType.TIME));
+                    () -> queryService.getTopLevelCommentsByPage(POST_ID, 50, 100, com.zhicore.comment.application.dto.CommentSortType.TIME));
 
             assertEquals(ResultCode.PARAM_ERROR.getCode(), exception.getCode());
             assertEquals("传统分页仅支持前" + CommonConstants.MAX_OFFSET_WINDOW + "条数据，请改用游标分页", exception.getMessage());
@@ -302,11 +280,10 @@ class CommentApplicationServiceTest {
 
         @Test
         @DisplayName("作者删除顶级评论成功，发布 CommentDeletedEvent")
-        void shouldDeleteTopLevel_AndPublishEvent() {
-            Comment comment = createTopLevelComment();
-            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
+        void shouldDeleteTopLevelAndPublishEvent() {
+            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createTopLevelComment()));
 
-            service.deleteComment(USER_ID, false, COMMENT_ID);
+            commandService.deleteComment(USER_ID, false, COMMENT_ID);
 
             verify(commentRepository).update(any(Comment.class));
             verify(eventPublisher).publishCommentDeleted(argThat(event ->
@@ -318,32 +295,32 @@ class CommentApplicationServiceTest {
 
         @Test
         @DisplayName("删除回复评论时递减顶级评论回复数")
-        void shouldDecrementReplyCount_WhenDeletingReply() {
+        void shouldDecrementReplyCountWhenDeletingReply() {
             Comment reply = createReplyComment(COMMENT_ID);
             when(commentRepository.findById(reply.getId())).thenReturn(Optional.of(reply));
 
-            service.deleteComment(USER_ID, false, reply.getId());
+            commandService.deleteComment(USER_ID, false, reply.getId());
 
             verify(commentStatsRepository).decrementReplyCount(COMMENT_ID);
         }
 
         @Test
         @DisplayName("评论不存在时抛出异常")
-        void shouldThrow_WhenCommentNotFound() {
+        void shouldThrowWhenCommentNotFound() {
             when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.empty());
 
             BusinessException exception = assertThrows(BusinessException.class,
-                    () -> service.deleteComment(USER_ID, false, COMMENT_ID));
+                    () -> commandService.deleteComment(USER_ID, false, COMMENT_ID));
             assertEquals(ResultCode.COMMENT_NOT_FOUND.getCode(), exception.getCode());
         }
 
         @Test
         @DisplayName("非作者删除评论时应返回操作不允许错误码")
-        void shouldThrow_WhenDeleteByNonAuthor() {
+        void shouldThrowWhenDeleteByNonAuthor() {
             when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createTopLevelComment()));
 
             DomainException exception = assertThrows(DomainException.class,
-                    () -> service.deleteComment(9999L, false, COMMENT_ID));
+                    () -> commandService.deleteComment(9999L, false, COMMENT_ID));
 
             assertEquals(ResultCode.OPERATION_NOT_ALLOWED.getCode(), exception.getCode());
             assertEquals("无权删除此评论", exception.getMessage());
@@ -351,11 +328,11 @@ class CommentApplicationServiceTest {
 
         @Test
         @DisplayName("删除已删除评论时应返回评论已删除错误码")
-        void shouldThrow_WhenDeleteDeletedComment() {
+        void shouldThrowWhenDeleteDeletedComment() {
             when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createDeletedComment()));
 
             DomainException exception = assertThrows(DomainException.class,
-                    () -> service.deleteComment(USER_ID, false, COMMENT_ID));
+                    () -> commandService.deleteComment(USER_ID, false, COMMENT_ID));
 
             assertEquals(ResultCode.COMMENT_ALREADY_DELETED.getCode(), exception.getCode());
             assertEquals("评论已经删除", exception.getMessage());
@@ -363,19 +340,16 @@ class CommentApplicationServiceTest {
 
         @Test
         @DisplayName("管理员删除评论，deletedBy=ADMIN")
-        void shouldSetDeletedByAdmin_WhenAdminDeletes() {
-            Comment comment = createTopLevelComment();
-            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
+        void shouldSetDeletedByAdminWhenAdminDeletes() {
+            when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(createTopLevelComment()));
 
-            service.deleteComment(9999L, true, COMMENT_ID);
+            commandService.deleteComment(9999L, true, COMMENT_ID);
 
             verify(eventPublisher).publishCommentDeleted(argThat(event ->
                     "ADMIN".equals(event.getDeletedBy())
             ));
         }
     }
-
-    // ==================== 获取评论详情测试 ====================
 
     @Nested
     @DisplayName("getComment 获取评论详情")
@@ -384,16 +358,13 @@ class CommentApplicationServiceTest {
         @Test
         @DisplayName("获取评论详情成功")
         void shouldReturnCommentVO() {
-            Comment comment = createTopLevelComment();
-            when(commentDetailCacheService.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
-
             UserSimpleDTO user = new UserSimpleDTO();
             user.setId(USER_ID);
             user.setNickname("测试用户");
-            ApiResponse<UserSimpleDTO> userResp = ApiResponse.success(user);
-            when(userServiceClient.getUserSimple(USER_ID)).thenReturn(userResp);
+            when(commentDetailCacheService.findById(COMMENT_ID)).thenReturn(Optional.of(createTopLevelComment()));
+            when(userServiceClient.getUserSimple(USER_ID)).thenReturn(ApiResponse.success(user));
 
-            var vo = service.getComment(COMMENT_ID);
+            var vo = queryService.getComment(COMMENT_ID);
 
             assertNotNull(vo);
             assertEquals(COMMENT_ID, vo.getId());
@@ -403,12 +374,11 @@ class CommentApplicationServiceTest {
         @Test
         @DisplayName("用户服务失败时不返回伪造作者")
         void shouldNotFabricateAuthorWhenUserServiceUnavailable() {
-            Comment comment = createTopLevelComment();
-            when(commentDetailCacheService.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
+            when(commentDetailCacheService.findById(COMMENT_ID)).thenReturn(Optional.of(createTopLevelComment()));
             when(userServiceClient.getUserSimple(USER_ID))
                     .thenReturn(ApiResponse.fail(ResultCode.SERVICE_UNAVAILABLE, "用户服务暂时不可用"));
 
-            var vo = service.getComment(COMMENT_ID);
+            var vo = queryService.getComment(COMMENT_ID);
 
             assertNotNull(vo);
             assertNull(vo.getAuthor());
@@ -416,11 +386,10 @@ class CommentApplicationServiceTest {
 
         @Test
         @DisplayName("评论不存在时抛出异常")
-        void shouldThrow_WhenNotFound() {
+        void shouldThrowWhenNotFound() {
             when(commentDetailCacheService.findById(COMMENT_ID)).thenReturn(Optional.empty());
 
-            assertThrows(BusinessException.class,
-                    () -> service.getComment(COMMENT_ID));
+            assertThrows(BusinessException.class, () -> queryService.getComment(COMMENT_ID));
         }
     }
 }

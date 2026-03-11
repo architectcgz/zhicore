@@ -5,8 +5,8 @@ import com.zhicore.common.result.ResultCode;
 import com.zhicore.user.application.command.LoginCommand;
 import com.zhicore.user.application.command.RegisterCommand;
 import com.zhicore.user.application.dto.TokenVO;
-import com.zhicore.user.application.service.AuthApplicationService;
-import com.zhicore.user.application.service.UserApplicationService;
+import com.zhicore.user.application.service.AuthCommandService;
+import com.zhicore.user.application.service.UserCommandService;
 import com.zhicore.user.interfaces.dto.request.LoginRequest;
 import com.zhicore.user.interfaces.dto.request.RegisterRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,10 +50,10 @@ class UserApiIntegrationTest {
     private ObjectMapper objectMapper;
 
     @MockBean
-    private UserApplicationService userApplicationService;
+    private UserCommandService userCommandService;
 
     @MockBean
-    private AuthApplicationService authApplicationService;
+    private AuthCommandService authCommandService;
 
     @MockBean
     private RocketMQTemplate rocketMQTemplate;
@@ -67,7 +67,7 @@ class UserApiIntegrationTest {
         request.setEmail("test@example.com");
         request.setPassword("Test123456!");
 
-        when(userApplicationService.register(any(RegisterCommand.class))).thenReturn(1001L);
+        when(userCommandService.register(any(RegisterCommand.class))).thenReturn(1001L);
 
         MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -91,7 +91,7 @@ class UserApiIntegrationTest {
         request.setPassword("Test123456!");
 
         doThrow(new BusinessException(ResultCode.EMAIL_ALREADY_EXISTS))
-                .when(userApplicationService).register(any(RegisterCommand.class));
+                .when(userCommandService).register(any(RegisterCommand.class));
 
         mockMvc.perform(post("/api/v1/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -109,7 +109,7 @@ class UserApiIntegrationTest {
         request.setEmail("test@example.com");
         request.setPassword("Test123456!");
 
-        when(authApplicationService.login(any(LoginCommand.class)))
+        when(authCommandService.login(any(LoginCommand.class)))
                 .thenReturn(new TokenVO("access-token", "refresh-token", 3600L));
 
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
@@ -135,7 +135,7 @@ class UserApiIntegrationTest {
         request.setPassword("WrongPassword!");
 
         doThrow(new BusinessException(ResultCode.LOGIN_FAILED, "邮箱或密码错误"))
-                .when(authApplicationService).login(any(LoginCommand.class));
+                .when(authCommandService).login(any(LoginCommand.class));
 
         mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
