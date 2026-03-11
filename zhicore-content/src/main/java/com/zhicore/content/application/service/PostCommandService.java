@@ -21,12 +21,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PostCommandService {
 
+    private final PostCreateCommandService postCreateCommandService;
+    private final PostPublishCommandService postPublishCommandService;
     private final PostWriteService postWriteService;
     private final ScheduledPublishCommandService scheduledPublishCommandService;
     private final RestorePostHandler restorePostHandler;
 
     public Long createPost(Long userId, CreatePostAppCommand request) {
-        return postWriteService.createPost(userId, request);
+        return postCreateCommandService.createPost(userId, request);
     }
 
     public void updatePost(Long userId, Long postId, UpdatePostAppCommand request) {
@@ -34,7 +36,7 @@ public class PostCommandService {
     }
 
     public void publishPost(Long userId, Long postId) {
-        postWriteService.publishPost(userId, postId);
+        postPublishCommandService.publishPost(userId, postId);
     }
 
     public void unpublishPost(Long userId, Long postId) {
