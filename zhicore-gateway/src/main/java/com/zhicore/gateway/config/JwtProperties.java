@@ -51,6 +51,7 @@ public class JwtProperties {
             "/api/v1/search/**",
             "/api/v1/ranking/**",
             "/actuator/**",
+            "/api/v1/id/**",
             "/api/v1/leaf/**"
     ));
 

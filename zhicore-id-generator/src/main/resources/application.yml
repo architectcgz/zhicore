@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: ZhiCore-id-generator
+    name: zhicore-id-generator
   
   cloud:
     nacos:

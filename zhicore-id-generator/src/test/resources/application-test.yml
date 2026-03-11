@@ -1,6 +1,6 @@
 spring:
   application:
-    name: ZhiCore-id-generator-test
+    name: zhicore-id-generator-test
   
   cloud:
     nacos:
