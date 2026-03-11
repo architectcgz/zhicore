@@ -22,6 +22,7 @@ import java.util.List;
 public class PostCommandService {
 
     private final PostWriteService postWriteService;
+    private final ScheduledPublishCommandService scheduledPublishCommandService;
     private final RestorePostHandler restorePostHandler;
 
     public Long createPost(Long userId, CreatePostAppCommand request) {
@@ -41,11 +42,11 @@ public class PostCommandService {
     }
 
     public void schedulePublish(Long userId, Long postId, LocalDateTime scheduledAt) {
-        postWriteService.schedulePublish(userId, postId, scheduledAt);
+        scheduledPublishCommandService.schedulePublish(userId, postId, scheduledAt);
     }
 
     public void cancelSchedule(Long userId, Long postId) {
-        postWriteService.cancelSchedule(userId, postId);
+        scheduledPublishCommandService.cancelSchedule(userId, postId);
     }
 
     public void deletePost(Long userId, Long postId) {
@@ -76,6 +77,6 @@ public class PostCommandService {
     }
 
     public void consumeScheduledPublish(PostScheduleExecuteIntegrationEvent event) {
-        postWriteService.consumeScheduledPublish(event);
+        scheduledPublishCommandService.consumeScheduledPublish(event);
     }
 }

@@ -1,31 +1,21 @@
 package com.zhicore.content.application.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zhicore.api.client.IdGeneratorFeignClient;
-import com.zhicore.content.application.command.handlers.DeletePostHandler;
-import com.zhicore.content.application.command.handlers.PurgePostHandler;
-import com.zhicore.content.application.command.handlers.UpdatePostContentHandler;
-import com.zhicore.content.application.command.handlers.UpdatePostMetaHandler;
-import com.zhicore.content.application.mapper.EventMapper;
 import com.zhicore.content.application.model.OutboxEventRecord;
 import com.zhicore.content.application.model.OutboxEventTypes;
 import com.zhicore.content.application.model.ScheduledPublishEventRecord;
 import com.zhicore.content.application.port.alert.ContentAlertPort;
-import com.zhicore.content.application.port.client.UserProfileClient;
-import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
 import com.zhicore.content.application.port.policy.ScheduledPublishPolicy;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.OutboxEventStore;
 import com.zhicore.content.application.port.store.ScheduledPublishEventStore;
-import com.zhicore.content.application.port.store.PostContentStore;
-import com.zhicore.content.application.query.PostQuery;
-import com.zhicore.content.application.workflow.CreateDraftWorkflow;
-import com.zhicore.content.application.workflow.PublishPostWorkflow;
-import com.zhicore.content.domain.repository.PostTagRepository;
-import com.zhicore.content.domain.repository.TagRepository;
-import com.zhicore.content.domain.service.DraftCommandService;
+import com.zhicore.content.domain.model.Post;
+import com.zhicore.content.domain.model.PostId;
+import com.zhicore.content.domain.model.UserId;
+import com.zhicore.integration.messaging.IntegrationEvent;
 import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEvent;
+import com.zhicore.integration.messaging.post.PostScheduledIntegrationEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -44,6 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -51,24 +42,7 @@ import static org.mockito.Mockito.when;
 class PostApplicationServiceTask01Test {
 
     @Mock private PostRepository postRepository;
-    @Mock private IdGeneratorFeignClient idGeneratorFeignClient;
-    @Mock private DraftCommandService draftCommandService;
-    @Mock private TagCommandService tagCommandService;
-    @Mock private PostTagCommandService postTagCommandService;
-    @Mock private PostCoverImageCommandService postCoverImageCommandService;
-    @Mock private UserProfileClient userProfileClient;
-    @Mock private CreateDraftWorkflow createDraftWorkflow;
-    @Mock private PublishPostWorkflow publishPostWorkflow;
-    @Mock private UpdatePostMetaHandler updatePostMetaHandler;
-    @Mock private UpdatePostContentHandler updatePostContentHandler;
-    @Mock private DeletePostHandler deletePostHandler;
-    @Mock private PurgePostHandler purgePostHandler;
-    @Mock private PostQuery cacheAsidePostQuery;
-    @Mock private PostContentStore postContentStore;
-    @Mock private PostContentImageCleanupService postContentImageCleanupService;
-    @Mock private EventPublisher domainEventPublisher;
     @Mock private IntegrationEventPublisher integrationEventPublisher;
-    @Mock private EventMapper eventMapper;
     @Mock private ScheduledPublishEventStore scheduledPublishEventStore;
     @Mock private ScheduledPublishPolicy scheduledPublishPolicy;
     @Mock private ContentAlertPort alertService;
@@ -76,7 +50,30 @@ class PostApplicationServiceTask01Test {
     @Spy private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
-    private PostWriteService postApplicationService;
+    private ScheduledPublishCommandService scheduledPublishCommandService;
+
+    @Test
+    void schedulePublish_shouldSaveRecordAndPublishEvents() {
+        Long userId = 1001L;
+        Long postId = 123L;
+        LocalDateTime dbNow = LocalDateTime.now();
+        LocalDateTime scheduledAt = dbNow.plusMinutes(5);
+        Post post = Post.createDraft(PostId.of(postId), UserId.of(userId), "title");
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post), Optional.of(post));
+        when(scheduledPublishEventStore.dbNow()).thenReturn(dbNow);
+
+        scheduledPublishCommandService.schedulePublish(userId, postId, scheduledAt);
+
+        verify(postRepository).update(post);
+        verify(scheduledPublishEventStore).save(any(ScheduledPublishEventRecord.class));
+
+        ArgumentCaptor<IntegrationEvent> eventCaptor = ArgumentCaptor.forClass(IntegrationEvent.class);
+        verify(integrationEventPublisher, times(2)).publish(eventCaptor.capture());
+        assertThat(eventCaptor.getAllValues())
+                .anyMatch(PostScheduleExecuteIntegrationEvent.class::isInstance)
+                .anyMatch(PostScheduledIntegrationEvent.class::isInstance);
+    }
 
     @Test
     void consumeScheduledPublish_retryExhausted_emitsDlqAndAlert() {
@@ -112,7 +109,7 @@ class PostApplicationServiceTask01Test {
                 0
         );
 
-        postApplicationService.consumeScheduledPublish(message);
+        scheduledPublishCommandService.consumeScheduledPublish(message);
 
         verify(alertService).alertScheduledPublishFailedAfterRetries(
                 eq(postId),
