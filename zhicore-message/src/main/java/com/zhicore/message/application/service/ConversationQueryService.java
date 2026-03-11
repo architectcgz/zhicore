@@ -24,14 +24,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 会话应用服务
+ * 会话读服务。
  *
- * @author ZhiCore Team
+ * 负责会话列表与详情查询，不承载写操作。
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ConversationApplicationService {
+public class ConversationQueryService {
 
     private static final String USER_SERVICE_DEGRADED_MESSAGE = "用户服务已降级";
 

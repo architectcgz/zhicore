@@ -3,7 +3,7 @@ package com.zhicore.message.interfaces.controller;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.message.application.dto.ConversationVO;
-import com.zhicore.message.application.service.ConversationApplicationService;
+import com.zhicore.message.application.service.ConversationQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,18 +15,16 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * 会话控制器
- *
- * @author ZhiCore Team
+ * 会话读控制器。
  */
-@Tag(name = "会话管理", description = "会话列表、会话详情查询等相关接口")
+@Tag(name = "会话读接口", description = "会话列表、会话详情等查询接口")
 @RestController
 @RequestMapping("/api/v1/conversations")
 @RequiredArgsConstructor
 @Validated
-public class ConversationController {
+public class ConversationQueryController {
 
-    private final ConversationApplicationService conversationApplicationService;
+    private final ConversationQueryService conversationQueryService;
 
     /**
      * 获取会话列表
@@ -43,7 +41,7 @@ public class ConversationController {
             @Parameter(description = "每页数量", example = "20")
             @RequestParam(defaultValue = "20") @Min(value = 1, message = "每页数量必须为正数") int limit) {
         UserContext.requireUserId();
-        List<ConversationVO> conversations = conversationApplicationService.getConversationList(cursor, limit);
+        List<ConversationVO> conversations = conversationQueryService.getConversationList(cursor, limit);
         return ApiResponse.success(conversations);
     }
 
@@ -59,7 +57,7 @@ public class ConversationController {
             @Parameter(description = "会话ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "会话ID必须为正数") Long conversationId) {
         UserContext.requireUserId();
-        ConversationVO conversation = conversationApplicationService.getConversation(conversationId);
+        ConversationVO conversation = conversationQueryService.getConversation(conversationId);
         return ApiResponse.success(conversation);
     }
 
@@ -75,7 +73,7 @@ public class ConversationController {
             @Parameter(description = "对方用户ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId) {
         UserContext.requireUserId();
-        ConversationVO conversation = conversationApplicationService.getConversationByUser(userId);
+        ConversationVO conversation = conversationQueryService.getConversationByUser(userId);
         return ApiResponse.success(conversation);
     }
 
@@ -88,7 +86,7 @@ public class ConversationController {
     @GetMapping("/count")
     public ApiResponse<Integer> getConversationCount() {
         UserContext.requireUserId();
-        int count = conversationApplicationService.getConversationCount();
+        int count = conversationQueryService.getConversationCount();
         return ApiResponse.success(count);
     }
 }

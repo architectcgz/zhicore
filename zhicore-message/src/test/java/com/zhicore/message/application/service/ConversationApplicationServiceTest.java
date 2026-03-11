@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("ConversationApplicationService 单元测试")
+@DisplayName("ConversationQueryService 单元测试")
 class ConversationApplicationServiceTest {
 
     private static final Long USER_ID = 1L;
@@ -41,12 +41,12 @@ class ConversationApplicationServiceTest {
     @Mock
     private UserMessagingClient userServiceClient;
 
-    private ConversationApplicationService service;
+    private ConversationQueryService service;
 
     @BeforeEach
     void setUp() {
         UserContext.setUser(new UserContext.UserInfo(String.valueOf(USER_ID), "tester"));
-        service = new ConversationApplicationService(
+        service = new ConversationQueryService(
                 conversationRepository,
                 messageDomainService,
                 userServiceClient

@@ -14,7 +14,6 @@ import com.zhicore.message.domain.model.MessageType;
 import com.zhicore.message.domain.repository.ConversationRepository;
 import com.zhicore.message.domain.repository.MessageRepository;
 import com.zhicore.message.domain.service.MessageDomainService;
-import com.zhicore.message.infrastructure.feign.UserServiceClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,7 +39,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("MessageApplicationService 测试")
+@DisplayName("MessageCommandService 测试")
 class MessageApplicationServiceTest {
 
     @Mock
@@ -59,9 +58,6 @@ class MessageApplicationServiceTest {
     private IdGeneratorFeignClient idGeneratorFeignClient;
 
     @Mock
-    private UserServiceClient userServiceClient;
-
-    @Mock
     private ApplicationEventPublisher applicationEventPublisher;
 
     @Captor
@@ -71,7 +67,7 @@ class MessageApplicationServiceTest {
     private ArgumentCaptor<MessageSentPublishRequest> requestCaptor;
 
     @InjectMocks
-    private MessageApplicationService messageApplicationService;
+    private MessageCommandService messageApplicationService;
 
     @AfterEach
     void tearDown() {

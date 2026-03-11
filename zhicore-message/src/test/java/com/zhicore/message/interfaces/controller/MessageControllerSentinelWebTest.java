@@ -9,7 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.sentinel.web.ApiResponseBlockExceptionHandler;
-import com.zhicore.message.application.service.MessageApplicationService;
+import com.zhicore.message.application.service.MessageQueryService;
 import com.zhicore.message.infrastructure.sentinel.MessageRoutes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,17 +33,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("MessageController Sentinel Web 回归测试")
+@DisplayName("MessageQueryController Sentinel Web 回归测试")
 class MessageControllerSentinelWebTest {
 
     @Mock
-    private MessageApplicationService messageApplicationService;
+    private MessageQueryService messageQueryService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        MessageController controller = new MessageController(messageApplicationService);
+        MessageQueryController controller = new MessageQueryController(messageQueryService);
         SentinelWebMvcConfig config = new SentinelWebMvcConfig();
         config.setBlockExceptionHandler(new ApiResponseBlockExceptionHandler(new ObjectMapper()));
 
@@ -62,7 +62,7 @@ class MessageControllerSentinelWebTest {
     @DisplayName("未读数接口命中 Sentinel 后应该返回 429 和统一响应体")
     void shouldReturnTooManyRequestsWhenUnreadCountBlocked() throws Exception {
         FlowRuleManager.loadRules(List.of(buildUrlRule(MessageRoutes.UNREAD_COUNT)));
-        when(messageApplicationService.getUnreadCount()).thenReturn(3);
+        when(messageQueryService.getUnreadCount()).thenReturn(3);
 
         try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
             userContext.when(UserContext::requireUserId).thenReturn(1001L);
@@ -77,7 +77,7 @@ class MessageControllerSentinelWebTest {
                     .andExpect(jsonPath("$.message").value("请求过于频繁"));
         }
 
-        verify(messageApplicationService, times(1)).getUnreadCount();
+        verify(messageQueryService, times(1)).getUnreadCount();
     }
 
     private FlowRule buildUrlRule(String resource) {

@@ -5,7 +5,7 @@ import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.message.application.dto.ConversationVO;
-import com.zhicore.message.application.service.ConversationApplicationService;
+import com.zhicore.message.application.service.ConversationQueryService;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.executable.ExecutableValidator;
@@ -26,21 +26,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("ConversationController 测试")
+@DisplayName("ConversationQueryController 测试")
 class ConversationControllerTest {
 
     @Mock
-    private ConversationApplicationService conversationApplicationService;
+    private ConversationQueryService conversationQueryService;
 
     private MockMvc mockMvc;
-    private ConversationController conversationController;
+    private ConversationQueryController conversationController;
     private ExecutableValidator executableValidator;
 
     @BeforeEach
     void setUp() {
         Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
         executableValidator = validator.forExecutables();
-        conversationController = new ConversationController(conversationApplicationService);
+        conversationController = new ConversationQueryController(conversationQueryService);
         mockMvc = MockMvcBuilders.standaloneSetup(conversationController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -71,7 +71,7 @@ class ConversationControllerTest {
                 .id(1L)
                 .otherUserId(2L)
                 .build();
-        when(conversationApplicationService.getConversationList(null, 20))
+        when(conversationQueryService.getConversationList(null, 20))
                 .thenReturn(List.of(conversation));
 
         mockMvc.perform(get("/api/v1/conversations"))
@@ -85,7 +85,7 @@ class ConversationControllerTest {
     void shouldReturnBusinessErrorWhenConversationNotFound() throws Exception {
         UserContext.setUser(new UserContext.UserInfo("1", "sender"));
 
-        when(conversationApplicationService.getConversation(99L))
+        when(conversationQueryService.getConversation(99L))
                 .thenThrow(new BusinessException(ResultCode.CONVERSATION_NOT_FOUND));
 
         mockMvc.perform(get("/api/v1/conversations/{conversationId}", 99L))
@@ -97,7 +97,7 @@ class ConversationControllerTest {
     @Test
     @DisplayName("会话列表limit非法时应该返回400")
     void shouldRejectConversationListWhenLimitIsInvalid() throws Exception {
-        var method = ConversationController.class.getMethod("getConversationList", Long.class, int.class);
+        var method = ConversationQueryController.class.getMethod("getConversationList", Long.class, int.class);
         var violations = executableValidator.validateParameters(conversationController, method, new Object[]{null, 0});
 
         org.junit.jupiter.api.Assertions.assertEquals(1, violations.size());
@@ -107,7 +107,7 @@ class ConversationControllerTest {
     @Test
     @DisplayName("会话ID非法时应该返回400")
     void shouldRejectConversationWhenConversationIdIsInvalid() throws Exception {
-        var method = ConversationController.class.getMethod("getConversation", Long.class);
+        var method = ConversationQueryController.class.getMethod("getConversation", Long.class);
         var violations = executableValidator.validateParameters(conversationController, method, new Object[]{0L});
 
         org.junit.jupiter.api.Assertions.assertEquals(1, violations.size());
@@ -117,7 +117,7 @@ class ConversationControllerTest {
     @Test
     @DisplayName("用户ID非法时应该返回400")
     void shouldRejectConversationByUserWhenUserIdIsInvalid() throws Exception {
-        var method = ConversationController.class.getMethod("getConversationByUser", Long.class);
+        var method = ConversationQueryController.class.getMethod("getConversationByUser", Long.class);
         var violations = executableValidator.validateParameters(conversationController, method, new Object[]{0L});
 
         org.junit.jupiter.api.Assertions.assertEquals(1, violations.size());

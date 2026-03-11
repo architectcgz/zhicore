@@ -1,6 +1,5 @@
 package com.zhicore.message.application.service;
 
-import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
@@ -15,26 +14,21 @@ import com.zhicore.message.domain.model.MessageType;
 import com.zhicore.message.domain.repository.ConversationRepository;
 import com.zhicore.message.domain.repository.MessageRepository;
 import com.zhicore.message.domain.service.MessageDomainService;
-import com.zhicore.message.application.sentinel.MessageSentinelHandlers;
-import com.zhicore.message.application.sentinel.MessageSentinelResources;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 /**
- * 消息应用服务
+ * 消息写服务。
  *
- * @author ZhiCore Team
+ * 负责发送、撤回、已读变更，不承载查询职责。
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class MessageApplicationService {
+public class MessageCommandService {
 
     private final MessageRepository messageRepository;
     private final ConversationRepository conversationRepository;
@@ -204,35 +198,6 @@ public class MessageApplicationService {
     }
 
     /**
-     * 查询消息历史（游标分页）
-     *
-     * @param conversationId 会话ID
-     * @param cursor 游标
-     * @param limit 数量限制
-     * @return 消息列表
-     */
-    @SentinelResource(
-            value = MessageSentinelResources.GET_MESSAGE_HISTORY,
-            blockHandlerClass = MessageSentinelHandlers.class,
-            blockHandler = "handleMessageHistoryBlocked"
-    )
-    public List<MessageVO> getMessageHistory(Long conversationId, Long cursor, int limit) {
-        Long userId = UserContext.getUserId();
-        
-        // 验证会话访问权限
-        Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new BusinessException(ResultCode.CONVERSATION_NOT_FOUND));
-        messageDomainService.validateConversationAccess(conversation, userId);
-        
-        // 查询消息
-        List<Message> messages = messageRepository.findByConversationId(conversationId, cursor, limit);
-        
-        return messages.stream()
-                .map(m -> toMessageVO(m, userId))
-                .collect(Collectors.toList());
-    }
-
-    /**
      * 标记消息为已读
      *
      * @param conversationId 会话ID
@@ -255,23 +220,6 @@ public class MessageApplicationService {
         
         log.info("Messages marked as read: conversationId={}, userId={}", conversationId, userId);
     }
-
-    /**
-     * 获取用户未读消息总数
-     *
-     * @return 未读消息数
-     */
-    @SentinelResource(
-            value = MessageSentinelResources.GET_UNREAD_COUNT,
-            blockHandlerClass = MessageSentinelHandlers.class,
-            blockHandler = "handleUnreadCountBlocked"
-    )
-    public int getUnreadCount() {
-        Long userId = UserContext.getUserId();
-        return messageRepository.countUnreadByUserId(userId);
-    }
-
-    // ==================== 私有方法 ====================
 
     /**
      * 生成分布式ID
