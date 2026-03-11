@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class HotPostDetailService {
 
-    private final PostRankingService postRankingService;
+    private final PostRankingQueryService postRankingService;
     private final PostBatchClient postServiceClient;
 
     /**

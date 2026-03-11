@@ -2,10 +2,10 @@ package com.zhicore.ranking.interfaces.controller;
 
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.ranking.application.dto.HotPostDTO;
-import com.zhicore.ranking.application.service.CreatorRankingService;
+import com.zhicore.ranking.application.service.CreatorRankingQueryService;
 import com.zhicore.ranking.application.service.HotPostDetailService;
-import com.zhicore.ranking.application.service.PostRankingService;
-import com.zhicore.ranking.application.service.TopicRankingService;
+import com.zhicore.ranking.application.service.PostRankingQueryService;
+import com.zhicore.ranking.application.service.TopicRankingQueryService;
 import com.zhicore.ranking.domain.model.HotScore;
 import com.zhicore.ranking.infrastructure.config.RankingProperties;
 import com.zhicore.ranking.infrastructure.sentinel.RankingRoutes;
@@ -32,10 +32,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RankingController {
 
-    private final PostRankingService postRankingService;
+    private final PostRankingQueryService postRankingService;
     private final HotPostDetailService hotPostDetailService;
-    private final CreatorRankingService creatorRankingService;
-    private final TopicRankingService topicRankingService;
+    private final CreatorRankingQueryService creatorRankingService;
+    private final TopicRankingQueryService topicRankingService;
     private final RankingProperties rankingProperties;
 
     // ==================== 文章排行榜 ====================

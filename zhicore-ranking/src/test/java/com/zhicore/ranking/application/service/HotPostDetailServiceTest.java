@@ -26,7 +26,7 @@ import static org.mockito.Mockito.when;
 class HotPostDetailServiceTest {
 
     @Mock
-    private PostRankingService postRankingService;
+    private PostRankingQueryService postRankingService;
 
     @Mock
     private PostBatchClient postServiceClient;

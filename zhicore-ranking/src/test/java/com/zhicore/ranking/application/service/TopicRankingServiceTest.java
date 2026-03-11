@@ -20,7 +20,7 @@ class TopicRankingServiceTest {
     @Test
     @DisplayName("增量更新话题热度时应委托给 store")
     void incrementTopicScore_shouldDelegateToStore() {
-        TopicRankingService service = new TopicRankingService(topicRankingStore);
+        TopicRankingCommandService service = new TopicRankingCommandService(topicRankingStore);
 
         service.incrementTopicScore(3001L, 2.5);
 
@@ -30,7 +30,7 @@ class TopicRankingServiceTest {
     @Test
     @DisplayName("获取话题排名时应直接返回 store 结果")
     void getTopicRank_shouldReturnStoreValue() {
-        TopicRankingService service = new TopicRankingService(topicRankingStore);
+        TopicRankingQueryService service = new TopicRankingQueryService(topicRankingStore);
         when(topicRankingStore.getTopicRank(3001L)).thenReturn(4L);
 
         service.getTopicRank(3001L);

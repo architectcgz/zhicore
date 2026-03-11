@@ -2,8 +2,8 @@ package com.zhicore.ranking.infrastructure.scheduler;
 
 import com.zhicore.common.cache.DistributedLockExecutor;
 import com.zhicore.ranking.application.port.store.RankingMaintenanceStore;
-import com.zhicore.ranking.application.service.CreatorRankingService;
-import com.zhicore.ranking.application.service.PostRankingService;
+import com.zhicore.ranking.application.service.CreatorRankingCommandService;
+import com.zhicore.ranking.application.service.PostRankingCommandService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,10 +22,10 @@ import static org.mockito.Mockito.verify;
 class RankingRefreshSchedulerTest {
 
     @Mock
-    private PostRankingService postRankingService;
+    private PostRankingCommandService postRankingService;
 
     @Mock
-    private CreatorRankingService creatorRankingService;
+    private CreatorRankingCommandService creatorRankingService;
 
     @Mock
     private RankingMaintenanceStore rankingMaintenanceStore;

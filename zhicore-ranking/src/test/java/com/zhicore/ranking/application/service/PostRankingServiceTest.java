@@ -39,7 +39,7 @@ class PostRankingServiceTest {
     @Test
     @DisplayName("更新文章热度时应计算分数并委托给 store")
     void updatePostScore_shouldCalculateScoreAndDelegate() {
-        PostRankingService service = new PostRankingService(postRankingStore, hotScoreCalculator);
+        PostRankingCommandService service = new PostRankingCommandService(postRankingStore, hotScoreCalculator);
         PostStats stats = PostStats.builder()
                 .viewCount(10)
                 .likeCount(2)
@@ -56,7 +56,7 @@ class PostRankingServiceTest {
     @Test
     @DisplayName("获取文章排名时应返回 store 的 one-based 结果")
     void getPostRank_shouldReturnStoreValue() {
-        PostRankingService service = new PostRankingService(postRankingStore, hotScoreCalculator);
+        PostRankingQueryService service = new PostRankingQueryService(postRankingStore);
         when(postRankingStore.getPostRank("1001")).thenReturn(3L);
 
         service.getPostRank("1001");

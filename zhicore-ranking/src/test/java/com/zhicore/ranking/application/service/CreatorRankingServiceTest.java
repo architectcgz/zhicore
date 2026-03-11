@@ -36,7 +36,7 @@ class CreatorRankingServiceTest {
     @Test
     @DisplayName("更新创作者热度时应计算分数并委托给 store")
     void updateCreatorScore_shouldCalculateScoreAndDelegate() {
-        CreatorRankingService service = new CreatorRankingService(creatorRankingStore, hotScoreCalculator);
+        CreatorRankingCommandService service = new CreatorRankingCommandService(creatorRankingStore, hotScoreCalculator);
         CreatorStats stats = CreatorStats.builder()
                 .followersCount(10)
                 .totalLikes(5L)
@@ -52,7 +52,7 @@ class CreatorRankingServiceTest {
     @Test
     @DisplayName("获取创作者排名时应直接返回 store 结果")
     void getCreatorRank_shouldReturnStoreValue() {
-        CreatorRankingService service = new CreatorRankingService(creatorRankingStore, hotScoreCalculator);
+        CreatorRankingQueryService service = new CreatorRankingQueryService(creatorRankingStore);
         when(creatorRankingStore.getCreatorRank("2001")).thenReturn(2L);
 
         service.getCreatorRank("2001");

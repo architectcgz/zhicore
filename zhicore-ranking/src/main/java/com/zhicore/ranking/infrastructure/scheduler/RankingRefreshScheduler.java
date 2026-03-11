@@ -2,8 +2,8 @@ package com.zhicore.ranking.infrastructure.scheduler;
 
 import com.zhicore.common.cache.DistributedLockExecutor;
 import com.zhicore.ranking.application.port.store.RankingMaintenanceStore;
-import com.zhicore.ranking.application.service.CreatorRankingService;
-import com.zhicore.ranking.application.service.PostRankingService;
+import com.zhicore.ranking.application.service.CreatorRankingCommandService;
+import com.zhicore.ranking.application.service.PostRankingCommandService;
 import com.zhicore.ranking.domain.model.CreatorStats;
 import com.zhicore.ranking.domain.model.PostStats;
 import com.zhicore.ranking.infrastructure.redis.RankingRedisKeys;
@@ -27,8 +27,8 @@ import java.time.LocalDateTime;
 @Component
 public class RankingRefreshScheduler {
 
-    private final PostRankingService postRankingService;
-    private final CreatorRankingService creatorRankingService;
+    private final PostRankingCommandService postRankingService;
+    private final CreatorRankingCommandService creatorRankingService;
     private final RankingMaintenanceStore rankingMaintenanceStore;
     private final DistributedLockExecutor lockExecutor;
 
@@ -39,8 +39,8 @@ public class RankingRefreshScheduler {
     /** 总榜保留的最大成员数 */
     private static final long TOTAL_BOARD_MAX_SIZE = 10000;
 
-    public RankingRefreshScheduler(PostRankingService postRankingService,
-                                   CreatorRankingService creatorRankingService,
+    public RankingRefreshScheduler(PostRankingCommandService postRankingService,
+                                   CreatorRankingCommandService creatorRankingService,
                                    RankingMaintenanceStore rankingMaintenanceStore,
                                    DistributedLockExecutor lockExecutor,
                                    MeterRegistry meterRegistry) {
