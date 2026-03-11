@@ -11,11 +11,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 管理端文章查询服务。
+ * 管理端文章查询门面。
+ *
+ * 为管理端接口层收口查询入口，并保留 Sentinel/参数编排这一层职责。
  */
 @Service
 @RequiredArgsConstructor
-public class AdminPostQueryService {
+public class AdminPostQueryFacade {
 
     private final AdminPostListQueryService adminPostListQueryService;
 

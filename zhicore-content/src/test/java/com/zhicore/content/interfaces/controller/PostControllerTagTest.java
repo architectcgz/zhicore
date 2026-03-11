@@ -3,7 +3,7 @@ package com.zhicore.content.interfaces.controller;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.content.application.dto.TagDTO;
 import com.zhicore.content.application.port.repo.PostRepository;
-import com.zhicore.content.application.service.PostCommandService;
+import com.zhicore.content.application.service.PostCommandFacade;
 import com.zhicore.content.application.service.PostReadService;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class PostControllerTagTest {
 
     @Autowired
-    private PostCommandService postCommandService;
+    private PostCommandFacade postCommandFacade;
 
     @Autowired
     private PostReadService postQueryService;
@@ -87,7 +87,7 @@ class PostControllerTagTest {
         List<String> tagNames = Arrays.asList("Java", "Spring Boot", "后端开发");
 
         // When: 添加标签
-        postCommandService.attachTags(testUserId, testPostId, tagNames);
+        postCommandFacade.attachTags(testUserId, testPostId, tagNames);
 
         // Then: 验证标签已添加
         List<Long> tagIds = postTagRepository.findTagIdsByPostId(testPostId);
@@ -111,7 +111,7 @@ class PostControllerTagTest {
     void testGetPostTags() {
         // Given: 文章已有标签
         List<String> tagNames = Arrays.asList("Java", "Spring Boot");
-        postCommandService.attachTags(testUserId, testPostId, tagNames);
+        postCommandFacade.attachTags(testUserId, testPostId, tagNames);
 
         // When: 获取标签列表
         List<TagDTO> tags = postQueryService.getPostTags(testPostId);
@@ -149,10 +149,10 @@ class PostControllerTagTest {
     void testDetachTag() {
         // Given: 文章已有标签
         List<String> tagNames = Arrays.asList("Java", "Spring Boot", "后端开发");
-        postCommandService.attachTags(testUserId, testPostId, tagNames);
+        postCommandFacade.attachTags(testUserId, testPostId, tagNames);
 
         // When: 移除一个标签
-        postCommandService.detachTag(testUserId, testPostId, "spring-boot");
+        postCommandFacade.detachTag(testUserId, testPostId, "spring-boot");
 
         // Then: 验证标签已移除
         List<TagDTO> tags = postQueryService.getPostTags(testPostId);
@@ -172,11 +172,11 @@ class PostControllerTagTest {
     void testReplacePostTags() {
         // Given: 文章已有标签
         List<String> oldTagNames = Arrays.asList("Java", "Spring Boot");
-        postCommandService.attachTags(testUserId, testPostId, oldTagNames);
+        postCommandFacade.attachTags(testUserId, testPostId, oldTagNames);
 
         // When: 替换为新标签
         List<String> newTagNames = Arrays.asList("Python", "Django", "Web开发");
-        postCommandService.attachTags(testUserId, testPostId, newTagNames);
+        postCommandFacade.attachTags(testUserId, testPostId, newTagNames);
 
         // Then: 验证标签已替换
         List<TagDTO> tags = postQueryService.getPostTags(testPostId);
@@ -198,10 +198,10 @@ class PostControllerTagTest {
     void testAttachEmptyTags() {
         // Given: 文章已有标签
         List<String> tagNames = Arrays.asList("Java", "Spring Boot");
-        postCommandService.attachTags(testUserId, testPostId, tagNames);
+        postCommandFacade.attachTags(testUserId, testPostId, tagNames);
 
         // When: 替换为空列表
-        postCommandService.attachTags(testUserId, testPostId, Arrays.asList());
+        postCommandFacade.attachTags(testUserId, testPostId, Arrays.asList());
 
         // Then: 验证所有标签已移除
         List<TagDTO> tags = postQueryService.getPostTags(testPostId);

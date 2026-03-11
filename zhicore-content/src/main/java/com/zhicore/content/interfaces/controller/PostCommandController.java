@@ -5,7 +5,7 @@ import com.zhicore.common.result.ApiResponse;
 import com.zhicore.content.application.command.CreatePostAppCommand;
 import com.zhicore.content.application.command.SaveDraftCommand;
 import com.zhicore.content.application.command.UpdatePostAppCommand;
-import com.zhicore.content.application.service.PostCommandService;
+import com.zhicore.content.application.service.PostCommandFacade;
 import com.zhicore.content.interfaces.dto.request.AttachTagsRequest;
 import com.zhicore.content.interfaces.dto.request.CreatePostRequest;
 import com.zhicore.content.interfaces.dto.request.SaveDraftRequest;
@@ -35,13 +35,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class PostCommandController {
 
-    private final PostCommandService postCommandService;
+    private final PostCommandFacade postCommandFacade;
 
     @Operation(summary = "创建文章", description = "创建新文章，默认状态为草稿")
     @PostMapping
     public ApiResponse<Long> createPost(@Valid @RequestBody CreatePostRequest request) {
         Long userId = UserContext.requireUserId();
-        return ApiResponse.success(postCommandService.createPost(userId, new CreatePostAppCommand(
+        return ApiResponse.success(postCommandFacade.createPost(userId, new CreatePostAppCommand(
                 request.getTitle(),
                 request.getContent(),
                 request.getContentType(),
@@ -57,7 +57,7 @@ public class PostCommandController {
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId,
             @Valid @RequestBody UpdatePostRequest request) {
         Long userId = UserContext.requireUserId();
-        postCommandService.updatePost(userId, postId, new UpdatePostAppCommand(
+        postCommandFacade.updatePost(userId, postId, new UpdatePostAppCommand(
                 request.getTitle(),
                 request.getContent(),
                 request.getTopicId(),
@@ -72,7 +72,7 @@ public class PostCommandController {
     public ApiResponse<Void> publishPost(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
         Long userId = UserContext.requireUserId();
-        postCommandService.publishPost(userId, postId);
+        postCommandFacade.publishPost(userId, postId);
         return ApiResponse.success();
     }
 
@@ -80,7 +80,7 @@ public class PostCommandController {
     public ApiResponse<Void> unpublishPost(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
         Long userId = UserContext.requireUserId();
-        postCommandService.unpublishPost(userId, postId);
+        postCommandFacade.unpublishPost(userId, postId);
         return ApiResponse.success();
     }
 
@@ -89,7 +89,7 @@ public class PostCommandController {
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId,
             @Valid @RequestBody SchedulePublishRequest request) {
         Long userId = UserContext.requireUserId();
-        postCommandService.schedulePublish(userId, postId, request.getScheduledAt());
+        postCommandFacade.schedulePublish(userId, postId, request.getScheduledAt());
         return ApiResponse.success();
     }
 
@@ -97,7 +97,7 @@ public class PostCommandController {
     public ApiResponse<Void> cancelSchedule(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
         Long userId = UserContext.requireUserId();
-        postCommandService.cancelSchedule(userId, postId);
+        postCommandFacade.cancelSchedule(userId, postId);
         return ApiResponse.success();
     }
 
@@ -106,7 +106,7 @@ public class PostCommandController {
     public ApiResponse<Void> deletePost(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
         Long userId = UserContext.requireUserId();
-        postCommandService.deletePost(userId, postId);
+        postCommandFacade.deletePost(userId, postId);
         return ApiResponse.success();
     }
 
@@ -114,7 +114,7 @@ public class PostCommandController {
     public ApiResponse<Void> restorePost(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
         Long userId = UserContext.requireUserId();
-        postCommandService.restorePost(userId, postId);
+        postCommandFacade.restorePost(userId, postId);
         return ApiResponse.success();
     }
 
@@ -124,7 +124,7 @@ public class PostCommandController {
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId,
             @Valid @RequestBody SaveDraftRequest request) {
         Long userId = UserContext.requireUserId();
-        postCommandService.saveDraft(userId, postId, new SaveDraftCommand(
+        postCommandFacade.saveDraft(userId, postId, new SaveDraftCommand(
                 request.getContent(),
                 request.getContentType(),
                 request.getIsAutoSave(),
@@ -137,7 +137,7 @@ public class PostCommandController {
     public ApiResponse<Void> deleteDraft(
             @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId) {
         Long userId = UserContext.requireUserId();
-        postCommandService.deleteDraft(userId, postId);
+        postCommandFacade.deleteDraft(userId, postId);
         return ApiResponse.success();
     }
 
@@ -159,7 +159,7 @@ public class PostCommandController {
             @Parameter(description = "添加标签请求", required = true)
             @Valid @RequestBody AttachTagsRequest request) {
         Long userId = UserContext.requireUserId();
-        postCommandService.attachTags(userId, postId, request.getTags());
+        postCommandFacade.attachTags(userId, postId, request.getTags());
         return ApiResponse.success();
     }
 
@@ -177,7 +177,7 @@ public class PostCommandController {
             @Parameter(description = "标签 slug（URL 友好标识）", required = true, example = "spring-boot")
             @PathVariable String slug) {
         Long userId = UserContext.requireUserId();
-        postCommandService.detachTag(userId, postId, slug);
+        postCommandFacade.detachTag(userId, postId, slug);
         return ApiResponse.success();
     }
 }

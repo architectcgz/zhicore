@@ -3,7 +3,7 @@ package com.zhicore.content.interfaces.controller;
 import com.zhicore.api.dto.admin.PostManageDTO;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
-import com.zhicore.content.application.service.AdminPostQueryService;
+import com.zhicore.content.application.service.AdminPostQueryFacade;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AdminPostQueryController {
 
-    private final AdminPostQueryService adminPostQueryService;
+    private final AdminPostQueryFacade adminPostQueryFacade;
 
     @Operation(summary = "查询文章列表", description = "管理员分页查询文章列表，支持关键词搜索、状态筛选和作者筛选")
     @GetMapping
@@ -42,6 +42,6 @@ public class AdminPostQueryController {
 
         log.info("Admin query posts: keyword={}, status={}, authorId={}, page={}, size={}",
                 keyword, status, authorId, page, size);
-        return ApiResponse.success(adminPostQueryService.queryPosts(keyword, status, authorId, page, size));
+        return ApiResponse.success(adminPostQueryFacade.queryPosts(keyword, status, authorId, page, size));
     }
 }

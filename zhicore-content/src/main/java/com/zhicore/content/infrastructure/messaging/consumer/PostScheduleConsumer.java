@@ -2,7 +2,7 @@ package com.zhicore.content.infrastructure.messaging.consumer;
 
 import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.common.util.JsonUtils;
-import com.zhicore.content.application.service.PostCommandService;
+import com.zhicore.content.application.service.PostCommandFacade;
 import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component;
 )
 public class PostScheduleConsumer implements RocketMQListener<String> {
 
-    private final PostCommandService postCommandService;
+    private final PostCommandFacade postCommandFacade;
 
     @Override
     public void onMessage(String message) {
@@ -33,7 +33,7 @@ public class PostScheduleConsumer implements RocketMQListener<String> {
             PostScheduleExecuteIntegrationEvent event = JsonUtils.fromJson(message, PostScheduleExecuteIntegrationEvent.class);
             log.info("Received schedule execute event: postId={}", event.getPostId());
             
-            postCommandService.consumeScheduledPublish(event);
+            postCommandFacade.consumeScheduledPublish(event);
             
         } catch (Exception e) {
             log.error("Failed to process schedule execute event: {}", message, e);

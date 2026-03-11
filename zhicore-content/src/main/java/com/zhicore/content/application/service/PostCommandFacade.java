@@ -13,13 +13,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 文章写服务。
+ * 文章写门面。
  *
- * 负责文章、草稿、标签与定时发布的写操作，不承载查询职责。
+ * 为接口层收口文章命令入口，隐藏内部具体 use case service 的拆分细节。
  */
 @Service
 @RequiredArgsConstructor
-public class PostCommandService {
+public class PostCommandFacade {
 
     private final PostCreateCommandService postCreateCommandService;
     private final PostDraftCommandService postDraftCommandService;
