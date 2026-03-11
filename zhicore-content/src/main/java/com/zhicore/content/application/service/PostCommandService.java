@@ -22,6 +22,7 @@ import java.util.List;
 public class PostCommandService {
 
     private final PostApplicationService postApplicationService;
+    private final PostReadService postReadService;
     private final RestorePostHandler restorePostHandler;
 
     public Long createPost(Long userId, CreatePostAppCommand request) {
@@ -72,7 +73,7 @@ public class PostCommandService {
     }
 
     public void detachTag(Long userId, Long postId, String slug) {
-        List<String> remainingTagNames = postApplicationService.getPostTags(postId).stream()
+        List<String> remainingTagNames = postReadService.getPostTags(postId).stream()
                 .filter(tag -> !tag.getSlug().equals(slug))
                 .map(com.zhicore.content.application.dto.TagDTO::getName)
                 .toList();
