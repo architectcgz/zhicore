@@ -3,7 +3,7 @@ package com.zhicore.upload.infrastructure.config;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
 import com.zhicore.common.sentinel.FlowRuleSupport;
-import com.zhicore.upload.infrastructure.sentinel.UploadRoutes;
+import com.zhicore.upload.service.sentinel.UploadRoutes;
 import com.zhicore.upload.service.sentinel.UploadSentinelResources;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;

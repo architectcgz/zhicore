@@ -9,7 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.platform.fileservice.client.model.AccessLevel;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.sentinel.web.ApiResponseBlockExceptionHandler;
-import com.zhicore.upload.infrastructure.sentinel.UploadRoutes;
+import com.zhicore.upload.service.sentinel.UploadRoutes;
 import com.zhicore.upload.model.FileUploadResponse;
 import com.zhicore.upload.service.FileUploadService;
 import org.junit.jupiter.api.AfterEach;

@@ -8,7 +8,7 @@ import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.sentinel.web.ApiResponseBlockExceptionHandler;
-import com.zhicore.idgenerator.infrastructure.sentinel.IdGeneratorRoutes;
+import com.zhicore.idgenerator.service.sentinel.IdGeneratorRoutes;
 import com.zhicore.idgenerator.service.IdGeneratorService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

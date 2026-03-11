@@ -1,7 +1,7 @@
 package com.zhicore.idgenerator.infrastructure.config;
 
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
-import com.zhicore.idgenerator.infrastructure.sentinel.IdGeneratorRoutes;
+import com.zhicore.idgenerator.service.sentinel.IdGeneratorRoutes;
 import com.zhicore.idgenerator.service.sentinel.IdGeneratorSentinelResources;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
