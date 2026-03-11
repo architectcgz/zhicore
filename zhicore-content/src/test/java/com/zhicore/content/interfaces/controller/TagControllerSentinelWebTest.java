@@ -8,7 +8,7 @@ import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.sentinel.web.ApiResponseBlockExceptionHandler;
-import com.zhicore.content.application.service.TagApplicationService;
+import com.zhicore.content.application.service.TagReadService;
 import com.zhicore.content.infrastructure.sentinel.ContentRoutes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,17 +31,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("TagController Sentinel Web 回归测试")
+@DisplayName("TagQueryController Sentinel Web 回归测试")
 class TagControllerSentinelWebTest {
 
     @Mock
-    private TagApplicationService tagApplicationService;
+    private TagReadService tagApplicationService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        TagController controller = new TagController(tagApplicationService);
+        TagQueryController controller = new TagQueryController(tagApplicationService);
         SentinelWebMvcConfig config = new SentinelWebMvcConfig();
         config.setBlockExceptionHandler(new ApiResponseBlockExceptionHandler(new ObjectMapper()));
 

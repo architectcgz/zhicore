@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * TagApplicationService.getPostsByTag 集成测试
+ * TagReadService.getPostsByTag 集成测试
  * 
  * 测试按 Tag 查询 Post 的功能，包括：
  * - Property 9: 按 Tag 查询 Post 的正确性
@@ -45,7 +45,7 @@ class TagApplicationServiceGetPostsByTagIntegrationTest {
     private static final AtomicLong POST_ID_SEQ = new AtomicLong(System.currentTimeMillis());
 
     @Autowired
-    private TagApplicationService tagApplicationService;
+    private TagReadService tagApplicationService;
 
     @Autowired
     private TagRepository tagRepository;

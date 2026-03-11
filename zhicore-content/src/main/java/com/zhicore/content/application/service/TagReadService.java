@@ -36,21 +36,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * Tag Application Service
- * 
- * 提供标签相关的应用层服务，包括：
+ * 标签读服务
+ *
+ * 提供标签相关的查询能力，包括：
  * - 获取标签详情
  * - 获取标签列表
  * - 搜索标签
  * - 获取标签下的文章列表
  * - 获取热门标签
  *
- * @author ZhiCore Team
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class TagApplicationService {
+public class TagReadService {
 
     private static final Random RANDOM = new Random();
 

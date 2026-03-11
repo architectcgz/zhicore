@@ -5,7 +5,7 @@ import com.zhicore.common.result.PageResult;
 import com.zhicore.content.application.dto.PostVO;
 import com.zhicore.content.application.dto.TagDTO;
 import com.zhicore.content.application.dto.TagStatsDTO;
-import com.zhicore.content.application.service.TagApplicationService;
+import com.zhicore.content.application.service.TagReadService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -22,26 +22,25 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * 标签控制器
- * 
- * 提供标签相关的 REST API，包括：
+ * 标签读控制器
+ *
+ * 提供标签相关的查询 API，包括：
  * - 获取标签详情
  * - 获取标签列表
  * - 搜索标签
  * - 获取标签下的文章列表
  * - 获取热门标签
  *
- * @author ZhiCore Team
  */
-@Tag(name = "标签管理", description = "标签查询、搜索、热门标签等相关接口")
+@Tag(name = "标签读接口", description = "标签查询、搜索、热门标签等查询接口")
 @Slf4j
 @Validated
 @RestController
 @RequestMapping("/api/v1/tags")
 @RequiredArgsConstructor
-public class TagController {
+public class TagQueryController {
 
-    private final TagApplicationService tagApplicationService;
+    private final TagReadService tagReadService;
 
     /**
      * 获取标签详情
@@ -73,7 +72,7 @@ public class TagController {
             @Parameter(description = "标签 slug（URL 友好标识）", required = true, example = "spring-boot")
             @PathVariable String slug) {
         log.info("Getting tag by slug: {}", slug);
-        TagDTO tag = tagApplicationService.getTag(slug);
+        TagDTO tag = tagReadService.getTag(slug);
         return ApiResponse.success(tag);
     }
 
@@ -110,7 +109,7 @@ public class TagController {
             @Max(value = 100, message = "每页大小不能大于 100")
             int size) {
         log.info("Listing tags: page={}, size={}", page, size);
-        PageResult<TagDTO> result = tagApplicationService.listTags(page, size);
+        PageResult<TagDTO> result = tagReadService.listTags(page, size);
         return ApiResponse.success(result);
     }
 
@@ -146,7 +145,7 @@ public class TagController {
             @Max(value = 50, message = "返回数量不能大于 50")
             int limit) {
         log.info("Searching tags: keyword={}, limit={}", keyword, limit);
-        List<TagDTO> tags = tagApplicationService.searchTags(keyword, limit);
+        List<TagDTO> tags = tagReadService.searchTags(keyword, limit);
         return ApiResponse.success(tags);
     }
 
@@ -196,7 +195,7 @@ public class TagController {
             @Max(value = 100, message = "每页大小不能大于 100")
             int size) {
         log.info("Getting posts by tag: slug={}, page={}, size={}", slug, page, size);
-        PageResult<PostVO> result = tagApplicationService.getPostsByTag(slug, page, size);
+        PageResult<PostVO> result = tagReadService.getPostsByTag(slug, page, size);
         return ApiResponse.success(result);
     }
 
@@ -233,7 +232,7 @@ public class TagController {
             @Max(value = 50, message = "返回数量不能大于 50")
             int limit) {
         log.info("Getting hot tags: limit={}", limit);
-        List<TagStatsDTO> hotTags = tagApplicationService.getHotTags(limit);
+        List<TagStatsDTO> hotTags = tagReadService.getHotTags(limit);
         return ApiResponse.success(hotTags);
     }
 }

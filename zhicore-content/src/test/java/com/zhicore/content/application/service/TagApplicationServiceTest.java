@@ -35,7 +35,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.*;
 
 /**
- * TagApplicationService 单元测试
+ * TagReadService 单元测试
  * 
  * 测试标签应用服务的核心功能：
  * - getTag: 获取标签详情
@@ -66,7 +66,7 @@ class TagApplicationServiceTest {
     private TagHotTagsStore tagHotTagsStore;
 
     @InjectMocks
-    private TagApplicationService tagApplicationService;
+    private TagReadService tagApplicationService;
 
     private Tag testTag;
     private TagDTO testTagDTO;
