@@ -1,7 +1,8 @@
 package com.zhicore.admin.interfaces.controller;
 
 import com.zhicore.admin.application.dto.PostManageVO;
-import com.zhicore.admin.application.service.PostManageService;
+import com.zhicore.admin.application.service.PostManageCommandService;
+import com.zhicore.admin.application.service.PostManageQueryService;
 import com.zhicore.admin.infrastructure.security.RequireAdmin;
 import com.zhicore.admin.interfaces.dto.request.DeleteContentRequest;
 import com.zhicore.common.result.ApiResponse;
@@ -26,7 +27,8 @@ import org.springframework.web.bind.annotation.*;
 @Validated
 public class PostManageController {
     
-    private final PostManageService postManageService;
+    private final PostManageQueryService postManageQueryService;
+    private final PostManageCommandService postManageCommandService;
     
     /**
      * 查询文章列表
@@ -47,7 +49,7 @@ public class PostManageController {
             @RequestParam(value = "page", defaultValue = "1") int page,
             @Parameter(description = "每页数量", example = "20")
             @RequestParam(value = "size", defaultValue = "20") int size) {
-        PageResult<PostManageVO> result = postManageService.listPosts(keyword, status, authorId, page, size);
+        PageResult<PostManageVO> result = postManageQueryService.listPosts(keyword, status, authorId, page, size);
         return ApiResponse.success(result);
     }
     
@@ -66,7 +68,7 @@ public class PostManageController {
             @PathVariable("postId") @Min(value = 1, message = "文章ID必须为正数") Long postId,
             @Parameter(description = "删除文章请求信息", required = true)
             @Valid @RequestBody DeleteContentRequest request) {
-        postManageService.deletePost(adminId, postId, request.getReason());
+        postManageCommandService.deletePost(adminId, postId, request.getReason());
         return ApiResponse.success();
     }
 }

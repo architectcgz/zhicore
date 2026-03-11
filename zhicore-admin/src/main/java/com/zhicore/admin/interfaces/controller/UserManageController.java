@@ -1,7 +1,8 @@
 package com.zhicore.admin.interfaces.controller;
 
 import com.zhicore.admin.application.dto.UserManageVO;
-import com.zhicore.admin.application.service.UserManageService;
+import com.zhicore.admin.application.service.UserManageCommandService;
+import com.zhicore.admin.application.service.UserManageQueryService;
 import com.zhicore.admin.infrastructure.security.RequireAdmin;
 import com.zhicore.admin.interfaces.dto.request.DisableUserRequest;
 import com.zhicore.common.result.ApiResponse;
@@ -26,7 +27,8 @@ import org.springframework.web.bind.annotation.*;
 @Validated
 public class UserManageController {
     
-    private final UserManageService userManageService;
+    private final UserManageQueryService userManageQueryService;
+    private final UserManageCommandService userManageCommandService;
     
     /**
      * 查询用户列表
@@ -45,7 +47,7 @@ public class UserManageController {
             @RequestParam(value = "page", defaultValue = "1") int page,
             @Parameter(description = "每页数量", example = "20")
             @RequestParam(value = "size", defaultValue = "20") int size) {
-        PageResult<UserManageVO> result = userManageService.listUsers(keyword, status, page, size);
+        PageResult<UserManageVO> result = userManageQueryService.listUsers(keyword, status, page, size);
         return ApiResponse.success(result);
     }
     
@@ -64,7 +66,7 @@ public class UserManageController {
             @PathVariable("userId") @Min(value = 1, message = "用户ID必须为正数") Long userId,
             @Parameter(description = "禁用用户请求信息", required = true)
             @Valid @RequestBody DisableUserRequest request) {
-        userManageService.disableUser(adminId, userId, request.getReason());
+        userManageCommandService.disableUser(adminId, userId, request.getReason());
         return ApiResponse.success();
     }
     
@@ -81,7 +83,7 @@ public class UserManageController {
             @RequestHeader("X-User-Id") Long adminId,
             @Parameter(description = "要启用的用户ID", required = true, example = "1001")
             @PathVariable("userId") @Min(value = 1, message = "用户ID必须为正数") Long userId) {
-        userManageService.enableUser(adminId, userId);
+        userManageCommandService.enableUser(adminId, userId);
         return ApiResponse.success();
     }
 }

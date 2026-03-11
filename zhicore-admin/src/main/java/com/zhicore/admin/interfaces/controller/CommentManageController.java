@@ -1,7 +1,8 @@
 package com.zhicore.admin.interfaces.controller;
 
 import com.zhicore.admin.application.dto.CommentManageVO;
-import com.zhicore.admin.application.service.CommentManageService;
+import com.zhicore.admin.application.service.CommentManageCommandService;
+import com.zhicore.admin.application.service.CommentManageQueryService;
 import com.zhicore.admin.infrastructure.security.RequireAdmin;
 import com.zhicore.admin.interfaces.dto.request.DeleteContentRequest;
 import com.zhicore.common.result.ApiResponse;
@@ -26,7 +27,8 @@ import org.springframework.web.bind.annotation.*;
 @Validated
 public class CommentManageController {
     
-    private final CommentManageService commentManageService;
+    private final CommentManageQueryService commentManageQueryService;
+    private final CommentManageCommandService commentManageCommandService;
     
     /**
      * 查询评论列表
@@ -47,7 +49,7 @@ public class CommentManageController {
             @RequestParam(value = "page", defaultValue = "1") int page,
             @Parameter(description = "每页数量", example = "20")
             @RequestParam(value = "size", defaultValue = "20") int size) {
-        PageResult<CommentManageVO> result = commentManageService.listComments(keyword, postId, userId, page, size);
+        PageResult<CommentManageVO> result = commentManageQueryService.listComments(keyword, postId, userId, page, size);
         return ApiResponse.success(result);
     }
     
@@ -66,7 +68,7 @@ public class CommentManageController {
             @PathVariable("commentId") @Min(value = 1, message = "评论ID必须为正数") Long commentId,
             @Parameter(description = "删除评论请求信息", required = true)
             @Valid @RequestBody DeleteContentRequest request) {
-        commentManageService.deleteComment(adminId, commentId, request.getReason());
+        commentManageCommandService.deleteComment(adminId, commentId, request.getReason());
         return ApiResponse.success();
     }
 }

@@ -1,7 +1,8 @@
 package com.zhicore.admin.interfaces.controller;
 
 import com.zhicore.admin.application.dto.ReportVO;
-import com.zhicore.admin.application.service.ReportManageService;
+import com.zhicore.admin.application.service.ReportManageCommandService;
+import com.zhicore.admin.application.service.ReportManageQueryService;
 import com.zhicore.admin.domain.model.ReportHandleAction;
 import com.zhicore.admin.infrastructure.security.RequireAdmin;
 import com.zhicore.admin.interfaces.dto.request.HandleReportRequest;
@@ -27,7 +28,8 @@ import org.springframework.web.bind.annotation.*;
 @Validated
 public class ReportManageController {
     
-    private final ReportManageService reportManageService;
+    private final ReportManageQueryService reportManageQueryService;
+    private final ReportManageCommandService reportManageCommandService;
     
     /**
      * 查询待处理举报列表
@@ -42,7 +44,7 @@ public class ReportManageController {
             @RequestParam(value = "page", defaultValue = "1") int page,
             @Parameter(description = "每页数量", example = "20")
             @RequestParam(value = "size", defaultValue = "20") int size) {
-        PageResult<ReportVO> result = reportManageService.listPendingReports(page, size);
+        PageResult<ReportVO> result = reportManageQueryService.listPendingReports(page, size);
         return ApiResponse.success(result);
     }
     
@@ -61,7 +63,7 @@ public class ReportManageController {
             @RequestParam(value = "page", defaultValue = "1") int page,
             @Parameter(description = "每页数量", example = "20")
             @RequestParam(value = "size", defaultValue = "20") int size) {
-        PageResult<ReportVO> result = reportManageService.listReportsByStatus(status, page, size);
+        PageResult<ReportVO> result = reportManageQueryService.listReportsByStatus(status, page, size);
         return ApiResponse.success(result);
     }
     
@@ -81,7 +83,7 @@ public class ReportManageController {
             @Parameter(description = "处理举报请求信息", required = true)
             @Valid @RequestBody HandleReportRequest request) {
         ReportHandleAction action = ReportHandleAction.valueOf(request.getAction().toUpperCase());
-        reportManageService.handleReport(adminId, reportId, action, request.getRemark());
+        reportManageCommandService.handleReport(adminId, reportId, action, request.getRemark());
         return ApiResponse.success();
     }
 }
