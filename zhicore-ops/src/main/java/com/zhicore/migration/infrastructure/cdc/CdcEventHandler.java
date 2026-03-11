@@ -1,5 +1,7 @@
 package com.zhicore.migration.infrastructure.cdc;
 
+import com.zhicore.migration.service.cdc.CdcEvent;
+import com.zhicore.migration.service.cdc.CdcEventDispatcher;
 import io.debezium.engine.RecordChangeEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,11 +22,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CdcEventHandler {
 
-    private final PostStatsCdcConsumer postStatsCdcConsumer;
-    private final PostLikesCdcConsumer postLikesCdcConsumer;
-    private final CommentStatsCdcConsumer commentStatsCdcConsumer;
-    private final CommentLikesCdcConsumer commentLikesCdcConsumer;
-    private final UserFollowStatsCdcConsumer userFollowStatsCdcConsumer;
+    private final CdcEventDispatcher cdcEventDispatcher;
 
     /**
      * 处理变更事件
@@ -66,22 +64,7 @@ public class CdcEventHandler {
 
         log.debug("收到 CDC 事件: table={}, operation={}", table, operation);
 
-        // 分发到对应的消费者
-        dispatchEvent(cdcEvent);
-    }
-
-    /**
-     * 分发事件到对应的消费者
-     */
-    private void dispatchEvent(CdcEvent event) {
-        switch (event.getTable()) {
-            case "post_stats" -> postStatsCdcConsumer.consume(event);
-            case "post_likes" -> postLikesCdcConsumer.consume(event);
-            case "comment_stats" -> commentStatsCdcConsumer.consume(event);
-            case "comment_likes" -> commentLikesCdcConsumer.consume(event);
-            case "user_follow_stats" -> userFollowStatsCdcConsumer.consume(event);
-            default -> log.warn("未知的表: {}", event.getTable());
-        }
+        cdcEventDispatcher.dispatch(cdcEvent);
     }
 
     /**

@@ -1,4 +1,4 @@
-package com.zhicore.migration.infrastructure.cdc;
+package com.zhicore.migration.service.cdc;
 
 import lombok.Builder;
 import lombok.Data;
