@@ -28,10 +28,13 @@ class PostCommandServiceTest {
     private PostLifecycleCommandService postLifecycleCommandService;
 
     @Mock
-    private PostPublishCommandService postPublishCommandService;
+    private PostUpdateCommandService postUpdateCommandService;
 
     @Mock
-    private PostWriteService postWriteService;
+    private PostTagRelationCommandService postTagRelationCommandService;
+
+    @Mock
+    private PostPublishCommandService postPublishCommandService;
 
     @Mock
     private ScheduledPublishCommandService scheduledPublishCommandService;
@@ -55,7 +58,7 @@ class PostCommandServiceTest {
     }
 
     @Test
-    void shouldKeepOtherWriteOperationsOnPostWriteService() {
+    void shouldKeepOtherWriteOperationsOnDedicatedServices() {
         UpdatePostAppCommand updateCommand = new UpdatePostAppCommand("标题", "内容", 1L, null, List.of("Java"));
         SaveDraftCommand saveDraftCommand = new SaveDraftCommand("内容", "markdown", true, "device-1");
 
@@ -67,12 +70,12 @@ class PostCommandServiceTest {
         postCommandService.attachTags(1001L, 2001L, List.of("Java"));
         postCommandService.detachTag(1001L, 2001L, "java");
 
-        verify(postWriteService).updatePost(1001L, 2001L, updateCommand);
+        verify(postUpdateCommandService).updatePost(1001L, 2001L, updateCommand);
         verify(postLifecycleCommandService).unpublishPost(1001L, 2001L);
         verify(postLifecycleCommandService).deletePost(1001L, 2001L);
         verify(postDraftCommandService).saveDraft(1001L, 2001L, saveDraftCommand);
         verify(postDraftCommandService).deleteDraft(1001L, 2001L);
-        verify(postWriteService).replacePostTags(1001L, 2001L, List.of("Java"));
-        verify(postWriteService).detachTag(1001L, 2001L, "java");
+        verify(postTagRelationCommandService).replacePostTags(1001L, 2001L, List.of("Java"));
+        verify(postTagRelationCommandService).detachTag(1001L, 2001L, "java");
     }
 }

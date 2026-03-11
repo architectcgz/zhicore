@@ -25,7 +25,8 @@ public class PostCommandService {
     private final PostDraftCommandService postDraftCommandService;
     private final PostLifecycleCommandService postLifecycleCommandService;
     private final PostPublishCommandService postPublishCommandService;
-    private final PostWriteService postWriteService;
+    private final PostUpdateCommandService postUpdateCommandService;
+    private final PostTagRelationCommandService postTagRelationCommandService;
     private final ScheduledPublishCommandService scheduledPublishCommandService;
     private final RestorePostHandler restorePostHandler;
 
@@ -34,7 +35,7 @@ public class PostCommandService {
     }
 
     public void updatePost(Long userId, Long postId, UpdatePostAppCommand request) {
-        postWriteService.updatePost(userId, postId, request);
+        postUpdateCommandService.updatePost(userId, postId, request);
     }
 
     public void publishPost(Long userId, Long postId) {
@@ -73,11 +74,11 @@ public class PostCommandService {
     }
 
     public void attachTags(Long userId, Long postId, List<String> tags) {
-        postWriteService.replacePostTags(userId, postId, tags);
+        postTagRelationCommandService.replacePostTags(userId, postId, tags);
     }
 
     public void detachTag(Long userId, Long postId, String slug) {
-        postWriteService.detachTag(userId, postId, slug);
+        postTagRelationCommandService.detachTag(userId, postId, slug);
     }
 
     public void consumeScheduledPublish(PostScheduleExecuteIntegrationEvent event) {
