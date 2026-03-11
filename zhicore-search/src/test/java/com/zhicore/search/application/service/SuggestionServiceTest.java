@@ -7,7 +7,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -18,7 +17,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * SuggestionService 单元测试
+ * SuggestionQueryService / SuggestionCommandService 单元测试
  *
  * @author ZhiCore Team
  */
@@ -32,11 +31,14 @@ class SuggestionServiceTest {
     @Mock
     private SuggestionCacheStore suggestionCacheStore;
 
-    @InjectMocks
-    private SuggestionService suggestionService;
+    private SuggestionQueryService suggestionQueryService;
+
+    private SuggestionCommandService suggestionCommandService;
 
     @BeforeEach
     void setUp() {
+        suggestionQueryService = new SuggestionQueryService(postSearchRepository, suggestionCacheStore);
+        suggestionCommandService = new SuggestionCommandService(suggestionCacheStore);
         lenient().when(suggestionCacheStore.getHotKeywords(anyInt())).thenReturn(Collections.emptyList());
         lenient().when(suggestionCacheStore.getUserHistory(anyString(), anyInt())).thenReturn(Collections.emptyList());
     }
@@ -65,7 +67,7 @@ class SuggestionServiceTest {
                 .thenReturn(Collections.emptyList());
 
             // When
-            List<String> suggestions = suggestionService.getSuggestions(prefix, userId, limit);
+            List<String> suggestions = suggestionQueryService.getSuggestions(prefix, userId, limit);
 
             // Then
             assertNotNull(suggestions);
@@ -90,7 +92,7 @@ class SuggestionServiceTest {
                 .thenReturn(Collections.emptyList());
 
             // When
-            List<String> suggestions = suggestionService.getSuggestions(prefix, userId, limit);
+            List<String> suggestions = suggestionQueryService.getSuggestions(prefix, userId, limit);
 
             // Then
             assertNotNull(suggestions);
@@ -113,7 +115,7 @@ class SuggestionServiceTest {
                 .thenReturn(Arrays.asList("Docker 入门", "Docker Compose"));
 
             // When
-            List<String> suggestions = suggestionService.getSuggestions(prefix, userId, limit);
+            List<String> suggestions = suggestionQueryService.getSuggestions(prefix, userId, limit);
 
             // Then
             assertNotNull(suggestions);
@@ -134,7 +136,7 @@ class SuggestionServiceTest {
                 .thenReturn(Arrays.asList("test1", "test2"));
 
             // When
-            List<String> suggestions = suggestionService.getSuggestions(prefix, null, limit);
+            List<String> suggestions = suggestionQueryService.getSuggestions(prefix, null, limit);
 
             // Then
             assertNotNull(suggestions);
@@ -159,7 +161,7 @@ class SuggestionServiceTest {
                 .thenReturn(Arrays.asList("spring boot", "spring mvc"));
 
             // When
-            List<String> suggestions = suggestionService.getSuggestions(prefix, userId, limit);
+            List<String> suggestions = suggestionQueryService.getSuggestions(prefix, userId, limit);
 
             // Then
             // 应该去重，spring boot 只出现一次
@@ -182,7 +184,7 @@ class SuggestionServiceTest {
             String userId = "user-001";
 
             // When
-            suggestionService.recordSearch(keyword, userId);
+            suggestionCommandService.recordSearch(keyword, userId);
 
             // Then
             verify(suggestionCacheStore).incrementHotKeywordScore("spring boot");
@@ -197,7 +199,7 @@ class SuggestionServiceTest {
             String keyword = "Java";
 
             // When
-            suggestionService.recordSearch(keyword, null);
+            suggestionCommandService.recordSearch(keyword, null);
 
             // Then
             verify(suggestionCacheStore).incrementHotKeywordScore("java");
@@ -208,9 +210,9 @@ class SuggestionServiceTest {
         @DisplayName("记录搜索 - 空关键词不处理")
         void recordSearch_EmptyKeyword() {
             // When
-            suggestionService.recordSearch("", "user-001");
-            suggestionService.recordSearch(null, "user-001");
-            suggestionService.recordSearch("   ", "user-001");
+            suggestionCommandService.recordSearch("", "user-001");
+            suggestionCommandService.recordSearch(null, "user-001");
+            suggestionCommandService.recordSearch("   ", "user-001");
 
             // Then
             verifyNoInteractions(suggestionCacheStore);
@@ -224,7 +226,7 @@ class SuggestionServiceTest {
             when(suggestionCacheStore.getHotKeywordCount()).thenReturn(50L);
 
             // When
-            suggestionService.recordSearch(keyword, null);
+            suggestionCommandService.recordSearch(keyword, null);
 
             // Then
             verify(suggestionCacheStore).removeHotKeywordRange(0, 29);
@@ -246,7 +248,7 @@ class SuggestionServiceTest {
             when(suggestionCacheStore.getHotKeywords(limit)).thenReturn(new ArrayList<>(mockKeywords));
 
             // When
-            List<String> hotKeywords = suggestionService.getHotKeywords(limit);
+            List<String> hotKeywords = suggestionQueryService.getHotKeywords(limit);
 
             // Then
             assertNotNull(hotKeywords);
@@ -260,7 +262,7 @@ class SuggestionServiceTest {
             when(suggestionCacheStore.getHotKeywords(10)).thenReturn(Collections.emptyList());
 
             // When
-            List<String> hotKeywords = suggestionService.getHotKeywords(10);
+            List<String> hotKeywords = suggestionQueryService.getHotKeywords(10);
 
             // Then
             assertNotNull(hotKeywords);
@@ -282,7 +284,7 @@ class SuggestionServiceTest {
             when(suggestionCacheStore.getUserHistory(userId, limit)).thenReturn(mockHistory);
 
             // When
-            List<String> history = suggestionService.getUserHistory(userId, limit);
+            List<String> history = suggestionQueryService.getUserHistory(userId, limit);
 
             // Then
             assertNotNull(history);
@@ -293,7 +295,7 @@ class SuggestionServiceTest {
         @DisplayName("获取用户搜索历史 - 无用户ID")
         void getUserHistory_NoUserId() {
             // When
-            List<String> history = suggestionService.getUserHistory(null, 10);
+            List<String> history = suggestionQueryService.getUserHistory(null, 10);
 
             // Then
             assertNotNull(history);
@@ -307,7 +309,7 @@ class SuggestionServiceTest {
             String userId = "user-001";
 
             // When
-            suggestionService.clearUserHistory(userId);
+            suggestionCommandService.clearUserHistory(userId);
 
             // Then
             verify(suggestionCacheStore).clearUserHistory("user-001");
@@ -317,7 +319,7 @@ class SuggestionServiceTest {
         @DisplayName("清除用户搜索历史 - 无用户ID")
         void clearUserHistory_NoUserId() {
             // When
-            suggestionService.clearUserHistory(null);
+            suggestionCommandService.clearUserHistory(null);
 
             // Then
             verify(suggestionCacheStore, never()).clearUserHistory(anyString());
