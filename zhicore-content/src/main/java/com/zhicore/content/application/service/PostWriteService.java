@@ -3,8 +3,6 @@ package com.zhicore.content.application.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.api.client.UploadFileClient;
-import com.zhicore.api.client.UserBatchSimpleClient;
-import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.ForbiddenException;
 import com.zhicore.common.result.ApiResponse;
@@ -24,6 +22,7 @@ import com.zhicore.content.application.model.OutboxEventTypes;
 import com.zhicore.content.application.model.OutboxEventRecord;
 import com.zhicore.content.application.model.ScheduledPublishEventRecord;
 import com.zhicore.content.application.port.alert.ContentAlertPort;
+import com.zhicore.content.application.port.client.UserProfileClient;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
 import com.zhicore.content.application.port.policy.ScheduledPublishPolicy;
@@ -45,8 +44,6 @@ import com.zhicore.content.domain.model.TopicId;
 import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.service.DraftCommandService;
-import com.zhicore.content.domain.repository.PostTagRepository;
-import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.integration.messaging.post.PostPublishedIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostScheduledIntegrationEvent;
@@ -77,10 +74,9 @@ public class PostWriteService {
     private final IdGeneratorFeignClient idGeneratorFeignClient;
     private final DraftCommandService draftCommandService;
     private final TagCommandService tagCommandService;
-    private final PostTagRepository postTagRepository;
-    private final TagRepository tagRepository;
+    private final PostTagCommandService postTagCommandService;
     private final UploadFileClient uploadServiceClient;
-    private final UserBatchSimpleClient userServiceClient;
+    private final UserProfileClient userProfileClient;
     
     // 新架构依赖
     private final CreateDraftWorkflow createDraftWorkflow;
@@ -202,29 +198,8 @@ public class PostWriteService {
      * @return 作者信息快照
      */
     private OwnerSnapshot getOwnerSnapshot(Long userId) {
-        try {
-            // 调用 user-service 获取用户信息
-            ApiResponse<Map<Long, UserSimpleDTO>> response =
-                userServiceClient.batchGetUsersSimple(Collections.singleton(userId));
-            UserSimpleDTO userInfo = extractSingleUser(response, userId);
-
-            if (userInfo != null) {
-                return new OwnerSnapshot(
-                    UserId.of(userId),
-                    userInfo.getNickname(),
-                    userInfo.getAvatarId(),
-                    userInfo.getProfileVersion() != null ? userInfo.getProfileVersion() : 0L
-                );
-            } else {
-                // user-service 返回失败，使用默认值
-                log.warn("获取用户信息失败，使用默认值: userId={}, response={}", userId, response);
-                return OwnerSnapshot.createDefault(UserId.of(userId));
-            }
-        } catch (Exception e) {
-            // 调用 user-service 异常，使用默认值
-            log.error("调用 user-service 异常，使用默认值: userId={}", userId, e);
-            return OwnerSnapshot.createDefault(UserId.of(userId));
-        }
+        return userProfileClient.getOwnerSnapshot(UserId.of(userId))
+                .orElseGet(() -> OwnerSnapshot.createDefault(UserId.of(userId)));
     }
 
     /**
@@ -267,31 +242,14 @@ public class PostWriteService {
 
         // 处理标签更新（如果提供了标签列表）
         if (request.tags() != null) {
-            // 获取旧标签
-            List<Long> oldTagIds = postTagRepository.findTagIdsByPostId(postId);
-            
-            // 删除旧关联
-            postTagRepository.detachAllByPostId(postId);
-            
-            // 创建新关联
-            List<Long> newTagIds = Collections.emptyList();
-            if (!request.tags().isEmpty()) {
-                List<Tag> tags = tagCommandService.findOrCreateBatch(request.tags());
-                newTagIds = tags.stream()
-                        .map(Tag::getId)
-                        .collect(Collectors.toList());
-                postTagRepository.attachBatch(postId, newTagIds);
-                log.info("Post tags updated: postId={}, tagCount={}", postId, newTagIds.size());
-            } else {
-                log.info("Post tags cleared: postId={}", postId);
-            }
+            PostTagCommandService.ReplaceResult replaceResult = postTagCommandService.replaceTags(postId, request.tags());
             
             integrationEventPublisher.publish(new PostTagsUpdatedIntegrationEvent(
                 newEventId(),
                 Instant.now(),
                 postId,
-                oldTagIds,
-                newTagIds,
+                replaceResult.oldTagIds(),
+                replaceResult.newTagIds(),
                 Instant.now(),
                 post.getVersion()
             ));
@@ -361,32 +319,15 @@ public class PostWriteService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "单篇文章最多只能添加10个标签");
         }
 
-        // 删除旧关联
-        List<Long> oldTagIds = postTagRepository.findTagIdsByPostId(postId);
-        postTagRepository.detachAllByPostId(postId);
-        log.info("Old post tags detached: postId={}", postId);
-
-        // 创建新关联
-        List<Long> newTagIds = Collections.emptyList();
-        if (tagNames != null && !tagNames.isEmpty()) {
-            // 查找或创建标签
-            List<Tag> tags = tagCommandService.findOrCreateBatch(tagNames);
-            newTagIds = tags.stream()
-                    .map(Tag::getId)
-                    .collect(Collectors.toList());
-            
-            // 批量创建关联
-            postTagRepository.attachBatch(postId, newTagIds);
-            log.info("New post tags attached: postId={}, tagCount={}", postId, newTagIds.size());
-        }
+        PostTagCommandService.ReplaceResult replaceResult = postTagCommandService.replaceTags(postId, tagNames);
 
         // 发布 PostTagsUpdated 事件（用于缓存失效和 MongoDB/ES 同步）
         integrationEventPublisher.publish(new PostTagsUpdatedIntegrationEvent(
             newEventId(),
             Instant.now(),
             postId,
-            oldTagIds,
-            newTagIds,
+            replaceResult.oldTagIds(),
+            replaceResult.newTagIds(),
             Instant.now(),
             post.getVersion()
         ));
@@ -407,16 +348,7 @@ public class PostWriteService {
     @Transactional
     public void detachTag(Long userId, Long postId, String slug) {
         getPostAndCheckOwnership(postId, userId);
-
-        List<Long> tagIds = postTagRepository.findTagIdsByPostId(postId);
-        if (tagIds.isEmpty()) {
-            return;
-        }
-
-        List<String> remainingTagNames = tagRepository.findByIdIn(tagIds).stream()
-                .filter(tag -> !tag.getSlug().equals(slug))
-                .map(Tag::getName)
-                .toList();
+        List<String> remainingTagNames = postTagCommandService.listRemainingTagNames(postId, slug);
         replacePostTags(userId, postId, remainingTagNames);
     }
 
@@ -947,13 +879,6 @@ public class PostWriteService {
         draftCommandService.deleteDraft(postId, userId);
         
         log.info("Draft deleted: postId={}, userId={}", postId, userId);
-    }
-
-    private UserSimpleDTO extractSingleUser(ApiResponse<Map<Long, UserSimpleDTO>> response, Long userId) {
-        if (response == null || !response.isSuccess() || response.getData() == null || userId == null) {
-            return null;
-        }
-        return response.getData().get(userId);
     }
 
     /**
