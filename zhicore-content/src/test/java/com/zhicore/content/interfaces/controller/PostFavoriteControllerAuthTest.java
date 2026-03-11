@@ -3,7 +3,7 @@ package com.zhicore.content.interfaces.controller;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.result.ResultCode;
-import com.zhicore.content.application.service.PostFavoriteApplicationService;
+import com.zhicore.content.application.service.PostFavoriteCommandService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@DisplayName("PostFavoriteController 鉴权测试")
+@DisplayName("PostFavoriteCommandController 鉴权测试")
 class PostFavoriteControllerAuthTest {
 
     @AfterEach
@@ -26,7 +26,7 @@ class PostFavoriteControllerAuthTest {
     @Test
     @DisplayName("未登录收藏文章时应该返回未授权")
     void shouldReturnUnauthorizedWhenFavoritePostWithoutLogin() throws Exception {
-        PostFavoriteController controller = new PostFavoriteController(mock(PostFavoriteApplicationService.class));
+        PostFavoriteCommandController controller = new PostFavoriteCommandController(mock(PostFavoriteCommandService.class));
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();

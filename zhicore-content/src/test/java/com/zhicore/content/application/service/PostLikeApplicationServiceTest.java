@@ -47,8 +47,8 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("PostLikeApplicationService 单元测试")
-class PostLikeApplicationServiceTest {
+@DisplayName("PostLike 服务单元测试")
+class PostLikeServicesTest {
 
     @Mock private PostLikeRepository likeRepository;
     @Mock private PostRepository postRepository;
@@ -59,7 +59,8 @@ class PostLikeApplicationServiceTest {
     @Mock private MeterRegistry meterRegistry;
     @Mock private Counter counter;
 
-    private PostLikeApplicationService service;
+    private PostLikeCommandService commandService;
+    private PostLikeQueryService queryService;
 
     private static final Long USER_ID = 1001L;
     private static final Long POST_ID = 2001L;
@@ -68,7 +69,7 @@ class PostLikeApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PostLikeApplicationService(
+        commandService = new PostLikeCommandService(
                 likeRepository,
                 postRepository,
                 integrationEventPublisher,
@@ -77,6 +78,7 @@ class PostLikeApplicationServiceTest {
                 transactionTemplate,
                 meterRegistry
         );
+        queryService = new PostLikeQueryService(likeRepository, postLikeStore);
 
         when(meterRegistry.counter(anyString(), any(String[].class))).thenReturn(counter);
         doAnswer(invocation -> {
@@ -148,7 +150,7 @@ class PostLikeApplicationServiceTest {
             when(likeRepository.exists(POST_ID, USER_ID)).thenReturn(false);
             when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(LIKE_ID));
 
-            service.likePost(USER_ID, POST_ID);
+            commandService.likePost(USER_ID, POST_ID);
 
             verify(likeRepository).save(any());
             verify(postLikeStore).incrementLikeCount(POST_ID);
@@ -162,7 +164,7 @@ class PostLikeApplicationServiceTest {
             when(postLikeStore.isLiked(USER_ID, POST_ID)).thenReturn(true);
 
             BusinessException exception = assertThrows(BusinessException.class,
-                    () -> service.likePost(USER_ID, POST_ID));
+                    () -> commandService.likePost(USER_ID, POST_ID));
 
             assertEquals("已经点赞过了", exception.getMessage());
             verify(postRepository, never()).findById(anyLong());
@@ -175,7 +177,7 @@ class PostLikeApplicationServiceTest {
             when(postRepository.findById(POST_ID)).thenReturn(Optional.of(createDraftPost()));
 
             BusinessException exception = assertThrows(BusinessException.class,
-                    () -> service.likePost(USER_ID, POST_ID));
+                    () -> commandService.likePost(USER_ID, POST_ID));
 
             assertEquals("文章未发布，无法点赞", exception.getMessage());
             verify(likeRepository, never()).save(any());
@@ -190,7 +192,7 @@ class PostLikeApplicationServiceTest {
             when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(LIKE_ID));
             doThrow(new RuntimeException("Redis down")).when(postLikeStore).incrementLikeCount(POST_ID);
 
-            assertDoesNotThrow(() -> service.likePost(USER_ID, POST_ID));
+            assertDoesNotThrow(() -> commandService.likePost(USER_ID, POST_ID));
             verify(likeRepository).save(any());
             verify(integrationEventPublisher).publish(any());
         }
@@ -205,7 +207,7 @@ class PostLikeApplicationServiceTest {
         void shouldReturnTrueWhenLikedCacheHit() {
             when(postLikeStore.isLiked(USER_ID, POST_ID)).thenReturn(true);
 
-            assertTrue(service.isLiked(USER_ID, POST_ID));
+            assertTrue(queryService.isLiked(USER_ID, POST_ID));
             verify(likeRepository, never()).exists(anyLong(), anyLong());
         }
 
@@ -217,7 +219,7 @@ class PostLikeApplicationServiceTest {
             when(likeRepository.findLikedPostIds(USER_ID, List.of(POST_ID + 1, POST_ID + 2)))
                     .thenReturn(List.of(POST_ID + 2));
 
-            var result = service.batchCheckLiked(USER_ID, postIds);
+            var result = queryService.batchCheckLiked(USER_ID, postIds);
 
             assertEquals(Boolean.TRUE, result.get(POST_ID));
             assertEquals(Boolean.FALSE, result.get(POST_ID + 1));
@@ -231,7 +233,7 @@ class PostLikeApplicationServiceTest {
             when(postLikeStore.getLikeCount(POST_ID)).thenReturn(null);
             when(likeRepository.countByPostId(POST_ID)).thenReturn(12);
 
-            assertEquals(12, service.getLikeCount(POST_ID));
+            assertEquals(12, queryService.getLikeCount(POST_ID));
             verify(postLikeStore).cacheLikeCount(POST_ID, 12);
         }
     }

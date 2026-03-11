@@ -3,7 +3,7 @@ package com.zhicore.content.interfaces.controller;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.result.ResultCode;
-import com.zhicore.content.application.service.PostLikeApplicationService;
+import com.zhicore.content.application.service.PostLikeCommandService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@DisplayName("PostLikeController 鉴权测试")
+@DisplayName("PostLikeCommandController 鉴权测试")
 class PostLikeControllerAuthTest {
 
     @AfterEach
@@ -26,7 +26,7 @@ class PostLikeControllerAuthTest {
     @Test
     @DisplayName("未登录点赞文章时应该返回未授权")
     void shouldReturnUnauthorizedWhenLikePostWithoutLogin() throws Exception {
-        PostLikeController controller = new PostLikeController(mock(PostLikeApplicationService.class));
+        PostLikeCommandController controller = new PostLikeCommandController(mock(PostLikeCommandService.class));
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();

@@ -46,8 +46,8 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-@DisplayName("PostFavoriteApplicationService 单元测试")
-class PostFavoriteApplicationServiceTest {
+@DisplayName("PostFavorite 服务单元测试")
+class PostFavoriteServicesTest {
 
     @Mock private PostFavoriteRepository favoriteRepository;
     @Mock private PostRepository postRepository;
@@ -58,7 +58,8 @@ class PostFavoriteApplicationServiceTest {
     @Mock private MeterRegistry meterRegistry;
     @Mock private Counter counter;
 
-    private PostFavoriteApplicationService service;
+    private PostFavoriteCommandService commandService;
+    private PostFavoriteQueryService queryService;
 
     private static final Long USER_ID = 1001L;
     private static final Long POST_ID = 2001L;
@@ -67,7 +68,7 @@ class PostFavoriteApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PostFavoriteApplicationService(
+        commandService = new PostFavoriteCommandService(
                 favoriteRepository,
                 postRepository,
                 integrationEventPublisher,
@@ -76,6 +77,7 @@ class PostFavoriteApplicationServiceTest {
                 transactionTemplate,
                 meterRegistry
         );
+        queryService = new PostFavoriteQueryService(favoriteRepository, postFavoriteStore);
 
         when(meterRegistry.counter(anyString(), any(String[].class))).thenReturn(counter);
         doAnswer(invocation -> {
@@ -147,7 +149,7 @@ class PostFavoriteApplicationServiceTest {
             when(favoriteRepository.exists(POST_ID, USER_ID)).thenReturn(false);
             when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(FAVORITE_ID));
 
-            service.favoritePost(USER_ID, POST_ID);
+            commandService.favoritePost(USER_ID, POST_ID);
 
             verify(favoriteRepository).save(any());
             verify(postFavoriteStore).incrementFavoriteCount(POST_ID);
@@ -161,7 +163,7 @@ class PostFavoriteApplicationServiceTest {
             when(postFavoriteStore.isFavorited(USER_ID, POST_ID)).thenReturn(true);
 
             BusinessException exception = assertThrows(BusinessException.class,
-                    () -> service.favoritePost(USER_ID, POST_ID));
+                    () -> commandService.favoritePost(USER_ID, POST_ID));
 
             assertEquals("已经收藏过了", exception.getMessage());
             verify(postRepository, never()).findById(anyLong());
@@ -174,7 +176,7 @@ class PostFavoriteApplicationServiceTest {
             when(postRepository.findById(POST_ID)).thenReturn(Optional.of(createDraftPost()));
 
             BusinessException exception = assertThrows(BusinessException.class,
-                    () -> service.favoritePost(USER_ID, POST_ID));
+                    () -> commandService.favoritePost(USER_ID, POST_ID));
 
             assertEquals("文章未发布，无法收藏", exception.getMessage());
             verify(favoriteRepository, never()).save(any());
@@ -189,7 +191,7 @@ class PostFavoriteApplicationServiceTest {
             when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(FAVORITE_ID));
             doThrow(new RuntimeException("Redis down")).when(postFavoriteStore).incrementFavoriteCount(POST_ID);
 
-            assertDoesNotThrow(() -> service.favoritePost(USER_ID, POST_ID));
+            assertDoesNotThrow(() -> commandService.favoritePost(USER_ID, POST_ID));
             verify(favoriteRepository).save(any());
             verify(integrationEventPublisher).publish(any());
         }
@@ -204,7 +206,7 @@ class PostFavoriteApplicationServiceTest {
         void shouldReturnTrueWhenFavoritedCacheHit() {
             when(postFavoriteStore.isFavorited(USER_ID, POST_ID)).thenReturn(true);
 
-            assertTrue(service.isFavorited(USER_ID, POST_ID));
+            assertTrue(queryService.isFavorited(USER_ID, POST_ID));
             verify(favoriteRepository, never()).exists(anyLong(), anyLong());
         }
 
@@ -216,7 +218,7 @@ class PostFavoriteApplicationServiceTest {
             when(favoriteRepository.findFavoritedPostIds(USER_ID, List.of(POST_ID + 1, POST_ID + 2)))
                     .thenReturn(List.of(POST_ID + 2));
 
-            var result = service.batchCheckFavorited(USER_ID, postIds);
+            var result = queryService.batchCheckFavorited(USER_ID, postIds);
 
             assertEquals(Boolean.TRUE, result.get(POST_ID));
             assertEquals(Boolean.FALSE, result.get(POST_ID + 1));
@@ -230,7 +232,7 @@ class PostFavoriteApplicationServiceTest {
             when(postFavoriteStore.getFavoriteCount(POST_ID)).thenReturn(null);
             when(favoriteRepository.countByPostId(POST_ID)).thenReturn(8);
 
-            assertEquals(8, service.getFavoriteCount(POST_ID));
+            assertEquals(8, queryService.getFavoriteCount(POST_ID));
             verify(postFavoriteStore).cacheFavoriteCount(POST_ID, 8);
         }
     }
