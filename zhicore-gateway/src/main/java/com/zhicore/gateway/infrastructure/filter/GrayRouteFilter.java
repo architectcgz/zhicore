@@ -1,4 +1,4 @@
-package com.zhicore.gateway.filter;
+package com.zhicore.gateway.infrastructure.filter;
 
 import com.zhicore.gateway.config.GrayReleaseProperties;
 import lombok.RequiredArgsConstructor;

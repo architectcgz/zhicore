@@ -1,7 +1,7 @@
 package com.zhicore.gateway.infrastructure.cache;
 
 import com.zhicore.common.cache.CacheConstants;
-import com.zhicore.gateway.service.store.TokenBlacklistStore;
+import com.zhicore.gateway.application.port.store.TokenBlacklistStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.stereotype.Component;

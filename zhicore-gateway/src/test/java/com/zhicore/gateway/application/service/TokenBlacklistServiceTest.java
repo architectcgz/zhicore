@@ -1,6 +1,6 @@
-package com.zhicore.gateway.service;
+package com.zhicore.gateway.application.service;
 
-import com.zhicore.gateway.service.store.TokenBlacklistStore;
+import com.zhicore.gateway.application.port.store.TokenBlacklistStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

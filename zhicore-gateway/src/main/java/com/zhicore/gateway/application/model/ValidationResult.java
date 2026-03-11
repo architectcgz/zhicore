@@ -1,4 +1,4 @@
-package com.zhicore.gateway.security;
+package com.zhicore.gateway.application.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

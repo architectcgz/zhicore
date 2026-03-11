@@ -2,10 +2,10 @@ package com.zhicore.gateway.infrastructure.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.zhicore.gateway.application.model.ValidationResult;
+import com.zhicore.gateway.application.port.store.CacheStats;
+import com.zhicore.gateway.application.port.store.TokenValidationStore;
 import com.zhicore.gateway.config.JwtProperties;
-import com.zhicore.gateway.security.ValidationResult;
-import com.zhicore.gateway.service.store.CacheStats;
-import com.zhicore.gateway.service.store.TokenValidationStore;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 

@@ -1,9 +1,9 @@
-package com.zhicore.gateway.filter;
+package com.zhicore.gateway.infrastructure.filter;
 
+import com.zhicore.gateway.application.model.ValidationResult;
+import com.zhicore.gateway.application.service.JwtTokenValidator;
+import com.zhicore.gateway.application.service.TokenBlacklistService;
 import com.zhicore.gateway.config.JwtProperties;
-import com.zhicore.gateway.security.JwtTokenValidator;
-import com.zhicore.gateway.security.ValidationResult;
-import com.zhicore.gateway.service.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;

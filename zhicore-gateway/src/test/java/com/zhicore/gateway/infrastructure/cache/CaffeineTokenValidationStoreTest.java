@@ -1,8 +1,8 @@
 package com.zhicore.gateway.infrastructure.cache;
 
+import com.zhicore.gateway.application.model.ValidationResult;
+import com.zhicore.gateway.application.port.store.CacheStats;
 import com.zhicore.gateway.config.JwtProperties;
-import com.zhicore.gateway.security.ValidationResult;
-import com.zhicore.gateway.service.store.CacheStats;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

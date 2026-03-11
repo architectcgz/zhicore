@@ -1,6 +1,6 @@
-package com.zhicore.gateway.service.store;
+package com.zhicore.gateway.application.port.store;
 
-import com.zhicore.gateway.security.ValidationResult;
+import com.zhicore.gateway.application.model.ValidationResult;
 
 import java.util.Optional;
 

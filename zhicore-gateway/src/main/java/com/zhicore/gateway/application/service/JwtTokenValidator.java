@@ -1,7 +1,8 @@
-package com.zhicore.gateway.security;
+package com.zhicore.gateway.application.service;
 
+import com.zhicore.gateway.application.model.ValidationResult;
+import com.zhicore.gateway.application.port.store.TokenValidationStore;
 import com.zhicore.gateway.config.JwtProperties;
-import com.zhicore.gateway.service.store.TokenValidationStore;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtParser;

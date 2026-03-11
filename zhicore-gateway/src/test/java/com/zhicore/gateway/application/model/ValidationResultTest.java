@@ -1,4 +1,4 @@
-package com.zhicore.gateway.security;
+package com.zhicore.gateway.application.model;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

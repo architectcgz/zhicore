@@ -1,6 +1,6 @@
-package com.zhicore.gateway.service;
+package com.zhicore.gateway.application.service;
 
-import com.zhicore.gateway.service.store.TokenBlacklistStore;
+import com.zhicore.gateway.application.port.store.TokenBlacklistStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

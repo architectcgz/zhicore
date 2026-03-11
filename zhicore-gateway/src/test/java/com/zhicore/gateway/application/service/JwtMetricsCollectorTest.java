@@ -1,4 +1,4 @@
-package com.zhicore.gateway.security;
+package com.zhicore.gateway.application.service;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;

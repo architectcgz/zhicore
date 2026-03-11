@@ -1,4 +1,4 @@
-package com.zhicore.gateway.service.store;
+package com.zhicore.gateway.application.port.store;
 
 import reactor.core.publisher.Mono;
 
