@@ -1,4 +1,4 @@
-package com.zhicore.migration.infrastructure.gray;
+package com.zhicore.migration.service.gray;
 
 import com.zhicore.migration.infrastructure.config.GrayReleaseProperties;
 import lombok.RequiredArgsConstructor;

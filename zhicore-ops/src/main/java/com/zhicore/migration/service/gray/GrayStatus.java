@@ -1,4 +1,4 @@
-package com.zhicore.migration.infrastructure.gray;
+package com.zhicore.migration.service.gray;
 
 import lombok.Builder;
 import lombok.Data;

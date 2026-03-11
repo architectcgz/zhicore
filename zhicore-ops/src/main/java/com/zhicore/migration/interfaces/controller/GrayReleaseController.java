@@ -1,10 +1,9 @@
 package com.zhicore.migration.interfaces.controller;
 
-import com.zhicore.migration.infrastructure.gray.*;
-import com.zhicore.migration.infrastructure.gray.GrayConfig;
-import com.zhicore.migration.infrastructure.gray.GrayDataReconciliationTask;
-import com.zhicore.migration.infrastructure.gray.GrayRollbackService;
-import com.zhicore.migration.infrastructure.gray.GrayRouter;
+import com.zhicore.migration.service.gray.GrayConfig;
+import com.zhicore.migration.service.gray.GrayDataReconciliationTask;
+import com.zhicore.migration.service.gray.GrayRollbackService;
+import com.zhicore.migration.service.gray.GrayRouter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

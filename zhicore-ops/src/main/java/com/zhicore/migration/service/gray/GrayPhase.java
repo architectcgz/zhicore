@@ -1,4 +1,4 @@
-package com.zhicore.migration.infrastructure.gray;
+package com.zhicore.migration.service.gray;
 
 /**
  * 灰度发布阶段

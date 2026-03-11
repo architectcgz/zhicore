@@ -1,6 +1,11 @@
-package com.zhicore.migration.infrastructure.gray;
+package com.zhicore.migration.infrastructure.config;
 
-import com.zhicore.migration.infrastructure.config.GrayReleaseProperties;
+import com.zhicore.migration.service.gray.GrayConfig;
+import com.zhicore.migration.service.gray.GrayDataReconciliationTask;
+import com.zhicore.migration.service.gray.GrayPhase;
+import com.zhicore.migration.service.gray.GrayRollbackService;
+import com.zhicore.migration.service.gray.GrayRouter;
+import com.zhicore.migration.service.gray.GrayStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBucket;
