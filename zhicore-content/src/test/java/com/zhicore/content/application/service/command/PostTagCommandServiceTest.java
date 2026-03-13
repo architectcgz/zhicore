@@ -1,4 +1,4 @@
-package com.zhicore.content.application.service;
+package com.zhicore.content.application.service.command;
 
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.PostTagRepository;

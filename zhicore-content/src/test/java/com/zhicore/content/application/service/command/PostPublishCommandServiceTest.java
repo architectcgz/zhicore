@@ -1,4 +1,4 @@
-package com.zhicore.content.application.service;
+package com.zhicore.content.application.service.command;
 
 import com.zhicore.content.application.mapper.EventMapper;
 import com.zhicore.content.application.port.messaging.EventPublisher;

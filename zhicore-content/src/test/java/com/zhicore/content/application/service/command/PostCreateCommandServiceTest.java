@@ -1,4 +1,4 @@
-package com.zhicore.content.application.service;
+package com.zhicore.content.application.service.command;
 
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.result.ApiResponse;

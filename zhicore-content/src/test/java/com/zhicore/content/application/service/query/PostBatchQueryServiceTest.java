@@ -1,4 +1,4 @@
-package com.zhicore.content.application.service;
+package com.zhicore.content.application.service.query;
 
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.content.application.port.repo.PostRepository;

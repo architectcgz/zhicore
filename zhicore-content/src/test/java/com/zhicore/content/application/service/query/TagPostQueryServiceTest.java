@@ -1,4 +1,4 @@
-package com.zhicore.content.application.service;
+package com.zhicore.content.application.service.query;
 
 import com.zhicore.common.exception.ResourceNotFoundException;
 import com.zhicore.common.result.PageResult;

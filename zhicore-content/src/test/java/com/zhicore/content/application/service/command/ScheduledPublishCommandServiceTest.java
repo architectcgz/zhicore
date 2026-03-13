@@ -1,4 +1,4 @@
-package com.zhicore.content.application.service;
+package com.zhicore.content.application.service.command;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.content.application.model.OutboxEventRecord;
@@ -10,7 +10,7 @@ import com.zhicore.content.application.port.policy.ScheduledPublishPolicy;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.OutboxEventStore;
 import com.zhicore.content.application.port.store.ScheduledPublishEventStore;
-import com.zhicore.content.application.service.command.ScheduledPublishCommandService;
+import com.zhicore.content.application.service.OwnedPostLoadService;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.UserId;
@@ -40,7 +40,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class PostApplicationServiceTask01Test {
+class ScheduledPublishCommandServiceTest {
 
     @Mock private OwnedPostLoadService ownedPostLoadService;
     @Mock private PostRepository postRepository;
@@ -55,7 +55,7 @@ class PostApplicationServiceTask01Test {
     private ScheduledPublishCommandService scheduledPublishCommandService;
 
     @Test
-    void schedulePublish_shouldSaveRecordAndPublishEvents() {
+    void schedulePublishShouldSaveRecordAndPublishEvents() {
         Long userId = 1001L;
         Long postId = 123L;
         LocalDateTime dbNow = LocalDateTime.now();
@@ -79,7 +79,7 @@ class PostApplicationServiceTask01Test {
     }
 
     @Test
-    void consumeScheduledPublish_retryExhausted_emitsDlqAndAlert() {
+    void consumeScheduledPublishShouldEmitDlqAndAlertWhenRetriesExhausted() {
         when(scheduledPublishPolicy.maxPublishRetries()).thenReturn(0);
 
         Long postId = 123L;

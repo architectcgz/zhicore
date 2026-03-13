@@ -1,4 +1,4 @@
-package com.zhicore.content.application.service;
+package com.zhicore.content.application.service.command;
 
 import com.zhicore.content.application.port.client.FileResourceClient;
 import org.junit.jupiter.api.Test;
