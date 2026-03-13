@@ -3,16 +3,16 @@ package com.zhicore.content.infrastructure.repository;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
-import com.zhicore.content.application.service.TagCommandService;
+import com.zhicore.content.application.service.command.TagCommandService;
 import com.zhicore.content.domain.service.TagDomainService;
+import com.zhicore.content.infrastructure.IntegrationTestBase;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.LongRange;
 import net.jqwik.api.constraints.StringLength;
+import net.jqwik.api.lifecycle.BeforeExample;
+import net.jqwik.api.lifecycle.BeforeTry;
 import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
@@ -34,11 +34,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * @author ZhiCore Team
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Transactional
 @DisplayName("数据完整性属性测试")
-class DataIntegrityPropertyTest {
+class DataIntegrityPropertyTest extends IntegrationTestBase {
 
     @Autowired
     private TagRepository tagRepository;
@@ -51,6 +48,22 @@ class DataIntegrityPropertyTest {
 
     @Autowired
     private TagDomainService tagDomainService;
+
+    @BeforeTry
+    void beforeTry() {
+        cleanupStorage();
+    }
+
+    @BeforeExample
+    void beforeExample() {
+        cleanupStorage();
+    }
+
+    private void cleanupStorage() {
+        cleanupPostgres();
+        cleanupMongoDB();
+        cleanupRedis();
+    }
 
     // ==================== Property 12: Tag 删除级联 ====================
 

@@ -4,13 +4,12 @@ import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.TagRepository;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.LongRange;
+import net.jqwik.api.lifecycle.BeforeTry;
+import com.zhicore.content.infrastructure.IntegrationTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.List;
@@ -31,18 +30,26 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * @author ZhiCore Team
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Transactional
 @DisplayName("TagRepository 集成测试")
-class TagRepositoryIntegrationTest {
+class TagRepositoryIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private TagRepository tagRepository;
 
     @BeforeEach
     void setUp() {
-        // 每个测试前清理数据（由于使用 @Transactional，会自动回滚）
+        cleanupStorage();
+    }
+
+    @BeforeTry
+    void beforeTry() {
+        cleanupStorage();
+    }
+
+    private void cleanupStorage() {
+        cleanupPostgres();
+        cleanupMongoDB();
+        cleanupRedis();
     }
 
     // ==================== 基本功能测试 ====================
