@@ -187,6 +187,7 @@ public abstract class IntegrationTestBase {
                     post_tags,
                     post_likes,
                     post_favorites,
+                    domain_event_task,
                     scheduled_publish_event,
                     outbox_retry_audit,
                     outbox_event,
