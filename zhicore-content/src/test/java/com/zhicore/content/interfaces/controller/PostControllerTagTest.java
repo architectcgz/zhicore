@@ -11,13 +11,11 @@ import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
+import com.zhicore.content.infrastructure.IntegrationTestBase;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.List;
@@ -31,10 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 
  * @author ZhiCore Team
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Transactional
-class PostControllerTagTest {
+class PostControllerTagTest extends IntegrationTestBase {
 
     @Autowired
     private PostCommandFacade postCommandFacade;
@@ -58,6 +53,9 @@ class PostControllerTagTest {
     void setUp() {
         testUserId = 1001L;
         testPostId = 2001L;
+        cleanupPostgres();
+        cleanupMongoDB();
+        cleanupRedis();
 
         // 设置用户上下文
         UserContext.UserInfo userInfo = new UserContext.UserInfo();

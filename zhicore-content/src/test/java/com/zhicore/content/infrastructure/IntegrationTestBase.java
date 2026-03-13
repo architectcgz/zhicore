@@ -29,9 +29,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author ZhiCore Team
  */
 @SpringBootTest(properties = {
+    "spring.config.import=",
     "spring.cloud.nacos.config.enabled=false",
     "spring.cloud.nacos.discovery.enabled=false",
     "spring.cloud.bootstrap.enabled=false",
+    "spring.cloud.sentinel.enabled=false",
     "spring.profiles.active=test",
     "spring.data.redis.password=",
     "jwt.secret=test-jwt-secret-for-integration-tests",
@@ -44,6 +46,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
     "cache.lock.lease-time=10",
     "spring.sql.init.mode=always",
     "spring.sql.init.schema-locations=classpath:db/schema.sql",
+    "content.sentinel.enabled=false",
     "spring.task.scheduling.enabled=false"
 })
 @Testcontainers

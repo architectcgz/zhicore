@@ -11,12 +11,10 @@ import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
+import com.zhicore.content.infrastructure.IntegrationTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -37,10 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 
  * @author ZhiCore Team
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Transactional
-class TagQueryFacadeGetPostsByTagIntegrationTest {
+class TagQueryFacadeGetPostsByTagIntegrationTest extends IntegrationTestBase {
 
     private static final AtomicLong POST_ID_SEQ = new AtomicLong(System.currentTimeMillis());
 
@@ -64,6 +59,10 @@ class TagQueryFacadeGetPostsByTagIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        cleanupPostgres();
+        cleanupMongoDB();
+        cleanupRedis();
+
         // 创建测试标签
         testTag = tagCommandService.findOrCreate("Integration Test Tag");
         

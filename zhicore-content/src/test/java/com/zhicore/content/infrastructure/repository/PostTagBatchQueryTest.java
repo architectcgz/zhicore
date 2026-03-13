@@ -3,13 +3,11 @@ package com.zhicore.content.infrastructure.repository;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
-import com.zhicore.content.application.service.TagCommandService;
+import com.zhicore.content.application.service.command.TagCommandService;
+import com.zhicore.content.infrastructure.IntegrationTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.List;
@@ -24,10 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * @author ZhiCore Team
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Transactional
-class PostTagBatchQueryTest {
+class PostTagBatchQueryTest extends IntegrationTestBase {
 
     @Autowired
     private PostTagRepository postTagRepository;
@@ -47,6 +42,10 @@ class PostTagBatchQueryTest {
 
     @BeforeEach
     void setUp() {
+        cleanupPostgres();
+        cleanupMongoDB();
+        cleanupRedis();
+
         // 创建测试数据
         postId1 = 1001L;
         postId2 = 1002L;
