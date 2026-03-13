@@ -6,6 +6,8 @@ import com.zhicore.common.result.ApiResponse;
 import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostFavoriteStore;
+import com.zhicore.content.application.service.command.PostFavoriteCommandService;
+import com.zhicore.content.application.service.query.PostFavoriteQueryService;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.PostStats;

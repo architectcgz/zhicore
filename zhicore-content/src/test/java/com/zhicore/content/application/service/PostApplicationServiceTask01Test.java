@@ -10,6 +10,7 @@ import com.zhicore.content.application.port.policy.ScheduledPublishPolicy;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.OutboxEventStore;
 import com.zhicore.content.application.port.store.ScheduledPublishEventStore;
+import com.zhicore.content.application.service.command.ScheduledPublishCommandService;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.UserId;

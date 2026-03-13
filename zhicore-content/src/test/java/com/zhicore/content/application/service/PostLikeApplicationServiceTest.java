@@ -7,6 +7,8 @@ import com.zhicore.common.result.ResultCode;
 import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostLikeStore;
+import com.zhicore.content.application.service.command.PostLikeCommandService;
+import com.zhicore.content.application.service.query.PostLikeQueryService;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.PostStats;

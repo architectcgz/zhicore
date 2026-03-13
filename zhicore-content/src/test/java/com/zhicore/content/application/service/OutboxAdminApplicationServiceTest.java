@@ -9,6 +9,8 @@ import com.zhicore.content.application.model.OutboxEventRecord;
 import com.zhicore.content.application.model.OutboxRetryAuditRecord;
 import com.zhicore.content.application.port.store.OutboxEventStore;
 import com.zhicore.content.application.port.store.OutboxRetryAuditStore;
+import com.zhicore.content.application.service.command.OutboxAdminCommandService;
+import com.zhicore.content.application.service.query.OutboxAdminQueryService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;

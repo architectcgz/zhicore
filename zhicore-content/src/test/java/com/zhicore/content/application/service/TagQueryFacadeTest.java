@@ -8,6 +8,8 @@ import com.zhicore.content.application.query.TagQuery;
 import com.zhicore.content.application.query.view.HotTagView;
 import com.zhicore.content.application.query.view.TagDetailView;
 import com.zhicore.content.application.query.view.TagListItemView;
+import com.zhicore.content.application.service.query.TagListQueryService;
+import com.zhicore.content.application.service.query.TagPostQueryService;
 import com.zhicore.content.domain.model.Tag;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
