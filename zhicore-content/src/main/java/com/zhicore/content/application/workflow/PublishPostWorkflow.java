@@ -4,6 +4,7 @@ import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.domain.event.DomainEvent;
 import com.zhicore.content.domain.event.DomainEventFactory;
+import com.zhicore.content.domain.event.PostPublishedDomainEvent;
 import com.zhicore.content.domain.exception.PublishPostFailedException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,7 +40,7 @@ public class PublishPostWorkflow {
      *
      * @param postId 文章 ID
      * @param userId 用户 ID（作者）
-     * @return 发布产生的领域事件列表
+     * @return 发布产生的内部事件列表
      */
     @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public List<DomainEvent<?>> execute(PostId postId, UserId userId) {
@@ -58,15 +60,28 @@ public class PublishPostWorkflow {
                 throw new PublishPostFailedException("文章内容未保存，无法发布: " + postId);
             }
 
-            post.publish(domainEventFactory);
+            post.publish();
             post.setWriteState(WriteState.PUBLISHED);
             postRepository.update(post);
 
-            return new ArrayList<>(post.pullDomainEvents());
+            Long aggregateVersion = postRepository.findById(postId)
+                    .map(Post::getVersion)
+                    .orElse(0L);
+            return List.of(buildPostPublishedEvent(post, aggregateVersion));
         } catch (PublishPostFailedException e) {
             throw e;
         } catch (Exception e) {
             throw new PublishPostFailedException("发布文章失败: " + e.getMessage(), e);
         }
+    }
+
+    private PostPublishedDomainEvent buildPostPublishedEvent(Post post, Long aggregateVersion) {
+        return new PostPublishedDomainEvent(
+                domainEventFactory.generateEventId(),
+                domainEventFactory.now(),
+                post.getId(),
+                post.getPublishedAt().atZone(ZoneId.systemDefault()).toInstant(),
+                aggregateVersion != null ? aggregateVersion : 0L
+        );
     }
 }

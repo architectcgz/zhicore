@@ -308,6 +308,13 @@ logging:
     max-size: 100MB
     max-history: 30
 
+internal-event:
+  dispatcher:
+    batch-size: 100
+    scan-interval: 5000
+    max-retry: 10
+    max-backoff-seconds: 300
+
 # Knife4j API 文档配置
 springdoc:
   api-docs:

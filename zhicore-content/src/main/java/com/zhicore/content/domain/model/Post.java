@@ -1,10 +1,6 @@
 package com.zhicore.content.domain.model;
 
 import com.zhicore.common.exception.DomainException;
-import com.zhicore.content.domain.event.DomainEvent;
-import com.zhicore.content.domain.event.DomainEventFactory;
-import com.zhicore.content.domain.event.PostCreatedDomainEvent;
-import com.zhicore.content.domain.event.PostPublishedDomainEvent;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
@@ -12,10 +8,8 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -163,13 +157,6 @@ public class Post {
      */
     private Long version;
 
-    /**
-     * 领域事件列表（未发布）
-     * 
-     * 聚合根内部产生的领域事件，由应用层负责拉取和发布
-     */
-    private final List<DomainEvent<?>> domainEvents = new ArrayList<>();
-
     // ==================== 构造函数 ====================
 
     /**
@@ -252,46 +239,6 @@ public class Post {
     }
 
     /**
-     * 发出文章创建事件（在聚合字段初始化完成后调用）
-     */
-    public void emitCreatedEvent(DomainEventFactory eventFactory) {
-        emitCreatedEvent(eventFactory, this.version);
-    }
-
-    /**
-     * 发出文章创建事件（允许外部显式传入聚合版本号）
-     *
-     * 说明：创建草稿的流程中，文章会经历“插入 + 更新”两次数据库写入（用于两阶段提交/写入状态跟踪）。
-     * MyBatis-Plus 的乐观锁版本号会由数据库/插件在写入时推进，但该版本号不一定会回写到当前内存中的聚合对象。
-     * 为了保证 Outbox 事件的强约束（aggregateVersion 非空且语义正确），这里允许调用方传入“数据库最新版本号”。
-     *
-     * @param eventFactory 领域事件工厂
-     * @param aggregateVersion 聚合根版本号（优先使用该值；为空时回退到当前对象版本；仍为空则使用 0L）
-     */
-    public void emitCreatedEvent(DomainEventFactory eventFactory, Long aggregateVersion) {
-        Long safeAggregateVersion = aggregateVersion != null
-                ? aggregateVersion
-                : (this.version != null ? this.version : 0L);
-
-        registerEvent(new PostCreatedDomainEvent(
-            eventFactory.generateEventId(),
-            eventFactory.now(),
-            this.id,
-            this.title,
-            this.excerpt,
-            this.ownerId,
-            this.ownerSnapshot != null ? this.ownerSnapshot.getName() : "未知用户",
-            this.tagIds != null ? new HashSet<>(this.tagIds) : new HashSet<>(),
-            this.topicId,
-            null,
-            this.status.name(),
-            null,
-            eventFactory.now(),
-            safeAggregateVersion
-        ));
-    }
-
-    /**
      * 从持久化恢复文章
      */
     public static Post reconstitute(Snapshot snapshot) {
@@ -364,9 +311,8 @@ public class Post {
     /**
      * 发布文章
      * 
-     * @param eventFactory 领域事件工厂（用于生成事件ID和时间戳）
      */
-    public void publish(DomainEventFactory eventFactory) {
+    public void publish() {
         if (this.status == PostStatus.PUBLISHED) {
             throw new DomainException("文章已经发布，不能重复发布");
         }
@@ -379,15 +325,6 @@ public class Post {
         this.publishedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
         this.scheduledAt = null;
-        
-        // 产生领域事件
-        registerEvent(new PostPublishedDomainEvent(
-            eventFactory.generateEventId(),
-            eventFactory.now(),
-            this.id,
-            java.time.Instant.now(),  // publishedAt 转换为 Instant
-            this.version
-        ));
     }
 
     /**
@@ -672,32 +609,5 @@ public class Post {
             return plainText;
         }
         return plainText.substring(0, maxLength) + "...";
-    }
-
-    // ==================== 领域事件管理方法 ====================
-
-    /**
-     * 注册领域事件
-     * 
-     * 将事件添加到内部事件列表，等待应用层拉取和发布
-     * 
-     * @param event 领域事件
-     */
-    private void registerEvent(DomainEvent<?> event) {
-        this.domainEvents.add(event);
-    }
-
-    /**
-     * 拉取并清空领域事件
-     * 
-     * 应用层调用此方法获取聚合根产生的所有未发布事件，
-     * 并清空内部事件列表，确保事件不会被重复发布
-     * 
-     * @return 未发布的领域事件列表
-     */
-    public List<DomainEvent<?>> pullDomainEvents() {
-        List<DomainEvent<?>> events = new ArrayList<>(this.domainEvents);
-        this.domainEvents.clear();
-        return events;
     }
 }

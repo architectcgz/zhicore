@@ -5,6 +5,7 @@ import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.domain.event.DomainEvent;
 import com.zhicore.content.domain.event.DomainEventFactory;
+import com.zhicore.content.domain.event.PostCreatedDomainEvent;
 import com.zhicore.content.domain.exception.CreatePostFailedException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostBody;
@@ -19,12 +20,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 创建草稿工作流
  *
- * 仅负责领域状态迁移与持久化，不负责事件发布。
- * 事件由应用服务统一发布（领域事件 + Outbox 集成事件）。
+ * 仅负责状态迁移与持久化，不负责事件发布。
+ * 内部事件和集成事件都由应用服务统一发布。
  */
 @Slf4j
 @Service
@@ -39,7 +41,7 @@ public class CreateDraftWorkflow {
      * 在现有事务中执行创建草稿流程。
      *
      * @param command 创建命令
-     * @return 执行结果（文章ID + 领域事件）
+     * @return 执行结果（文章ID + 内部事件）
      */
     @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public ExecutionResult execute(CreatePostCommand command) {
@@ -81,9 +83,7 @@ public class CreateDraftWorkflow {
             Long aggregateVersion = postRepository.findById(postId)
                     .map(Post::getVersion)
                     .orElse(0L);
-            post.emitCreatedEvent(domainEventFactory, aggregateVersion);
-
-            return new ExecutionResult(postId, new ArrayList<>(post.pullDomainEvents()));
+            return new ExecutionResult(postId, List.of(buildPostCreatedEvent(post, aggregateVersion)));
         } catch (Exception ex) {
             // PG 事务会回滚；Mongo 是独立存储，进行 best-effort 清理避免残留
             try {
@@ -95,5 +95,25 @@ public class CreateDraftWorkflow {
         }
     }
 
-    public record ExecutionResult(PostId postId, List<DomainEvent<?>> domainEvents) {}
+    private PostCreatedDomainEvent buildPostCreatedEvent(Post post, Long aggregateVersion) {
+        Long safeAggregateVersion = aggregateVersion != null ? aggregateVersion : 0L;
+        return new PostCreatedDomainEvent(
+                domainEventFactory.generateEventId(),
+                domainEventFactory.now(),
+                post.getId(),
+                post.getTitle(),
+                post.getExcerpt(),
+                post.getOwnerId(),
+                post.getOwnerSnapshot() != null ? post.getOwnerSnapshot().getName() : "未知用户",
+                post.getTagIds() != null ? Set.copyOf(post.getTagIds()) : Set.of(),
+                post.getTopicId(),
+                null,
+                post.getStatus().name(),
+                null,
+                domainEventFactory.now(),
+                safeAggregateVersion
+        );
+    }
+
+    public record ExecutionResult(PostId postId, List<DomainEvent<?>> internalEvents) {}
 }

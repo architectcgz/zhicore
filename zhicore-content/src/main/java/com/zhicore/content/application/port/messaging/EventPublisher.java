@@ -7,8 +7,8 @@ import java.util.List;
 /**
  * 事件发布器端口接口
  * 
- * 定义领域事件发布的契约，由基础设施层实现（如 RocketMQ）。
- * 用于发布领域事件，实现事件驱动架构和最终一致性。
+ * 定义内容服务内部事件发布契约，由基础设施层实现。
+ * 用于将本地异步任务持久化到事件表，驱动 Mongo/tag_stats 等读模型更新。
  * 
  * @author ZhiCore Team
  */
@@ -17,14 +17,14 @@ public interface EventPublisher {
     /**
      * 发布单个事件
      * 
-     * @param event 领域事件
+     * @param event 内部事件
      */
     void publish(DomainEvent event);
     
     /**
      * 批量发布事件
      * 
-     * @param events 领域事件列表
+     * @param events 内部事件列表
      */
     void publishBatch(List<DomainEvent> events);
 }

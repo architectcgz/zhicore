@@ -63,6 +63,13 @@ public class LockKeys {
     }
     
     /**
+     * 域内投影任务派发锁
+     */
+    public String internalEventDispatcher() {
+        return buildKey("internal-event", "dispatcher", "dispatch");
+    }
+    
+    /**
      * 消费事件清理锁
      */
     public String consumedEventCleanup() {
