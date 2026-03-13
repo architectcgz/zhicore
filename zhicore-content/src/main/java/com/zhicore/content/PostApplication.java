@@ -9,7 +9,6 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 文章服务启动类
@@ -24,7 +23,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         ContentUploadServiceClient.class
 })
 @EnableMongoRepositories(basePackages = "com.zhicore.content.infrastructure.persistence.mongo.repository")
-@EnableScheduling
 @EnableAsync
 public class PostApplication {
 

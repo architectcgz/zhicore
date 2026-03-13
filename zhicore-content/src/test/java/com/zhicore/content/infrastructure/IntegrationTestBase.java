@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
     "spring.sql.init.mode=always",
     "spring.sql.init.schema-locations=classpath:db/schema.sql",
     "content.sentinel.enabled=false",
+    "content.scheduling.enabled=false",
     "spring.task.scheduling.enabled=false"
 })
 @Testcontainers
