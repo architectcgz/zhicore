@@ -1,6 +1,8 @@
 package com.zhicore.content.infrastructure.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.zhicore.common.cache.port.LockManager;
 import com.zhicore.content.domain.event.PostCreatedDomainEvent;
 import com.zhicore.content.domain.model.PostId;
@@ -38,6 +40,10 @@ import static org.mockito.Mockito.when;
 @DisplayName("InternalEventTaskDispatcher 测试")
 class InternalEventTaskDispatcherTest {
 
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
     @Mock
     private InternalEventTaskMapper internalEventTaskMapper;
 
@@ -62,7 +68,7 @@ class InternalEventTaskDispatcherTest {
                 properties,
                 lockManager,
                 lockKeys,
-                new ObjectMapper(),
+                objectMapper,
                 postMongoDBSyncEventHandler,
                 tagStatsEventHandler,
                 immediateTransactions()
@@ -106,7 +112,7 @@ class InternalEventTaskDispatcherTest {
                 properties,
                 lockManager,
                 lockKeys,
-                new ObjectMapper(),
+                objectMapper,
                 postMongoDBSyncEventHandler,
                 tagStatsEventHandler,
                 immediateTransactions()
@@ -152,7 +158,7 @@ class InternalEventTaskDispatcherTest {
         task.setAggregateId(event.getPostId().getValue());
         task.setAggregateVersion(event.getAggregateVersion());
         task.setSchemaVersion(event.getSchemaVersion());
-        task.setPayload(new ObjectMapper().writeValueAsString(event));
+        task.setPayload(objectMapper.writeValueAsString(event));
         task.setOccurredAt(event.getOccurredAt());
         task.setRetryCount(0);
         task.setStatus(InternalEventTaskEntity.InternalEventTaskStatus.PENDING);

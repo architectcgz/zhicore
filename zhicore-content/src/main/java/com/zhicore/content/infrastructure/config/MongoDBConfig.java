@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.config.AbstractMongoClientConfiguration;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
+import org.springframework.util.StringUtils;
 
 import java.util.concurrent.TimeUnit;
 
@@ -30,31 +31,26 @@ public class MongoDBConfig extends AbstractMongoClientConfiguration {
 
     @Override
     protected String getDatabaseName() {
+        if (StringUtils.hasText(mongoProperties.getUri())) {
+            ConnectionString connectionString = new ConnectionString(mongoProperties.getUri());
+            if (StringUtils.hasText(connectionString.getDatabase())) {
+                return connectionString.getDatabase();
+            }
+        }
         return mongoProperties.getDatabase();
     }
 
     @Override
     @Bean
     public MongoClient mongoClient() {
-        // 构建连接字符串
-        String connectionString = String.format(
-            "mongodb://%s:%s@%s:%d/%s?authSource=%s",
-            mongoProperties.getUsername(), 
-            mongoProperties.getPassword(), 
-            mongoProperties.getHost(), 
-            mongoProperties.getPort(), 
-            mongoProperties.getDatabase(), 
-            mongoProperties.getAuthenticationDatabase()
-        );
+        String connectionString = resolveConnectionString();
+        ConnectionString parsed = new ConnectionString(connectionString);
 
-        log.info("Initializing MongoDB connection to: mongodb://{}:{}/{}", 
-            mongoProperties.getHost(), 
-            mongoProperties.getPort(), 
-            mongoProperties.getDatabase());
+        log.info("Initializing MongoDB connection to: {}", connectionString);
 
         // 配置 MongoDB 客户端设置
         MongoClientSettings settings = MongoClientSettings.builder()
-            .applyConnectionString(new ConnectionString(connectionString))
+            .applyConnectionString(parsed)
             .applyToConnectionPoolSettings(builder -> builder
                 .maxSize(mongoProperties.getMaxConnectionPoolSize())
                 .minSize(mongoProperties.getMinConnectionPoolSize())
@@ -71,6 +67,22 @@ public class MongoDBConfig extends AbstractMongoClientConfiguration {
             .build();
 
         return MongoClients.create(settings);
+    }
+
+    private String resolveConnectionString() {
+        if (StringUtils.hasText(mongoProperties.getUri())) {
+            return mongoProperties.getUri();
+        }
+
+        return String.format(
+                "mongodb://%s:%s@%s:%d/%s?authSource=%s",
+                mongoProperties.getUsername(),
+                mongoProperties.getPassword(),
+                mongoProperties.getHost(),
+                mongoProperties.getPort(),
+                mongoProperties.getDatabase(),
+                mongoProperties.getAuthenticationDatabase()
+        );
     }
 
     @Bean

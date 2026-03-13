@@ -24,6 +24,11 @@ spring:
   config:
     import: ""
 
+content:
+  mongodb:
+    validation:
+      enabled: false
+
 # MyBatis-Plus 配置
 mybatis-plus:
   configuration:

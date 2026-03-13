@@ -18,6 +18,11 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "spring.data.mongodb")
 public class MongoDBProperties {
+
+    /**
+     * 完整连接串；配置后优先于 host/port/username/password 生效
+     */
+    private String uri;
     
     /**
      * MongoDB 主机地址
