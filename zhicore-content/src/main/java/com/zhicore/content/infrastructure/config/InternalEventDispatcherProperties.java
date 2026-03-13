@@ -22,7 +22,7 @@ public class InternalEventDispatcherProperties {
 
     @Min(1000)
     @Max(60000)
-    private long scanInterval = 5000;
+    private long scanInterval = 1000;
 
     @Min(1)
     @Max(20)

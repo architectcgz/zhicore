@@ -128,6 +128,18 @@ rocketmq:
     retry-times-when-send-failed: 2
     retry-times-when-send-async-failed: 2
 
+# 内部事件派发器配置
+# 这批事件主要用于：
+# 1. 维护 MongoDB 文章读模型
+# 2. 刷新 tag_stats 统计与热门标签缓存
+# 都属于站内最终一致性任务，不走 MQ，要求尽快处理但不需要毫秒级实时性。
+internal-event:
+  dispatcher:
+    batch-size: 100
+    scan-interval: 1000
+    max-retry: 10
+    max-backoff-seconds: 300
+
 # File Service 配置
 file-service:
   client:
