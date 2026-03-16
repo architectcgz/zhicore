@@ -1,6 +1,12 @@
 package com.zhicore.content.infrastructure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhicore.content.infrastructure.messaging.consumer.AuthorInfoCompensationConsumer;
+import com.zhicore.content.infrastructure.messaging.consumer.CommentCreatedConsumer;
+import com.zhicore.content.infrastructure.messaging.consumer.CommentDeletedConsumer;
+import com.zhicore.content.infrastructure.messaging.consumer.PostScheduleConsumer;
+import com.zhicore.content.infrastructure.messaging.consumer.StatsUpdatedConsumer;
+import com.zhicore.content.infrastructure.messaging.consumer.UserProfileUpdatedConsumer;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -55,6 +61,24 @@ public abstract class IntegrationTestBase {
 
     @MockBean
     private RocketMQTemplate rocketMQTemplate;
+
+    @MockBean
+    private AuthorInfoCompensationConsumer authorInfoCompensationConsumer;
+
+    @MockBean
+    private CommentCreatedConsumer commentCreatedConsumer;
+
+    @MockBean
+    private CommentDeletedConsumer commentDeletedConsumer;
+
+    @MockBean
+    private PostScheduleConsumer postScheduleConsumer;
+
+    @MockBean
+    private StatsUpdatedConsumer statsUpdatedConsumer;
+
+    @MockBean
+    private UserProfileUpdatedConsumer userProfileUpdatedConsumer;
     
     // PostgreSQL 容器
     protected static final PostgreSQLContainer<?> POSTGRES_CONTAINER = 

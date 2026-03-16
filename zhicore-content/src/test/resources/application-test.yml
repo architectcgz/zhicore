@@ -5,18 +5,6 @@ server:
 spring:
   application:
     name: ZhiCore-post-test
-  datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: 
-  sql:
-    init:
-      mode: always
-      schema-locations: classpath:schema.sql
-  h2:
-    console:
-      enabled: false
   cloud:
     nacos:
       discovery:
