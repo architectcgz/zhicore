@@ -29,6 +29,10 @@ spring.datasource:
     max-lifetime: 1800000
     connection-timeout: 30000
 
+spring.sql.init:
+  mode: always
+  schema-locations: classpath:db/schema.sql
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -72,6 +76,13 @@ spring.cloud.sentinel:
   eager: true
 
 user:
+  outbox:
+    batch-size: 50
+    worker-count: 4
+    scan-interval: 5000
+    claim-timeout-seconds: 60
+    max-retry: 10
+    max-backoff-seconds: 300
   sentinel:
     enabled: true
     user-detail-qps: 250
