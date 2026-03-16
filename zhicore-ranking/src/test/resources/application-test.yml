@@ -3,12 +3,14 @@ server:
 
 spring:
   application:
-    name: ZhiCore-ranking-test
+    name: zhicore-ranking
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/ranking-schema.sql
   data:
     redis:
-      host: localhost
-      port: 6379
-      password: redis123456
+      password: ""
   cloud:
     nacos:
       discovery:
@@ -26,8 +28,9 @@ rocketmq:
   consumer:
     group: ranking-consumer-group-test
 
-# Disable scheduling for testing
-spring.task.scheduling.enabled: false
+ranking:
+  scheduler:
+    enabled: false
 
 # Test logging
 logging:

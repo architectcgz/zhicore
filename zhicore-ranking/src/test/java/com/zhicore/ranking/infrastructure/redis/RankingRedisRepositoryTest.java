@@ -1,16 +1,10 @@
 package com.zhicore.ranking.infrastructure.redis;
 
+import com.zhicore.ranking.integration.IntegrationTestBase;
 import com.zhicore.ranking.domain.model.HotScore;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -31,23 +25,9 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * @author ZhiCore Team
  */
-@SpringBootTest
-@Testcontainers
 @DisplayName("RankingRedisRepository Tests")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-class RankingRedisRepositoryTest {
-
-    @Container
-    static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-            .withExposedPorts(6379)
-            .withReuse(true);
-
-    @DynamicPropertySource
-    static void redisProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.data.redis.host", redis::getHost);
-        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
-        registry.add("spring.data.redis.password", () -> "");
-    }
+class RankingRedisRepositoryTest extends IntegrationTestBase {
 
     @Autowired
     private RankingRedisRepository repository;
@@ -244,15 +224,16 @@ class RankingRedisRepositoryTest {
     @DisplayName("测试 getWeeklyHotPostsWithScore() - 正常情况")
     void testGetWeeklyHotPostsWithScore_Normal() {
         // Given: 准备测试数据
+        int weekBasedYear = 2026;
         int weekNumber = 5;
-        String key = RankingRedisKeys.weeklyPosts(weekNumber);
+        String key = RankingRedisKeys.weeklyPosts(weekBasedYear, weekNumber);
         
         repository.setScore(key, "post-1", 2000.0);
         repository.setScore(key, "post-2", 1800.0);
         repository.setScore(key, "post-3", 1600.0);
 
         // When: 查询周榜
-        List<HotScore> result = repository.getWeeklyHotPostsWithScore(weekNumber, 3);
+        List<HotScore> result = repository.getWeeklyHotPostsWithScore(weekBasedYear, weekNumber, 3);
 
         // Then: 验证结果
         assertNotNull(result);
@@ -267,10 +248,11 @@ class RankingRedisRepositoryTest {
     @DisplayName("测试 getWeeklyHotPostsWithScore() - 空数据")
     void testGetWeeklyHotPostsWithScore_EmptyData() {
         // Given: 没有数据
+        int weekBasedYear = 2026;
         int weekNumber = 6;
 
         // When: 查询周榜
-        List<HotScore> result = repository.getWeeklyHotPostsWithScore(weekNumber, 10);
+        List<HotScore> result = repository.getWeeklyHotPostsWithScore(weekBasedYear, weekNumber, 10);
 
         // Then: 返回空列表
         assertNotNull(result);
