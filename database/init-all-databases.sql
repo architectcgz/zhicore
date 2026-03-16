@@ -129,16 +129,24 @@ CREATE TABLE IF NOT EXISTS outbox_events (
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     retry_count INT NOT NULL DEFAULT 0,
     max_retries INT NOT NULL DEFAULT 10,
-    next_retry_at TIMESTAMPTZ,
+    next_attempt_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     sent_at TIMESTAMPTZ,
     error_message TEXT
 );
 
+ALTER TABLE outbox_events
+    ADD COLUMN IF NOT EXISTS claimed_by VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS idx_outbox_events_status ON outbox_events(status);
 CREATE INDEX IF NOT EXISTS idx_outbox_events_created_at ON outbox_events(created_at);
-CREATE INDEX IF NOT EXISTS idx_outbox_events_retryable ON outbox_events(status, next_retry_at)
+CREATE INDEX IF NOT EXISTS idx_outbox_events_retryable ON outbox_events(status, next_attempt_at)
     WHERE status IN ('PENDING', 'FAILED');
+CREATE INDEX IF NOT EXISTS idx_outbox_events_processing_claim ON outbox_events(status, claimed_at)
+    WHERE status = 'PROCESSING';
+CREATE INDEX IF NOT EXISTS idx_outbox_events_sharding_head ON outbox_events(sharding_key, created_at, id)
+    WHERE status NOT IN ('SUCCEEDED', 'SENT');
 
 COMMENT ON TABLE outbox_events IS 'Transactional Outbox 事件表';
 COMMENT ON COLUMN outbox_events.id IS '事件ID（UUID格式）';
@@ -146,13 +154,15 @@ COMMENT ON COLUMN outbox_events.topic IS 'RocketMQ Topic';
 COMMENT ON COLUMN outbox_events.tag IS 'RocketMQ Tag';
 COMMENT ON COLUMN outbox_events.sharding_key IS '分片键（用于消息路由）';
 COMMENT ON COLUMN outbox_events.payload IS '事件负载（JSON格式）';
-COMMENT ON COLUMN outbox_events.status IS '事件状态：PENDING（待发送）, SENT（已发送）, FAILED（重试中）, DEAD（死信）';
+COMMENT ON COLUMN outbox_events.status IS '事件状态：PENDING（待发送）, PROCESSING（处理中）, SUCCEEDED（已成功收敛）, FAILED（重试中）, DEAD（死信）';
 COMMENT ON COLUMN outbox_events.retry_count IS '重试次数';
 COMMENT ON COLUMN outbox_events.max_retries IS '最大重试次数（默认10）';
-COMMENT ON COLUMN outbox_events.next_retry_at IS '下次重试时间（指数退避）';
+COMMENT ON COLUMN outbox_events.next_attempt_at IS '下次允许被处理时间（指数退避）';
 COMMENT ON COLUMN outbox_events.created_at IS '创建时间';
 COMMENT ON COLUMN outbox_events.sent_at IS '发送时间';
 COMMENT ON COLUMN outbox_events.error_message IS '错误信息';
+COMMENT ON COLUMN outbox_events.claimed_by IS '当前 claim 该事件的 worker 标识';
+COMMENT ON COLUMN outbox_events.claimed_at IS '当前 claim 时间';
 
 -- =====================================================
 -- 2. Post Service (ZhiCore_post 数据库)
@@ -241,6 +251,8 @@ CREATE TABLE IF NOT EXISTS comments (
     reply_to_user_id BIGINT,
     content VARCHAR(2000) NOT NULL DEFAULT '',
     image_ids TEXT[],
+    voice_id VARCHAR(36),
+    voice_duration INTEGER,
     status SMALLINT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -254,6 +266,8 @@ CREATE INDEX IF NOT EXISTS idx_comments_post_status ON comments(post_id, status)
 CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at DESC);
 
 COMMENT ON COLUMN comments.image_ids IS '评论图片文件ID数组（UUIDv7格式）';
+COMMENT ON COLUMN comments.voice_id IS '评论语音文件ID（UUIDv7格式）';
+COMMENT ON COLUMN comments.voice_duration IS '评论语音时长（秒）';
 
 -- 评论统计表
 CREATE TABLE IF NOT EXISTS comment_stats (
@@ -272,6 +286,35 @@ CREATE TABLE IF NOT EXISTS comment_likes (
 
 CREATE INDEX IF NOT EXISTS idx_comment_likes_user ON comment_likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_comment_likes_comment ON comment_likes(comment_id);
+
+-- 评论服务 Transactional Outbox 事件表
+CREATE TABLE IF NOT EXISTS outbox_events (
+    id VARCHAR(36) PRIMARY KEY,
+    topic VARCHAR(100) NOT NULL,
+    tag VARCHAR(100) NOT NULL,
+    sharding_key VARCHAR(100) NOT NULL,
+    payload TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    retry_count INT NOT NULL DEFAULT 0,
+    max_retries INT NOT NULL DEFAULT 10,
+    next_attempt_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    sent_at TIMESTAMPTZ,
+    error_message TEXT
+);
+
+ALTER TABLE outbox_events
+    ADD COLUMN IF NOT EXISTS claimed_by VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_comment_outbox_events_status ON outbox_events(status);
+CREATE INDEX IF NOT EXISTS idx_comment_outbox_events_created_at ON outbox_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_comment_outbox_events_retryable ON outbox_events(status, next_attempt_at)
+    WHERE status IN ('PENDING', 'FAILED');
+CREATE INDEX IF NOT EXISTS idx_comment_outbox_events_processing_claim ON outbox_events(status, claimed_at)
+    WHERE status = 'PROCESSING';
+CREATE INDEX IF NOT EXISTS idx_comment_outbox_events_sharding_head ON outbox_events(sharding_key, created_at, id)
+    WHERE status NOT IN ('SUCCEEDED', 'SENT');
 
 -- =====================================================
 -- 4. Message Service (ZhiCore_message 数据库)
@@ -322,6 +365,31 @@ ADD CONSTRAINT IF NOT EXISTS fk_messages_conversation
 FOREIGN KEY (conversation_id) 
 REFERENCES conversations(id) 
 ON DELETE CASCADE;
+
+-- Message outbox 任务表
+CREATE TABLE IF NOT EXISTS message_outbox_task (
+    id BIGSERIAL PRIMARY KEY,
+    task_key VARCHAR(128) NOT NULL UNIQUE,
+    task_type VARCHAR(32) NOT NULL,
+    aggregate_id BIGINT NOT NULL,
+    payload TEXT NOT NULL,
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    last_error TEXT,
+    next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    claimed_by VARCHAR(64),
+    claimed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    dispatched_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_message_outbox_task_available
+    ON message_outbox_task(status, next_attempt_at, created_at, id);
+CREATE INDEX IF NOT EXISTS idx_message_outbox_task_processing_claim
+    ON message_outbox_task(status, claimed_at) WHERE status = 'PROCESSING';
+CREATE INDEX IF NOT EXISTS idx_message_outbox_task_aggregate_head
+    ON message_outbox_task(aggregate_id, created_at, id) WHERE status NOT IN ('SUCCEEDED', 'DISPATCHED');
 
 -- =====================================================
 -- 5. Notification Service (ZhiCore_notification 数据库)

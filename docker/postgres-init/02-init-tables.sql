@@ -118,6 +118,35 @@ ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('roles_id_seq', 10, false);
 
+-- Transactional Outbox 事件表
+CREATE TABLE IF NOT EXISTS outbox_events (
+    id VARCHAR(36) PRIMARY KEY,
+    topic VARCHAR(100) NOT NULL,
+    tag VARCHAR(100) NOT NULL,
+    sharding_key VARCHAR(100) NOT NULL,
+    payload TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    retry_count INT NOT NULL DEFAULT 0,
+    max_retries INT NOT NULL DEFAULT 10,
+    next_attempt_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    sent_at TIMESTAMPTZ,
+    error_message TEXT
+);
+
+ALTER TABLE outbox_events
+    ADD COLUMN IF NOT EXISTS claimed_by VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_outbox_events_status ON outbox_events(status);
+CREATE INDEX IF NOT EXISTS idx_outbox_events_created_at ON outbox_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_outbox_events_retryable ON outbox_events(status, next_attempt_at)
+    WHERE status IN ('PENDING', 'FAILED');
+CREATE INDEX IF NOT EXISTS idx_outbox_events_processing_claim ON outbox_events(status, claimed_at)
+    WHERE status = 'PROCESSING';
+CREATE INDEX IF NOT EXISTS idx_outbox_events_sharding_head ON outbox_events(sharding_key, created_at, id)
+    WHERE status NOT IN ('SUCCEEDED', 'SENT');
+
 -- =====================================================
 -- 2. Post Service (zhicore_content 数据库)
 -- =====================================================
@@ -301,6 +330,9 @@ CREATE TABLE IF NOT EXISTS comments (
     root_id BIGINT NOT NULL,
     reply_to_user_id BIGINT,
     content VARCHAR(2000) NOT NULL DEFAULT '',
+    image_ids TEXT[],
+    voice_id VARCHAR(36),
+    voice_duration INTEGER,
     status SMALLINT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -330,6 +362,35 @@ CREATE TABLE IF NOT EXISTS comment_likes (
 
 CREATE INDEX IF NOT EXISTS idx_comment_likes_user ON comment_likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_comment_likes_comment ON comment_likes(comment_id);
+
+-- 评论服务 Transactional Outbox 事件表
+CREATE TABLE IF NOT EXISTS outbox_events (
+    id VARCHAR(36) PRIMARY KEY,
+    topic VARCHAR(100) NOT NULL,
+    tag VARCHAR(100) NOT NULL,
+    sharding_key VARCHAR(100) NOT NULL,
+    payload TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    retry_count INT NOT NULL DEFAULT 0,
+    max_retries INT NOT NULL DEFAULT 10,
+    next_attempt_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    sent_at TIMESTAMPTZ,
+    error_message TEXT
+);
+
+ALTER TABLE outbox_events
+    ADD COLUMN IF NOT EXISTS claimed_by VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_comment_outbox_events_status ON outbox_events(status);
+CREATE INDEX IF NOT EXISTS idx_comment_outbox_events_created_at ON outbox_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_comment_outbox_events_retryable ON outbox_events(status, next_attempt_at)
+    WHERE status IN ('PENDING', 'FAILED');
+CREATE INDEX IF NOT EXISTS idx_comment_outbox_events_processing_claim ON outbox_events(status, claimed_at)
+    WHERE status = 'PROCESSING';
+CREATE INDEX IF NOT EXISTS idx_comment_outbox_events_sharding_head ON outbox_events(sharding_key, created_at, id)
+    WHERE status NOT IN ('SUCCEEDED', 'SENT');
 
 -- =====================================================
 -- 4. Message Service (zhicore_message 数据库)
@@ -389,6 +450,30 @@ BEGIN
         ON DELETE CASCADE;
     END IF;
 END $$;
+
+CREATE TABLE IF NOT EXISTS message_outbox_task (
+    id BIGSERIAL PRIMARY KEY,
+    task_key VARCHAR(128) NOT NULL UNIQUE,
+    task_type VARCHAR(32) NOT NULL,
+    aggregate_id BIGINT NOT NULL,
+    payload TEXT NOT NULL,
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    last_error TEXT,
+    next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    claimed_by VARCHAR(64),
+    claimed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    dispatched_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_message_outbox_task_available
+    ON message_outbox_task(status, next_attempt_at, created_at, id);
+CREATE INDEX IF NOT EXISTS idx_message_outbox_task_processing_claim
+    ON message_outbox_task(status, claimed_at) WHERE status = 'PROCESSING';
+CREATE INDEX IF NOT EXISTS idx_message_outbox_task_aggregate_head
+    ON message_outbox_task(aggregate_id, created_at, id) WHERE status NOT IN ('SUCCEEDED', 'DISPATCHED');
 
 -- =====================================================
 -- 5. Notification Service (zhicore_notification 数据库)
