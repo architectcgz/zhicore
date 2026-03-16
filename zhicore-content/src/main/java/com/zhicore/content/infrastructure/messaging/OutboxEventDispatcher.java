@@ -24,7 +24,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.temporal.ChronoUnit;
@@ -122,7 +121,6 @@ public class OutboxEventDispatcher extends ClaimBasedDispatcher<OutboxEventEntit
     }
 
     @Override
-    @Transactional
     protected void handleClaimed(OutboxEventEntity entity) {
         try {
             if (rocketMQTemplate == null) {
@@ -152,7 +150,6 @@ public class OutboxEventDispatcher extends ClaimBasedDispatcher<OutboxEventEntit
     }
 
     @Override
-    @Transactional
     protected void handleFailure(OutboxEventEntity entity, Exception exception) {
         Instant now = Instant.now();
         int currentRetry = entity.getRetryCount() != null ? entity.getRetryCount() : 0;
@@ -189,7 +186,6 @@ public class OutboxEventDispatcher extends ClaimBasedDispatcher<OutboxEventEntit
         outboxEventMapper.updateById(entity);
     }
 
-    @Transactional
     protected void dispatchScheduledPublishDlq(OutboxEventEntity entity) {
         String dlqTopic = ROCKETMQ_DLQ_PREFIX + rocketMqProperties.getPostScheduleConsumerGroup();
         String destination = dlqTopic + ":" + rocketMqProperties.getScheduledPublishDlqTag();
