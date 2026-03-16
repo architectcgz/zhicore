@@ -4,12 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -25,20 +21,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * - 需求 2.3: 微服务应在 /v3/api-docs 端点暴露 OpenAPI 规范
  * - 需求 2.4: 微服务应在文档元数据中包含服务名称、版本和描述
  */
-@SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
 @DisplayName("Knife4j API 文档集成测试")
-class Knife4jDocumentationIntegrationTest {
+class Knife4jDocumentationIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private MockMvc mockMvc;
 
     @Autowired
     private ObjectMapper objectMapper;
-
-    @MockBean
-    private RocketMQTemplate rocketMQTemplate;
 
     @Test
     @DisplayName("测试 /doc.html 端点可访问性 - 需求 2.2")

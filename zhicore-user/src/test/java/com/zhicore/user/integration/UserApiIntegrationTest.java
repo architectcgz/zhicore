@@ -5,8 +5,8 @@ import com.zhicore.common.result.ResultCode;
 import com.zhicore.user.application.command.LoginCommand;
 import com.zhicore.user.application.command.RegisterCommand;
 import com.zhicore.user.application.dto.TokenVO;
-import com.zhicore.user.application.service.AuthCommandService;
-import com.zhicore.user.application.service.UserCommandService;
+import com.zhicore.user.application.service.command.AuthCommandService;
+import com.zhicore.user.application.service.command.UserCommandService;
 import com.zhicore.user.interfaces.dto.request.LoginRequest;
 import com.zhicore.user.interfaces.dto.request.RegisterRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,13 +15,10 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
-import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -36,12 +33,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 
  * 测试用户注册、登录、关注等核心功能
  */
-@SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @DisplayName("User Service API 集成测试")
-class UserApiIntegrationTest {
+class UserApiIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private MockMvc mockMvc;
@@ -54,9 +49,6 @@ class UserApiIntegrationTest {
 
     @MockBean
     private AuthCommandService authCommandService;
-
-    @MockBean
-    private RocketMQTemplate rocketMQTemplate;
 
     @Test
     @Order(1)
