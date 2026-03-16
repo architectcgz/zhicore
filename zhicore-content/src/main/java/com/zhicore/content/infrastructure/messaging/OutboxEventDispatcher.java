@@ -1,180 +1,192 @@
 package com.zhicore.content.infrastructure.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zhicore.common.cache.port.LockManager;
+import com.zhicore.common.dispatcher.ClaimBasedDispatcher;
 import com.zhicore.content.application.model.OutboxEventTypes;
+import com.zhicore.content.application.service.command.ScheduledPublishDelayLevelResolver;
 import com.zhicore.content.infrastructure.alert.AlertService;
-import com.zhicore.content.infrastructure.cache.LockKeys;
 import com.zhicore.content.infrastructure.config.OutboxProperties;
 import com.zhicore.content.infrastructure.config.RocketMqProperties;
+import com.zhicore.content.infrastructure.config.ScheduledPublishProperties;
+import com.zhicore.content.infrastructure.monitoring.ScheduledPublishTriggerDispatchMetrics;
 import com.zhicore.content.infrastructure.persistence.pg.entity.OutboxEventEntity;
 import com.zhicore.content.infrastructure.persistence.pg.mapper.OutboxEventMapper;
 import com.zhicore.integration.messaging.DelayableIntegrationEvent;
 import com.zhicore.integration.messaging.IntegrationEvent;
-import lombok.RequiredArgsConstructor;
+import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEvent;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.context.event.EventListener;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
-import org.springframework.scheduling.annotation.SchedulingConfigurer;
-import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
+import java.time.temporal.ChronoUnit;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
 /**
- * Outbox 事件投递器
- * 
- * 后台线程定期扫描 Outbox 表，投递待发送的事件到 RocketMQ
- * 
- * 特性：
- * 1. 定期扫描（默认每5秒，支持 Nacos 动态刷新）
- * 2. 批量读取（默认100条）
- * 3. 重试机制（最多3次）
- * 4. 失败告警（超过最大重试次数）
- * 5. 支持动态配置（通过 Nacos 刷新）
- * 6. 分布式锁保护（多实例部署时防止重复投递）
- * 7. 看门狗自动续期（防止批量投递时锁过期）
- * 
- * 注意：使用 SchedulingConfigurer 实现动态调整扫描间隔
- * 
- * @author ZhiCore Team
+ * Outbox 事件投递器。
+ *
+ * <p>重构后采用与内部事件一致的 claim-based 派发模型：
+ * - 事务提交后主动唤醒
+ * - 多 worker 并发 claim，不再依赖单实例全局锁
+ * - PROCESSING 超时后自动回收
+ * - 失败事件按 nextAttemptAt 退避重试
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-@ConditionalOnBean(RocketMQTemplate.class)
-public class OutboxEventDispatcher implements SchedulingConfigurer {
-    
-    private static final Duration LOCK_WAIT_TIME = Duration.ZERO;  // 不等待，获取不到直接返回
+public class OutboxEventDispatcher extends ClaimBasedDispatcher<OutboxEventEntity> {
 
     /** RocketMQ 内置 DLQ topic 前缀：%DLQ%{consumerGroup} */
     private static final String ROCKETMQ_DLQ_PREFIX = "%DLQ%";
-    
+
     private final OutboxEventMapper outboxEventMapper;
     private final RocketMQTemplate rocketMQTemplate;
     private final ObjectMapper objectMapper;
     private final OutboxProperties outboxProperties;
     private final RocketMqProperties rocketMqProperties;
-    private final LockManager lockManager;
-    private final LockKeys lockKeys;
+    private final ScheduledPublishProperties scheduledPublishProperties;
+    private final ScheduledPublishTriggerDispatchMetrics scheduledPublishTriggerDispatchMetrics;
     private final AlertService alertService;
-    
-    /**
-     * 配置定时任务
-     * 
-     * 使用 SchedulingConfigurer 动态读取配置，支持 Nacos 刷新
-     */
-    @Override
-    public void configureTasks(ScheduledTaskRegistrar taskRegistrar) {
-        taskRegistrar.addFixedDelayTask(
-            this::dispatch,  // 执行的任务
-            Duration.ofMillis(outboxProperties.getScanInterval())
+
+    public OutboxEventDispatcher(OutboxEventMapper outboxEventMapper,
+                                 ObjectProvider<RocketMQTemplate> rocketMQTemplateProvider,
+                                 ObjectMapper objectMapper,
+                                 OutboxProperties outboxProperties,
+                                 RocketMqProperties rocketMqProperties,
+                                 ScheduledPublishProperties scheduledPublishProperties,
+                                 ScheduledPublishTriggerDispatchMetrics scheduledPublishTriggerDispatchMetrics,
+                                 AlertService alertService,
+                                 @Qualifier("asyncEventExecutor") TaskExecutor taskExecutor,
+                                 TransactionOperations transactionOperations) {
+        super(
+                "outbox",
+                outboxProperties.getWorkerCount(),
+                Duration.ofSeconds(outboxProperties.getClaimTimeoutSeconds()),
+                taskExecutor,
+                transactionOperations
         );
+        this.outboxEventMapper = outboxEventMapper;
+        this.rocketMQTemplate = rocketMQTemplateProvider.getIfAvailable();
+        this.objectMapper = objectMapper;
+        this.outboxProperties = outboxProperties;
+        this.rocketMqProperties = rocketMqProperties;
+        this.scheduledPublishProperties = scheduledPublishProperties;
+        this.scheduledPublishTriggerDispatchMetrics = scheduledPublishTriggerDispatchMetrics;
+        this.alertService = alertService;
     }
-    
+
     /**
-     * 定期投递 Outbox 事件
-     * 
-     * 使用分布式锁确保多实例部署时只有一个实例执行投递任务
-     * 使用看门狗自动续期，防止批量投递时锁过期
+     * 服务重启后主动唤醒一次 outbox 派发器，确保停机期间积压的 PENDING/FAILED 事件能立即恢复投递。
+     * 仅依赖固定延迟补扫时，历史 backlog 在部分运行环境下可能长期得不到首次 signal。
      */
-    public void dispatch() {
-        String lockKey = lockKeys.outboxDispatcher();
-        
-        // 尝试获取分布式锁（启用看门狗）
-        boolean lockAcquired = lockManager.tryLockWithWatchdog(lockKey, LOCK_WAIT_TIME);
-        
-        if (!lockAcquired) {
-            // 获取锁失败，说明其他实例正在执行，直接返回
-            log.debug("无法获取 Outbox 投递锁，跳过本次执行");
+    @EventListener(ApplicationReadyEvent.class)
+    public void triggerReplayOnStartup() {
+        if (rocketMQTemplate == null) {
+            log.warn("Outbox dispatcher startup replay skipped: RocketMQTemplate not available");
             return;
         }
-        
+        log.info("Outbox dispatcher startup replay triggered");
+        signal();
+    }
+
+    @Override
+    protected long sweepIntervalMillis() {
+        return outboxProperties.getScanInterval();
+    }
+
+    @Override
+    protected int batchSize() {
+        return outboxProperties.getBatchSize();
+    }
+
+    @Override
+    protected List<OutboxEventEntity> claimBatch(String workerId, int limit, Duration claimTimeout) {
+        Instant now = Instant.now();
+        Instant reclaimBefore = now.minus(claimTimeout);
+        return outboxEventMapper.claimDispatchable(
+                now,
+                reclaimBefore,
+                workerId,
+                limit,
+                outboxProperties.getMaxRetry()
+        );
+    }
+
+    @Override
+    @Transactional
+    protected void handleClaimed(OutboxEventEntity entity) {
         try {
-            // 批量读取待投递事件
-            List<OutboxEventEntity> pendingEvents = outboxEventMapper.findByStatusOrderByCreatedAtAsc(
-                OutboxEventEntity.OutboxStatus.PENDING.name(),
-                outboxProperties.getBatchSize()
-            );
-            
-            if (pendingEvents.isEmpty()) {
+            if (rocketMQTemplate == null) {
+                throw new IllegalStateException("RocketMQTemplate not available");
+            }
+            if (OutboxEventTypes.SCHEDULED_PUBLISH_DLQ.equals(entity.getEventType())) {
+                dispatchScheduledPublishDlq(entity);
                 return;
             }
-            
-            log.info("Found {} pending outbox events to dispatch", pendingEvents.size());
-            
-            // 逐个投递事件
-            for (OutboxEventEntity entity : pendingEvents) {
-                try {
-                    dispatchEvent(entity);
-                } catch (Exception e) {
-                    handleDispatchFailure(entity, e);
-                }
-            }
-        } finally {
-            // 释放分布式锁
-            try {
-                lockManager.unlock(lockKey);
-            } catch (Exception e) {
-                log.error("释放 Outbox 投递锁失败", e);
-            }
+
+            Class<?> eventClass = Class.forName(entity.getEventType());
+            IntegrationEvent event = (IntegrationEvent) objectMapper.readValue(entity.getPayload(), eventClass);
+
+            String destination = rocketMqProperties.getPostEvents() + ":" + event.getTag();
+            Message<String> message = buildMessage(entity, event);
+            dispatchEvent(destination, message, event);
+
+            markDispatched(entity, Instant.now());
+
+            log.info("Outbox event dispatched: eventId={}, eventType={}, aggregateId={}",
+                    entity.getEventId(), event.getClass().getSimpleName(), entity.getAggregateId());
+        } catch (RuntimeException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to dispatch outbox event: eventId=" + entity.getEventId(), ex);
         }
     }
-    
-    /**
-     * 投递单个事件
-     * 
-     * @param entity Outbox 事件实体
-     * @throws Exception 投递失败时抛出异常
-     */
+
+    @Override
     @Transactional
-    protected void dispatchEvent(OutboxEventEntity entity) throws Exception {
-        if (OutboxEventTypes.SCHEDULED_PUBLISH_DLQ.equals(entity.getEventType())) {
-            dispatchScheduledPublishDlq(entity);
-            return;
+    protected void handleFailure(OutboxEventEntity entity, Exception exception) {
+        Instant now = Instant.now();
+        int currentRetry = entity.getRetryCount() != null ? entity.getRetryCount() : 0;
+        int nextRetryCount = currentRetry + 1;
+
+        entity.setRetryCount(nextRetryCount);
+        entity.setLastError(exception.getMessage());
+        entity.setUpdatedAt(now);
+        entity.setClaimedAt(null);
+        entity.setClaimedBy(null);
+
+        if (nextRetryCount >= outboxProperties.getMaxRetry()) {
+            entity.setStatus(OutboxEventEntity.OutboxStatus.DEAD);
+            entity.setNextAttemptAt(now);
+
+            log.error("Outbox event dead after {} retries: eventId={}, eventType={}, error={}",
+                    outboxProperties.getMaxRetry(), entity.getEventId(), entity.getEventType(), exception.getMessage(), exception);
+
+            alertService.alertOutboxDispatchFailed(
+                    entity.getEventId(),
+                    entity.getEventType(),
+                    entity.getAggregateId(),
+                    entity.getRetryCount(),
+                    exception.getMessage()
+            );
+        } else {
+            entity.setStatus(OutboxEventEntity.OutboxStatus.FAILED);
+            entity.setNextAttemptAt(now.plusSeconds(backoffSeconds(nextRetryCount)));
+            log.warn("Outbox event dispatch failed (retry {}/{}): eventId={}, eventType={}, error={}",
+                    entity.getRetryCount(), outboxProperties.getMaxRetry(), entity.getEventId(),
+                    entity.getEventType(), exception.getMessage());
         }
 
-        // 反序列化事件
-        Class<?> eventClass = Class.forName(entity.getEventType());
-        IntegrationEvent event = (IntegrationEvent) objectMapper.readValue(
-            entity.getPayload(),
-            eventClass
-        );
-        
-        // 构建 RocketMQ 消息
-        String destination = rocketMqProperties.getPostEvents() + ":" + event.getTag();
-        Message<String> message = MessageBuilder
-            .withPayload(entity.getPayload())
-            .setHeader("eventId", event.getEventId())
-            .setHeader("eventType", event.getClass().getSimpleName())
-            .setHeader("aggregateId", event.getAggregateId())
-            .setHeader("aggregateVersion", event.getAggregateVersion())
-            .setHeader("schemaVersion", event.getSchemaVersion())
-            .build();
-        
-        // 发送到 RocketMQ（支持延迟消息）
-        if (event instanceof DelayableIntegrationEvent delayable &&
-            delayable.getDelayLevel() != null &&
-            delayable.getDelayLevel() > 0) {
-            rocketMQTemplate.syncSend(destination, message, 3000, delayable.getDelayLevel());
-        } else {
-            rocketMQTemplate.syncSend(destination, message);
-        }
-        
-        // 更新 Outbox 状态为已投递
-        entity.setStatus(OutboxEventEntity.OutboxStatus.DISPATCHED);
-        Instant now = Instant.now();
-        entity.setDispatchedAt(now);
-        entity.setUpdatedAt(now);
         outboxEventMapper.updateById(entity);
-        
-        log.info("Outbox event dispatched: eventId={}, eventType={}, aggregateId={}",
-            entity.getEventId(), event.getClass().getSimpleName(), entity.getAggregateId());
     }
 
     @Transactional
@@ -192,61 +204,136 @@ public class OutboxEventDispatcher implements SchedulingConfigurer {
                 .build();
 
         rocketMQTemplate.syncSend(destination, message);
-
-        entity.setStatus(OutboxEventEntity.OutboxStatus.DISPATCHED);
-        Instant now = Instant.now();
-        entity.setDispatchedAt(now);
-        entity.setUpdatedAt(now);
-        outboxEventMapper.updateById(entity);
+        markDispatched(entity, Instant.now());
 
         log.warn("Scheduled publish DLQ event dispatched: eventId={}, aggregateId={}, destination={}",
                 entity.getEventId(), entity.getAggregateId(), destination);
     }
-    
-    /**
-     * 处理投递失败
-     * 
-     * 实现重试机制：
-     * 1. 重试次数 < 最大重试次数：增加重试计数，保持 PENDING 状态
-     * 2. 重试次数 >= 最大重试次数：标记为 FAILED，发送告警
-     * 
-     * @param entity Outbox 事件实体
-     * @param e 异常信息
-     */
-    @Transactional
-    protected void handleDispatchFailure(OutboxEventEntity entity, Exception e) {
-        Instant now = Instant.now();
 
-        // 增加重试计数
-        int currentRetry = entity.getRetryCount() != null ? entity.getRetryCount() : 0;
-        entity.setRetryCount(currentRetry + 1);
-        entity.setLastError(e.getMessage());
+    private void markDispatched(OutboxEventEntity entity, Instant now) {
+        entity.setStatus(OutboxEventEntity.OutboxStatus.SUCCEEDED);
+        entity.setDispatchedAt(now);
         entity.setUpdatedAt(now);
-        
-        // 检查是否超过最大重试次数
-        if (entity.getRetryCount() >= outboxProperties.getMaxRetry()) {
-            // 标记为失败
-            entity.setStatus(OutboxEventEntity.OutboxStatus.FAILED);
-            
-            log.error("Outbox event dispatch failed after {} retries: eventId={}, eventType={}, error={}",
-                outboxProperties.getMaxRetry(), entity.getEventId(), entity.getEventType(), e.getMessage(), e);
-            
-            // 发送告警通知（限流：每 eventType 每分钟最多 10 条）
-            alertService.alertOutboxDispatchFailed(
-                    entity.getEventId(),
-                    entity.getEventType(),
-                    entity.getAggregateId(),
-                    entity.getRetryCount(),
-                    e.getMessage()
-            );
-        } else {
-            // 保持 PENDING 状态，等待下次重试
-            log.warn("Outbox event dispatch failed (retry {}/{}): eventId={}, eventType={}, error={}",
-                entity.getRetryCount(), outboxProperties.getMaxRetry(), entity.getEventId(), 
-                entity.getEventType(), e.getMessage());
-        }
-        
-        // 更新实体
+        entity.setClaimedAt(null);
+        entity.setClaimedBy(null);
         outboxEventMapper.updateById(entity);
+    }
+
+    private long backoffSeconds(int retryCount) {
+        long value = 1L << Math.min(retryCount - 1, 20);
+        return Math.min(value, outboxProperties.getMaxBackoffSeconds());
+    }
+
+    private Message<String> buildMessage(OutboxEventEntity entity, IntegrationEvent event) {
+        return MessageBuilder
+                .withPayload(entity.getPayload())
+                .setHeader("eventId", event.getEventId())
+                .setHeader("eventType", event.getClass().getSimpleName())
+                .setHeader("aggregateId", event.getAggregateId())
+                .setHeader("aggregateVersion", event.getAggregateVersion())
+                .setHeader("schemaVersion", event.getSchemaVersion())
+                .build();
+    }
+
+    private void dispatchEvent(String destination, Message<String> message, IntegrationEvent event) {
+        if (event instanceof PostScheduleExecuteIntegrationEvent scheduledPublishEvent) {
+            dispatchScheduledPublishTrigger(destination, message, scheduledPublishEvent);
+            return;
+        }
+
+        if (event instanceof DelayableIntegrationEvent delayable
+                && delayable.getDelayLevel() != null
+                && delayable.getDelayLevel() > 0) {
+            rocketMQTemplate.syncSend(destination, message, 3000, delayable.getDelayLevel());
+            return;
+        }
+
+        rocketMQTemplate.syncSend(destination, message);
+    }
+
+    /**
+     * 定时发布优先使用 timer message，保证触发时间基于绝对 scheduledAt，
+     * 避免 outbox 派发抖动把旧的 delayLevel 再额外往后推一轮。
+     */
+    private void dispatchScheduledPublishTrigger(String destination,
+                                                 Message<String> message,
+                                                 PostScheduleExecuteIntegrationEvent event) {
+        Instant scheduledAt = event.getScheduledAt();
+        if (scheduledAt == null) {
+            dispatchScheduledPublishWithFallback(destination, message, event, "missing_scheduled_at", null);
+            return;
+        }
+
+        long nowMillis = Instant.now().toEpochMilli();
+        long deliverAtMillis = scheduledAt.toEpochMilli();
+        if (deliverAtMillis <= nowMillis) {
+            rocketMQTemplate.syncSend(destination, message);
+            scheduledPublishTriggerDispatchMetrics.recordImmediateDispatch("already_due");
+            return;
+        }
+
+        if (!scheduledPublishProperties.isTimerMessageEnabled()) {
+            dispatchScheduledPublishWithFallback(destination, message, event, "timer_disabled", null);
+            return;
+        }
+
+        try {
+            rocketMQTemplate.syncSendDeliverTimeMills(destination, message, deliverAtMillis);
+            scheduledPublishTriggerDispatchMetrics.recordTimerDispatch();
+        } catch (RuntimeException ex) {
+            dispatchScheduledPublishWithFallback(destination, message, event, "timer_send_failed", ex);
+        }
+    }
+
+    private void dispatchScheduledPublishWithFallback(String destination,
+                                                      Message<String> message,
+                                                      PostScheduleExecuteIntegrationEvent event,
+                                                      String reason,
+                                                      RuntimeException timerException) {
+        int delayLevel = resolveDelayLevel(event);
+        if (delayLevel > 0) {
+            if (timerException != null) {
+                log.warn("Timer message dispatch failed, fallback to delay level: eventId={}, taskId={}, scheduledAt={}, delayLevel={}, error={}",
+                        event.getEventId(),
+                        event.getScheduledPublishEventId(),
+                        event.getScheduledAt(),
+                        delayLevel,
+                        timerException.getMessage());
+            }
+            rocketMQTemplate.syncSend(destination, message, 3000, delayLevel);
+            scheduledPublishTriggerDispatchMetrics.recordDelayLevelDispatch(reason);
+            if (timerException != null || "timer_disabled".equals(reason)) {
+                scheduledPublishTriggerDispatchMetrics.recordTimerFallback(reason, "delay_level");
+            }
+            return;
+        }
+
+        if (timerException != null) {
+            log.warn("Timer message dispatch failed, fallback to immediate send: eventId={}, taskId={}, scheduledAt={}, error={}",
+                    event.getEventId(),
+                    event.getScheduledPublishEventId(),
+                    event.getScheduledAt(),
+                    timerException.getMessage());
+        }
+        rocketMQTemplate.syncSend(destination, message);
+        scheduledPublishTriggerDispatchMetrics.recordImmediateDispatch(reason);
+        if (timerException != null || "timer_disabled".equals(reason)) {
+            scheduledPublishTriggerDispatchMetrics.recordTimerFallback(reason, "immediate");
+        }
+    }
+
+    private int resolveDelayLevel(PostScheduleExecuteIntegrationEvent event) {
+        Instant scheduledAt = event.getScheduledAt();
+        if (scheduledAt != null) {
+            long remainingMillis = ChronoUnit.MILLIS.between(Instant.now(), scheduledAt);
+            if (remainingMillis > 0) {
+                long remainingSeconds = Math.max(1L, (remainingMillis + 999L) / 1000L);
+                return ScheduledPublishDelayLevelResolver.resolve(remainingSeconds);
+            }
+            return 0;
+        }
+
+        Integer legacyDelayLevel = event.getDelayLevel();
+        return legacyDelayLevel != null && legacyDelayLevel > 0 ? legacyDelayLevel : 0;
     }
 }
