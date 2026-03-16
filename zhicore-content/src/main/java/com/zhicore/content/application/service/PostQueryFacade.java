@@ -17,6 +17,10 @@ import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.application.query.PostQuery;
 import com.zhicore.content.application.query.model.PostListQuery;
 import com.zhicore.content.application.query.view.PostDetailView;
+import com.zhicore.content.application.service.query.MyPostQueryService;
+import com.zhicore.content.application.service.query.PostBatchQueryService;
+import com.zhicore.content.application.service.query.PostTagQueryService;
+import com.zhicore.content.application.service.query.PublishedPostQueryService;
 import com.zhicore.content.application.sentinel.ContentSentinelHandlers;
 import com.zhicore.content.application.sentinel.ContentSentinelResources;
 import com.zhicore.content.domain.model.PostBody;
@@ -168,6 +172,7 @@ public class PostQueryFacade {
         vo.setViewCount(detailView.getViewCount());
         vo.setLikeCount((int) detailView.getLikeCount());
         vo.setCommentCount((int) detailView.getCommentCount());
+        vo.setFavoriteCount(detailView.getFavoriteCount());
 
         if (detailView.getCoverImage() != null && !detailView.getCoverImage().isEmpty()) {
             vo.setCoverImageUrl(postFileUrlResolver.resolve(detailView.getCoverImage()));

@@ -114,12 +114,17 @@ public class StatsUpdatedConsumer implements RocketMQListener<String> {
             LocalDateTime timestamp = LocalDateTime.ofInstant(
                 event.getOccurredAt(), ZoneId.systemDefault());
             
+            int preservedShareCount = postStatsRepository.findById(postId)
+                .map(PostStats::getShareCount)
+                .orElse(0);
+
             PostStats newStats = new PostStats(
                 postId,  // 使用 PostId 值对象
                 event.getViewCount() != null ? event.getViewCount().intValue() : 0,
                 event.getLikeCount() != null ? event.getLikeCount().intValue() : 0,
                 event.getCommentCount() != null ? event.getCommentCount().intValue() : 0,
-                event.getFavoriteCount() != null ? event.getFavoriteCount().intValue() : 0,  // 使用 favoriteCount 而不是 shareCount
+                event.getFavoriteCount() != null ? event.getFavoriteCount().intValue() : 0,
+                preservedShareCount,
                 timestamp
             );
             

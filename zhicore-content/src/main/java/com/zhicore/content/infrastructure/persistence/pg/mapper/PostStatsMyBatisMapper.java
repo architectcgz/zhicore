@@ -3,6 +3,10 @@ package com.zhicore.content.infrastructure.persistence.pg.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zhicore.content.infrastructure.persistence.pg.entity.PostStatsEntity;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.Param;
+
+import java.time.LocalDateTime;
 
 /**
  * PostStats MyBatis Mapper
@@ -14,10 +18,40 @@ import org.apache.ibatis.annotations.Mapper;
  */
 @Mapper
 public interface PostStatsMyBatisMapper extends BaseMapper<PostStatsEntity> {
-    // MyBatis-Plus 自动提供以下方法：
-    // - selectById(Long id)
-    // - selectBatchIds(List<Long> ids)
-    // - insert(PostStatsEntity entity)
-    // - updateById(PostStatsEntity entity)
-    // - deleteById(Long id)
+
+    @Insert("""
+            INSERT INTO post_stats (post_id, view_count, like_count, comment_count, favorite_count, share_count, last_updated_at)
+            VALUES (#{postId}, 0, 1, 0, 0, 0, #{updatedAt})
+            ON CONFLICT (post_id) DO UPDATE
+            SET like_count = post_stats.like_count + 1,
+                last_updated_at = #{updatedAt}
+            """)
+    int incrementLikeCount(@Param("postId") Long postId, @Param("updatedAt") LocalDateTime updatedAt);
+
+    @Insert("""
+            INSERT INTO post_stats (post_id, view_count, like_count, comment_count, favorite_count, share_count, last_updated_at)
+            VALUES (#{postId}, 0, 0, 0, 0, 0, #{updatedAt})
+            ON CONFLICT (post_id) DO UPDATE
+            SET like_count = GREATEST(0, post_stats.like_count - 1),
+                last_updated_at = #{updatedAt}
+            """)
+    int decrementLikeCount(@Param("postId") Long postId, @Param("updatedAt") LocalDateTime updatedAt);
+
+    @Insert("""
+            INSERT INTO post_stats (post_id, view_count, like_count, comment_count, favorite_count, share_count, last_updated_at)
+            VALUES (#{postId}, 0, 0, 0, 1, 0, #{updatedAt})
+            ON CONFLICT (post_id) DO UPDATE
+            SET favorite_count = post_stats.favorite_count + 1,
+                last_updated_at = #{updatedAt}
+            """)
+    int incrementFavoriteCount(@Param("postId") Long postId, @Param("updatedAt") LocalDateTime updatedAt);
+
+    @Insert("""
+            INSERT INTO post_stats (post_id, view_count, like_count, comment_count, favorite_count, share_count, last_updated_at)
+            VALUES (#{postId}, 0, 0, 0, 0, 0, #{updatedAt})
+            ON CONFLICT (post_id) DO UPDATE
+            SET favorite_count = GREATEST(0, post_stats.favorite_count - 1),
+                last_updated_at = #{updatedAt}
+            """)
+    int decrementFavoriteCount(@Param("postId") Long postId, @Param("updatedAt") LocalDateTime updatedAt);
 }

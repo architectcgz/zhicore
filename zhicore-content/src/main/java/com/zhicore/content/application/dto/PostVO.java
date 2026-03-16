@@ -66,7 +66,6 @@ public class PostVO {
     public void setContent(String content) { this.raw = content; }
     public void setStatus(String status) { this.status = status; }
     public void setStatus(com.zhicore.content.domain.model.PostStatus status) { this.status = status != null ? status.name() : null; }
-    public void setShareCount(int shareCount) { this.favoriteCount = shareCount; }
     public void setScheduledPublishAt(LocalDateTime scheduledPublishAt) { this.scheduledAt = scheduledPublishAt; }
     public void setContentDegraded(boolean contentDegraded) { }
 }

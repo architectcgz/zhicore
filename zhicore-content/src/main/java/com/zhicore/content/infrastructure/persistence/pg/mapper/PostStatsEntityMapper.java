@@ -31,6 +31,7 @@ public class PostStatsEntityMapper {
             entity.getViewCount(),
             entity.getLikeCount(),
             entity.getCommentCount(),
+            entity.getFavoriteCount(),
             entity.getShareCount(),
             entity.getLastUpdatedAt()
         );
@@ -52,6 +53,7 @@ public class PostStatsEntityMapper {
         entity.setViewCount(stats.getViewCount());
         entity.setLikeCount(stats.getLikeCount());
         entity.setCommentCount(stats.getCommentCount());
+        entity.setFavoriteCount(stats.getFavoriteCount());
         entity.setShareCount(stats.getShareCount());
         entity.setLastUpdatedAt(stats.getLastUpdatedAt());
         

@@ -63,6 +63,9 @@ public class PostDetailResponse {
     
     @Schema(description = "评论数", example = "20")
     private int commentCount;
+
+    @Schema(description = "收藏数", example = "15")
+    private int favoriteCount;
     
     @Schema(description = "分享数", example = "10")
     private int shareCount;

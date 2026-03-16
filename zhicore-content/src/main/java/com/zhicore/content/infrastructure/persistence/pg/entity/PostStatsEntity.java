@@ -40,6 +40,11 @@ public class PostStatsEntity {
     private int commentCount;
     
     /**
+     * 收藏数
+     */
+    private int favoriteCount;
+
+    /**
      * 分享数
      */
     private int shareCount;

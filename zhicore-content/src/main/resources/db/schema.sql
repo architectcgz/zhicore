@@ -67,9 +67,14 @@ CREATE TABLE IF NOT EXISTS post_stats (
     view_count INTEGER NOT NULL DEFAULT 0,
     like_count INTEGER NOT NULL DEFAULT 0,
     comment_count INTEGER NOT NULL DEFAULT 0,
+    favorite_count INTEGER NOT NULL DEFAULT 0,
     share_count INTEGER NOT NULL DEFAULT 0,
     last_updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE post_stats ADD COLUMN IF NOT EXISTS favorite_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE post_stats ADD COLUMN IF NOT EXISTS share_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE post_stats ADD COLUMN IF NOT EXISTS last_updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS tag_stats (
     tag_id BIGINT PRIMARY KEY,
@@ -97,6 +102,9 @@ CREATE TABLE IF NOT EXISTS outbox_event (
     occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    next_attempt_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR(128),
     dispatched_at TIMESTAMP WITH TIME ZONE,
     retry_count INTEGER NOT NULL DEFAULT 0,
     last_error TEXT,
@@ -104,9 +112,37 @@ CREATE TABLE IF NOT EXISTS outbox_event (
 );
 
 CREATE INDEX IF NOT EXISTS idx_outbox_event_status_created ON outbox_event(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_outbox_event_status_attempt ON outbox_event(status, next_attempt_at, created_at);
 CREATE INDEX IF NOT EXISTS idx_outbox_event_event_id ON outbox_event(event_id);
 CREATE INDEX IF NOT EXISTS idx_outbox_event_aggregate ON outbox_event(aggregate_id, aggregate_version);
+CREATE INDEX IF NOT EXISTS idx_outbox_event_aggregate_order ON outbox_event(aggregate_id, aggregate_version, created_at, id);
 CREATE INDEX IF NOT EXISTS idx_outbox_event_updated_at ON outbox_event(updated_at);
+
+CREATE TABLE IF NOT EXISTS domain_event_task (
+    id BIGSERIAL PRIMARY KEY,
+    event_id VARCHAR(32) NOT NULL UNIQUE,
+    event_type VARCHAR(255) NOT NULL,
+    aggregate_id BIGINT,
+    aggregate_version BIGINT,
+    schema_version INTEGER NOT NULL DEFAULT 1,
+    payload TEXT NOT NULL,
+    priority INTEGER NOT NULL DEFAULT 100,
+    occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    next_attempt_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR(128),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    dispatched_at TIMESTAMP WITH TIME ZONE,
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+);
+
+CREATE INDEX IF NOT EXISTS idx_domain_event_task_status_attempt
+    ON domain_event_task(status, next_attempt_at, priority, created_at);
+CREATE INDEX IF NOT EXISTS idx_domain_event_task_aggregate_order
+    ON domain_event_task(aggregate_id, aggregate_version, created_at, id);
 
 -- ==================== Outbox 手动重试审计（R14） ====================
 CREATE TABLE IF NOT EXISTS outbox_retry_audit (
@@ -126,19 +162,22 @@ CREATE INDEX IF NOT EXISTS idx_outbox_retry_audit_event_id_retried_at
 CREATE TABLE IF NOT EXISTS scheduled_publish_event (
     id BIGSERIAL PRIMARY KEY,
     event_id VARCHAR(32) NOT NULL UNIQUE,
+    trigger_event_id VARCHAR(32),
     post_id BIGINT NOT NULL,
     scheduled_at TIMESTAMP NOT NULL,
+    next_attempt_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
     reschedule_retry_count INTEGER NOT NULL DEFAULT 0,
     publish_retry_count INTEGER NOT NULL DEFAULT 0,
-    last_enqueue_at TIMESTAMP,
+    claimed_at TIMESTAMP,
+    claimed_by VARCHAR(128),
     last_error TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_spe_status_scheduled_at ON scheduled_publish_event(status, scheduled_at);
-CREATE INDEX IF NOT EXISTS idx_spe_last_enqueue_at ON scheduled_publish_event(last_enqueue_at);
+CREATE INDEX IF NOT EXISTS idx_spe_status_attempt ON scheduled_publish_event(status, next_attempt_at, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_spe_trigger_event_id ON scheduled_publish_event(trigger_event_id);
 CREATE INDEX IF NOT EXISTS idx_spe_post_id ON scheduled_publish_event(post_id);
 
 -- ==================== 点赞/收藏（R2/R3） ====================

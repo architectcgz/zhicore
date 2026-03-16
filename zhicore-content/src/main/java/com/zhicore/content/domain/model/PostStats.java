@@ -38,6 +38,11 @@ public final class PostStats {
     private final int commentCount;
 
     /**
+     * 收藏数
+     */
+    private final int favoriteCount;
+
+    /**
      * 分享数
      */
     private final int shareCount;
@@ -56,12 +61,14 @@ public final class PostStats {
                      @JsonProperty("viewCount") Integer viewCount,
                      @JsonProperty("likeCount") Integer likeCount,
                      @JsonProperty("commentCount") Integer commentCount,
+                     @JsonProperty("favoriteCount") Integer favoriteCount,
                      @JsonProperty("shareCount") Integer shareCount,
                      @JsonProperty("lastUpdatedAt") LocalDateTime lastUpdatedAt) {
         this.postId = postId;
         this.viewCount = viewCount != null ? Math.max(0, viewCount) : 0;
         this.likeCount = likeCount != null ? Math.max(0, likeCount) : 0;
         this.commentCount = commentCount != null ? Math.max(0, commentCount) : 0;
+        this.favoriteCount = favoriteCount != null ? Math.max(0, favoriteCount) : 0;
         this.shareCount = shareCount != null ? Math.max(0, shareCount) : 0;
         this.lastUpdatedAt = lastUpdatedAt != null ? lastUpdatedAt : LocalDateTime.now();
     }
@@ -73,7 +80,7 @@ public final class PostStats {
      * @return PostStats 实例
      */
     public static PostStats empty(PostId postId) {
-        return new PostStats(postId, 0, 0, 0, 0, LocalDateTime.now());
+        return new PostStats(postId, 0, 0, 0, 0, 0, LocalDateTime.now());
     }
 
     /**
@@ -83,7 +90,7 @@ public final class PostStats {
      */
     @Deprecated
     public static PostStats empty() {
-        return new PostStats(null, 0, 0, 0, 0, LocalDateTime.now());
+        return new PostStats(null, 0, 0, 0, 0, 0, LocalDateTime.now());
     }
 
     /**
@@ -92,15 +99,17 @@ public final class PostStats {
      * @param viewCount 浏览量
      * @param likeCount 点赞数
      * @param commentCount 评论数
+     * @param favoriteCount 收藏数
      * @param shareCount 分享数
      * @return 新的 PostStats 实例
      */
-    public PostStats updateCounts(int viewCount, int likeCount, int commentCount, int shareCount) {
+    public PostStats updateCounts(int viewCount, int likeCount, int commentCount, int favoriteCount, int shareCount) {
         return new PostStats(
             this.postId,
             viewCount,
             likeCount,
             commentCount,
+            favoriteCount,
             shareCount,
             LocalDateTime.now()
         );
@@ -110,49 +119,56 @@ public final class PostStats {
      * 增加浏览量
      */
     public PostStats incrementViews() {
-        return new PostStats(postId, viewCount + 1, likeCount, commentCount, shareCount, LocalDateTime.now());
+        return new PostStats(postId, viewCount + 1, likeCount, commentCount, favoriteCount, shareCount, LocalDateTime.now());
     }
 
     /**
      * 增加点赞数
      */
     public PostStats incrementLikes() {
-        return new PostStats(postId, viewCount, likeCount + 1, commentCount, shareCount, LocalDateTime.now());
+        return new PostStats(postId, viewCount, likeCount + 1, commentCount, favoriteCount, shareCount, LocalDateTime.now());
     }
 
     /**
      * 减少点赞数
      */
     public PostStats decrementLikes() {
-        return new PostStats(postId, viewCount, Math.max(0, likeCount - 1), commentCount, shareCount, LocalDateTime.now());
+        return new PostStats(postId, viewCount, Math.max(0, likeCount - 1), commentCount, favoriteCount, shareCount, LocalDateTime.now());
     }
 
     /**
      * 增加评论数
      */
     public PostStats incrementComments() {
-        return new PostStats(postId, viewCount, likeCount, commentCount + 1, shareCount, LocalDateTime.now());
+        return new PostStats(postId, viewCount, likeCount, commentCount + 1, favoriteCount, shareCount, LocalDateTime.now());
     }
 
     /**
      * 减少评论数
      */
     public PostStats decrementComments() {
-        return new PostStats(postId, viewCount, likeCount, Math.max(0, commentCount - 1), shareCount, LocalDateTime.now());
+        return new PostStats(postId, viewCount, likeCount, Math.max(0, commentCount - 1), favoriteCount, shareCount, LocalDateTime.now());
+    }
+
+    /**
+     * 增加收藏数
+     */
+    public PostStats incrementFavorites() {
+        return new PostStats(postId, viewCount, likeCount, commentCount, favoriteCount + 1, shareCount, LocalDateTime.now());
+    }
+
+    /**
+     * 减少收藏数
+     */
+    public PostStats decrementFavorites() {
+        return new PostStats(postId, viewCount, likeCount, commentCount, Math.max(0, favoriteCount - 1), shareCount, LocalDateTime.now());
     }
 
     /**
      * 增加分享数
      */
     public PostStats incrementShares() {
-        return new PostStats(postId, viewCount, likeCount, commentCount, shareCount + 1, LocalDateTime.now());
-    }
-
-    /**
-     * 兼容旧命名（favoriteCount 映射为 shareCount）
-     */
-    public int getFavoriteCount() {
-        return shareCount;
+        return new PostStats(postId, viewCount, likeCount, commentCount, favoriteCount, shareCount + 1, LocalDateTime.now());
     }
 
     @Override
@@ -175,6 +191,7 @@ public final class PostStats {
                 ", viewCount=" + viewCount +
                 ", likeCount=" + likeCount +
                 ", commentCount=" + commentCount +
+                ", favoriteCount=" + favoriteCount +
                 ", shareCount=" + shareCount +
                 ", lastUpdatedAt=" + lastUpdatedAt +
                 '}';

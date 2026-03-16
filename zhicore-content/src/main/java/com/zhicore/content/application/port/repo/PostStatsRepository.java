@@ -32,6 +32,34 @@ public interface PostStatsRepository {
      * @return 文章ID到统计信息的映射
      */
     Map<PostId, PostStats> findByIds(List<PostId> postIds);
+
+    /**
+     * 原子增加点赞数。
+     *
+     * 说明：
+     * - 供内容服务本地互动命令同步更新 post_stats；
+     * - 通过数据库原子 upsert 避免并发下读改写丢失。
+     */
+    void incrementLikeCount(PostId postId);
+
+    /**
+     * 原子减少点赞数，最小值为 0。
+     */
+    void decrementLikeCount(PostId postId);
+
+    /**
+     * 原子增加收藏数。
+     *
+     * 说明：
+     * - 供内容服务本地互动命令同步更新 post_stats.favorite_count；
+     * - 通过数据库原子 upsert 避免并发下读改写丢失。
+     */
+    void incrementFavoriteCount(PostId postId);
+
+    /**
+     * 原子减少收藏数，最小值为 0。
+     */
+    void decrementFavoriteCount(PostId postId);
     
     /**
      * 插入或更新统计信息（覆盖式更新）

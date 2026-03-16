@@ -42,7 +42,7 @@ public final class PostViewAssembler {
         if (post.getStats() != null) {
             vo.setLikeCount(post.getStats().getLikeCount());
             vo.setCommentCount(post.getStats().getCommentCount());
-            vo.setFavoriteCount(post.getStats().getShareCount());
+            vo.setFavoriteCount(post.getStats().getFavoriteCount());
             vo.setViewCount(post.getStats().getViewCount());
         }
         
@@ -83,7 +83,7 @@ public final class PostViewAssembler {
         if (post.getStats() != null) {
             vo.setLikeCount(post.getStats().getLikeCount());
             vo.setCommentCount(post.getStats().getCommentCount());
-            vo.setFavoriteCount(post.getStats().getShareCount());
+            vo.setFavoriteCount(post.getStats().getFavoriteCount());
             vo.setViewCount(post.getStats().getViewCount());
         }
         
@@ -111,7 +111,7 @@ public final class PostViewAssembler {
         if (post.getStats() != null) {
             vo.setLikeCount(post.getStats().getLikeCount());
             vo.setCommentCount(post.getStats().getCommentCount());
-            vo.setFavoriteCount(post.getStats().getShareCount());
+            vo.setFavoriteCount(post.getStats().getFavoriteCount());
             vo.setViewCount(post.getStats().getViewCount());
         }
         

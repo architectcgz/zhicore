@@ -51,5 +51,4 @@ public class PostBriefVO {
     public void setAuthorName(String authorName) { this.ownerName = authorName; }
     public void setAuthorAvatar(String authorAvatar) { this.ownerAvatar = authorAvatar; }
     public void setCoverImage(String coverImage) { this.coverImageUrl = coverImage; }
-    public void setShareCount(int shareCount) { this.favoriteCount = shareCount; }
 }

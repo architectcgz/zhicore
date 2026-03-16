@@ -72,6 +72,7 @@ public class DefaultPostQueryService implements PostQuery {
                 .viewCount(postStats.getViewCount())
                 .likeCount(postStats.getLikeCount())
                 .commentCount(postStats.getCommentCount())
+                .favoriteCount(postStats.getFavoriteCount())
                 .shareCount(postStats.getShareCount())
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
@@ -129,6 +130,7 @@ public class DefaultPostQueryService implements PostQuery {
                             .viewCount(stats.getViewCount())
                             .likeCount(stats.getLikeCount())
                             .commentCount(stats.getCommentCount())
+                            .favoriteCount(stats.getFavoriteCount())
                             .shareCount(stats.getShareCount())
                             .createdAt(post.getCreatedAt())
                             .build();
