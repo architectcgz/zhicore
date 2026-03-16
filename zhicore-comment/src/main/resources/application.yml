@@ -24,6 +24,10 @@ spring:
       pool-name: CommentHikariCP
       max-lifetime: 1800000
       connection-timeout: 30000
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema.sql
 
 # MyBatis-Plus 配置
 mybatis-plus:
@@ -49,6 +53,13 @@ cache:
 comment:
   max-content-length: 2000
   hot-replies-limit: 3      # 预加载热门回复数量
+  outbox:
+    batch-size: 50
+    worker-count: 4
+    scan-interval: 5000
+    claim-timeout-seconds: 60
+    max-retry: 10
+    max-backoff-seconds: 300
   page-size:
     default: 20
     max: 100
