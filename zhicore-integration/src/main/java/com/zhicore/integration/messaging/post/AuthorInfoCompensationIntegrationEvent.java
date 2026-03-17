@@ -1,5 +1,7 @@
 package com.zhicore.integration.messaging.post;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.integration.messaging.DelayableIntegrationEvent;
 import com.zhicore.integration.messaging.IntegrationEvent;
 import lombok.Getter;
@@ -15,8 +17,13 @@ public class AuthorInfoCompensationIntegrationEvent extends IntegrationEvent imp
     private final Long userId;
     private final Integer delayLevel;
 
-    public AuthorInfoCompensationIntegrationEvent(String eventId, Instant occurredAt, Long aggregateVersion,
-                                                  Long postId, Long userId, Integer delayLevel) {
+    @JsonCreator
+    public AuthorInfoCompensationIntegrationEvent(@JsonProperty("eventId") String eventId,
+                                                  @JsonProperty("occurredAt") Instant occurredAt,
+                                                  @JsonProperty("aggregateVersion") Long aggregateVersion,
+                                                  @JsonProperty("postId") Long postId,
+                                                  @JsonProperty("userId") Long userId,
+                                                  @JsonProperty("delayLevel") Integer delayLevel) {
         super(eventId, occurredAt, aggregateVersion, 1);
         this.postId = postId;
         this.userId = userId;

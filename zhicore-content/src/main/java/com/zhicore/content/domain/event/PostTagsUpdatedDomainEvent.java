@@ -1,5 +1,7 @@
 package com.zhicore.content.domain.event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.TagId;
 import lombok.Getter;
@@ -38,10 +40,14 @@ public class PostTagsUpdatedDomainEvent implements DomainEvent<PostId> {
      * @param updatedAt 更新时间
      * @param aggregateVersion 聚合根版本号
      */
-    public PostTagsUpdatedDomainEvent(String eventId, Instant occurredAt,
-                                     PostId postId, Set<TagId> oldTagIds,
-                                     Set<TagId> newTagIds, Instant updatedAt,
-                                     Long aggregateVersion) {
+    @JsonCreator
+    public PostTagsUpdatedDomainEvent(@JsonProperty("eventId") String eventId,
+                                     @JsonProperty("occurredAt") Instant occurredAt,
+                                     @JsonProperty("postId") PostId postId,
+                                     @JsonProperty("oldTagIds") Set<TagId> oldTagIds,
+                                     @JsonProperty("newTagIds") Set<TagId> newTagIds,
+                                     @JsonProperty("updatedAt") Instant updatedAt,
+                                     @JsonProperty("aggregateVersion") Long aggregateVersion) {
         this.eventId = eventId;
         this.occurredAt = occurredAt;
         this.postId = postId;

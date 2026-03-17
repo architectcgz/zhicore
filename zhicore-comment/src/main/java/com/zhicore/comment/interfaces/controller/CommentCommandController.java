@@ -2,7 +2,7 @@ package com.zhicore.comment.interfaces.controller;
 
 import com.zhicore.comment.application.command.CreateCommentCommand;
 import com.zhicore.comment.application.command.UpdateCommentCommand;
-import com.zhicore.comment.application.service.CommentCommandService;
+import com.zhicore.comment.application.service.command.CommentCommandService;
 import com.zhicore.comment.interfaces.dto.request.CreateCommentRequest;
 import com.zhicore.comment.interfaces.dto.request.UpdateCommentRequest;
 import com.zhicore.common.context.UserContext;

@@ -39,7 +39,7 @@ public class PostLikedEvent extends DomainEvent {
 
     @JsonCreator
     public PostLikedEvent(@JsonProperty("eventId") String eventId,
-                          @JsonProperty("occurredAt") LocalDateTime occurredAt,
+                          @JsonProperty("occurredAt") java.time.Instant occurredAt,
                           @JsonProperty("postId") Long postId,
                           @JsonProperty("userId") Long userId,
                           @JsonProperty("authorId") Long authorId,

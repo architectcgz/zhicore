@@ -1,5 +1,7 @@
 package com.zhicore.content.domain.event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.content.domain.model.PostId;
 import lombok.Getter;
 
@@ -24,9 +26,14 @@ public class PostMetadataUpdatedEvent implements DomainEvent<PostId> {
     private final Long aggregateVersion;
     private final Integer schemaVersion;
     
-    public PostMetadataUpdatedEvent(String eventId, Instant occurredAt, PostId postId, 
-                                   String title, String excerpt, String coverImageId, 
-                                   Long aggregateVersion) {
+    @JsonCreator
+    public PostMetadataUpdatedEvent(@JsonProperty("eventId") String eventId,
+                                   @JsonProperty("occurredAt") Instant occurredAt,
+                                   @JsonProperty("postId") PostId postId,
+                                   @JsonProperty("title") String title,
+                                   @JsonProperty("excerpt") String excerpt,
+                                   @JsonProperty("coverImageId") String coverImageId,
+                                   @JsonProperty("aggregateVersion") Long aggregateVersion) {
         this.eventId = eventId;
         this.occurredAt = occurredAt;
         this.postId = postId;

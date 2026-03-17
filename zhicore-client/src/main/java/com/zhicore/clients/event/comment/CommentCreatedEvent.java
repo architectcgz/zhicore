@@ -25,7 +25,7 @@ public class CommentCreatedEvent extends DomainEvent {
 
     @JsonCreator
     public CommentCreatedEvent(@JsonProperty("eventId") String eventId,
-                               @JsonProperty("occurredAt") java.time.LocalDateTime occurredAt,
+                               @JsonProperty("occurredAt") java.time.Instant occurredAt,
                                @JsonProperty("commentId") Long commentId,
                                @JsonProperty("postId") Long postId,
                                @JsonProperty("postOwnerId") Long postOwnerId,

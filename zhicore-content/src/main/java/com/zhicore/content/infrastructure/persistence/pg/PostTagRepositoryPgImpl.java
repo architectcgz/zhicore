@@ -45,7 +45,7 @@ public class PostTagRepositoryPgImpl implements PostTagRepository {
         entity.setTagId(tagId);
         entity.setCreatedAt(LocalDateTime.now());
 
-        int rows = mybatisMapper.insert(entity);
+        int rows = mybatisMapper.insertOneIgnoreConflict(entity);
         
         if (rows > 0) {
             log.info("创建文章-标签关联成功: postId={}, tagId={}", postId, tagId);
@@ -84,14 +84,7 @@ public class PostTagRepositoryPgImpl implements PostTagRepository {
                 })
                 .collect(Collectors.toList());
 
-        // MyBatis-Plus 不支持批量插入，需要逐个插入
-        int successCount = 0;
-        for (PostTagEntity entity : entities) {
-            int rows = mybatisMapper.insert(entity);
-            if (rows > 0) {
-                successCount++;
-            }
-        }
+        int successCount = mybatisMapper.insertBatchIgnoreConflict(entities);
 
         log.info("批量创建文章-标签关联完成: postId={}, 成功={}/{}", 
                 postId, successCount, entities.size());

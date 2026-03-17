@@ -2,8 +2,8 @@ package com.zhicore.comment.interfaces.controller;
 
 import com.zhicore.comment.application.command.UpdateCommentCommand;
 import com.zhicore.comment.application.dto.CommentSortType;
-import com.zhicore.comment.application.service.CommentCommandService;
-import com.zhicore.comment.application.service.CommentQueryService;
+import com.zhicore.comment.application.service.command.CommentCommandService;
+import com.zhicore.comment.application.service.query.CommentQueryService;
 import com.zhicore.comment.interfaces.dto.request.CreateCommentRequest;
 import com.zhicore.comment.interfaces.dto.request.UpdateCommentRequest;
 import com.zhicore.common.constant.CommonConstants;

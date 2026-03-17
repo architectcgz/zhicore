@@ -67,4 +67,7 @@ public class ContentSentinelProperties {
 
     @Min(0)
     private int warmUpPeriodSec = 10;
+
+    @Min(1000)
+    private long reconcileIntervalMs = 30000L;
 }

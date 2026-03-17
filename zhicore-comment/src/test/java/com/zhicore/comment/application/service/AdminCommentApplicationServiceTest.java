@@ -3,6 +3,7 @@ package com.zhicore.comment.application.service;
 import com.zhicore.api.client.PostBatchClient;
 import com.zhicore.api.client.UserBatchSimpleClient;
 import com.zhicore.api.dto.user.UserSimpleDTO;
+import com.zhicore.comment.application.service.query.AdminCommentQueryService;
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.model.CommentStats;
 import com.zhicore.comment.domain.model.CommentStatus;

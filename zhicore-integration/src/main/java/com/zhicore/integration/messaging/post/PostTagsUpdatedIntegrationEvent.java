@@ -1,5 +1,7 @@
 package com.zhicore.integration.messaging.post;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.integration.messaging.IntegrationEvent;
 import lombok.Getter;
 
@@ -35,10 +37,14 @@ public class PostTagsUpdatedIntegrationEvent extends IntegrationEvent {
      * @param updatedAt 更新时间
      * @param aggregateVersion 聚合根版本号
      */
-    public PostTagsUpdatedIntegrationEvent(String eventId, Instant occurredAt,
-                                          Long postId, List<Long> oldTagIds,
-                                          List<Long> newTagIds, Instant updatedAt,
-                                          Long aggregateVersion) {
+    @JsonCreator
+    public PostTagsUpdatedIntegrationEvent(@JsonProperty("eventId") String eventId,
+                                           @JsonProperty("occurredAt") Instant occurredAt,
+                                           @JsonProperty("postId") Long postId,
+                                           @JsonProperty("oldTagIds") List<Long> oldTagIds,
+                                           @JsonProperty("newTagIds") List<Long> newTagIds,
+                                           @JsonProperty("updatedAt") Instant updatedAt,
+                                           @JsonProperty("aggregateVersion") Long aggregateVersion) {
         super(eventId, occurredAt, aggregateVersion, 1);  // schemaVersion = 1
         this.postId = postId;
         this.oldTagIds = oldTagIds;

@@ -56,18 +56,18 @@ class OutboxAdminControllerIntegrationTest extends IntegrationTestBase {
     class FailedListTests {
 
         @Test
-        @DisplayName("仅返回 FAILED，支持按 eventType 过滤")
-        void listFailedWithFilter() throws Exception {
-            insertFailed("E1", "TYPE_A");
-            insertFailed("E2", "TYPE_B");
+        @DisplayName("仅返回 DEAD，支持按 eventType 过滤")
+        void listDeadWithFilter() throws Exception {
+            insertDead("E1", "TYPE_A");
+            insertDead("E2", "TYPE_B");
 
-            mockMvc.perform(get(BASE + "/failed")
+            mockMvc.perform(get(BASE + "/dead")
                             .header(CommonConstants.HEADER_USER_ID, OPERATOR))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(200))
                     .andExpect(jsonPath("$.data.items", hasSize(2)));
 
-            mockMvc.perform(get(BASE + "/failed")
+            mockMvc.perform(get(BASE + "/dead")
                             .header(CommonConstants.HEADER_USER_ID, OPERATOR)
                             .param("eventType", "TYPE_A"))
                     .andExpect(status().isOk())
@@ -77,9 +77,9 @@ class OutboxAdminControllerIntegrationTest extends IntegrationTestBase {
         }
 
         @Test
-        @DisplayName("无失败事件时返回空列表")
-        void emptyListWhenNoFailedEvents() throws Exception {
-            mockMvc.perform(get(BASE + "/failed")
+        @DisplayName("无死信事件时返回空列表")
+        void emptyListWhenNoDeadEvents() throws Exception {
+            mockMvc.perform(get(BASE + "/dead")
                             .header(CommonConstants.HEADER_USER_ID, OPERATOR))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(200))
@@ -87,13 +87,13 @@ class OutboxAdminControllerIntegrationTest extends IntegrationTestBase {
         }
 
         @Test
-        @DisplayName("非 FAILED 状态的事件不出现在失败列表中")
-        void nonFailedEventsShouldNotAppear() throws Exception {
-            insertFailed("E_FAIL", "TYPE_A");
+        @DisplayName("非 DEAD 状态的事件不出现在死信列表中")
+        void nonDeadEventsShouldNotAppear() throws Exception {
+            insertDead("E_FAIL", "TYPE_A");
             // 插入一个 PENDING 状态的事件
             insertWithStatus("E_PENDING", "TYPE_A", OutboxEventEntity.OutboxStatus.PENDING);
 
-            mockMvc.perform(get(BASE + "/failed")
+            mockMvc.perform(get(BASE + "/dead")
                             .header(CommonConstants.HEADER_USER_ID, OPERATOR))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.items", hasSize(1)))
@@ -101,9 +101,9 @@ class OutboxAdminControllerIntegrationTest extends IntegrationTestBase {
         }
 
         @Test
-        @DisplayName("未登录查询失败列表时返回 401")
-        void listFailedWithoutLoginShouldReturn401() throws Exception {
-            mockMvc.perform(get(BASE + "/failed"))
+        @DisplayName("未登录查询死信列表时返回 401")
+        void listDeadWithoutLoginShouldReturn401() throws Exception {
+            mockMvc.perform(get(BASE + "/dead"))
                     .andExpect(status().isUnauthorized())
                     .andExpect(jsonPath("$.code").value(401));
         }
@@ -118,7 +118,7 @@ class OutboxAdminControllerIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("第一次重试成功，状态变为 PENDING，写入审计记录")
         void retrySuccessShouldChangeToPendingAndAudit() throws Exception {
-            insertFailed("E3", "TYPE_A");
+            insertDead("E3", "TYPE_A");
 
             OutboxRetryRequest request = new OutboxRetryRequest();
             request.setReason("手动重试验证");
@@ -144,7 +144,7 @@ class OutboxAdminControllerIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("10 分钟内重复重试同一事件返回 429")
         void duplicateRetryWithinWindowShouldReturn429() throws Exception {
-            insertFailed("E4", "TYPE_B");
+            insertDead("E4", "TYPE_B");
 
             OutboxRetryRequest request = new OutboxRetryRequest();
             request.setReason("限频测试");
@@ -172,8 +172,8 @@ class OutboxAdminControllerIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("不同事件的重试互不影响")
         void retryDifferentEventsShouldNotInterfere() throws Exception {
-            insertFailed("E5", "TYPE_A");
-            insertFailed("E6", "TYPE_B");
+            insertDead("E5", "TYPE_A");
+            insertDead("E6", "TYPE_B");
 
             OutboxRetryRequest request = new OutboxRetryRequest();
             request.setReason("独立性测试");
@@ -200,8 +200,8 @@ class OutboxAdminControllerIntegrationTest extends IntegrationTestBase {
 
     // ==================== 辅助方法 ====================
 
-    private void insertFailed(String eventId, String eventType) {
-        insertWithStatus(eventId, eventType, OutboxEventEntity.OutboxStatus.FAILED);
+    private void insertDead(String eventId, String eventType) {
+        insertWithStatus(eventId, eventType, OutboxEventEntity.OutboxStatus.DEAD);
     }
 
     private void insertWithStatus(String eventId, String eventType, OutboxEventEntity.OutboxStatus status) {
@@ -215,6 +215,7 @@ class OutboxAdminControllerIntegrationTest extends IntegrationTestBase {
         entity.setOccurredAt(Instant.now());
         entity.setCreatedAt(Instant.now());
         entity.setUpdatedAt(Instant.now());
+        entity.setNextAttemptAt(Instant.now());
         entity.setRetryCount(1);
         entity.setLastError("test error");
         entity.setStatus(status);

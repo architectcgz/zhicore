@@ -1,5 +1,7 @@
 package com.zhicore.integration.messaging.post;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.integration.messaging.IntegrationEvent;
 import lombok.Getter;
 
@@ -30,9 +32,12 @@ public class PostPublishedIntegrationEvent extends IntegrationEvent {
      * @param publishedAt 发布时间
      * @param aggregateVersion 聚合根版本号
      */
-    public PostPublishedIntegrationEvent(String eventId, Instant occurredAt,
-                                        Long postId, Instant publishedAt,
-                                        Long aggregateVersion) {
+    @JsonCreator
+    public PostPublishedIntegrationEvent(@JsonProperty("eventId") String eventId,
+                                         @JsonProperty("occurredAt") Instant occurredAt,
+                                         @JsonProperty("postId") Long postId,
+                                         @JsonProperty("publishedAt") Instant publishedAt,
+                                         @JsonProperty("aggregateVersion") Long aggregateVersion) {
         super(eventId, occurredAt, aggregateVersion, 1);  // schemaVersion = 1
         this.postId = postId;
         this.publishedAt = publishedAt;

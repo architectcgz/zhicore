@@ -54,4 +54,22 @@ public interface PostStatsMyBatisMapper extends BaseMapper<PostStatsEntity> {
                 last_updated_at = #{updatedAt}
             """)
     int decrementFavoriteCount(@Param("postId") Long postId, @Param("updatedAt") LocalDateTime updatedAt);
+
+    @Insert("""
+            INSERT INTO post_stats (post_id, view_count, like_count, comment_count, favorite_count, share_count, last_updated_at)
+            VALUES (#{postId}, 0, 0, 1, 0, 0, #{updatedAt})
+            ON CONFLICT (post_id) DO UPDATE
+            SET comment_count = post_stats.comment_count + 1,
+                last_updated_at = #{updatedAt}
+            """)
+    int incrementCommentCount(@Param("postId") Long postId, @Param("updatedAt") LocalDateTime updatedAt);
+
+    @Insert("""
+            INSERT INTO post_stats (post_id, view_count, like_count, comment_count, favorite_count, share_count, last_updated_at)
+            VALUES (#{postId}, 0, 0, 0, 0, 0, #{updatedAt})
+            ON CONFLICT (post_id) DO UPDATE
+            SET comment_count = GREATEST(0, post_stats.comment_count - 1),
+                last_updated_at = #{updatedAt}
+            """)
+    int decrementCommentCount(@Param("postId") Long postId, @Param("updatedAt") LocalDateTime updatedAt);
 }

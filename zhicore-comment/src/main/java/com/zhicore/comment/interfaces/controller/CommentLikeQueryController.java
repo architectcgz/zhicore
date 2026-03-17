@@ -1,6 +1,6 @@
 package com.zhicore.comment.interfaces.controller;
 
-import com.zhicore.comment.application.service.CommentLikeQueryService;
+import com.zhicore.comment.application.service.query.CommentLikeQueryService;
 import com.zhicore.comment.interfaces.dto.request.BatchCheckLikedRequest;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;

@@ -44,7 +44,7 @@ public class PostUpdatedEvent extends DomainEvent {
 
     @JsonCreator
     public PostUpdatedEvent(@JsonProperty("eventId") String eventId,
-                            @JsonProperty("occurredAt") java.time.LocalDateTime occurredAt,
+                            @JsonProperty("occurredAt") java.time.Instant occurredAt,
                             @JsonProperty("postId") Long postId,
                             @JsonProperty("title") String title,
                             @JsonProperty("content") String content,

@@ -2,6 +2,7 @@ package com.zhicore.content.infrastructure.messaging;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhicore.common.tx.TransactionCommitSignal;
 import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
 import com.zhicore.content.infrastructure.persistence.pg.entity.OutboxEventEntity;
 import com.zhicore.content.infrastructure.persistence.pg.mapper.OutboxEventMapper;
@@ -29,10 +30,37 @@ public class OutboxEventPublisher implements IntegrationEventPublisher {
     
     private final OutboxEventMapper outboxEventMapper;
     private final ObjectMapper objectMapper;
+    private final TransactionCommitSignal transactionCommitSignal;
+    private final OutboxDispatchTrigger outboxDispatchTrigger;
     
     @Override
     @Transactional
     public void publish(IntegrationEvent event) {
+        if (persist(event)) {
+            transactionCommitSignal.afterCommit(outboxDispatchTrigger::signal);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void publishBatch(List<IntegrationEvent> events) {
+        if (events == null || events.isEmpty()) {
+            return;
+        }
+        boolean persisted = false;
+        for (IntegrationEvent event : events) {
+            persisted = persist(event) || persisted;
+        }
+        if (persisted) {
+            transactionCommitSignal.afterCommit(outboxDispatchTrigger::signal);
+        }
+    }
+
+    private boolean persist(IntegrationEvent event) {
+        if (event == null) {
+            return false;
+        }
+
         // Outbox 强约束：aggregateVersion 不允许为空。
         // 语义：aggregateVersion 表示“业务事务提交时刻”聚合根的版本号，用于：
         // 1) 幂等与去重（同一聚合的事件顺序校验）
@@ -57,6 +85,7 @@ public class OutboxEventPublisher implements IntegrationEventPublisher {
             Instant now = Instant.now();
             entity.setCreatedAt(now);
             entity.setUpdatedAt(now);
+            entity.setNextAttemptAt(now);
             entity.setRetryCount(0);
             entity.setStatus(OutboxEventEntity.OutboxStatus.PENDING);
             
@@ -65,19 +94,12 @@ public class OutboxEventPublisher implements IntegrationEventPublisher {
             
             log.info("Integration event saved to outbox: eventId={}, eventType={}, aggregateId={}", 
                 event.getEventId(), event.getClass().getSimpleName(), event.getAggregateId());
+            return true;
                 
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize integration event: eventId={}", event.getEventId(), e);
             // 抛出异常，触发事务回滚
             throw new RuntimeException("Failed to serialize integration event", e);
-        }
-    }
-    
-    @Override
-    @Transactional
-    public void publishBatch(List<IntegrationEvent> events) {
-        for (IntegrationEvent event : events) {
-            publish(event);
         }
     }
 }

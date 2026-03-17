@@ -69,6 +69,21 @@ public class OutboxEventEntity {
      * Outbox 记录更新时间（用于运维侧排查与监控统计口径）
      */
     private Instant updatedAt;
+
+    /**
+     * 下一次允许被 claim 的时间。
+     */
+    private Instant nextAttemptAt;
+
+    /**
+     * 当前 claim 时间。
+     */
+    private Instant claimedAt;
+
+    /**
+     * 当前 claim worker 标识。
+     */
+    private String claimedBy;
     
     /**
      * 投递成功时间
@@ -98,15 +113,31 @@ public class OutboxEventEntity {
          * 待投递
          */
         PENDING,
+
+        /**
+         * 已被 worker claim，正在投递中
+         */
+        PROCESSING,
         
         /**
-         * 已投递
+         * 已成功收敛
          */
+        SUCCEEDED,
+
+        /**
+         * 兼容旧库中已投递状态值。
+         */
+        @Deprecated
         DISPATCHED,
         
         /**
-         * 失败（超过最大重试次数）
+         * 失败（等待重试）
          */
-        FAILED
+        FAILED,
+
+        /**
+         * 死信（达到最大重试次数，需人工介入）
+         */
+        DEAD
     }
 }

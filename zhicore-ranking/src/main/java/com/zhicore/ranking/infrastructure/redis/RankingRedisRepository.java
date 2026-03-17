@@ -352,8 +352,8 @@ public class RankingRedisRepository {
      * @param limit 数量限制
      * @return 文章ID列表
      */
-    public List<String> getWeeklyHotPosts(int weekNumber, int limit) {
-        String key = RankingRedisKeys.weeklyPosts(weekNumber);
+    public List<String> getWeeklyHotPosts(int weekBasedYear, int weekNumber, int limit) {
+        String key = RankingRedisKeys.weeklyPosts(weekBasedYear, weekNumber);
         return getTopIds(key, 0, limit - 1);
     }
 
@@ -389,8 +389,8 @@ public class RankingRedisRepository {
      * @param limit 数量限制
      * @return 热度分数列表
      */
-    public List<HotScore> getWeeklyHotPostsWithScore(int weekNumber, int limit) {
-        String key = RankingRedisKeys.weeklyPosts(weekNumber);
+    public List<HotScore> getWeeklyHotPostsWithScore(int weekBasedYear, int weekNumber, int limit) {
+        String key = RankingRedisKeys.weeklyPosts(weekBasedYear, weekNumber);
         return getTopRanking(key, 0, limit - 1);
     }
 
@@ -510,7 +510,7 @@ public class RankingRedisRepository {
     /**
      * 释放浏览去重标记。
      *
-     * <p>当事件尚未成功落 inbox 时，需要回滚 dedup 标记，避免 RocketMQ 重试被误判为重复。</p>
+     * <p>当事件尚未成功落 ledger 时，需要回滚 dedup 标记，避免 RocketMQ 重试被误判为重复。</p>
      *
      * @param postId 文章ID
      * @param userId 去重标识

@@ -1,0 +1,26 @@
+# User Service Configuration
+# Nacos DataId: zhicore-user.yml
+# Group: ZHICORE-SERVICE
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:zhicore_user}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+cache:
+  ttl:
+    entity-detail: 600
+    list: 300
+    stats: -1
+    session: 604800
+
+follow:
+  max-following: 5000
+  lock-timeout: 5
+
+check-in:
+  reward:
+    base: 10
+    continuous-bonus: 5
+    max-continuous: 7

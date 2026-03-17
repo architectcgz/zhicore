@@ -60,6 +60,16 @@ public interface PostStatsRepository {
      * 原子减少收藏数，最小值为 0。
      */
     void decrementFavoriteCount(PostId postId);
+
+    /**
+     * 原子增加评论数。
+     */
+    void incrementCommentCount(PostId postId);
+
+    /**
+     * 原子减少评论数，最小值为 0。
+     */
+    void decrementCommentCount(PostId postId);
     
     /**
      * 插入或更新统计信息（覆盖式更新）

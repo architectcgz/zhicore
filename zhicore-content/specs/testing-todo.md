@@ -21,13 +21,14 @@
 
 ### 1. 定时发布相关测试（R1）
 
-**测试类**: `ScheduledPublishIntegrationTest`（扩展现有测试）
+**测试类**: `ScheduledPublishCommandServiceTest` / `ScheduledPublishScannerIntegrationTest`（扩展现有测试）
 
 #### 1.1 未到发布时间的处理
 - **场景**: 消费定时发布事件时，DB 时间 < scheduledAt
 - **验证点**:
   - 文章状态保持 SCHEDULED，未变更为 PUBLISHED
-  - 事件状态根据重试次数转换（PENDING → SCHEDULED_PENDING）
+  - 事件保持活动态 `PENDING`，并根据重试次数决定“立即重入队”还是“等待补偿扫描”
+  - 立即重入队时会更新 `trigger_event_id`、`reschedule_retry_count` 和 `next_attempt_at`
   - 日志包含 dbNow、appNow、scheduledAt、remainingTime
   - 计算延迟时间正确：min(remaining_time, 2^retry 分钟, max_delay_minutes)
 
@@ -37,38 +38,40 @@
   - 使用单 SQL 条件更新：`UPDATE posts SET status=PUBLISHED WHERE id=? AND status=SCHEDULED`
   - affected_rows == 0 时视为幂等 no-op
   - 查询文章状态区分"已发布"和"非法状态"
-  - 已发布时更新事件状态为 PUBLISHED（幂等收敛）
-  - 非法状态时标记事件为 FAILED 并记录错误
-  - 发布成功后发出 PostPublishedDomainEvent
+  - 已发布或已取消时更新事件状态为 `SUCCEEDED`（幂等收敛）
+  - 非法状态时标记事件为 `DEAD` 并记录错误
+  - 发布成功后发出 `PostPublishedIntegrationEvent`
 
 #### 1.3 重投机制测试
 - **场景**: 未到发布时间，需要重新投递消息
 - **验证点**:
   - reschedule_retry_count 正确递增
   - 延迟时间计算正确（指数退避）
-  - 达到 max_reschedule_retries 后转为 SCHEDULED_PENDING
+  - 达到 max_reschedule_retries 后不再立即重投，而是保持 `PENDING` 并等待补偿扫描
   - 日志包含 reschedule_retry_count 和延迟时间
 
-#### 1.4 扫描入队闸门测试（CAS）
-- **场景**: 定时扫描任务（每 1 分钟）扫描 SCHEDULED_PENDING 事件
+#### 1.4 补偿 claim 测试
+- **场景**: 定时扫描任务（每 1 秒）扫描 `next_attempt_at` 已到的活动任务
 - **验证点**:
-  - 使用完整 WHERE 条件更新 last_enqueue_at（status + scheduledAt + last_enqueue_at）
-  - 仅 affected_rows == 1 时允许入队
+  - 使用 claim SQL 原子更新 `status=PROCESSING, claimed_at, claimed_by`
+  - 仅被 claim 成功的记录允许重发 trigger message
   - 并发扫描时只有一个实例成功入队（多线程测试）
-  - 冷却期内（2 分钟）不重复入队
+  - 冷却期内不会重复入队
+  - 超时 `PROCESSING` 任务可被重新 claim
 
-#### 1.5 补扫重置测试
-- **场景**: 补扫任务（每 5 分钟）重置超时闸门
+#### 1.5 claim 超时回收测试
+- **场景**: 补偿扫描回收超过 `claim_timeout_seconds` 的 `PROCESSING` 任务
 - **验证点**:
-  - 重置 last_enqueue_at 超过 10 分钟的事件
-  - 限定 scheduledAt <= db_now，避免未到点事件被误处理
-  - 重置后事件可被下一轮扫描重新入队
+  - 超时任务会被重新 claim 并重发 trigger message
+  - 回收后 `claimed_at/claimed_by` 被覆盖，释放后恢复到活动态
+  - 未超时的 `PROCESSING` 任务不会被误抢占
 
 #### 1.6 发布失败重试与 DLQ
 - **场景**: 到达发布时间后发布操作失败
 - **验证点**:
   - publish_retry_count 正确递增
-  - 达到 max_publish_retries（默认 3）后转为 FAILED
+  - 未达到 max_publish_retries（默认 3）前转为 `FAILED + next_attempt_at`
+  - 达到 max_publish_retries 后转为 `DEAD`
   - 投递到死信队列 scheduled_publish_dlq
   - 触发告警（可 Mock 告警通道）
   - 日志包含 publish_retry_count 和错误信息
@@ -76,7 +79,7 @@
 #### 1.7 时间基准测试
 - **场景**: 验证使用数据库时间而非应用时间
 - **验证点**:
-  - 所有时间比较使用 `SELECT CURRENT_TIMESTAMP`
+  - 所有时间比较使用数据库当前时间查询（当前实现为 `SELECT LOCALTIMESTAMP`）
   - 日志同时记录 dbNow 和 appNow
   - 时钟漂移场景下行为正确
 
@@ -368,16 +371,16 @@
 
 **测试类**: `OutboxAdminControllerIntegrationTest`（扩展现有测试）
 
-#### 11.1 失败列表查询测试
-- **场景**: 查询失败的 Outbox 事件
+#### 11.1 死信列表查询测试
+- **场景**: 查询死信 Outbox 事件
 - **验证点**:
-  - 只返回 status=FAILED 的事件
+  - 只返回 status=DEAD 的事件
   - 支持按 eventType 过滤
   - 分页正确（page, size）
   - 边界处理正确（空列表、最后一页）
 
 #### 11.2 手动重试测试
-- **场景**: 运维人员手动重试失败事件
+- **场景**: 运维人员手动重试死信事件
 - **验证点**:
   - 重试成功后状态变为 PENDING
   - retry_count 重置为 0

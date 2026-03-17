@@ -3,7 +3,7 @@ package com.zhicore.message.interfaces.controller;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.message.application.dto.MessageVO;
-import com.zhicore.message.application.service.MessageCommandService;
+import com.zhicore.message.application.service.command.MessageCommandService;
 import com.zhicore.message.interfaces.dto.request.SendMessageRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

@@ -1,5 +1,8 @@
 package com.zhicore.integration.messaging.user;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.integration.messaging.IntegrationEvent;
 import lombok.Getter;
 
@@ -72,10 +75,15 @@ public class UserProfileUpdatedIntegrationEvent extends IntegrationEvent {
      * @param bio 个人简介
      * @param aggregateVersion 聚合根版本号（用于并发控制）
      */
-    public UserProfileUpdatedIntegrationEvent(String eventId, Instant occurredAt,
-                                             Long userId, String username, String nickname,
-                                             String avatar, String bio,
-                                             Long aggregateVersion) {
+    @JsonCreator
+    public UserProfileUpdatedIntegrationEvent(@JsonProperty("eventId") String eventId,
+                                              @JsonProperty("occurredAt") Instant occurredAt,
+                                              @JsonProperty("userId") Long userId,
+                                              @JsonProperty("username") String username,
+                                              @JsonProperty("nickname") String nickname,
+                                              @JsonProperty("avatar") String avatar,
+                                              @JsonProperty("bio") String bio,
+                                              @JsonProperty("aggregateVersion") Long aggregateVersion) {
         super(eventId, occurredAt, aggregateVersion, 1);  // schemaVersion = 1
         this.userId = userId;
         this.username = username;
@@ -86,7 +94,7 @@ public class UserProfileUpdatedIntegrationEvent extends IntegrationEvent {
 
     @Override
     public String getTag() {
-        return "USER_PROFILE_UPDATED";
+        return TopicConstants.TAG_USER_PROFILE_UPDATED;
     }
     
     @Override

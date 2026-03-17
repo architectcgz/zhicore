@@ -57,7 +57,7 @@ public class PageResult<T> implements Serializable {
         this.total = total;
         this.records = records;
         this.pages = (total + size - 1) / size;
-        this.hasNext = current < this.pages;
+        this.hasNext = current + 1 < this.pages;
     }
 
     /**

@@ -1,10 +1,9 @@
 package com.zhicore.message.application.service;
 
-import com.zhicore.api.client.UserMessagingClient;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.exception.BusinessException;
-import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
+import com.zhicore.message.application.port.user.UserMessagingPort;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,7 +21,7 @@ import static org.mockito.Mockito.when;
 class MessageRestrictionServiceTest {
 
     @Mock
-    private UserMessagingClient userServiceClient;
+    private UserMessagingPort userMessagingPort;
 
     @InjectMocks
     private MessageRestrictionService messageRestrictionService;
@@ -31,8 +30,8 @@ class MessageRestrictionServiceTest {
     @DisplayName("拉黑状态不可验证时应该拒绝发送消息")
     void shouldRejectWhenBlockStatusCannotBeVerified() {
         mockReceiverExists(2L);
-        when(userServiceClient.isBlocked(2L, 1L))
-                .thenReturn(ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "用户服务已降级"));
+        when(userMessagingPort.isBlocked(2L, 1L))
+                .thenThrow(new RuntimeException("用户服务已降级"));
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> messageRestrictionService.checkCanSendMessage(1L, 2L));
@@ -45,10 +44,10 @@ class MessageRestrictionServiceTest {
     @DisplayName("陌生人关系不可验证时应该拒绝发送消息")
     void shouldRejectWhenStrangerStatusCannotBeVerified() {
         mockReceiverExists(2L);
-        when(userServiceClient.isBlocked(2L, 1L))
-                .thenReturn(ApiResponse.success(false));
-        when(userServiceClient.isFollowing(1L, 2L))
-                .thenReturn(ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "用户服务已降级"));
+        when(userMessagingPort.isBlocked(2L, 1L))
+                .thenReturn(false);
+        when(userMessagingPort.isFollowing(1L, 2L))
+                .thenThrow(new RuntimeException("用户服务已降级"));
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> messageRestrictionService.checkCanSendMessage(1L, 2L));
@@ -61,14 +60,14 @@ class MessageRestrictionServiceTest {
     @DisplayName("陌生人消息设置不可验证时应该拒绝发送消息")
     void shouldRejectWhenStrangerMessageSettingCannotBeVerified() {
         mockReceiverExists(2L);
-        when(userServiceClient.isBlocked(2L, 1L))
-                .thenReturn(ApiResponse.success(false));
-        when(userServiceClient.isFollowing(1L, 2L))
-                .thenReturn(ApiResponse.success(true));
-        when(userServiceClient.isFollowing(2L, 1L))
-                .thenReturn(ApiResponse.success(false));
-        when(userServiceClient.isStrangerMessageAllowed(2L))
-                .thenReturn(ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "用户服务已降级"));
+        when(userMessagingPort.isBlocked(2L, 1L))
+                .thenReturn(false);
+        when(userMessagingPort.isFollowing(1L, 2L))
+                .thenReturn(true);
+        when(userMessagingPort.isFollowing(2L, 1L))
+                .thenReturn(false);
+        when(userMessagingPort.isStrangerMessageAllowed(2L))
+                .thenThrow(new RuntimeException("用户服务已降级"));
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> messageRestrictionService.checkCanSendMessage(1L, 2L));
@@ -81,12 +80,12 @@ class MessageRestrictionServiceTest {
     @DisplayName("关系校验成功且允许发送时不应抛出异常")
     void shouldAllowWhenRestrictionsPass() {
         mockReceiverExists(2L);
-        when(userServiceClient.isBlocked(2L, 1L))
-                .thenReturn(ApiResponse.success(false));
-        when(userServiceClient.isFollowing(1L, 2L))
-                .thenReturn(ApiResponse.success(true));
-        when(userServiceClient.isFollowing(2L, 1L))
-                .thenReturn(ApiResponse.success(true));
+        when(userMessagingPort.isBlocked(2L, 1L))
+                .thenReturn(false);
+        when(userMessagingPort.isFollowing(1L, 2L))
+                .thenReturn(true);
+        when(userMessagingPort.isFollowing(2L, 1L))
+                .thenReturn(true);
 
         assertDoesNotThrow(() -> messageRestrictionService.checkCanSendMessage(1L, 2L));
     }
@@ -95,14 +94,14 @@ class MessageRestrictionServiceTest {
     @DisplayName("单向关注但接收方允许陌生人消息时应允许发送")
     void shouldAllowWhenReceiverAcceptsStrangerMessages() {
         mockReceiverExists(2L);
-        when(userServiceClient.isBlocked(2L, 1L))
-                .thenReturn(ApiResponse.success(false));
-        when(userServiceClient.isFollowing(1L, 2L))
-                .thenReturn(ApiResponse.success(true));
-        when(userServiceClient.isFollowing(2L, 1L))
-                .thenReturn(ApiResponse.success(false));
-        when(userServiceClient.isStrangerMessageAllowed(2L))
-                .thenReturn(ApiResponse.success(true));
+        when(userMessagingPort.isBlocked(2L, 1L))
+                .thenReturn(false);
+        when(userMessagingPort.isFollowing(1L, 2L))
+                .thenReturn(true);
+        when(userMessagingPort.isFollowing(2L, 1L))
+                .thenReturn(false);
+        when(userMessagingPort.isStrangerMessageAllowed(2L))
+                .thenReturn(true);
 
         assertDoesNotThrow(() -> messageRestrictionService.checkCanSendMessage(1L, 2L));
     }
@@ -111,14 +110,14 @@ class MessageRestrictionServiceTest {
     @DisplayName("单向关注且接收方关闭陌生人消息时应拒绝发送")
     void shouldRejectWhenReceiverDisablesStrangerMessages() {
         mockReceiverExists(2L);
-        when(userServiceClient.isBlocked(2L, 1L))
-                .thenReturn(ApiResponse.success(false));
-        when(userServiceClient.isFollowing(1L, 2L))
-                .thenReturn(ApiResponse.success(true));
-        when(userServiceClient.isFollowing(2L, 1L))
-                .thenReturn(ApiResponse.success(false));
-        when(userServiceClient.isStrangerMessageAllowed(2L))
-                .thenReturn(ApiResponse.success(false));
+        when(userMessagingPort.isBlocked(2L, 1L))
+                .thenReturn(false);
+        when(userMessagingPort.isFollowing(1L, 2L))
+                .thenReturn(true);
+        when(userMessagingPort.isFollowing(2L, 1L))
+                .thenReturn(false);
+        when(userMessagingPort.isStrangerMessageAllowed(2L))
+                .thenReturn(false);
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> messageRestrictionService.checkCanSendMessage(1L, 2L));
@@ -141,7 +140,7 @@ class MessageRestrictionServiceTest {
         UserSimpleDTO user = new UserSimpleDTO();
         user.setId(receiverId);
         user.setUserName("receiver");
-        when(userServiceClient.getUserSimple(receiverId))
-                .thenReturn(ApiResponse.success(user));
+        when(userMessagingPort.getUserSimple(receiverId))
+                .thenReturn(user);
     }
 }

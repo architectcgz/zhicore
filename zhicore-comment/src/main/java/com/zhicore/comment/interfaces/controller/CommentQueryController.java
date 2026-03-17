@@ -3,7 +3,7 @@ package com.zhicore.comment.interfaces.controller;
 import com.zhicore.comment.application.dto.CommentSortType;
 import com.zhicore.comment.application.dto.CommentVO;
 import com.zhicore.comment.application.dto.CursorPage;
-import com.zhicore.comment.application.service.CommentQueryService;
+import com.zhicore.comment.application.service.query.CommentQueryService;
 import com.zhicore.common.constant.CommonConstants;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;

@@ -1,7 +1,7 @@
 package com.zhicore.admin.interfaces.controller;
 
 import com.zhicore.admin.application.dto.CommentManageVO;
-import com.zhicore.admin.application.service.CommentManageQueryService;
+import com.zhicore.admin.application.service.query.CommentManageQueryService;
 import com.zhicore.admin.infrastructure.security.RequireAdmin;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;

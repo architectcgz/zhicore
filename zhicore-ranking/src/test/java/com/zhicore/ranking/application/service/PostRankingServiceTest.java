@@ -1,6 +1,8 @@
 package com.zhicore.ranking.application.service;
 
 import com.zhicore.ranking.application.port.store.PostRankingStore;
+import com.zhicore.ranking.application.service.command.PostRankingCommandService;
+import com.zhicore.ranking.application.service.query.PostRankingQueryService;
 import com.zhicore.ranking.domain.model.PostStats;
 import com.zhicore.ranking.domain.service.HotScoreCalculator;
 import com.zhicore.ranking.infrastructure.config.RankingWeightProperties;

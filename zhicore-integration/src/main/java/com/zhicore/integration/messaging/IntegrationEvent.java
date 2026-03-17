@@ -1,5 +1,7 @@
 package com.zhicore.integration.messaging;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 
 import java.io.Serializable;
@@ -14,6 +16,7 @@ import java.time.Instant;
  * @author ZhiCore Team
  */
 @Getter
+@JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class IntegrationEvent implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -57,10 +60,12 @@ public abstract class IntegrationEvent implements Serializable {
     /**
      * 获取事件标签（用于 RocketMQ Tag）
      */
+    @JsonIgnore
     public abstract String getTag();
     
     /**
      * 获取聚合根ID（原始类型，用于跨服务传递）
      */
+    @JsonIgnore
     public abstract Long getAggregateId();
 }

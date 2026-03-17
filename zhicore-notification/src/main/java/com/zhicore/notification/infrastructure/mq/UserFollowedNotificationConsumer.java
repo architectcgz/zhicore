@@ -1,10 +1,10 @@
 package com.zhicore.notification.infrastructure.mq;
 
-import com.zhicore.api.event.user.UserFollowedEvent;
 import com.zhicore.common.mq.AbstractEventConsumer;
 import com.zhicore.common.mq.StatefulIdempotentHandler;
 import com.zhicore.common.mq.TopicConstants;
-import com.zhicore.notification.application.service.NotificationCommandService;
+import com.zhicore.integration.messaging.user.UserFollowedIntegrationEvent;
+import com.zhicore.notification.application.service.command.NotificationCommandService;
 import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.infrastructure.push.NotificationPushService;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 /**
  * 用户关注通知消费者
  * 
- * 消费 UserFollowedEvent 事件，创建关注通知并推送给被关注者
+ * 消费 UserFollowedIntegrationEvent 事件，创建关注通知并推送给被关注者
  *
  * @author ZhiCore Team
  */
@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component;
     selectorExpression = TopicConstants.TAG_USER_FOLLOWED,
     consumerGroup = NotificationConsumerGroups.USER_FOLLOWED_CONSUMER
 )
-public class UserFollowedNotificationConsumer extends AbstractEventConsumer<UserFollowedEvent> {
+public class UserFollowedNotificationConsumer extends AbstractEventConsumer<UserFollowedIntegrationEvent> {
 
     private final NotificationCommandService notificationService;
     private final NotificationPushService pushService;
@@ -33,13 +33,13 @@ public class UserFollowedNotificationConsumer extends AbstractEventConsumer<User
     public UserFollowedNotificationConsumer(StatefulIdempotentHandler idempotentHandler,
                                             NotificationCommandService notificationService,
                                             NotificationPushService pushService) {
-        super(idempotentHandler, UserFollowedEvent.class);
+        super(idempotentHandler, UserFollowedIntegrationEvent.class);
         this.notificationService = notificationService;
         this.pushService = pushService;
     }
 
     @Override
-    protected void doHandle(UserFollowedEvent event) {
+    protected void doHandle(UserFollowedIntegrationEvent event) {
         Long followerId = event.getFollowerId();
         Long followingId = event.getFollowingId();
 

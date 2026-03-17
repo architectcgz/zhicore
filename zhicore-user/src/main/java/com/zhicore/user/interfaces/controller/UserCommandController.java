@@ -2,7 +2,7 @@ package com.zhicore.user.interfaces.controller;
 
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.user.application.command.UpdateProfileCommand;
-import com.zhicore.user.application.service.UserCommandService;
+import com.zhicore.user.application.service.command.UserCommandService;
 import com.zhicore.user.interfaces.dto.request.UpdateProfileRequest;
 import com.zhicore.user.interfaces.dto.request.UpdateStrangerMessageSettingRequest;
 import io.swagger.v3.oas.annotations.Operation;

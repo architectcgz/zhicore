@@ -1,14 +1,20 @@
 package com.zhicore.content.infrastructure.event;
 
+import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.domain.event.PostCreatedDomainEvent;
 import com.zhicore.content.domain.event.PostTagsUpdatedDomainEvent;
 import com.zhicore.content.domain.model.ContentType;
+import com.zhicore.content.domain.model.OwnerSnapshot;
+import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostBody;
 import com.zhicore.content.domain.model.PostId;
+import com.zhicore.content.domain.model.PostStats;
+import com.zhicore.content.domain.model.PostStatus;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.model.UserId;
+import com.zhicore.content.domain.model.WriteState;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.infrastructure.persistence.mongo.document.PostDocument;
 import com.zhicore.content.infrastructure.persistence.mongo.repository.PostDocumentRepository;
@@ -21,6 +27,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -42,6 +49,8 @@ class PostMongoDBSyncEventHandlerTest {
     private TagRepository tagRepository;
     @Mock
     private PostContentStore postContentStore;
+    @Mock
+    private PostRepository postRepository;
 
     @InjectMocks
     private PostMongoDBSyncEventHandler eventHandler;
@@ -81,6 +90,7 @@ class PostMongoDBSyncEventHandlerTest {
 
     @Test
     void handlePostCreated_shouldSaveMongoDocument() {
+        when(postRepository.findById(PostId.of(1L))).thenReturn(Optional.of(buildPost()));
         List<Tag> tags = List.of(
             Tag.create(1001L, "Java", "java"),
             Tag.create(1002L, "Spring", "spring")
@@ -105,6 +115,7 @@ class PostMongoDBSyncEventHandlerTest {
     @Test
     void handlePostTagsUpdated_shouldUpdateTagList() {
         PostDocument existing = PostDocument.builder().id("m1").postId("1").tags(List.of()).build();
+        when(postRepository.findById(PostId.of(1L))).thenReturn(Optional.of(buildPost()));
         List<Tag> tags = List.of(
             Tag.create(1001L, "Java", "java"),
             Tag.create(1002L, "Spring", "spring")
@@ -119,6 +130,30 @@ class PostMongoDBSyncEventHandlerTest {
         verify(postDocumentRepository).save(captor.capture());
         PostDocument updated = captor.getValue();
         assertTrue(updated.getTags().size() >= 2);
+    }
+
+    private Post buildPost() {
+        LocalDateTime now = LocalDateTime.of(2026, 3, 10, 10, 0);
+        return Post.reconstitute(new Post.Snapshot(
+                PostId.of(1L),
+                UserId.of(100L),
+                new OwnerSnapshot(UserId.of(100L), "Author", null, 1L),
+                "Test Post",
+                "Test Excerpt",
+                null,
+                PostStatus.PUBLISHED,
+                null,
+                Set.of(TagId.of(1001L), TagId.of(1002L)),
+                now,
+                null,
+                now,
+                now,
+                false,
+                PostStats.empty(PostId.of(1L)),
+                WriteState.PUBLISHED,
+                null,
+                2L
+        ));
     }
 }
 

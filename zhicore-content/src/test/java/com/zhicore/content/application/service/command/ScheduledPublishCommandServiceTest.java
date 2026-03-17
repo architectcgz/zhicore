@@ -1,6 +1,7 @@
 package com.zhicore.content.application.service.command;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhicore.common.tx.TransactionCommitSignal;
 import com.zhicore.content.application.model.OutboxEventRecord;
 import com.zhicore.content.application.model.OutboxEventTypes;
 import com.zhicore.content.application.model.ScheduledPublishEventRecord;
@@ -14,6 +15,8 @@ import com.zhicore.content.application.service.OwnedPostLoadService;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.UserId;
+import com.zhicore.content.infrastructure.config.ScheduledPublishProperties;
+import com.zhicore.content.infrastructure.messaging.OutboxDispatchTrigger;
 import com.zhicore.integration.messaging.IntegrationEvent;
 import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostScheduledIntegrationEvent;
@@ -35,6 +38,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -49,6 +53,9 @@ class ScheduledPublishCommandServiceTest {
     @Mock private ScheduledPublishPolicy scheduledPublishPolicy;
     @Mock private ContentAlertPort alertService;
     @Mock private OutboxEventStore outboxEventStore;
+    @Mock private TransactionCommitSignal transactionCommitSignal;
+    @Mock private OutboxDispatchTrigger outboxDispatchTrigger;
+    @Spy private ScheduledPublishProperties scheduledPublishProperties = new ScheduledPublishProperties();
     @Spy private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
@@ -69,6 +76,12 @@ class ScheduledPublishCommandServiceTest {
         scheduledPublishCommandService.schedulePublish(userId, postId, scheduledAt);
 
         verify(postRepository).update(post);
+        verify(scheduledPublishEventStore).markTerminalByPostId(
+                eq(postId),
+                eq(ScheduledPublishEventRecord.ScheduledPublishStatus.SUCCEEDED),
+                eq(dbNow),
+                eq("被新的定时发布配置覆盖")
+        );
         verify(scheduledPublishEventStore).save(any(ScheduledPublishEventRecord.class));
 
         ArgumentCaptor<IntegrationEvent> eventCaptor = ArgumentCaptor.forClass(IntegrationEvent.class);
@@ -87,16 +100,20 @@ class ScheduledPublishCommandServiceTest {
         LocalDateTime scheduledAt = dbNow.minusSeconds(1);
 
         ScheduledPublishEventRecord record = ScheduledPublishEventRecord.builder()
-                .eventId("evt-1")
+                .eventId("task-evt-1")
+                .triggerEventId("evt-1")
                 .postId(postId)
                 .scheduledAt(scheduledAt)
+                .nextAttemptAt(dbNow)
                 .rescheduleRetryCount(0)
                 .publishRetryCount(0)
                 .status(ScheduledPublishEventRecord.ScheduledPublishStatus.PENDING)
                 .build();
 
         when(scheduledPublishEventStore.dbNow()).thenReturn(dbNow);
-        when(scheduledPublishEventStore.findByEventId("evt-1")).thenReturn(Optional.of(record));
+        when(scheduledPublishEventStore.findByEventId("task-evt-1")).thenReturn(Optional.of(record));
+        when(scheduledPublishEventStore.claimForConsumption(eq("task-evt-1"), eq(dbNow), any(), any()))
+                .thenReturn(Optional.of(record.withStatus(ScheduledPublishEventRecord.ScheduledPublishStatus.PROCESSING)));
         when(postRepository.findById(postId)).thenReturn(Optional.empty());
         doThrow(new RuntimeException("boom"))
                 .when(postRepository)
@@ -109,7 +126,8 @@ class ScheduledPublishCommandServiceTest {
                 postId,
                 null,
                 scheduledAt.atZone(ZoneId.systemDefault()).toInstant(),
-                0
+                0,
+                "task-evt-1"
         );
 
         scheduledPublishCommandService.consumeScheduledPublish(message);
@@ -128,5 +146,79 @@ class ScheduledPublishCommandServiceTest {
         assertThat(entity.getAggregateId()).isEqualTo(postId);
         assertThat(entity.getStatus()).isEqualTo(OutboxEventRecord.OutboxStatus.PENDING);
         assertThat(entity.getPayload()).contains("\"postId\":", "\"retryCount\":");
+        verify(transactionCommitSignal).afterCommit(any());
+    }
+
+    @Test
+    void consumeScheduledPublishShouldStayPendingAndWaitForCompensationWhenRescheduleRetriesExhausted() {
+        when(scheduledPublishPolicy.maxRescheduleRetries()).thenReturn(0);
+
+        Long postId = 456L;
+        LocalDateTime dbNow = LocalDateTime.now();
+        LocalDateTime scheduledAt = dbNow.plusMinutes(5);
+
+        ScheduledPublishEventRecord record = ScheduledPublishEventRecord.builder()
+                .id(1L)
+                .eventId("task-evt-future")
+                .triggerEventId("evt-future")
+                .postId(postId)
+                .scheduledAt(scheduledAt)
+                .nextAttemptAt(dbNow)
+                .rescheduleRetryCount(0)
+                .publishRetryCount(0)
+                .status(ScheduledPublishEventRecord.ScheduledPublishStatus.PENDING)
+                .build();
+
+        when(scheduledPublishEventStore.dbNow()).thenReturn(dbNow);
+        when(scheduledPublishEventStore.findByEventId("task-evt-future")).thenReturn(Optional.of(record));
+        when(scheduledPublishEventStore.claimForConsumption(eq("task-evt-future"), eq(dbNow), any(), any()))
+                .thenReturn(Optional.of(record.withStatus(ScheduledPublishEventRecord.ScheduledPublishStatus.PROCESSING)));
+
+        PostScheduleExecuteIntegrationEvent message = new PostScheduleExecuteIntegrationEvent(
+                "evt-future",
+                Instant.now(),
+                0L,
+                postId,
+                1001L,
+                scheduledAt.atZone(ZoneId.systemDefault()).toInstant(),
+                5,
+                "task-evt-future"
+        );
+
+        scheduledPublishCommandService.consumeScheduledPublish(message);
+
+        ArgumentCaptor<ScheduledPublishEventRecord> recordCaptor =
+                ArgumentCaptor.forClass(ScheduledPublishEventRecord.class);
+        verify(scheduledPublishEventStore).update(recordCaptor.capture());
+        ScheduledPublishEventRecord updated = recordCaptor.getValue();
+
+        assertThat(updated.getStatus()).isEqualTo(ScheduledPublishEventRecord.ScheduledPublishStatus.PENDING);
+        assertThat(updated.getClaimedAt()).isNull();
+        assertThat(updated.getClaimedBy()).isNull();
+        assertThat(updated.getNextAttemptAt()).isNotNull();
+        assertThat(updated.getLastError()).contains("等待补偿扫描接管");
+        verify(integrationEventPublisher, never()).publish(any());
+    }
+
+    @Test
+    void cancelScheduleShouldMarkTaskAsSucceeded() {
+        Long userId = 1001L;
+        Long postId = 987L;
+        LocalDateTime dbNow = LocalDateTime.now();
+        Post post = Post.createDraft(PostId.of(postId), UserId.of(userId), "title");
+        post.schedulePublish(dbNow.plusMinutes(10));
+
+        when(ownedPostLoadService.load(postId, userId)).thenReturn(post);
+        when(scheduledPublishEventStore.dbNow()).thenReturn(dbNow);
+
+        scheduledPublishCommandService.cancelSchedule(userId, postId);
+
+        verify(postRepository).update(post);
+        verify(scheduledPublishEventStore).markTerminalByPostId(
+                postId,
+                ScheduledPublishEventRecord.ScheduledPublishStatus.SUCCEEDED,
+                dbNow,
+                null
+        );
     }
 }

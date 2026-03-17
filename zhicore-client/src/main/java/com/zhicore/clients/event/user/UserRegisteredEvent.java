@@ -32,7 +32,7 @@ public class UserRegisteredEvent extends DomainEvent {
 
     @JsonCreator
     public UserRegisteredEvent(@JsonProperty("eventId") String eventId,
-                               @JsonProperty("occurredAt") java.time.LocalDateTime occurredAt,
+                               @JsonProperty("occurredAt") java.time.Instant occurredAt,
                                @JsonProperty("userId") Long userId,
                                @JsonProperty("userName") String userName,
                                @JsonProperty("email") String email) {

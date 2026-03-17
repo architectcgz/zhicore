@@ -3,7 +3,7 @@ package com.zhicore.ranking.infrastructure.mq;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.integration.messaging.post.PostFavoritedIntegrationEvent;
-import com.zhicore.ranking.application.service.RankingEventInboxService;
+import com.zhicore.ranking.application.service.RankingLedgerIngestionService;
 import com.zhicore.ranking.domain.model.RankingMetricType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
@@ -31,15 +31,15 @@ public class PostFavoritedRankingConsumer extends BaseRankingConsumer
         implements RocketMQListener<String> {
 
     public PostFavoritedRankingConsumer(ObjectMapper objectMapper,
-                                        RankingEventInboxService rankingEventInboxService) {
-        super(objectMapper, rankingEventInboxService);
+                                        RankingLedgerIngestionService rankingLedgerIngestionService) {
+        super(objectMapper, rankingLedgerIngestionService);
     }
 
     @Override
     public void onMessage(String message) {
         try {
             PostFavoritedIntegrationEvent event = objectMapper.readValue(message, PostFavoritedIntegrationEvent.class);
-            boolean created = saveInboxEvent(
+            boolean created = saveLedgerEvent(
                     event.getEventId(),
                     event.getClass().getSimpleName(),
                     event.getPostId(),
@@ -51,10 +51,10 @@ public class PostFavoritedRankingConsumer extends BaseRankingConsumer
                     null
             );
             if (!created) {
-                log.debug("Post favorited 事件已写入 ranking inbox，跳过重复消费: eventId={}", event.getEventId());
+                log.debug("Post favorited 事件已写入 ranking ledger，跳过重复消费: eventId={}", event.getEventId());
                 return;
             }
-            log.info("Post favorited 事件已写入 ranking inbox: postId={}", event.getPostId());
+            log.info("Post favorited 事件已写入 ranking ledger: postId={}", event.getPostId());
         } catch (Exception e) {
             log.error("Failed to process post favorited event: {}", message, e);
             throw new RuntimeException("Failed to process post favorited event", e);

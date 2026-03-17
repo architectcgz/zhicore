@@ -46,43 +46,42 @@ public class ScheduledPublishEventStoreImpl implements ScheduledPublishEventStor
     }
 
     @Override
+    public Optional<ScheduledPublishEventRecord> findByTriggerEventId(String triggerEventId) {
+        if (triggerEventId == null || triggerEventId.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(
+                mapper.selectOne(
+                        new LambdaQueryWrapper<ScheduledPublishEventEntity>()
+                                .eq(ScheduledPublishEventEntity::getTriggerEventId, triggerEventId)
+                                .last("LIMIT 1")
+                )
+        ).map(this::toRecord);
+    }
+
+    @Override
     public void update(ScheduledPublishEventRecord eventRecord) {
         mapper.updateById(toEntity(eventRecord));
     }
 
     @Override
-    public List<ScheduledPublishEventRecord> findDueScheduledPending(LocalDateTime dbNow,
-                                                                     LocalDateTime cooldownBefore,
-                                                                     int limit) {
-        return mapper.findDueScheduledPending(dbNow, cooldownBefore, limit).stream()
+    public List<ScheduledPublishEventRecord> claimCompensationBatch(LocalDateTime dbNow,
+                                                                    LocalDateTime reclaimBefore,
+                                                                    String claimedBy,
+                                                                    int limit) {
+        return mapper.claimCompensationBatch(dbNow, reclaimBefore, claimedBy, limit).stream()
                 .map(this::toRecord)
                 .toList();
     }
 
     @Override
-    public List<ScheduledPublishEventRecord> findStaleScheduledPending(LocalDateTime dbNow,
-                                                                       LocalDateTime staleBefore,
-                                                                       int limit) {
-        return mapper.findStaleScheduledPending(dbNow, staleBefore, limit).stream()
-                .map(this::toRecord)
-                .toList();
-    }
-
-    @Override
-    public int casUpdateLastEnqueueAt(ScheduledPublishEventRecord eventRecord, LocalDateTime dbNow, String newEventId) {
-        if (eventRecord == null || eventRecord.getId() == null) {
-            return 0;
-        }
-        if (eventRecord.getLastEnqueueAt() == null) {
-            return mapper.casUpdateLastEnqueueAtWhenNull(eventRecord.getId(), eventRecord.getScheduledAt(), dbNow, newEventId);
-        }
-        return mapper.casUpdateLastEnqueueAt(
-                eventRecord.getId(),
-                eventRecord.getScheduledAt(),
-                eventRecord.getLastEnqueueAt(),
-                dbNow,
-                newEventId
-        );
+    public Optional<ScheduledPublishEventRecord> claimForConsumption(String eventId,
+                                                                     LocalDateTime dbNow,
+                                                                     LocalDateTime reclaimBefore,
+                                                                     String claimedBy) {
+        return mapper.claimForConsumption(eventId, dbNow, reclaimBefore, claimedBy).stream()
+                .findFirst()
+                .map(this::toRecord);
     }
 
     @Override
@@ -97,7 +96,8 @@ public class ScheduledPublishEventStoreImpl implements ScheduledPublishEventStor
                                 .in(
                                         ScheduledPublishEventEntity::getStatus,
                                         ScheduledPublishEventEntity.ScheduledPublishStatus.PENDING,
-                                        ScheduledPublishEventEntity.ScheduledPublishStatus.SCHEDULED_PENDING
+                                        ScheduledPublishEventEntity.ScheduledPublishStatus.PROCESSING,
+                                        ScheduledPublishEventEntity.ScheduledPublishStatus.FAILED
                                 )
                                 .orderByDesc(ScheduledPublishEventEntity::getUpdatedAt)
                                 .last("LIMIT 1")
@@ -105,18 +105,34 @@ public class ScheduledPublishEventStoreImpl implements ScheduledPublishEventStor
         ).map(this::toRecord);
     }
 
+    @Override
+    public int markTerminalByPostId(Long postId,
+                                    ScheduledPublishEventRecord.ScheduledPublishStatus status,
+                                    LocalDateTime dbNow,
+                                    String lastError) {
+        return mapper.markTerminalByPostId(
+                postId,
+                ScheduledPublishEventEntity.ScheduledPublishStatus.valueOf(status.name()).name(),
+                dbNow,
+                lastError
+        );
+    }
+
     private ScheduledPublishEventRecord toRecord(ScheduledPublishEventEntity entity) {
         return ScheduledPublishEventRecord.builder()
                 .id(entity.getId())
                 .eventId(entity.getEventId())
+                .triggerEventId(entity.getTriggerEventId())
                 .postId(entity.getPostId())
                 .scheduledAt(entity.getScheduledAt())
+                .nextAttemptAt(entity.getNextAttemptAt())
                 .status(entity.getStatus() == null
                         ? null
                         : ScheduledPublishEventRecord.ScheduledPublishStatus.valueOf(entity.getStatus().name()))
                 .rescheduleRetryCount(entity.getRescheduleRetryCount())
                 .publishRetryCount(entity.getPublishRetryCount())
-                .lastEnqueueAt(entity.getLastEnqueueAt())
+                .claimedAt(entity.getClaimedAt())
+                .claimedBy(entity.getClaimedBy())
                 .lastError(entity.getLastError())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
@@ -127,14 +143,17 @@ public class ScheduledPublishEventStoreImpl implements ScheduledPublishEventStor
         ScheduledPublishEventEntity entity = new ScheduledPublishEventEntity();
         entity.setId(record.getId());
         entity.setEventId(record.getEventId());
+        entity.setTriggerEventId(record.getTriggerEventId());
         entity.setPostId(record.getPostId());
         entity.setScheduledAt(record.getScheduledAt());
+        entity.setNextAttemptAt(record.getNextAttemptAt());
         entity.setStatus(record.getStatus() == null
                 ? null
                 : ScheduledPublishEventEntity.ScheduledPublishStatus.valueOf(record.getStatus().name()));
         entity.setRescheduleRetryCount(record.getRescheduleRetryCount());
         entity.setPublishRetryCount(record.getPublishRetryCount());
-        entity.setLastEnqueueAt(record.getLastEnqueueAt());
+        entity.setClaimedAt(record.getClaimedAt());
+        entity.setClaimedBy(record.getClaimedBy());
         entity.setLastError(record.getLastError());
         entity.setCreatedAt(record.getCreatedAt());
         entity.setUpdatedAt(record.getUpdatedAt());

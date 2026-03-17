@@ -2,11 +2,13 @@ package com.zhicore.content.application.service.command;
 
 import com.zhicore.common.exception.ResourceNotFoundException;
 import com.zhicore.common.exception.TooManyRequestsException;
+import com.zhicore.common.tx.TransactionCommitSignal;
 import com.zhicore.content.application.dto.admin.outbox.OutboxRetryResponse;
 import com.zhicore.content.application.model.OutboxEventRecord;
 import com.zhicore.content.application.model.OutboxRetryAuditRecord;
 import com.zhicore.content.application.port.store.OutboxEventStore;
 import com.zhicore.content.application.port.store.OutboxRetryAuditStore;
+import com.zhicore.content.infrastructure.messaging.OutboxDispatchTrigger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -35,16 +37,22 @@ class OutboxAdminCommandServiceTest {
     @Mock
     private OutboxRetryAuditStore outboxRetryAuditStore;
 
+    @Mock
+    private TransactionCommitSignal transactionCommitSignal;
+
+    @Mock
+    private OutboxDispatchTrigger outboxDispatchTrigger;
+
     @InjectMocks
     private OutboxAdminCommandService outboxAdminCommandService;
 
     @Test
-    void retryFailedShouldResetEventAndWriteAudit() {
-        OutboxEventRecord record = failedRecord();
+    void retryDeadShouldResetEventAndWriteAudit() {
+        OutboxEventRecord record = deadRecord();
         when(outboxEventStore.findByEventId("EVENT_1")).thenReturn(Optional.of(record));
         when(outboxRetryAuditStore.countRecentRetries(eq("EVENT_1"), any())).thenReturn(0L);
 
-        OutboxRetryResponse response = outboxAdminCommandService.retryFailed(" EVENT_1 ", 2001L, "manual retry");
+        OutboxRetryResponse response = outboxAdminCommandService.retryDead(" EVENT_1 ", 2001L, "manual retry");
 
         assertEquals("EVENT_1", response.getEventId());
         assertEquals("PENDING", response.getStatus());
@@ -55,6 +63,9 @@ class OutboxAdminCommandServiceTest {
         assertEquals(OutboxEventRecord.OutboxStatus.PENDING, updatedRecord.getStatus());
         assertEquals(0, updatedRecord.getRetryCount());
         assertNull(updatedRecord.getLastError());
+        org.junit.jupiter.api.Assertions.assertNotNull(updatedRecord.getNextAttemptAt());
+        assertNull(updatedRecord.getClaimedAt());
+        assertNull(updatedRecord.getClaimedBy());
         assertNull(updatedRecord.getDispatchedAt());
 
         ArgumentCaptor<OutboxRetryAuditRecord> auditCaptor = ArgumentCaptor.forClass(OutboxRetryAuditRecord.class);
@@ -64,45 +75,46 @@ class OutboxAdminCommandServiceTest {
         assertEquals(2001L, auditRecord.getOperatorId());
         assertEquals("manual retry", auditRecord.getReason());
         assertEquals("ACCEPTED", auditRecord.getResult());
+        verify(transactionCommitSignal).afterCommit(any());
     }
 
     @Test
-    void retryFailedShouldRejectWhenRetryTooFrequent() {
-        when(outboxEventStore.findByEventId("EVENT_1")).thenReturn(Optional.of(failedRecord()));
+    void retryDeadShouldRejectWhenRetryTooFrequent() {
+        when(outboxEventStore.findByEventId("EVENT_1")).thenReturn(Optional.of(deadRecord()));
         when(outboxRetryAuditStore.countRecentRetries(eq("EVENT_1"), any())).thenReturn(1L);
 
         assertThrows(TooManyRequestsException.class,
-                () -> outboxAdminCommandService.retryFailed("EVENT_1", 2001L, "manual retry"));
+                () -> outboxAdminCommandService.retryDead("EVENT_1", 2001L, "manual retry"));
 
         verify(outboxEventStore, never()).update(any());
         verify(outboxRetryAuditStore, never()).save(any());
     }
 
     @Test
-    void retryFailedShouldRejectWhenStatusIsNotFailed() {
-        OutboxEventRecord record = failedRecord().withStatus(OutboxEventRecord.OutboxStatus.PENDING);
+    void retryDeadShouldRejectWhenStatusIsNotDead() {
+        OutboxEventRecord record = deadRecord().withStatus(OutboxEventRecord.OutboxStatus.PENDING);
         when(outboxEventStore.findByEventId("EVENT_1")).thenReturn(Optional.of(record));
         when(outboxRetryAuditStore.countRecentRetries(eq("EVENT_1"), any())).thenReturn(0L);
 
         assertThrows(IllegalArgumentException.class,
-                () -> outboxAdminCommandService.retryFailed("EVENT_1", 2001L, "manual retry"));
+                () -> outboxAdminCommandService.retryDead("EVENT_1", 2001L, "manual retry"));
 
         verify(outboxEventStore, never()).update(any());
         verify(outboxRetryAuditStore, never()).save(any());
     }
 
     @Test
-    void retryFailedShouldRejectWhenEventMissing() {
+    void retryDeadShouldRejectWhenEventMissing() {
         when(outboxEventStore.findByEventId("EVENT_404")).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class,
-                () -> outboxAdminCommandService.retryFailed("EVENT_404", 2001L, "manual retry"));
+                () -> outboxAdminCommandService.retryDead("EVENT_404", 2001L, "manual retry"));
 
         verify(outboxRetryAuditStore, never()).countRecentRetries(any(), any());
         verify(outboxEventStore, never()).update(any());
     }
 
-    private OutboxEventRecord failedRecord() {
+    private OutboxEventRecord deadRecord() {
         Instant now = Instant.parse("2026-03-10T10:15:30Z");
         return OutboxEventRecord.builder()
                 .id(1L)
@@ -115,10 +127,11 @@ class OutboxAdminCommandServiceTest {
                 .occurredAt(now.minusSeconds(60))
                 .createdAt(now.minusSeconds(30))
                 .updatedAt(now)
+                .nextAttemptAt(now.minusSeconds(5))
                 .dispatchedAt(now.minusSeconds(10))
                 .retryCount(3)
                 .lastError("boom")
-                .status(OutboxEventRecord.OutboxStatus.FAILED)
+                .status(OutboxEventRecord.OutboxStatus.DEAD)
                 .build();
     }
 }

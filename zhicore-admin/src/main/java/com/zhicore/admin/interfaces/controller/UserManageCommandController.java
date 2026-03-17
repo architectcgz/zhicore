@@ -1,6 +1,6 @@
 package com.zhicore.admin.interfaces.controller;
 
-import com.zhicore.admin.application.service.UserManageCommandService;
+import com.zhicore.admin.application.service.command.UserManageCommandService;
 import com.zhicore.admin.infrastructure.security.RequireAdmin;
 import com.zhicore.admin.interfaces.dto.request.DisableUserRequest;
 import com.zhicore.common.result.ApiResponse;

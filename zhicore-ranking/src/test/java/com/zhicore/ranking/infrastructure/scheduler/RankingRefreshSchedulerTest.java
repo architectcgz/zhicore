@@ -2,8 +2,8 @@ package com.zhicore.ranking.infrastructure.scheduler;
 
 import com.zhicore.common.cache.DistributedLockExecutor;
 import com.zhicore.ranking.application.port.store.RankingMaintenanceStore;
-import com.zhicore.ranking.application.service.CreatorRankingCommandService;
-import com.zhicore.ranking.application.service.PostRankingCommandService;
+import com.zhicore.ranking.application.service.command.CreatorRankingCommandService;
+import com.zhicore.ranking.application.service.command.PostRankingCommandService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

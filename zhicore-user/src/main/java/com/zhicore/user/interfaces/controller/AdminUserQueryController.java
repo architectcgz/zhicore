@@ -5,7 +5,7 @@ import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.user.application.assembler.UserAssembler;
 import com.zhicore.user.application.query.view.UserManageView;
-import com.zhicore.user.application.service.UserManageQueryService;
+import com.zhicore.user.application.service.query.UserManageQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

@@ -1,0 +1,7 @@
+# ZhiCore Comment Service 配置
+# Data ID: zhicore-comment.yml
+# Group: ZHICORE-SERVICE
+
+zhicore:
+  id-generator:
+    server-url: ${ID_GENERATOR_SERVER_URL:http://localhost:8011}

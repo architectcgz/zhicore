@@ -1,0 +1,172 @@
+[
+  {
+    "resource": "/api/v1/tags/hot",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 120,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:getPostDetail",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 300,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:getPostList",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 200,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:getPostContent",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 150,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:getTagDetail",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 200,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:listTags",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 150,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:searchTags",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 150,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:getPostsByTag",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 120,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:getHotTags",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 120,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:isPostLiked",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 250,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:batchCheckPostLiked",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 150,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:getPostLikeCount",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 250,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:isPostFavorited",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 250,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:batchCheckPostFavorited",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 150,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:getPostFavoriteCount",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 250,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:adminQueryPosts",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 100,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  },
+  {
+    "resource": "content:listFailedOutbox",
+    "limitApp": "default",
+    "grade": 1,
+    "count": 80,
+    "strategy": 0,
+    "controlBehavior": 1,
+    "warmUpPeriodSec": 10,
+    "clusterMode": false
+  }
+]

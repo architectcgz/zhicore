@@ -5,7 +5,7 @@
 spring:
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:zhicore}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:zhicore_content}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres123456}
     hikari:
@@ -38,3 +38,7 @@ rocketmq:
     send-message-timeout: 3000
     retry-times-when-send-failed: 2
     max-message-size: 4194304
+
+zhicore:
+  id-generator:
+    server-url: ${ID_GENERATOR_SERVER_URL:http://localhost:8011}

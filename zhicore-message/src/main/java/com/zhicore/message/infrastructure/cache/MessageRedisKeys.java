@@ -40,4 +40,12 @@ public final class MessageRedisKeys {
     public static String offlineMessages(Long userId) {
         return PREFIX + ":" + userId + ":offline";
     }
+
+    /**
+     * 本地消息与 IM 消息的桥接映射。
+     * Key: message:im-bridge:{localMessageId}
+     */
+    public static String imBridgeMapping(Long localMessageId) {
+        return PREFIX + ":im-bridge:" + localMessageId;
+    }
 }

@@ -1,5 +1,7 @@
 package com.zhicore.content.domain.event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.model.TopicId;
@@ -54,12 +56,21 @@ public class PostCreatedDomainEvent implements DomainEvent<PostId> {
      * @param createdAt 创建时间
      * @param aggregateVersion 聚合根版本号
      */
-    public PostCreatedDomainEvent(String eventId, Instant occurredAt,
-                                 PostId postId, String title, String excerpt,
-                                 UserId authorId, String authorName,
-                                 Set<TagId> tagIds, TopicId topicId, String topicName,
-                                 String status, Instant publishedAt,
-                                 Instant createdAt, Long aggregateVersion) {
+    @JsonCreator
+    public PostCreatedDomainEvent(@JsonProperty("eventId") String eventId,
+                                 @JsonProperty("occurredAt") Instant occurredAt,
+                                 @JsonProperty("postId") PostId postId,
+                                 @JsonProperty("title") String title,
+                                 @JsonProperty("excerpt") String excerpt,
+                                 @JsonProperty("authorId") UserId authorId,
+                                 @JsonProperty("authorName") String authorName,
+                                 @JsonProperty("tagIds") Set<TagId> tagIds,
+                                 @JsonProperty("topicId") TopicId topicId,
+                                 @JsonProperty("topicName") String topicName,
+                                 @JsonProperty("status") String status,
+                                 @JsonProperty("publishedAt") Instant publishedAt,
+                                 @JsonProperty("createdAt") Instant createdAt,
+                                 @JsonProperty("aggregateVersion") Long aggregateVersion) {
         this.eventId = eventId;
         this.occurredAt = occurredAt;
         this.postId = postId;

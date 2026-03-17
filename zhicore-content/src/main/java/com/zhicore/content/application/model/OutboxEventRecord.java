@@ -24,6 +24,9 @@ public class OutboxEventRecord {
     Instant occurredAt;
     Instant createdAt;
     Instant updatedAt;
+    Instant nextAttemptAt;
+    Instant claimedAt;
+    String claimedBy;
     Instant dispatchedAt;
     Integer retryCount;
     String lastError;
@@ -31,7 +34,9 @@ public class OutboxEventRecord {
 
     public enum OutboxStatus {
         PENDING,
-        DISPATCHED,
-        FAILED
+        PROCESSING,
+        SUCCEEDED,
+        FAILED,
+        DEAD
     }
 }

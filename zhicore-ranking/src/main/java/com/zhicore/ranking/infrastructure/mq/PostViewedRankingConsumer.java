@@ -2,7 +2,7 @@ package com.zhicore.ranking.infrastructure.mq;
 
 import com.zhicore.api.event.post.PostViewedEvent;
 import com.zhicore.common.mq.TopicConstants;
-import com.zhicore.ranking.application.service.RankingEventInboxService;
+import com.zhicore.ranking.application.service.RankingLedgerIngestionService;
 import com.zhicore.ranking.domain.model.RankingMetricType;
 import com.zhicore.ranking.infrastructure.redis.RankingRedisRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HexFormat;
 
 /**
@@ -50,9 +51,9 @@ public class PostViewedRankingConsumer extends BaseRankingConsumer
 
     public PostViewedRankingConsumer(RankingRedisRepository rankingRepository,
                                      ObjectMapper objectMapper,
-                                     RankingEventInboxService rankingEventInboxService,
+                                     RankingLedgerIngestionService rankingLedgerIngestionService,
                                      MeterRegistry meterRegistry) {
-        super(objectMapper, rankingEventInboxService);
+        super(objectMapper, rankingLedgerIngestionService);
         this.rankingRepository = rankingRepository;
         this.viewDedupCounter = Counter.builder("ranking.view.dedup")
                 .description("浏览去重拦截次数")
@@ -84,7 +85,7 @@ public class PostViewedRankingConsumer extends BaseRankingConsumer
                     return;
                 }
 
-                boolean created = saveInboxEvent(
+                boolean created = saveLedgerEvent(
                         event.getEventId(),
                         event.getClass().getSimpleName(),
                         event.getPostId(),
@@ -92,16 +93,18 @@ public class PostViewedRankingConsumer extends BaseRankingConsumer
                         event.getAuthorId(),
                         RankingMetricType.VIEW,
                         (int) allowedDelta,
-                        event.getOccurredAt(),
-                        event.getPublishedAt()
+                        LocalDateTime.ofInstant(event.getOccurredAt(), ZoneId.systemDefault()),
+                        event.getPublishedAt() != null
+                                ? LocalDateTime.ofInstant(event.getPublishedAt(), ZoneId.systemDefault())
+                                : null
                 );
                 if (!created) {
                     rollbackViewPreCheck(postId, dedupId, dedupAcquired, allowedDelta);
-                    log.debug("Post viewed 事件已写入 ranking inbox，跳过重复消费: eventId={}", event.getEventId());
+                    log.debug("Post viewed 事件已写入 ranking ledger，跳过重复消费: eventId={}", event.getEventId());
                     return;
                 }
 
-                log.info("Post viewed 事件已写入 ranking inbox: postId={}, delta={}", postId, allowedDelta);
+                log.info("Post viewed 事件已写入 ranking ledger: postId={}, delta={}", postId, allowedDelta);
             } catch (Exception e) {
                 rollbackViewPreCheck(postId, dedupId, dedupAcquired, allowedDelta);
                 throw e;

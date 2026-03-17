@@ -5,12 +5,13 @@ import com.zhicore.api.client.PostCommentClient;
 import com.zhicore.api.client.UserSimpleBatchClient;
 import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.user.UserSimpleDTO;
-import com.zhicore.api.event.comment.CommentCreatedEvent;
 import com.zhicore.comment.application.command.CreateCommentCommand;
 import com.zhicore.comment.application.command.UpdateCommentCommand;
-import com.zhicore.comment.application.port.event.CommentEventPort;
+import com.zhicore.comment.application.port.event.CommentIntegrationEventPort;
 import com.zhicore.comment.application.port.store.CommentCounterStore;
 import com.zhicore.comment.application.port.store.CommentDetailCacheStore;
+import com.zhicore.comment.application.service.command.CommentCommandService;
+import com.zhicore.comment.application.service.query.CommentQueryService;
 import com.zhicore.comment.domain.cursor.HotCursorCodec;
 import com.zhicore.comment.domain.cursor.TimeCursorCodec;
 import com.zhicore.comment.domain.model.Comment;
@@ -23,6 +24,9 @@ import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.DomainException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
+import com.zhicore.common.tx.TransactionCommitSignal;
+import com.zhicore.integration.messaging.comment.CommentCreatedIntegrationEvent;
+import com.zhicore.integration.messaging.comment.CommentDeletedIntegrationEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -63,7 +67,7 @@ class CommentApplicationServiceTest {
     @Mock private CommentDetailCacheStore commentDetailCacheStore;
     @Mock private CommentCounterStore commentCounterStore;
     @Mock private CommentStatsRepository commentStatsRepository;
-    @Mock private CommentEventPort eventPublisher;
+    @Mock private CommentIntegrationEventPort eventPublisher;
     @Mock private PostCommentClient postServiceClient;
     @Mock private UserSimpleBatchClient userServiceClient;
     @Mock private IdGeneratorFeignClient idGeneratorFeignClient;
@@ -84,7 +88,7 @@ class CommentApplicationServiceTest {
         commandService = new CommentCommandService(
                 commentRepository, commentDetailCacheStore, commentCounterStore,
                 commentStatsRepository, eventPublisher, postServiceClient,
-                idGeneratorFeignClient, transactionTemplate
+                idGeneratorFeignClient, transactionTemplate, new TransactionCommitSignal()
         );
         queryService = new CommentQueryService(
                 commentRepository, commentDetailCacheService, userServiceClient,
@@ -160,7 +164,7 @@ class CommentApplicationServiceTest {
 
             assertEquals(COMMENT_ID, result);
             verify(commentRepository).save(any(Comment.class));
-            verify(eventPublisher).publishCommentCreated(any(CommentCreatedEvent.class));
+            verify(eventPublisher).publish(any(CommentCreatedIntegrationEvent.class));
         }
 
         @Test
@@ -286,10 +290,11 @@ class CommentApplicationServiceTest {
             commandService.deleteComment(USER_ID, false, COMMENT_ID);
 
             verify(commentRepository).update(any(Comment.class));
-            verify(eventPublisher).publishCommentDeleted(argThat(event ->
-                    event.getCommentId().equals(COMMENT_ID)
-                            && event.isTopLevel()
-                            && "AUTHOR".equals(event.getDeletedBy())
+            verify(eventPublisher).publish(argThat(event ->
+                    event instanceof CommentDeletedIntegrationEvent deleted
+                            && deleted.getCommentId().equals(COMMENT_ID)
+                            && deleted.isTopLevel()
+                            && "AUTHOR".equals(deleted.getDeletedBy())
             ));
         }
 
@@ -345,8 +350,9 @@ class CommentApplicationServiceTest {
 
             commandService.deleteComment(9999L, true, COMMENT_ID);
 
-            verify(eventPublisher).publishCommentDeleted(argThat(event ->
-                    "ADMIN".equals(event.getDeletedBy())
+            verify(eventPublisher).publish(argThat(event ->
+                    event instanceof CommentDeletedIntegrationEvent deleted
+                            && "ADMIN".equals(deleted.getDeletedBy())
             ));
         }
     }

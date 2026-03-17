@@ -1,5 +1,7 @@
 package com.zhicore.comment.application.service;
 
+import com.zhicore.comment.application.service.command.CommentLikeCommandService;
+import com.zhicore.comment.application.service.query.CommentLikeQueryService;
 import com.zhicore.comment.application.port.store.CommentLikeStore;
 import com.zhicore.comment.domain.model.Comment;
 import com.zhicore.comment.domain.model.CommentStats;

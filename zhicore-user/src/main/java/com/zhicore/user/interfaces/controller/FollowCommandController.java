@@ -1,7 +1,7 @@
 package com.zhicore.user.interfaces.controller;
 
 import com.zhicore.common.result.ApiResponse;
-import com.zhicore.user.application.service.FollowCommandService;
+import com.zhicore.user.application.service.command.FollowCommandService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

@@ -57,6 +57,12 @@ spring:
           predicates:
             - Path=/api/v1/ranking/**
 
+        # ID 生成服务
+        - id: zhicore-id-generator
+          uri: lb://zhicore-id-generator
+          predicates:
+            - Path=/api/v1/id/**
+
         # 文件服务 (替代原 ZhiCore-upload)
         - id: file-service
           uri: lb://file-service
@@ -163,6 +169,7 @@ jwt:
     - /api/v1/users/*/profile
     - /api/v1/search/**
     - /api/v1/ranking/**
+    - /api/v1/id/**
     - /api/v1/tags/**
     - /api/v1/categories/**
     - /actuator/**

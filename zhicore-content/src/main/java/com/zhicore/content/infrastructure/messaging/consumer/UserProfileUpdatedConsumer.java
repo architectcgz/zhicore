@@ -5,6 +5,7 @@ import com.zhicore.integration.messaging.user.UserProfileUpdatedIntegrationEvent
 import com.zhicore.content.application.port.repo.ConsumedEventRepository;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostCacheInvalidationStore;
+import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.content.domain.model.OwnerSnapshot;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
@@ -51,9 +52,9 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 @RocketMQMessageListener(
-    topic = "user-profile-events",
+    topic = TopicConstants.TOPIC_USER_EVENTS,
     consumerGroup = "zhicore-content-profile-consumer",
-    selectorExpression = "profile-updated"
+    selectorExpression = TopicConstants.TAG_USER_PROFILE_UPDATED
 )
 public class UserProfileUpdatedConsumer implements RocketMQListener<String> {
     

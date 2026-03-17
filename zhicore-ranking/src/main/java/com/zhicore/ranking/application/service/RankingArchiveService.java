@@ -6,21 +6,22 @@ import com.zhicore.ranking.application.port.policy.RankingArchivePolicy;
 import com.zhicore.ranking.application.port.store.RankingArchiveSourceStore;
 import com.zhicore.ranking.application.port.store.RankingArchiveStore;
 import com.zhicore.ranking.domain.model.HotScore;
+import com.zhicore.ranking.infrastructure.redis.RankingRedisKeys;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.WeekFields;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * 排行榜归档服务。
  */
 @Slf4j
 @Service
+@ConditionalOnProperty(prefix = "ranking.scheduler", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class RankingArchiveService {
 
     private static final String POST_ENTITY_TYPE = "post";
@@ -65,8 +66,8 @@ public class RankingArchiveService {
     public void archiveWeeklyRanking() {
         lockExecutor.executeWithLock(rankingArchivePolicy.weeklyArchiveLockKey(), () -> {
             LocalDate lastWeek = LocalDate.now().minusWeeks(1);
-            int year = lastWeek.getYear();
-            int weekNumber = getWeekNumber(lastWeek);
+            int year = RankingRedisKeys.getWeekBasedYear(lastWeek);
+            int weekNumber = RankingRedisKeys.getWeekNumber(lastWeek);
             log.info("开始归档周榜: year={}, week={}", year, weekNumber);
             try {
                 archiveWeeklyPosts(year, weekNumber);
@@ -117,7 +118,7 @@ public class RankingArchiveService {
     private void archiveDailyCreators(LocalDate date) {
         archiveSingleDimension(
                 "创作者日榜",
-                rankingArchiveSourceStore.getDailyCreatorRanking(rankingArchivePolicy.archiveLimit()),
+                rankingArchiveSourceStore.getDailyCreatorRanking(date, rankingArchivePolicy.archiveLimit()),
                 CREATOR_ENTITY_TYPE,
                 DAILY_RANKING_TYPE,
                 date.getYear(),
@@ -130,7 +131,7 @@ public class RankingArchiveService {
     private void archiveDailyTopics(LocalDate date) {
         archiveSingleDimension(
                 "话题日榜",
-                rankingArchiveSourceStore.getDailyTopicRanking(rankingArchivePolicy.archiveLimit()),
+                rankingArchiveSourceStore.getDailyTopicRanking(date, rankingArchivePolicy.archiveLimit()),
                 TOPIC_ENTITY_TYPE,
                 DAILY_RANKING_TYPE,
                 date.getYear(),
@@ -143,7 +144,7 @@ public class RankingArchiveService {
     private void archiveWeeklyPosts(int year, int weekNumber) {
         archiveSingleDimension(
                 "文章周榜",
-                rankingArchiveSourceStore.getWeeklyPostRanking(weekNumber, rankingArchivePolicy.archiveLimit()),
+                rankingArchiveSourceStore.getWeeklyPostRanking(year, weekNumber, rankingArchivePolicy.archiveLimit()),
                 POST_ENTITY_TYPE,
                 WEEKLY_RANKING_TYPE,
                 year,
@@ -156,7 +157,7 @@ public class RankingArchiveService {
     private void archiveWeeklyCreators(int year, int weekNumber) {
         archiveSingleDimension(
                 "创作者周榜",
-                rankingArchiveSourceStore.getWeeklyCreatorRanking(rankingArchivePolicy.archiveLimit()),
+                rankingArchiveSourceStore.getWeeklyCreatorRanking(year, weekNumber, rankingArchivePolicy.archiveLimit()),
                 CREATOR_ENTITY_TYPE,
                 WEEKLY_RANKING_TYPE,
                 year,
@@ -169,7 +170,7 @@ public class RankingArchiveService {
     private void archiveWeeklyTopics(int year, int weekNumber) {
         archiveSingleDimension(
                 "话题周榜",
-                rankingArchiveSourceStore.getWeeklyTopicRanking(rankingArchivePolicy.archiveLimit()),
+                rankingArchiveSourceStore.getWeeklyTopicRanking(year, weekNumber, rankingArchivePolicy.archiveLimit()),
                 TOPIC_ENTITY_TYPE,
                 WEEKLY_RANKING_TYPE,
                 year,
@@ -195,7 +196,7 @@ public class RankingArchiveService {
     private void archiveMonthlyCreators(int year, int month) {
         archiveSingleDimension(
                 "创作者月榜",
-                rankingArchiveSourceStore.getMonthlyCreatorRanking(rankingArchivePolicy.archiveLimit()),
+                rankingArchiveSourceStore.getMonthlyCreatorRanking(year, month, rankingArchivePolicy.archiveLimit()),
                 CREATOR_ENTITY_TYPE,
                 MONTHLY_RANKING_TYPE,
                 year,
@@ -208,7 +209,7 @@ public class RankingArchiveService {
     private void archiveMonthlyTopics(int year, int month) {
         archiveSingleDimension(
                 "话题月榜",
-                rankingArchiveSourceStore.getMonthlyTopicRanking(rankingArchivePolicy.archiveLimit()),
+                rankingArchiveSourceStore.getMonthlyTopicRanking(year, month, rankingArchivePolicy.archiveLimit()),
                 TOPIC_ENTITY_TYPE,
                 MONTHLY_RANKING_TYPE,
                 year,
@@ -261,10 +262,5 @@ public class RankingArchiveService {
             }
         }
         return archived;
-    }
-
-    private int getWeekNumber(LocalDate date) {
-        WeekFields weekFields = WeekFields.of(Locale.getDefault());
-        return date.get(weekFields.weekOfWeekBasedYear());
     }
 }

@@ -1,10 +1,10 @@
 package com.zhicore.notification.infrastructure.mq;
 
-import com.zhicore.api.event.comment.CommentCreatedEvent;
 import com.zhicore.common.mq.AbstractEventConsumer;
 import com.zhicore.common.mq.StatefulIdempotentHandler;
 import com.zhicore.common.mq.TopicConstants;
-import com.zhicore.notification.application.service.NotificationCommandService;
+import com.zhicore.integration.messaging.comment.CommentCreatedIntegrationEvent;
+import com.zhicore.notification.application.service.command.NotificationCommandService;
 import com.zhicore.notification.infrastructure.push.NotificationPushService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 /**
  * 评论创建通知消费者
  * 
- * 消费 CommentCreatedEvent 事件，创建评论通知并推送给相关用户：
+ * 消费 CommentCreatedIntegrationEvent 事件，创建评论通知并推送给相关用户：
  * 1. 通知文章作者有新评论
  * 2. 如果是回复，通知被回复者
  *
@@ -26,7 +26,7 @@ import org.springframework.stereotype.Component;
     selectorExpression = TopicConstants.TAG_COMMENT_CREATED,
     consumerGroup = NotificationConsumerGroups.COMMENT_CREATED_CONSUMER
 )
-public class CommentCreatedNotificationConsumer extends AbstractEventConsumer<CommentCreatedEvent> {
+public class CommentCreatedNotificationConsumer extends AbstractEventConsumer<CommentCreatedIntegrationEvent> {
 
     private final NotificationCommandService notificationService;
     private final NotificationPushService pushService;
@@ -34,13 +34,13 @@ public class CommentCreatedNotificationConsumer extends AbstractEventConsumer<Co
     public CommentCreatedNotificationConsumer(StatefulIdempotentHandler idempotentHandler,
                                               NotificationCommandService notificationService,
                                               NotificationPushService pushService) {
-        super(idempotentHandler, CommentCreatedEvent.class);
+        super(idempotentHandler, CommentCreatedIntegrationEvent.class);
         this.notificationService = notificationService;
         this.pushService = pushService;
     }
 
     @Override
-    protected void doHandle(CommentCreatedEvent event) {
+    protected void doHandle(CommentCreatedIntegrationEvent event) {
         Long postOwnerId = event.getPostOwnerId();
         Long commentAuthorId = event.getCommentAuthorId();
         Long postId = event.getPostId();

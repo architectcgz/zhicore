@@ -5,7 +5,7 @@ import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.message.application.dto.ConversationVO;
-import com.zhicore.message.application.service.ConversationQueryService;
+import com.zhicore.message.application.service.query.ConversationQueryService;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.executable.ExecutableValidator;

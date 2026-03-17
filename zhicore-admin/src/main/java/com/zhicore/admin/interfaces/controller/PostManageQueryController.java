@@ -1,7 +1,7 @@
 package com.zhicore.admin.interfaces.controller;
 
 import com.zhicore.admin.application.dto.PostManageVO;
-import com.zhicore.admin.application.service.PostManageQueryService;
+import com.zhicore.admin.application.service.query.PostManageQueryService;
 import com.zhicore.admin.infrastructure.security.RequireAdmin;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;

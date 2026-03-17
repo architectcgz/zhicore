@@ -1,20 +1,20 @@
 # Sentinel 规则配置
 
-本目录包含 ZhiCore Post Service 的 Sentinel 规则配置文件。
+本目录包含 `zhicore-content` 服务的 Sentinel 规则配置文件。
 
 ## 文件说明
 
 ### 规则配置文件
 
-1. **ZhiCore-post-flow-rules.json** - 流控规则
+1. **zhicore-content-flow-rules.json** - 流控规则
    - 控制每个资源的 QPS（每秒查询率）
    - 防止系统过载
 
-2. **ZhiCore-post-degrade-rules.json** - 降级规则
+2. **zhicore-content-degrade-rules.json** - 降级规则
    - 配置熔断策略
    - 当服务不稳定时自动降级
 
-3. **ZhiCore-post-system-rules.json** - 系统规则
+3. **zhicore-content-system-rules.json** - 系统规则
    - 系统级别的保护规则
    - 基于系统负载、CPU 使用率等指标
 
@@ -51,7 +51,7 @@
 
 2. **Sentinel 控制台**
    - 访问 http://localhost:8858
-   - 查看 ZhiCore-post 服务的规则配置
+   - 查看 `zhicore-content` 服务的规则配置
 
 ## 规则详解
 
@@ -59,7 +59,7 @@
 
 ```json
 {
-  "resource": "createPost",        // 资源名称（对应 @SentinelResource 的 value）
+  "resource": "content:getPostDetail", // 资源名称（对应 @SentinelResource 的 value）
   "limitApp": "default",           // 来源应用
   "grade": 1,                      // 限流阈值类型（0=线程数，1=QPS）
   "count": 100,                    // 限流阈值
@@ -70,17 +70,17 @@
 ```
 
 **当前配置：**
-- `createPost`: 100 QPS
-- `getPostFullDetail`: 500 QPS
-- `getPostContent`: 500 QPS
-- `updatePost`: 100 QPS
-- `deletePost`: 50 QPS
+- `content:getPostDetail`: 300 QPS
+- `content:getPostList`: 200 QPS
+- `content:getPostContent`: 150 QPS
+- `content:getTagDetail`: 200 QPS
+- `content:getHotTags`: 120 QPS
 
 ### 降级规则 (Degrade Rules)
 
 ```json
 {
-  "resource": "getPostFullDetail",  // 资源名称
+  "resource": "content:getPostDetail", // 资源名称
   "grade": 0,                       // 降级策略（0=慢调用比例，1=异常比例，2=异常数）
   "count": 1000,                    // 慢调用阈值（毫秒），超过此时间视为慢调用（grade=0 时生效）
   "timeWindow": 10,                 // 熔断时长（秒）
@@ -92,13 +92,8 @@
 
 **当前配置：**
 
-查询操作（慢调用比例降级）：
-- `getPostFullDetail`: RT > 1000ms 视为慢调用；慢调用比例 50%，熔断 10 秒
-- `getPostContent`: RT > 1000ms 视为慢调用；慢调用比例 50%，熔断 10 秒
-
-写操作（异常比例降级）：
-- `createPost`: 异常比例 50%，熔断 10 秒
-- `updatePost`: 异常比例 50%，熔断 10 秒
+- 当前未下发降级规则，配置内容为 `[]`
+- 如需启用，请按资源名 `content:*` 或 URL 资源 `/api/v1/tags/hot` 增量配置
 
 ### 系统规则 (System Rules)
 
@@ -114,25 +109,16 @@
 ```
 
 **当前配置：**
-- 系统总 QPS: 1000
-- 平均响应时间: 3000ms
-- 最大 CPU 使用率: 80%
+
+- 当前未下发系统规则，配置内容为 `[]`
 
 ## 降级策略说明
 
-### getPostFullDetail 降级策略
+### 当前策略
 
-当 MongoDB 不可用或响应缓慢时：
-- **触发条件**: 50% 的请求响应时间超过阈值
-- **降级行为**: 仅返回 PostgreSQL 数据（不包含完整内容）
-- **恢复时间**: 10 秒后自动尝试恢复
-
-实现示例：见 `zhicore-content/SENTINEL_MIGRATION_GUIDE.md`（`SentinelDualStorageManager` 的 blockHandler / fallback 示例）
-
-### 其他操作降级策略
-
-- **createPost**: 快速失败，返回错误信息
-- **updatePost**: 快速失败，返回错误信息
+- 流控规则已持久化到 Nacos，对应 `zhicore-content-flow-rules`
+- 降级和系统规则当前保持空数组，避免控制台和客户端持续报“source is empty”
+- 运行时默认值与代码中的 `content.sentinel.*` 保持一致
 - **deletePost**: 快速失败，返回错误信息
 
 ## 调整建议

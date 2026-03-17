@@ -1,5 +1,8 @@
 package com.zhicore.integration.messaging.user;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.integration.messaging.IntegrationEvent;
 import lombok.Getter;
 
@@ -32,7 +35,7 @@ public class UserFollowedIntegrationEvent extends IntegrationEvent {
     /**
      * 被关注者ID（被关注的用户）
      */
-    private final Long followedId;
+    private final Long followingId;
 
     /**
      * 构造函数
@@ -40,20 +43,23 @@ public class UserFollowedIntegrationEvent extends IntegrationEvent {
      * @param eventId 事件ID（从领域事件复制）
      * @param occurredAt 事件发生时间（从领域事件复制）
      * @param followerId 关注者ID
-     * @param followedId 被关注者ID
+     * @param followingId 被关注者ID
      * @param aggregateVersion 聚合根版本号（用于并发控制）
      */
-    public UserFollowedIntegrationEvent(String eventId, Instant occurredAt,
-                                       Long followerId, Long followedId,
-                                       Long aggregateVersion) {
+    @JsonCreator
+    public UserFollowedIntegrationEvent(@JsonProperty("eventId") String eventId,
+                                        @JsonProperty("occurredAt") Instant occurredAt,
+                                        @JsonProperty("followerId") Long followerId,
+                                        @JsonProperty("followingId") Long followingId,
+                                        @JsonProperty("aggregateVersion") Long aggregateVersion) {
         super(eventId, occurredAt, aggregateVersion, 1);  // schemaVersion = 1
         this.followerId = followerId;
-        this.followedId = followedId;
+        this.followingId = followingId;
     }
 
     @Override
     public String getTag() {
-        return "USER_FOLLOWED";
+        return TopicConstants.TAG_USER_FOLLOWED;
     }
     
     @Override

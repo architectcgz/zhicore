@@ -36,18 +36,30 @@ public class RedisRankingSnapshotCacheStore implements RankingSnapshotCacheStore
                                     List<HotScore> postScores,
                                     List<HotScore> creatorScores,
                                     List<HotScore> topicScores) {
-        rankingRedisRepository.replaceRanking(RankingRedisKeys.todayPosts(), postScores, DAILY_TTL);
+        rankingRedisRepository.replaceRanking(RankingRedisKeys.dailyPosts(date), postScores, DAILY_TTL);
         rankingRedisRepository.replaceRanking(RankingRedisKeys.dailyCreators(date), creatorScores, DAILY_TTL);
         rankingRedisRepository.replaceRanking(RankingRedisKeys.dailyTopics(date), topicScores, DAILY_TTL);
     }
 
     @Override
-    public void replaceWeeklyPostRanking(List<HotScore> postScores) {
-        rankingRedisRepository.replaceRanking(RankingRedisKeys.currentWeekPosts(), postScores, WEEKLY_TTL);
+    public void replaceWeeklyRanking(int weekBasedYear,
+                                     int weekNumber,
+                                     List<HotScore> postScores,
+                                     List<HotScore> creatorScores,
+                                     List<HotScore> topicScores) {
+        rankingRedisRepository.replaceRanking(RankingRedisKeys.weeklyPosts(weekBasedYear, weekNumber), postScores, WEEKLY_TTL);
+        rankingRedisRepository.replaceRanking(RankingRedisKeys.weeklyCreators(weekBasedYear, weekNumber), creatorScores, WEEKLY_TTL);
+        rankingRedisRepository.replaceRanking(RankingRedisKeys.weeklyTopics(weekBasedYear, weekNumber), topicScores, WEEKLY_TTL);
     }
 
     @Override
-    public void replaceMonthlyPostRanking(List<HotScore> postScores) {
-        rankingRedisRepository.replaceRanking(RankingRedisKeys.currentMonthPosts(), postScores, MONTHLY_TTL);
+    public void replaceMonthlyRanking(int year,
+                                      int month,
+                                      List<HotScore> postScores,
+                                      List<HotScore> creatorScores,
+                                      List<HotScore> topicScores) {
+        rankingRedisRepository.replaceRanking(RankingRedisKeys.monthlyPosts(year, month), postScores, MONTHLY_TTL);
+        rankingRedisRepository.replaceRanking(RankingRedisKeys.monthlyCreators(year, month), creatorScores, MONTHLY_TTL);
+        rankingRedisRepository.replaceRanking(RankingRedisKeys.monthlyTopics(year, month), topicScores, MONTHLY_TTL);
     }
 }

@@ -25,28 +25,28 @@ public class RedisRankingArchiveSourceStore implements RankingArchiveSourceStore
     }
 
     @Override
-    public List<HotScore> getDailyCreatorRanking(int limit) {
-        return redisRepository.getTopRanking(RankingRedisKeys.hotCreators(), 0, limit - 1);
+    public List<HotScore> getDailyCreatorRanking(LocalDate date, int limit) {
+        return redisRepository.getTopRanking(RankingRedisKeys.dailyCreators(date), 0, limit - 1);
     }
 
     @Override
-    public List<HotScore> getDailyTopicRanking(int limit) {
-        return redisRepository.getTopRanking(RankingRedisKeys.hotTopics(), 0, limit - 1);
+    public List<HotScore> getDailyTopicRanking(LocalDate date, int limit) {
+        return redisRepository.getTopRanking(RankingRedisKeys.dailyTopics(date), 0, limit - 1);
     }
 
     @Override
-    public List<HotScore> getWeeklyPostRanking(int weekNumber, int limit) {
-        return redisRepository.getWeeklyHotPostsWithScore(weekNumber, limit);
+    public List<HotScore> getWeeklyPostRanking(int weekBasedYear, int weekNumber, int limit) {
+        return redisRepository.getWeeklyHotPostsWithScore(weekBasedYear, weekNumber, limit);
     }
 
     @Override
-    public List<HotScore> getWeeklyCreatorRanking(int limit) {
-        return redisRepository.getTopRanking(RankingRedisKeys.hotCreators(), 0, limit - 1);
+    public List<HotScore> getWeeklyCreatorRanking(int weekBasedYear, int weekNumber, int limit) {
+        return redisRepository.getTopRanking(RankingRedisKeys.weeklyCreators(weekBasedYear, weekNumber), 0, limit - 1);
     }
 
     @Override
-    public List<HotScore> getWeeklyTopicRanking(int limit) {
-        return redisRepository.getTopRanking(RankingRedisKeys.hotTopics(), 0, limit - 1);
+    public List<HotScore> getWeeklyTopicRanking(int weekBasedYear, int weekNumber, int limit) {
+        return redisRepository.getTopRanking(RankingRedisKeys.weeklyTopics(weekBasedYear, weekNumber), 0, limit - 1);
     }
 
     @Override
@@ -55,12 +55,12 @@ public class RedisRankingArchiveSourceStore implements RankingArchiveSourceStore
     }
 
     @Override
-    public List<HotScore> getMonthlyCreatorRanking(int limit) {
-        return redisRepository.getTopRanking(RankingRedisKeys.hotCreators(), 0, limit - 1);
+    public List<HotScore> getMonthlyCreatorRanking(int year, int month, int limit) {
+        return redisRepository.getTopRanking(RankingRedisKeys.monthlyCreators(year, month), 0, limit - 1);
     }
 
     @Override
-    public List<HotScore> getMonthlyTopicRanking(int limit) {
-        return redisRepository.getTopRanking(RankingRedisKeys.hotTopics(), 0, limit - 1);
+    public List<HotScore> getMonthlyTopicRanking(int year, int month, int limit) {
+        return redisRepository.getTopRanking(RankingRedisKeys.monthlyTopics(year, month), 0, limit - 1);
     }
 }

@@ -3,7 +3,7 @@ package com.zhicore.api.event;
 import lombok.Getter;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -23,18 +23,18 @@ public abstract class DomainEvent implements Serializable {
     /**
      * 事件发生时间
      */
-    private final LocalDateTime occurredAt;
+    private final Instant occurredAt;
 
     protected DomainEvent() {
-        this(UUID.randomUUID().toString().replace("-", ""), LocalDateTime.now());
+        this(UUID.randomUUID().toString().replace("-", ""), Instant.now());
     }
 
-    protected DomainEvent(String eventId, LocalDateTime occurredAt) {
+    protected DomainEvent(String eventId, Instant occurredAt) {
         this.eventId = Objects.requireNonNullElseGet(
                 eventId,
                 () -> UUID.randomUUID().toString().replace("-", "")
         );
-        this.occurredAt = occurredAt != null ? occurredAt : LocalDateTime.now();
+        this.occurredAt = occurredAt != null ? occurredAt : Instant.now();
     }
 
     /**

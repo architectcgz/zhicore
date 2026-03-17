@@ -8,8 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
-import java.time.temporal.WeekFields;
-import java.util.Locale;
 
 /**
  * 基于 Redis 的排行榜维护型 store 实现。
@@ -77,22 +75,20 @@ public class RedisRankingMaintenanceStore implements RankingMaintenanceStore {
     }
 
     private void cleanupExpiredWeeklyRankings(LocalDate referenceDate) {
-        int currentWeek = currentWeekNumber(referenceDate);
         for (int i = WEEKLY_RETENTION_WEEKS; i < WEEKLY_RETENTION_WEEKS + WEEKLY_CLEANUP_WINDOW_WEEKS; i++) {
-            int weekNumber = currentWeek - i;
-            if (weekNumber > 0) {
-                deleteKey(RankingRedisKeys.weeklyPosts(weekNumber), "周榜");
-            }
+            LocalDate weekDate = referenceDate.minusWeeks(i);
+            deleteKey(
+                    RankingRedisKeys.weeklyPosts(
+                            RankingRedisKeys.getWeekBasedYear(weekDate),
+                            RankingRedisKeys.getWeekNumber(weekDate)
+                    ),
+                    "周榜"
+            );
         }
     }
 
     private void deleteKey(String key, String label) {
         rankingRepository.deleteKey(key);
         log.debug("已清理过期{}: {}", label, key);
-    }
-
-    private int currentWeekNumber(LocalDate referenceDate) {
-        WeekFields weekFields = WeekFields.of(Locale.getDefault());
-        return referenceDate.get(weekFields.weekOfWeekBasedYear());
     }
 }

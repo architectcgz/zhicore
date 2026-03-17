@@ -1,9 +1,7 @@
 package com.zhicore.message.application.service;
 
-import com.zhicore.api.client.UserMessagingClient;
-import com.zhicore.api.dto.user.UserSimpleDTO;
+import com.zhicore.message.application.port.user.UserMessagingPort;
 import com.zhicore.common.exception.BusinessException;
-import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +23,7 @@ public class MessageRestrictionService {
     private static final String STRANGER_STATUS_VALIDATION_FAILED_MESSAGE = "无法验证关注关系，请稍后重试";
     private static final String STRANGER_SETTING_VALIDATION_FAILED_MESSAGE = "无法验证陌生人消息设置，请稍后重试";
 
-    private final UserMessagingClient userServiceClient;
+    private final UserMessagingPort userMessagingPort;
 
     /**
      * 检查是否可以发送消息
@@ -58,25 +56,12 @@ public class MessageRestrictionService {
      */
     private void checkReceiverExists(Long receiverId) {
         try {
-            ApiResponse<UserSimpleDTO> response = userServiceClient.getUserSimple(receiverId);
-            if (response == null) {
-                log.warn("Receiver lookup returned null response: receiverId={}", receiverId);
-                throw new BusinessException(ResultCode.SERVICE_DEGRADED, RECEIVER_VALIDATION_FAILED_MESSAGE);
-            }
-            if (!response.isSuccess()) {
-                if (isNotFound(response.getCode())) {
-                    log.info("Message rejected: receiver {} does not exist", receiverId);
-                    throw new BusinessException(ResultCode.USER_NOT_FOUND, "接收者不存在");
-                }
-                log.warn("Receiver lookup failed: receiverId={}, code={}, message={}",
-                        receiverId, response.getCode(), response.getMessage());
-                throw new BusinessException(ResultCode.SERVICE_DEGRADED, RECEIVER_VALIDATION_FAILED_MESSAGE);
-            }
-            if (response.getData() == null) {
+            userMessagingPort.getUserSimple(receiverId);
+        } catch (BusinessException e) {
+            if (isNotFound(e.getCode())) {
                 log.info("Message rejected: receiver {} does not exist", receiverId);
                 throw new BusinessException(ResultCode.USER_NOT_FOUND, "接收者不存在");
             }
-        } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
             log.error("Failed to check receiver existence for {}: {}", receiverId, e.getMessage());
@@ -93,9 +78,7 @@ public class MessageRestrictionService {
      */
     public void checkNotBlocked(Long senderId, Long receiverId) {
         try {
-            ApiResponse<Boolean> response = userServiceClient.isBlocked(receiverId, senderId);
-            boolean blocked = requireBooleanResponse(response, BLOCK_STATUS_VALIDATION_FAILED_MESSAGE,
-                    "block status", senderId, receiverId);
+            boolean blocked = userMessagingPort.isBlocked(receiverId, senderId);
             if (blocked) {
                 log.info("Message blocked: sender {} is blocked by receiver {}", senderId, receiverId);
                 throw new BusinessException(ResultCode.USER_BLOCKED_CANNOT_MESSAGE, "您已被对方拉黑，无法发送消息");
@@ -124,9 +107,7 @@ public class MessageRestrictionService {
                 return;
             }
 
-            ApiResponse<Boolean> allowedResponse = userServiceClient.isStrangerMessageAllowed(receiverId);
-            boolean strangerMessageAllowed = requireBooleanResponse(allowedResponse,
-                    STRANGER_SETTING_VALIDATION_FAILED_MESSAGE, "stranger message setting", senderId, receiverId);
+            boolean strangerMessageAllowed = userMessagingPort.isStrangerMessageAllowed(receiverId);
 
             if (!strangerMessageAllowed) {
                 log.info("Stranger message blocked: sender {} to receiver {}", senderId, receiverId);
@@ -150,12 +131,8 @@ public class MessageRestrictionService {
      */
     public boolean isStranger(Long userId1, Long userId2) {
         try {
-            boolean user1FollowingUser2 = requireBooleanResponse(
-                    userServiceClient.isFollowing(userId1, userId2),
-                    STRANGER_STATUS_VALIDATION_FAILED_MESSAGE, "follow status", userId1, userId2);
-            boolean user2FollowingUser1 = requireBooleanResponse(
-                    userServiceClient.isFollowing(userId2, userId1),
-                    STRANGER_STATUS_VALIDATION_FAILED_MESSAGE, "follow status", userId2, userId1);
+            boolean user1FollowingUser2 = userMessagingPort.isFollowing(userId1, userId2);
+            boolean user2FollowingUser1 = userMessagingPort.isFollowing(userId2, userId1);
             return !user1FollowingUser2 || !user2FollowingUser1;
         } catch (BusinessException e) {
             throw e;
@@ -174,30 +151,13 @@ public class MessageRestrictionService {
      */
     public boolean isBlocked(Long userId, Long targetUserId) {
         try {
-            ApiResponse<Boolean> response = userServiceClient.isBlocked(userId, targetUserId);
-            return requireBooleanResponse(response, BLOCK_STATUS_VALIDATION_FAILED_MESSAGE,
-                    "block status", userId, targetUserId);
+            return userMessagingPort.isBlocked(userId, targetUserId);
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
             log.warn("Failed to check block status: userId={}, targetUserId={}", userId, targetUserId, e);
             throw new BusinessException(ResultCode.SERVICE_DEGRADED, BLOCK_STATUS_VALIDATION_FAILED_MESSAGE);
         }
-    }
-
-    private boolean requireBooleanResponse(ApiResponse<Boolean> response, String failureMessage,
-                                           String validationName, Long senderId, Long receiverId) {
-        if (response == null) {
-            log.warn("Message restriction validation returned null: validation={}, senderId={}, receiverId={}",
-                    validationName, senderId, receiverId);
-            throw new BusinessException(ResultCode.SERVICE_DEGRADED, failureMessage);
-        }
-        if (!response.isSuccess() || response.getData() == null) {
-            log.warn("Message restriction validation failed: validation={}, senderId={}, receiverId={}, code={}, message={}",
-                    validationName, senderId, receiverId, response.getCode(), response.getMessage());
-            throw new BusinessException(ResultCode.SERVICE_DEGRADED, failureMessage);
-        }
-        return Boolean.TRUE.equals(response.getData());
     }
 
     private boolean isNotFound(int code) {

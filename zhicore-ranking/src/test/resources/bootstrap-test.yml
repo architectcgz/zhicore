@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: zhicore-ranking
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+      config:
+        enabled: false
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}

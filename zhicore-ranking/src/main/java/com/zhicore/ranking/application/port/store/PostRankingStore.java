@@ -20,9 +20,9 @@ public interface PostRankingStore {
 
     List<HotScore> getDailyHotPostsWithScore(LocalDate date, int limit);
 
-    List<String> getWeeklyHotPosts(int weekNumber, int limit);
+    List<String> getWeeklyHotPosts(int weekBasedYear, int weekNumber, int limit);
 
-    List<HotScore> getWeeklyHotPostsWithScore(int weekNumber, int limit);
+    List<HotScore> getWeeklyHotPostsWithScore(int weekBasedYear, int weekNumber, int limit);
 
     List<String> getCurrentWeekHotPosts(int limit);
 

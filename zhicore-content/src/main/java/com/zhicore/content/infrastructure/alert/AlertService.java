@@ -171,7 +171,7 @@ public class AlertService implements ContentAlertPort {
     /**
      * Outbox 投递失败告警（R14）
      *
-     * 触发时机：Outbox 事件达到最大重试次数并收敛为 FAILED。
+     * 触发时机：Outbox 事件达到最大重试次数并收敛为 DEAD。
      *
      * 限流：每 eventType 每分钟最多 10 条，避免异常风暴导致告警通道被打爆。
      */

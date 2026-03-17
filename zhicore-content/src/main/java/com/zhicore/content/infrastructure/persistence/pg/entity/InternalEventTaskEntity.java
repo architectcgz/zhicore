@@ -14,6 +14,9 @@ import java.time.Instant;
 @TableName("domain_event_task")
 public class InternalEventTaskEntity {
 
+    public static final int PRIORITY_HIGH = 0;
+    public static final int PRIORITY_NORMAL = 100;
+
     @TableId(type = IdType.AUTO)
     private Long id;
 
@@ -29,9 +32,18 @@ public class InternalEventTaskEntity {
 
     private String payload;
 
+    /**
+     * 数值越小优先级越高。
+     */
+    private Integer priority;
+
     private Instant occurredAt;
 
     private Instant nextAttemptAt;
+
+    private Instant claimedAt;
+
+    private String claimedBy;
 
     private Instant createdAt;
 
@@ -47,7 +59,10 @@ public class InternalEventTaskEntity {
 
     public enum InternalEventTaskStatus {
         PENDING,
+        PROCESSING,
         FAILED,
+        SUCCEEDED,
+        @Deprecated
         DISPATCHED,
         DEAD
     }

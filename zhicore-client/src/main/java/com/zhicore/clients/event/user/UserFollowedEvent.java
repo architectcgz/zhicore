@@ -27,7 +27,7 @@ public class UserFollowedEvent extends DomainEvent {
 
     @JsonCreator
     public UserFollowedEvent(@JsonProperty("eventId") String eventId,
-                             @JsonProperty("occurredAt") java.time.LocalDateTime occurredAt,
+                             @JsonProperty("occurredAt") java.time.Instant occurredAt,
                              @JsonProperty("followerId") Long followerId,
                              @JsonProperty("followingId") Long followingId) {
         super(eventId, occurredAt);

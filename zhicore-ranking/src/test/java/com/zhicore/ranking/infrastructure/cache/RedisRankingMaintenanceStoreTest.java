@@ -10,9 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
-import java.time.temporal.WeekFields;
 import java.util.List;
-import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
@@ -43,9 +41,15 @@ class RedisRankingMaintenanceStoreTest {
             assertEquals(RankingRedisKeys.dailyPosts(date), capturedKeys.get(i));
         }
 
-        int currentWeek = referenceDate.get(WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear());
         for (int i = 0; i < 7; i++) {
-            assertEquals(RankingRedisKeys.weeklyPosts(currentWeek - 3 - i), capturedKeys.get(7 + i));
+            LocalDate weekDate = referenceDate.minusWeeks(3L + i);
+            assertEquals(
+                    RankingRedisKeys.weeklyPosts(
+                            RankingRedisKeys.getWeekBasedYear(weekDate),
+                            RankingRedisKeys.getWeekNumber(weekDate)
+                    ),
+                    capturedKeys.get(7 + i)
+            );
         }
     }
 

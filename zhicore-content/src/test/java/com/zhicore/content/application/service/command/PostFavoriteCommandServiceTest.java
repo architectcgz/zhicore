@@ -5,6 +5,8 @@ import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.content.application.port.messaging.IntegrationEventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
+import com.zhicore.content.application.port.repo.PostStatsRepository;
+import com.zhicore.content.application.port.store.PostCacheInvalidationStore;
 import com.zhicore.content.application.port.store.PostFavoriteStore;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
@@ -53,8 +55,10 @@ class PostFavoriteCommandServiceTest {
 
     @Mock private PostFavoriteRepository favoriteRepository;
     @Mock private PostRepository postRepository;
+    @Mock private PostStatsRepository postStatsRepository;
     @Mock private IntegrationEventPublisher integrationEventPublisher;
     @Mock private PostFavoriteStore postFavoriteStore;
+    @Mock private PostCacheInvalidationStore postCacheInvalidationStore;
     @Mock private IdGeneratorFeignClient idGeneratorFeignClient;
     @Mock private TransactionTemplate transactionTemplate;
     @Mock private MeterRegistry meterRegistry;
@@ -67,8 +71,10 @@ class PostFavoriteCommandServiceTest {
         commandService = new PostFavoriteCommandService(
                 favoriteRepository,
                 postRepository,
+                postStatsRepository,
                 integrationEventPublisher,
                 postFavoriteStore,
+                postCacheInvalidationStore,
                 idGeneratorFeignClient,
                 transactionTemplate,
                 meterRegistry
@@ -88,12 +94,13 @@ class PostFavoriteCommandServiceTest {
     void shouldFavoritePostSuccessfully() {
         when(postFavoriteStore.isFavorited(USER_ID, POST_ID)).thenReturn(null);
         when(postRepository.findById(POST_ID)).thenReturn(Optional.of(createPublishedPost()));
-        when(favoriteRepository.exists(POST_ID, USER_ID)).thenReturn(false);
+        when(favoriteRepository.save(any())).thenReturn(true);
         when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(FAVORITE_ID));
 
         commandService.favoritePost(USER_ID, POST_ID);
 
         verify(favoriteRepository).save(any());
+        verify(postStatsRepository).incrementFavoriteCount(PostId.of(POST_ID));
         verify(postFavoriteStore).incrementFavoriteCount(POST_ID);
         verify(postFavoriteStore).markFavorited(USER_ID, POST_ID);
         verify(integrationEventPublisher).publish(any());
@@ -126,13 +133,49 @@ class PostFavoriteCommandServiceTest {
     void shouldSucceedWhenCacheUpdateFails() {
         when(postFavoriteStore.isFavorited(USER_ID, POST_ID)).thenReturn(null);
         when(postRepository.findById(POST_ID)).thenReturn(Optional.of(createPublishedPost()));
-        when(favoriteRepository.exists(POST_ID, USER_ID)).thenReturn(false);
+        when(favoriteRepository.save(any())).thenReturn(true);
         when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(FAVORITE_ID));
         doThrow(new RuntimeException("Redis down")).when(postFavoriteStore).incrementFavoriteCount(POST_ID);
 
         assertDoesNotThrow(() -> commandService.favoritePost(USER_ID, POST_ID));
         verify(favoriteRepository).save(any());
+        verify(postStatsRepository).incrementFavoriteCount(PostId.of(POST_ID));
         verify(integrationEventPublisher).publish(any());
+    }
+
+    @Test
+    void shouldFailBeforeCacheUpdateWhenOutboxPublishFails() {
+        when(postFavoriteStore.isFavorited(USER_ID, POST_ID)).thenReturn(null);
+        when(postRepository.findById(POST_ID)).thenReturn(Optional.of(createPublishedPost()));
+        when(favoriteRepository.save(any())).thenReturn(true);
+        when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(FAVORITE_ID));
+        doThrow(new RuntimeException("outbox down")).when(integrationEventPublisher).publish(any());
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> commandService.favoritePost(USER_ID, POST_ID));
+
+        assertEquals("outbox down", exception.getMessage());
+        verify(favoriteRepository).save(any());
+        verify(postStatsRepository).incrementFavoriteCount(PostId.of(POST_ID));
+        verify(postFavoriteStore, never()).incrementFavoriteCount(anyLong());
+        verify(postFavoriteStore, never()).markFavorited(anyLong(), anyLong());
+    }
+
+    @Test
+    void shouldRejectWhenDuplicateFavoriteDetectedByRepository() {
+        when(postFavoriteStore.isFavorited(USER_ID, POST_ID)).thenReturn(null);
+        when(postRepository.findById(POST_ID)).thenReturn(Optional.of(createPublishedPost()));
+        when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(FAVORITE_ID));
+        when(favoriteRepository.save(any())).thenReturn(false);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> commandService.favoritePost(USER_ID, POST_ID));
+
+        assertEquals("已经收藏过了", exception.getMessage());
+        verify(postStatsRepository, never()).incrementFavoriteCount(any());
+        verify(integrationEventPublisher, never()).publish(any());
+        verify(postFavoriteStore, never()).incrementFavoriteCount(anyLong());
+        verify(postFavoriteStore, never()).markFavorited(anyLong(), anyLong());
     }
 
     private Post createPublishedPost() {

@@ -2,7 +2,7 @@ package com.zhicore.user.interfaces.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.common.exception.GlobalExceptionHandler;
-import com.zhicore.user.application.service.UserCommandService;
+import com.zhicore.user.application.service.command.UserCommandService;
 import com.zhicore.user.interfaces.dto.request.UpdateStrangerMessageSettingRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

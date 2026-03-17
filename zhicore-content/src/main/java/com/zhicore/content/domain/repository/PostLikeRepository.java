@@ -16,12 +16,12 @@ public interface PostLikeRepository {
     /**
      * 保存点赞
      */
-    void save(PostLike like);
+    boolean save(PostLike like);
 
     /**
      * 删除点赞
      */
-    void delete(Long postId, Long userId);
+    boolean delete(Long postId, Long userId);
 
     /**
      * 查询点赞记录

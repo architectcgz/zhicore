@@ -27,7 +27,7 @@ public class PostDeletedEvent extends DomainEvent {
 
     @JsonCreator
     public PostDeletedEvent(@JsonProperty("eventId") String eventId,
-                            @JsonProperty("occurredAt") java.time.LocalDateTime occurredAt,
+                            @JsonProperty("occurredAt") java.time.Instant occurredAt,
                             @JsonProperty("postId") Long postId,
                             @JsonProperty("authorId") Long authorId) {
         super(eventId, occurredAt);

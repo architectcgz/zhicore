@@ -51,14 +51,12 @@ class RankingRedisKeysTest {
     @Test
     @DisplayName("生成文章周榜Key")
     void weeklyPostsKey() {
-        // Given
+        int year = 2026;
         int weekNumber = 5;
 
-        // When
-        String key = RankingRedisKeys.weeklyPosts(weekNumber);
+        String key = RankingRedisKeys.weeklyPosts(year, weekNumber);
 
-        // Then
-        assertEquals(NS + ":ranking:posts:weekly:5", key);
+        assertEquals(NS + ":ranking:posts:weekly:2026:05", key);
     }
 
     @Test
@@ -95,6 +93,38 @@ class RankingRedisKeysTest {
 
         // Then
         assertEquals(NS + ":ranking:topics:daily:2024-01-15", key);
+    }
+
+    @Test
+    @DisplayName("生成创作者周榜Key")
+    void weeklyCreatorsKey() {
+        String key = RankingRedisKeys.weeklyCreators(2026, 5);
+
+        assertEquals(NS + ":ranking:creators:weekly:2026:05", key);
+    }
+
+    @Test
+    @DisplayName("生成话题周榜Key")
+    void weeklyTopicsKey() {
+        String key = RankingRedisKeys.weeklyTopics(2026, 5);
+
+        assertEquals(NS + ":ranking:topics:weekly:2026:05", key);
+    }
+
+    @Test
+    @DisplayName("生成创作者月榜Key")
+    void monthlyCreatorsKey() {
+        String key = RankingRedisKeys.monthlyCreators(2024, 1);
+
+        assertEquals(NS + ":ranking:creators:monthly:2024:01", key);
+    }
+
+    @Test
+    @DisplayName("生成话题月榜Key")
+    void monthlyTopicsKey() {
+        String key = RankingRedisKeys.monthlyTopics(2024, 1);
+
+        assertEquals(NS + ":ranking:topics:monthly:2024:01", key);
     }
 
     @Test

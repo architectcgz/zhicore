@@ -5,7 +5,7 @@ import com.zhicore.api.dto.admin.PostManageDTO;
 import com.zhicore.common.exception.TooManyRequestsException;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.common.result.HybridPageResult;
-import com.zhicore.content.application.dto.admin.outbox.OutboxFailedPageResponse;
+import com.zhicore.content.application.dto.admin.outbox.OutboxDeadPageResponse;
 import com.zhicore.content.application.dto.PostBriefVO;
 import com.zhicore.content.application.dto.PostContentVO;
 import com.zhicore.content.application.dto.PostVO;
@@ -86,9 +86,9 @@ public final class ContentSentinelHandlers {
         throw tooManyRequests("后台文章列表请求过于频繁，请稍后重试");
     }
 
-    public static OutboxFailedPageResponse handleListFailedOutboxBlocked(int page, int size, String eventType,
-                                                                         BlockException ex) {
-        throw tooManyRequests("失败事件分页请求过于频繁，请稍后重试");
+    public static OutboxDeadPageResponse handleListDeadOutboxBlocked(int page, int size, String eventType,
+                                                                     BlockException ex) {
+        throw tooManyRequests("死信事件分页请求过于频繁，请稍后重试");
     }
 
     private static TooManyRequestsException tooManyRequests(String message) {

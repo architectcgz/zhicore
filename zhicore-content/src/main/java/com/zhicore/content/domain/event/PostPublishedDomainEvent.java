@@ -1,5 +1,7 @@
 package com.zhicore.content.domain.event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.content.domain.model.PostId;
 import lombok.Getter;
 
@@ -32,9 +34,12 @@ public class PostPublishedDomainEvent implements DomainEvent<PostId> {
      * @param publishedAt 发布时间
      * @param aggregateVersion 聚合根版本号
      */
-    public PostPublishedDomainEvent(String eventId, Instant occurredAt,
-                                   PostId postId, Instant publishedAt,
-                                   Long aggregateVersion) {
+    @JsonCreator
+    public PostPublishedDomainEvent(@JsonProperty("eventId") String eventId,
+                                   @JsonProperty("occurredAt") Instant occurredAt,
+                                   @JsonProperty("postId") PostId postId,
+                                   @JsonProperty("publishedAt") Instant publishedAt,
+                                   @JsonProperty("aggregateVersion") Long aggregateVersion) {
         this.eventId = eventId;
         this.occurredAt = occurredAt;
         this.postId = postId;

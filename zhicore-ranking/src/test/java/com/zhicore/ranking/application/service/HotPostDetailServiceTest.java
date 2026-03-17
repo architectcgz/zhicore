@@ -5,6 +5,7 @@ import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
+import com.zhicore.ranking.application.service.query.PostRankingQueryService;
 import com.zhicore.ranking.domain.model.HotScore;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

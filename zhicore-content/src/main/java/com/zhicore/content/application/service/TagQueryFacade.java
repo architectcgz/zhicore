@@ -10,6 +10,8 @@ import com.zhicore.content.application.query.TagQuery;
 import com.zhicore.content.application.query.view.HotTagView;
 import com.zhicore.content.application.query.view.TagDetailView;
 import com.zhicore.content.application.query.view.TagListItemView;
+import com.zhicore.content.application.service.query.TagListQueryService;
+import com.zhicore.content.application.service.query.TagPostQueryService;
 import com.zhicore.content.application.sentinel.ContentSentinelHandlers;
 import com.zhicore.content.application.sentinel.ContentSentinelResources;
 import lombok.RequiredArgsConstructor;

@@ -71,10 +71,10 @@ class ContentSentinelHandlersTest {
     }
 
     @Test
-    @DisplayName("失败事件分页 block 时应该抛出 429 业务异常")
-    void shouldThrowTooManyRequestsForFailedOutbox() {
+    @DisplayName("死信事件分页 block 时应该抛出 429 业务异常")
+    void shouldThrowTooManyRequestsForDeadOutbox() {
         TooManyRequestsException exception = assertThrows(TooManyRequestsException.class,
-                () -> ContentSentinelHandlers.handleListFailedOutboxBlocked(1, 20, null, new FlowException("blocked")));
+                () -> ContentSentinelHandlers.handleListDeadOutboxBlocked(1, 20, null, new FlowException("blocked")));
 
         assertEquals(ResultCode.TOO_MANY_REQUESTS.getCode(), exception.getCode());
     }

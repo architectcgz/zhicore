@@ -13,15 +13,10 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * 事务性事件发布器
- * 
- * 确保事件在数据库事务提交后才发布，避免数据不一致问题
- * 
- * 使用场景：
- * 1. 点赞操作：先保存点赞记录到数据库，事务提交后再更新 Redis 计数和发布事件
- * 2. 关注操作：先保存关注关系到数据库，事务提交后再更新 Redis 和发布事件
+ * 事务提交后的可靠事件发布器。
  *
- * @author ZhiCore Team
+ * <p>默认通过 {@link DomainEventPublisher} 同步发送，避免把 MQ 投递结果交给异步回调。
+ * 关键业务仍应优先使用 Outbox；本类仅用于无法落 durable queue 但需要 afterCommit 触发的链路。
  */
 @Slf4j
 @Component
@@ -45,7 +40,7 @@ public class TransactionalEventPublisher {
                     @Override
                     public void afterCommit() {
                         try {
-                            eventPublisher.publish(topic, tag, event);
+                            eventPublisher.publishSync(topic, tag, event);
                             log.debug("Event published after commit: topic={}, tag={}", topic, tag);
                         } catch (Exception e) {
                             log.error("Failed to publish event after commit: topic={}, tag={}", 
@@ -57,7 +52,7 @@ public class TransactionalEventPublisher {
         } else {
             // 如果没有活跃的事务，直接发布
             log.warn("No active transaction, publishing event immediately: topic={}, tag={}", topic, tag);
-            eventPublisher.publish(topic, tag, event);
+            eventPublisher.publishSync(topic, tag, event);
         }
     }
 
@@ -168,18 +163,18 @@ public class TransactionalEventPublisher {
         }
 
         /**
-         * 添加要发布的事件
+         * 添加要可靠发布的事件。
          */
         public AfterCommitBuilder publishEvent(String topic, String tag, Object event) {
-            actions.add(() -> publisher.eventPublisher.publish(topic, tag, event));
+            actions.add(() -> publisher.eventPublisher.publishSync(topic, tag, event));
             return this;
         }
 
         /**
-         * 添加要发布的事件（延迟获取事件对象）
+         * 添加要可靠发布的事件（延迟获取事件对象）。
          */
         public AfterCommitBuilder publishEvent(String topic, String tag, Supplier<Object> eventSupplier) {
-            actions.add(() -> publisher.eventPublisher.publish(topic, tag, eventSupplier.get()));
+            actions.add(() -> publisher.eventPublisher.publishSync(topic, tag, eventSupplier.get()));
             return this;
         }
 

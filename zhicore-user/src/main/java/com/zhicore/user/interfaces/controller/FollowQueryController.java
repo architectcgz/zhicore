@@ -3,7 +3,7 @@ package com.zhicore.user.interfaces.controller;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.user.application.dto.FollowStatsVO;
 import com.zhicore.user.application.dto.UserVO;
-import com.zhicore.user.application.service.FollowQueryService;
+import com.zhicore.user.application.service.query.FollowQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

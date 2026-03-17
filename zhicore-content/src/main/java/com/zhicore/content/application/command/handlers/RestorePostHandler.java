@@ -60,6 +60,7 @@ public class RestorePostHandler {
                 java.util.UUID.randomUUID().toString().replace("-", ""),
                 java.time.Instant.now(),
                 command.getPostId(),
+                java.util.Set.copyOf(post.getTagIds()),
                 post.getVersion()
         );
         eventPublisher.publish(event);

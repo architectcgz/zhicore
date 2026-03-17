@@ -2,6 +2,8 @@ server:
   port: ${SERVER_PORT:8105}
 
 spring:
+  application:
+    name: zhicore-message
   config:
     import:
       - optional:nacos:common.yml?group=ZHICORE-SERVICE&username=${NACOS_USERNAME:nacos}&password=${NACOS_PASSWORD:nacos}&refreshEnabled=true
@@ -17,10 +19,10 @@ spring:
     openfeign:
       client:
         config:
-          ZhiCore-leaf:
-            url: http://localhost:8010
+          zhicore-id-generator:
+            url: ${ID_GENERATOR_URL:http://localhost:8088}
           zhicore-user:
-            url: http://localhost:8081
+            url: ${ZHICORE_USER_URL:http://localhost:8101}
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:zhicore_message}
@@ -57,10 +59,30 @@ cache:
     offline-message: 604800 # 离线消息 7天
 
 # 消息配置
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+  producer:
+    group: message-producer-group
+
 message:
   max-content-length: 5000
   recall-time-limit-minutes: 2
   offline-message-expire-days: 7
+  outbox:
+    batch-size: 100
+    worker-count: 4
+    scan-interval: 5000
+    claim-timeout-seconds: 60
+    max-retry: 10
+    max-backoff-seconds: 300
+  im-bridge:
+    enabled: ${MESSAGE_IM_BRIDGE_ENABLED:false}
+    service-name: ${MESSAGE_IM_BRIDGE_SERVICE_NAME:im-interface}
+    url: ${MESSAGE_IM_BRIDGE_URL:http://localhost:8090}
+    app-id: ${MESSAGE_IM_BRIDGE_APP_ID:1}
+    provider: ${MESSAGE_IM_BRIDGE_PROVIDER:blog}
+    mapping-ttl-days: ${MESSAGE_IM_BRIDGE_MAPPING_TTL_DAYS:30}
+    internal-token: ${MESSAGE_IM_BRIDGE_INTERNAL_TOKEN:}
   sentinel:
     enabled: true
     conversation-list-qps: 200

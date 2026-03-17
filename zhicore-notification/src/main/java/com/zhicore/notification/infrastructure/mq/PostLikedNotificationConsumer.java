@@ -4,7 +4,7 @@ import com.zhicore.api.event.post.PostLikedEvent;
 import com.zhicore.common.mq.AbstractEventConsumer;
 import com.zhicore.common.mq.StatefulIdempotentHandler;
 import com.zhicore.common.mq.TopicConstants;
-import com.zhicore.notification.application.service.NotificationCommandService;
+import com.zhicore.notification.application.service.command.NotificationCommandService;
 import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.infrastructure.push.NotificationPushService;
 import lombok.extern.slf4j.Slf4j;

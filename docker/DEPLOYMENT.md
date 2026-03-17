@@ -101,14 +101,18 @@ cp .env.example .env
 | `POSTGRES_PASSWORD` | 数据库密码 | ZhiCore123456 |
 | `REDIS_HOST` | Redis 主机 | redis |
 | `REDIS_PORT` | Redis 端口 | 6379 |
-| `NACOS_ADDR` | Nacos 地址 | nacos:8848 |
+| `NACOS_SERVER_ADDR` | Nacos 地址 | nacos:8848 |
 | `ID_GENERATOR_SERVER_URL` | ID Generator 服务地址 | http://host.docker.internal:8011 |
 | `ID_GENERATOR_TIMEOUT` | ID Generator 超时时间(ms) | 3000 |
 | `ID_GENERATOR_RETRY_TIMES` | ID Generator 重试次数 | 3 |
 | `ID_GENERATOR_MODE` | ID 生成模式 | snowflake |
 
 **注意**: 
+- 推荐在服务配置中使用规范键 `zhicore.id-generator.server-url`
+- 运行时兼容环境变量 `ID_GENERATOR_SERVER_URL`
+- Feign 客户端当前解析优先级为 `zhicore.id-generator.server-url` > `ID_GENERATOR_SERVER_URL` > `http://localhost:8011`
 - `ID_GENERATOR_SERVER_URL` 使用 `host.docker.internal` 从 Docker 容器访问宿主机服务
+- 本地直接 `mvn spring-boot:run` 启动服务时，默认应使用 `http://localhost:8011`
 - 如果 ID Generator Service 部署在其他机器，请修改为实际地址
 
 ### 步骤 2: 初始化数据库
@@ -128,6 +132,20 @@ cp .env.example .env
 1. 访问 Nacos 控制台: http://localhost:8848/nacos
 2. 默认账号: nacos / nacos
 3. 导入配置文件（位于 `config/nacos/` 目录）
+
+ID Generator 相关配置要求:
+
+- `zhicore-content.yml` 和 `zhicore-comment.yml` 都必须存在于 Nacos，不能只上传 `content`
+- 相关服务的 DataId 内应显式配置:
+
+```yaml
+zhicore:
+  id-generator:
+    server-url: ${ID_GENERATOR_SERVER_URL:http://localhost:8011}
+```
+
+- Docker 容器内通常通过环境变量把该值覆盖为 `http://host.docker.internal:8011`
+- 如果缺少上述配置，Feign 会退回到基于服务名 `zhicore-id-generator` 的服务发现；本地联调未注册该服务时会直接调用失败
 
 ### 步骤 3.5: 配置文件存储 (可选)
 
@@ -311,15 +329,24 @@ http://localhost:9090/targets
    docker exec ZhiCore-notification env | grep ID_GENERATOR
    ```
 
-4. **常见错误**
+4. **检查 Nacos 配置是否完整**
+   - 确认 `zhicore-content.yml`、`zhicore-comment.yml` 已上传到目标 Group
+   - 确认配置键为 `zhicore.id-generator.server-url`，而不是只保留自定义根级键
+   - 本地直启时如果未额外传环境变量，最终应解析为 `http://localhost:8011`
+
+5. **常见错误**
    - `Connection refused`: ID Generator Service 未启动
    - `Timeout`: 网络配置问题或服务响应慢
    - `404 Not Found`: ID Generator Service 版本不匹配
+   - `URL not provided. Will try picking an instance via load-balancing.`: 未解析到直连 URL，Feign 已退回服务发现
+   - `No servers available for service: zhicore-id-generator`: 服务发现回退后未在 Nacos 中找到 `zhicore-id-generator`
 
-5. **解决方案**
+6. **解决方案**
    - 确保 ID Generator Service 已启动: `docker ps | grep id-generator`
    - 检查端口映射: `netstat -an | grep 8011`
    - 查看服务日志: `docker logs ZhiCore-notification | grep "ID Generator"`
+   - 检查 Nacos DataId 是否上传完整，尤其不要漏掉 `zhicore-comment.yml`
+   - 优先修正 `zhicore.id-generator.server-url`，不要依赖 Feign 自动回退到服务发现
 
 ## 生产环境建议
 

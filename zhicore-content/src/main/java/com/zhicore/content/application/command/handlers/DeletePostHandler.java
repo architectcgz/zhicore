@@ -10,10 +10,13 @@ import com.zhicore.content.domain.exception.PostErrorMessages;
 import com.zhicore.content.domain.exception.PostOwnershipException;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
+import com.zhicore.content.domain.model.TagId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Set;
 
 /**
  * 删除文章命令处理器
@@ -62,6 +65,7 @@ public class DeletePostHandler {
                 eventFactory.generateEventId(),
                 eventFactory.now(),
                 command.getPostId(),
+                Set.copyOf(post.getTagIds()),
                 post.getVersion()
         );
         eventPublisher.publish(event);

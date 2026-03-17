@@ -1,6 +1,6 @@
 package com.zhicore.admin.interfaces.controller;
 
-import com.zhicore.admin.application.service.PostManageCommandService;
+import com.zhicore.admin.application.service.command.PostManageCommandService;
 import com.zhicore.admin.infrastructure.security.RequireAdmin;
 import com.zhicore.admin.interfaces.dto.request.DeleteContentRequest;
 import com.zhicore.common.result.ApiResponse;

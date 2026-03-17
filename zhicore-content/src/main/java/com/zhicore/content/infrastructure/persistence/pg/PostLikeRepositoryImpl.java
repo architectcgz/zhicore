@@ -8,7 +8,6 @@ import com.zhicore.content.infrastructure.persistence.pg.entity.PostLikeEntity;
 import com.zhicore.content.infrastructure.persistence.pg.mapper.PostLikeMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -30,28 +29,25 @@ public class PostLikeRepositoryImpl implements PostLikeRepository {
     private final PostLikeMapper mapper;
 
     @Override
-    public void save(PostLike like) {
-        try {
-            PostLikeEntity entity = new PostLikeEntity();
-            entity.setId(like.getId());
-            entity.setPostId(like.getPostId());
-            entity.setUserId(like.getUserId());
-            entity.setCreatedAt(like.getCreatedAt() != null ? like.getCreatedAt() : LocalDateTime.now());
-            mapper.insert(entity);
-        } catch (DuplicateKeyException e) {
-            // 唯一约束冲突视为幂等成功（并发下可能重复提交）
+    public boolean save(PostLike like) {
+        PostLikeEntity entity = new PostLikeEntity();
+        entity.setId(like.getId());
+        entity.setPostId(like.getPostId());
+        entity.setUserId(like.getUserId());
+        entity.setCreatedAt(like.getCreatedAt() != null ? like.getCreatedAt() : LocalDateTime.now());
+
+        int inserted = mapper.insertIgnoreConflict(entity);
+        if (inserted == 0) {
             log.info("Post like already exists, treat as idempotent success: postId={}, userId={}",
                     like.getPostId(), like.getUserId());
+            return false;
         }
+        return true;
     }
 
     @Override
-    public void delete(Long postId, Long userId) {
-        mapper.delete(
-                new LambdaQueryWrapper<PostLikeEntity>()
-                        .eq(PostLikeEntity::getPostId, postId)
-                        .eq(PostLikeEntity::getUserId, userId)
-        );
+    public boolean delete(Long postId, Long userId) {
+        return mapper.deleteByPostIdAndUserId(postId, userId) > 0;
     }
 
     @Override
@@ -116,4 +112,3 @@ public class PostLikeRepositoryImpl implements PostLikeRepository {
                 .toList();
     }
 }
-

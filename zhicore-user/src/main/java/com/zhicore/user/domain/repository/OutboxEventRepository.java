@@ -3,6 +3,7 @@ package com.zhicore.user.domain.repository;
 import com.zhicore.user.domain.model.OutboxEvent;
 import com.zhicore.user.domain.model.OutboxEventStatus;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,38 +14,11 @@ import java.util.Optional;
  * 
  * <h3>核心职责</h3>
  * <ul>
- *   <li>保存新的 Outbox 事件（在业务事务中）</li>
- *   <li>更新事件状态（发送成功/失败）</li>
- *   <li>查询待发送的事件（供后台任务扫描）</li>
- *   <li>查询失败的事件（供手动重试）</li>
+ *   <li>在业务事务内保存新的 outbox 事件</li>
+ *   <li>基于 claim 语义抢占一批可投递事件</li>
+ *   <li>更新事件的处理状态、重试信息与 claim 信息</li>
+ *   <li>查询失败或死信事件，供管理操作使用</li>
  * </ul>
- * 
- * <h3>使用场景</h3>
- * <pre>
- * // 1. 在业务事务中保存事件
- * {@code @Transactional}
- * public void updateProfile(Long userId, UpdateProfileRequest req) {
- *     // 更新用户资料
- *     userRepository.update(user);
- *     
- *     // 保存 Outbox 事件（同一事务）
- *     OutboxEvent event = new OutboxEvent(...);
- *     outboxEventRepository.save(event);
- * }
- * 
- * // 2. 后台任务扫描并发送
- * {@code @Scheduled}(fixedDelay = 5000)
- * public void publishPendingEvents() {
- *     List&lt;OutboxEvent&gt; events = outboxEventRepository
- *         .findByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING, 100);
- *     
- *     for (OutboxEvent event : events) {
- *         // 发送到 RocketMQ
- *         // 更新状态
- *         outboxEventRepository.update(event);
- *     }
- * }
- * </pre>
  * 
  * @author System
  * @since 2026-02-19
@@ -83,16 +57,7 @@ public interface OutboxEventRepository {
     
     /**
      * 查询指定状态的事件（按创建时间升序）
-     * 
-     * <p>用于后台任务扫描待发送的事件</p>
-     * 
-     * <p><strong>使用示例：</strong></p>
-     * <pre>
-     * // 每次最多处理 100 条 PENDING 事件
-     * List&lt;OutboxEvent&gt; events = repository
-     *     .findByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING, 100);
-     * </pre>
-     * 
+     *
      * @param status 事件状态
      * @param limit 最大返回数量（建议不超过 1000）
      * @return 事件列表，按创建时间升序排列
@@ -121,13 +86,23 @@ public interface OutboxEventRepository {
      */
     long countByStatus(OutboxEventStatus status);
 
+    LocalDateTime findOldestPendingCreatedAt();
+
+    long countSucceededSince(LocalDateTime since);
+
+    long countFailedSince(LocalDateTime since, int defaultMaxRetries);
+
+    long countDeadSince(LocalDateTime since, int defaultMaxRetries);
+
     /**
-     * 查询可重试的事件（PENDING/FAILED 且 next_retry_at <= NOW）
+     * claim 一批当前可投递事件。
      *
-     * <p>使用 FOR UPDATE SKIP LOCKED 避免多实例重复投递</p>
-     *
-     * @param limit 最大返回数量
-     * @return 可投递的事件列表
+     * <p>约束：
+     * - 同一 shardingKey 仅允许最早未完成事件进入处理
+     * - PROCESSING 超时事件允许被回收
      */
-    List<OutboxEvent> findRetryableEvents(int limit);
+    List<OutboxEvent> claimRetryableEvents(LocalDateTime now,
+                                           LocalDateTime reclaimBefore,
+                                           String claimedBy,
+                                           int limit);
 }

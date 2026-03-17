@@ -3,7 +3,7 @@ package com.zhicore.content.interfaces.controller;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.result.ResultCode;
-import com.zhicore.content.application.service.PostFavoriteCommandService;
+import com.zhicore.content.application.service.command.PostFavoriteCommandService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

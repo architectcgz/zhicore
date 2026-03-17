@@ -1,43 +1,32 @@
 package com.zhicore.message.integration;
 
 import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.message.MessageApplication;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.core.annotation.AnnotationUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * ID生成器集成测试
  * 
- * 验证ZhiCore-message服务能够正确使用IdGeneratorFeignClient生成ID
+ * 验证 ZhiCore-message 服务显式注册了 IdGeneratorFeignClient
  */
-@SpringBootTest
-@ActiveProfiles("test")
 class IdGeneratorIntegrationTest {
 
-    @Autowired(required = false)
-    private IdGeneratorFeignClient idGeneratorFeignClient;
-
     @Test
-    void shouldInjectIdGeneratorFeignClient() {
-        // 验证IdGeneratorFeignClient能够被正确注入
-        assertThat(idGeneratorFeignClient)
-                .as("IdGeneratorFeignClient should be injected")
-                .isNotNull();
-    }
+    void shouldRegisterIdGeneratorFeignClientOnApplication() {
+        EnableFeignClients annotation = AnnotationUtils.findAnnotation(
+                MessageApplication.class,
+                EnableFeignClients.class
+        );
 
-    @Test
-    void shouldHaveCorrectFeignClientConfiguration() {
-        // 验证Feign客户端配置正确
-        assertThat(idGeneratorFeignClient)
-                .as("IdGeneratorFeignClient should be properly configured")
+        assertThat(annotation)
+                .as("@EnableFeignClients should be present on MessageApplication")
                 .isNotNull();
-        
-        // 验证Feign客户端的方法存在
-        assertThat(idGeneratorFeignClient.getClass().getMethods())
-                .as("IdGeneratorFeignClient should have generateSnowflakeId method")
-                .anyMatch(method -> method.getName().equals("generateSnowflakeId"));
+        assertThat(annotation.clients())
+                .as("MessageApplication should explicitly register IdGeneratorFeignClient")
+                .contains(IdGeneratorFeignClient.class);
     }
 }

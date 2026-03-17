@@ -18,6 +18,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -56,11 +57,11 @@ class RankingArchiveServiceTest {
     void archiveMonthlyRanking_shouldPersistMonthlyRankings() {
         when(rankingArchivePolicy.monthlyArchiveLockKey()).thenReturn("ranking:archive:monthly");
         when(rankingArchivePolicy.archiveLimit()).thenReturn(100);
-        when(rankingArchiveSourceStore.getMonthlyPostRanking(any(Integer.class), any(Integer.class), any(Integer.class)))
+        when(rankingArchiveSourceStore.getMonthlyPostRanking(anyInt(), anyInt(), anyInt()))
                 .thenReturn(List.of(HotScore.ofWithRank("1001", 98.0, 1)));
-        when(rankingArchiveSourceStore.getMonthlyCreatorRanking(100))
+        when(rankingArchiveSourceStore.getMonthlyCreatorRanking(anyInt(), anyInt(), anyInt()))
                 .thenReturn(List.of(HotScore.ofWithRank("2001", 66.0, 1)));
-        when(rankingArchiveSourceStore.getMonthlyTopicRanking(100))
+        when(rankingArchiveSourceStore.getMonthlyTopicRanking(anyInt(), anyInt(), anyInt()))
                 .thenReturn(List.of(HotScore.ofWithRank("3001", 55.0, 1)));
         when(rankingArchiveStore.saveIfAbsent(any(RankingArchiveRecord.class))).thenReturn(true);
         doAnswer(invocation -> {

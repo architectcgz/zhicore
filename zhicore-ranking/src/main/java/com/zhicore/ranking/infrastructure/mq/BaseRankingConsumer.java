@@ -1,7 +1,7 @@
 package com.zhicore.ranking.infrastructure.mq;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zhicore.ranking.application.service.RankingEventInboxService;
+import com.zhicore.ranking.application.service.RankingLedgerIngestionService;
 import com.zhicore.ranking.domain.model.RankingMetricType;
 
 import java.time.LocalDateTime;
@@ -12,24 +12,24 @@ import java.time.LocalDateTime;
 public abstract class BaseRankingConsumer {
 
     protected final ObjectMapper objectMapper;
-    protected final RankingEventInboxService rankingEventInboxService;
+    protected final RankingLedgerIngestionService rankingLedgerIngestionService;
 
     protected BaseRankingConsumer(ObjectMapper objectMapper,
-                                  RankingEventInboxService rankingEventInboxService) {
+                                  RankingLedgerIngestionService rankingLedgerIngestionService) {
         this.objectMapper = objectMapper;
-        this.rankingEventInboxService = rankingEventInboxService;
+        this.rankingLedgerIngestionService = rankingLedgerIngestionService;
     }
 
-    protected boolean saveInboxEvent(String eventId,
-                                     String eventType,
-                                     Long postId,
-                                     Long userId,
-                                     Long authorId,
-                                     RankingMetricType metricType,
-                                     int countDelta,
-                                     LocalDateTime occurredAt,
-                                     LocalDateTime publishedAt) {
-        return rankingEventInboxService.saveEvent(
+    protected boolean saveLedgerEvent(String eventId,
+                                      String eventType,
+                                      Long postId,
+                                      Long userId,
+                                      Long authorId,
+                                      RankingMetricType metricType,
+                                      int countDelta,
+                                      LocalDateTime occurredAt,
+                                      LocalDateTime publishedAt) {
+        return rankingLedgerIngestionService.saveEvent(
                 eventId,
                 eventType,
                 postId,

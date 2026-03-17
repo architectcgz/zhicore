@@ -1,13 +1,19 @@
 package com.zhicore.ranking.interfaces.controller;
 
+import com.zhicore.common.context.UserContext;
+import com.zhicore.common.exception.ForbiddenException;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.common.util.IsoWeekUtils;
 import com.zhicore.ranking.application.dto.HotPostDTO;
-import com.zhicore.ranking.application.service.CreatorRankingQueryService;
+import com.zhicore.ranking.application.dto.RankingReplayResultDTO;
+import com.zhicore.ranking.application.service.query.CreatorRankingQueryService;
 import com.zhicore.ranking.application.service.HotPostDetailService;
-import com.zhicore.ranking.application.service.PostRankingQueryService;
-import com.zhicore.ranking.application.service.TopicRankingQueryService;
+import com.zhicore.ranking.application.service.RankingLedgerReplayService;
+import com.zhicore.ranking.application.service.query.PostRankingQueryService;
+import com.zhicore.ranking.application.service.query.TopicRankingQueryService;
 import com.zhicore.ranking.domain.model.HotScore;
 import com.zhicore.ranking.infrastructure.config.RankingProperties;
+import com.zhicore.ranking.infrastructure.redis.RankingRedisKeys;
 import com.zhicore.ranking.infrastructure.sentinel.RankingRoutes;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -36,6 +43,7 @@ public class RankingController {
     private final HotPostDetailService hotPostDetailService;
     private final CreatorRankingQueryService creatorRankingService;
     private final TopicRankingQueryService topicRankingService;
+    private final RankingLedgerReplayService rankingLedgerReplayService;
     private final RankingProperties rankingProperties;
 
     // ==================== 文章排行榜 ====================
@@ -191,6 +199,8 @@ public class RankingController {
     })
     @GetMapping("/posts/weekly")
     public ApiResponse<List<String>> getWeeklyHotPosts(
+            @Parameter(description = "ISO week-based year，默认本周所属年份", example = "2026")
+            @RequestParam(required = false) Integer year,
             @Parameter(description = "周数，默认本周", example = "1")
             @RequestParam(required = false) Integer week,
             @Parameter(description = "数量限制（最大100）", example = "20")
@@ -199,12 +209,21 @@ public class RankingController {
             limit = rankingProperties.getDefaultSize();
         }
         limit = Math.min(limit, rankingProperties.getMaxSize());
-        List<String> postIds;
-        if (week != null) {
-            postIds = postRankingService.getWeeklyHotPosts(week, limit);
-        } else {
-            postIds = postRankingService.getCurrentWeekHotPosts(limit);
+        LocalDate now = LocalDate.now();
+        int currentWeekBasedYear = RankingRedisKeys.getWeekBasedYear(now);
+        if (year == null) {
+            year = currentWeekBasedYear;
         }
+        if (week == null) {
+            week = RankingRedisKeys.getWeekNumber(now);
+        }
+        if (year < 2020 || year > currentWeekBasedYear + 1) {
+            return ApiResponse.fail(400, "年份参数无效，必须在2020到明年之间");
+        }
+        if (!IsoWeekUtils.isValidWeek(year, week)) {
+            return ApiResponse.fail(400, "周参数无效，该年份不存在这一周");
+        }
+        List<String> postIds = postRankingService.getWeeklyHotPosts(year, week, limit);
         return ApiResponse.success(postIds);
     }
 
@@ -263,6 +282,8 @@ public class RankingController {
     })
     @GetMapping("/posts/weekly/scores")
     public ApiResponse<List<HotScore>> getWeeklyHotPostsWithScore(
+            @Parameter(description = "ISO week-based year，默认本周所属年份", example = "2026")
+            @RequestParam(required = false) Integer year,
             @Parameter(description = "周数，默认本周", example = "1")
             @RequestParam(required = false) Integer week,
             @Parameter(description = "数量限制（最大100）", example = "20")
@@ -271,12 +292,21 @@ public class RankingController {
             limit = rankingProperties.getDefaultSize();
         }
         limit = Math.min(limit, rankingProperties.getMaxSize());
-        List<HotScore> scores;
-        if (week != null) {
-            scores = postRankingService.getWeeklyHotPostsWithScore(week, limit);
-        } else {
-            scores = postRankingService.getCurrentWeekHotPostsWithScore(limit);
+        LocalDate now = LocalDate.now();
+        int currentWeekBasedYear = RankingRedisKeys.getWeekBasedYear(now);
+        if (year == null) {
+            year = currentWeekBasedYear;
         }
+        if (week == null) {
+            week = RankingRedisKeys.getWeekNumber(now);
+        }
+        if (year < 2020 || year > currentWeekBasedYear + 1) {
+            return ApiResponse.fail(400, "年份参数无效，必须在2020到明年之间");
+        }
+        if (!IsoWeekUtils.isValidWeek(year, week)) {
+            return ApiResponse.fail(400, "周参数无效，该年份不存在这一周");
+        }
+        List<HotScore> scores = postRankingService.getWeeklyHotPostsWithScore(year, week, limit);
         return ApiResponse.success(scores);
     }
 
@@ -662,5 +692,33 @@ public class RankingController {
             @PathVariable Long topicId) {
         Double score = topicRankingService.getTopicScore(topicId);
         return ApiResponse.success(score);
+    }
+
+    @Operation(
+            summary = "管理接口：从 ledger 全量补算排行榜",
+            description = "清空当前 ranking 的物化状态后，按 ranking_event_ledger 顺序重放，重建 post_state、period_score 和活跃 Redis 榜单"
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "补算成功",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+            )
+    })
+    @PostMapping("/admin/rebuild-from-ledger")
+    public ApiResponse<RankingReplayResultDTO> rebuildFromLedger() {
+        requireAdminOperator();
+        int replayedEvents = rankingLedgerReplayService.rebuildFromLedger();
+        return ApiResponse.success(RankingReplayResultDTO.builder()
+                .replayedEvents(replayedEvents)
+                .rebuiltAt(LocalDateTime.now())
+                .build());
+    }
+
+    private void requireAdminOperator() {
+        UserContext.requireUserId();
+        if (!UserContext.isAdmin()) {
+            throw new ForbiddenException("仅管理员可执行排行榜补算");
+        }
     }
 }

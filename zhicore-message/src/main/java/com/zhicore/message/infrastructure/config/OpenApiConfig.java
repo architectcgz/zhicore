@@ -46,7 +46,7 @@ public class OpenApiConfig {
         return GroupedOpenApi.builder()
                 .group("default")
                 .pathsToMatch("/**")
-                .packagesToScan("com.ZhiCore.message")
+                .packagesToScan("com.zhicore.message")
                 .build();
     }
     
@@ -55,7 +55,7 @@ public class OpenApiConfig {
         return GroupedOpenApi.builder()
                 .group("全部接口")
                 .pathsToMatch("/**")
-                .packagesToScan("com.ZhiCore.message")
+                .packagesToScan("com.zhicore.message")
                 .build();
     }
 }

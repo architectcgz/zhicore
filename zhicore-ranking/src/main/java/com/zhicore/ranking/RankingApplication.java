@@ -3,6 +3,7 @@ package com.zhicore.ranking;
 import com.zhicore.ranking.infrastructure.feign.PostServiceClient;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -12,7 +13,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  *
  * @author ZhiCore Team
  */
-@SpringBootApplication(scanBasePackages = {"com.zhicore.ranking", "com.zhicore.common"})
+@SpringBootApplication(
+        scanBasePackages = {"com.zhicore.ranking", "com.zhicore.common"},
+        exclude = RedisRepositoriesAutoConfiguration.class
+)
 @EnableDiscoveryClient
 @EnableFeignClients(clients = {
         PostServiceClient.class

@@ -1,6 +1,6 @@
 package com.zhicore.admin.interfaces.controller;
 
-import com.zhicore.admin.application.service.ReportManageCommandService;
+import com.zhicore.admin.application.service.command.ReportManageCommandService;
 import com.zhicore.admin.domain.model.ReportHandleAction;
 import com.zhicore.admin.infrastructure.security.RequireAdmin;
 import com.zhicore.admin.interfaces.dto.request.HandleReportRequest;

@@ -12,7 +12,7 @@ public interface OutboxEventStore {
 
     void save(OutboxEventRecord eventRecord);
 
-    PageResult<OutboxEventRecord> findFailed(int page, int size, String eventType);
+    PageResult<OutboxEventRecord> findDead(int page, int size, String eventType);
 
     Optional<OutboxEventRecord> findByEventId(String eventId);
 

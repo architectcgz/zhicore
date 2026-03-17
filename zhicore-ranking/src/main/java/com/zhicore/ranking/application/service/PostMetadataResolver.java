@@ -75,6 +75,21 @@ public class PostMetadataResolver {
         }
     }
 
+    /**
+     * 最佳努力补齐元数据。
+     *
+     * <p>用于 ranking flush/补偿链路，外部文章服务短时不可用时不阻塞本地事实物化。</p>
+     */
+    public Map<Long, PostMetadata> resolveBestEffort(Collection<Long> postIds) {
+        try {
+            return resolve(postIds);
+        } catch (BusinessException e) {
+            log.warn("最佳努力获取文章元数据失败，跳过本轮补齐: postIds={}, code={}, message={}",
+                    postIds, e.getCode(), e.getMessage());
+            return Collections.emptyMap();
+        }
+    }
+
     private PostMetadata toMetadata(PostDTO post) {
         List<Long> topicIds = post.getTags() == null ? Collections.emptyList() : post.getTags().stream()
                 .map(TagDTO::getId)

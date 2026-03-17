@@ -29,7 +29,7 @@ services:
       - ../.env
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - NACOS_ADDR=shared-nacos:8848
+      - NACOS_SERVER_ADDR=shared-nacos:8848
       - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
@@ -60,16 +60,16 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8081
-      - NACOS_ADDR=shared-nacos:8848
-      - POSTGRES_HOST=shared-postgres
-      - POSTGRES_PORT=5432
+      - NACOS_SERVER_ADDR=shared-nacos:8848
+      - DB_HOST=shared-postgres
+      - DB_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=shared-rocketmq-namesrv:9876
+      - ROCKETMQ_NAME_SERVER=shared-rocketmq-namesrv:9876
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8081:8081"
@@ -96,16 +96,19 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8082
-      - NACOS_ADDR=shared-nacos:8848
-      - POSTGRES_HOST=shared-postgres
-      - POSTGRES_PORT=5432
+      - NACOS_SERVER_ADDR=shared-nacos:8848
+      - DB_HOST=shared-postgres
+      - DB_PORT=5432
+      - DB_NAME=zhicore_content
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - MONGO_HOST=zhicore-mongodb
+      - MONGO_PORT=27017
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=shared-rocketmq-namesrv:9876
+      - ROCKETMQ_NAME_SERVER=shared-rocketmq-namesrv:9876
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8082:8082"
@@ -132,7 +135,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8083
-      - NACOS_ADDR=shared-nacos:8848
+      - NACOS_SERVER_ADDR=shared-nacos:8848
       - POSTGRES_HOST=shared-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
@@ -141,7 +144,7 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=shared-rocketmq-namesrv:9876
+      - ROCKETMQ_NAME_SERVER=shared-rocketmq-namesrv:9876
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8083:8083"
@@ -168,7 +171,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8084
-      - NACOS_ADDR=shared-nacos:8848
+      - NACOS_SERVER_ADDR=shared-nacos:8848
       - POSTGRES_HOST=shared-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
@@ -177,7 +180,7 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=shared-rocketmq-namesrv:9876
+      - ROCKETMQ_NAME_SERVER=shared-rocketmq-namesrv:9876
       - ID_GENERATOR_SERVER_URL=${ID_GENERATOR_SERVER_URL:-http://host.docker.internal:8011}
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
@@ -205,7 +208,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8085
-      - NACOS_ADDR=shared-nacos:8848
+      - NACOS_SERVER_ADDR=shared-nacos:8848
       - POSTGRES_HOST=shared-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
@@ -214,7 +217,7 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=shared-rocketmq-namesrv:9876
+      - ROCKETMQ_NAME_SERVER=shared-rocketmq-namesrv:9876
       - ID_GENERATOR_SERVER_URL=${ID_GENERATOR_SERVER_URL:-http://host.docker.internal:8011}
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
@@ -242,7 +245,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8086
-      - NACOS_ADDR=shared-nacos:8848
+      - NACOS_SERVER_ADDR=shared-nacos:8848
       - ELASTICSEARCH_HOST=zhicore-elasticsearch
       - ELASTICSEARCH_PORT=9200
       - DB_USERNAME=${DB_USERNAME}
@@ -251,7 +254,7 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=shared-rocketmq-namesrv:9876
+      - ROCKETMQ_NAME_SERVER=shared-rocketmq-namesrv:9876
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8086:8086"
@@ -278,14 +281,14 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8087
-      - NACOS_ADDR=shared-nacos:8848
+      - NACOS_SERVER_ADDR=shared-nacos:8848
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
-      - ROCKETMQ_NAMESRV=shared-rocketmq-namesrv:9876
+      - ROCKETMQ_NAME_SERVER=shared-rocketmq-namesrv:9876
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
       - "8087:8087"
@@ -312,7 +315,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=8090
-      - NACOS_ADDR=shared-nacos:8848
+      - NACOS_SERVER_ADDR=shared-nacos:8848
       - POSTGRES_HOST=shared-postgres
       - POSTGRES_PORT=5432
       - DB_USERNAME=${DB_USERNAME}

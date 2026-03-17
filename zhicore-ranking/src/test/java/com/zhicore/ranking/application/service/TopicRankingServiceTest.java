@@ -1,6 +1,8 @@
 package com.zhicore.ranking.application.service;
 
 import com.zhicore.ranking.application.port.store.TopicRankingStore;
+import com.zhicore.ranking.application.service.command.TopicRankingCommandService;
+import com.zhicore.ranking.application.service.query.TopicRankingQueryService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

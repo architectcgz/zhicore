@@ -229,6 +229,18 @@ public class RedissonLockManagerImpl implements LockManager {
         }
     }
 
+    @Override
+    public boolean isLocked(String key) {
+        validateKey(key);
+
+        try {
+            return redissonClient.getLock(key).isLocked();
+        } catch (Exception e) {
+            log.error("Failed to inspect lock state: key={}", key, e);
+            return false;
+        }
+    }
+
     private void validateKey(String key) {
         if (key == null || key.trim().isEmpty()) {
             throw new IllegalArgumentException("Lock key cannot be null or empty");

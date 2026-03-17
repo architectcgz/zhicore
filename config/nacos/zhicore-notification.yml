@@ -1,0 +1,20 @@
+# Notification Service Configuration
+# Nacos DataId: zhicore-notification.yml
+# Group: ZHICORE-SERVICE
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ZhiCore_notification}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+notification:
+  batch-size: 100
+  retention-days: 30
+  max-unread: 1000
+
+cache:
+  ttl:
+    entity-detail: 300
+    list: 60
+    unread-count: 30

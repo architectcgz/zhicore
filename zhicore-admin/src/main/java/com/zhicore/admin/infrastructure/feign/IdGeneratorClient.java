@@ -10,6 +10,7 @@ import org.springframework.cloud.openfeign.FeignClient;
  */
 @FeignClient(
         name = "zhicore-id-generator",
+        url = "${zhicore.id-generator.server-url:${ID_GENERATOR_SERVER_URL:http://localhost:8011}}",
         contextId = "idGeneratorClient",
         path = "/api/v1/id",
         fallbackFactory = IdGeneratorClientFallbackFactory.class

@@ -81,7 +81,9 @@ public class PurgePostHandler {
         PostPurgedEvent event = new PostPurgedEvent(
                 java.util.UUID.randomUUID().toString().replace("-", ""),
                 java.time.Instant.now(),
-                command.getPostId()
+                command.getPostId(),
+                java.util.Set.copyOf(post.getTagIds()),
+                post.getVersion()
         );
         eventPublisher.publish(event);
         log.info("Published PostPurged event: postId={}", command.getPostId());

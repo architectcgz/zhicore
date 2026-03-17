@@ -1,5 +1,8 @@
 package com.zhicore.integration.messaging.comment;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.integration.messaging.IntegrationEvent;
 import lombok.Getter;
 
@@ -38,17 +41,27 @@ public class CommentCreatedIntegrationEvent extends IntegrationEvent {
     /**
      * 评论者ID
      */
-    private final Long userId;
+    private final Long postOwnerId;
     
     /**
-     * 评论内容（可能被截断以减少载荷）
+     * 评论作者ID
      */
-    private final String content;
+    private final Long commentAuthorId;
     
     /**
      * 父评论ID（顶级评论为 null）
      */
     private final Long parentId;
+
+    /**
+     * 被回复用户ID。
+     */
+    private final Long replyToUserId;
+
+    /**
+     * 评论内容（可能被截断以减少载荷）。
+     */
+    private final String commentContent;
 
     /**
      * 构造函数
@@ -57,26 +70,37 @@ public class CommentCreatedIntegrationEvent extends IntegrationEvent {
      * @param occurredAt 事件发生时间（从领域事件复制）
      * @param commentId 评论ID
      * @param postId 文章ID
-     * @param userId 评论者ID
-     * @param content 评论内容
+     * @param postOwnerId 文章作者 ID
+     * @param commentAuthorId 评论作者 ID
      * @param parentId 父评论ID
+     * @param replyToUserId 被回复用户 ID
+     * @param commentContent 评论内容
      * @param aggregateVersion 聚合根版本号（用于并发控制）
      */
-    public CommentCreatedIntegrationEvent(String eventId, Instant occurredAt,
-                                         Long commentId, Long postId, Long userId,
-                                         String content, Long parentId,
-                                         Long aggregateVersion) {
+    @JsonCreator
+    public CommentCreatedIntegrationEvent(@JsonProperty("eventId") String eventId,
+                                          @JsonProperty("occurredAt") Instant occurredAt,
+                                          @JsonProperty("commentId") Long commentId,
+                                          @JsonProperty("postId") Long postId,
+                                          @JsonProperty("postOwnerId") Long postOwnerId,
+                                          @JsonProperty("commentAuthorId") Long commentAuthorId,
+                                          @JsonProperty("parentId") Long parentId,
+                                          @JsonProperty("replyToUserId") Long replyToUserId,
+                                          @JsonProperty("commentContent") String commentContent,
+                                          @JsonProperty("aggregateVersion") Long aggregateVersion) {
         super(eventId, occurredAt, aggregateVersion, 1);  // schemaVersion = 1
         this.commentId = commentId;
         this.postId = postId;
-        this.userId = userId;
-        this.content = content;
+        this.postOwnerId = postOwnerId;
+        this.commentAuthorId = commentAuthorId;
         this.parentId = parentId;
+        this.replyToUserId = replyToUserId;
+        this.commentContent = commentContent;
     }
 
     @Override
     public String getTag() {
-        return "COMMENT_CREATED";
+        return TopicConstants.TAG_COMMENT_CREATED;
     }
     
     @Override

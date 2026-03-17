@@ -2,7 +2,7 @@ package com.zhicore.notification.interfaces.controller;
 
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
-import com.zhicore.notification.application.service.NotificationCommandService;
+import com.zhicore.notification.application.service.command.NotificationCommandService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

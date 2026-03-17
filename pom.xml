@@ -50,7 +50,8 @@
         <redisson.version>3.25.2</redisson.version>
 
         <!-- RocketMQ -->
-        <rocketmq-spring.version>2.2.3</rocketmq-spring.version>
+        <rocketmq-spring.version>2.3.5</rocketmq-spring.version>
+        <rocketmq-client.version>5.3.2</rocketmq-client.version>
 
         <!-- Elasticsearch -->
         <elasticsearch.version>8.11.3</elasticsearch.version>
@@ -167,6 +168,16 @@
                 <groupId>org.apache.rocketmq</groupId>
                 <artifactId>rocketmq-spring-boot-starter</artifactId>
                 <version>${rocketmq-spring.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.rocketmq</groupId>
+                <artifactId>rocketmq-client</artifactId>
+                <version>${rocketmq-client.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.rocketmq</groupId>
+                <artifactId>rocketmq-acl</artifactId>
+                <version>${rocketmq-client.version}</version>
             </dependency>
 
             <!-- JWT -->

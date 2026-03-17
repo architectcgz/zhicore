@@ -33,5 +33,5 @@ mybatis-plus:
 # 日志配置
 logging:
   level:
-    com.ZhiCore.message: DEBUG
+    com.zhicore.message: DEBUG
     com.zhicore.api.client: DEBUG

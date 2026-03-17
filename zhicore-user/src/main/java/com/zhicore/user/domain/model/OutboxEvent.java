@@ -10,21 +10,21 @@ import java.util.UUID;
 /**
  * Outbox 事件实体
  * 
- * 用于 Transactional Outbox 模式，确保事件可靠投递到 RocketMQ
+ * 用于 Transactional Outbox 模式，确保事件可靠投递到 RocketMQ。
  * 
  * <h3>工作原理</h3>
  * <ol>
  *   <li>在业务事务中同时写入业务表和 outbox_events 表，保证原子性</li>
- *   <li>后台定时任务扫描 PENDING 状态的事件并发送到 RocketMQ</li>
- *   <li>发送成功后更新状态为 SENT，失败则递增重试次数</li>
- *   <li>超过最大重试次数后标记为 FAILED，需要人工介入</li>
+ *   <li>事务提交后唤醒 claim-based dispatcher 抢占可发送事件</li>
+ *   <li>事件进入 PROCESSING 后执行 RocketMQ 投递，成功后更新为 SUCCEEDED</li>
+ *   <li>发送失败则递增重试次数，超过最大重试次数后标记为 DEAD</li>
  * </ol>
  * 
  * <h3>优势</h3>
  * <ul>
  *   <li>MQ 不可用不影响业务操作（如用户资料更新）</li>
  *   <li>所有事件都有记录，可追溯和重放</li>
- *   <li>失败的事件可以手动重试或自动重试</li>
+ *   <li>失败的事件可以自动退避重试或人工重投</li>
  *   <li>保证事件至少投递一次（At-Least-Once）</li>
  * </ul>
  * 
@@ -45,7 +45,7 @@ public class OutboxEvent {
     /**
      * RocketMQ Topic
      * 
-     * 例如：user-profile-changed
+     * 例如：ZhiCore-user-events
      */
     private String topic;
     
@@ -93,9 +93,9 @@ public class OutboxEvent {
     private Integer maxRetries;
 
     /**
-     * 下次重试时间（指数退避计算）
+     * 下次允许被处理的时间（指数退避计算）。
      */
-    private LocalDateTime nextRetryAt;
+    private LocalDateTime nextAttemptAt;
 
     /**
      * 创建时间
@@ -117,6 +117,16 @@ public class OutboxEvent {
      * 发送失败时记录的异常信息，用于排查问题
      */
     private String errorMessage;
+
+    /**
+     * 当前 claim 该事件的 worker 标识。
+     */
+    private String claimedBy;
+
+    /**
+     * 当前 claim 时间。
+     */
+    private LocalDateTime claimedAt;
     
     /**
      * 创建 Outbox 事件的工厂方法
@@ -159,7 +169,7 @@ public class OutboxEvent {
         this.retryCount = 0;
         this.maxRetries = 10;
         this.createdAt = createdAt;
-        this.nextRetryAt = createdAt;
+        this.nextAttemptAt = createdAt;
         this.sentAt = null;
         this.errorMessage = null;
     }
@@ -170,7 +180,7 @@ public class OutboxEvent {
     public void scheduleNextRetry() {
         this.retryCount++;
         long delaySeconds = Math.min((long) Math.pow(2, this.retryCount - 1), 300);
-        this.nextRetryAt = LocalDateTime.now().plusSeconds(delaySeconds);
+        this.nextAttemptAt = LocalDateTime.now().plusSeconds(delaySeconds);
     }
 
     /**
@@ -178,5 +188,10 @@ public class OutboxEvent {
      */
     public boolean isExhausted() {
         return this.retryCount >= this.maxRetries;
+    }
+
+    public void clearClaim() {
+        this.claimedBy = null;
+        this.claimedAt = null;
     }
 }

@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 
 /**
  * 点赞仓储集成测试（R2）
@@ -42,7 +41,7 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
         @DisplayName("save 成功写入并可查询")
         void saveShouldPersistAndBeQueryable() {
             PostLike like = new PostLike(1L, 100L, 200L);
-            postLikeRepository.save(like);
+            assertThat(postLikeRepository.save(like)).isTrue();
 
             Optional<PostLike> found = postLikeRepository.findByPostIdAndUserId(100L, 200L);
             assertThat(found).isPresent();
@@ -55,16 +54,16 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
         void existsShouldReturnCorrectly() {
             assertThat(postLikeRepository.exists(100L, 200L)).isFalse();
 
-            postLikeRepository.save(new PostLike(2L, 100L, 200L));
+            assertThat(postLikeRepository.save(new PostLike(2L, 100L, 200L))).isTrue();
             assertThat(postLikeRepository.exists(100L, 200L)).isTrue();
         }
 
         @Test
         @DisplayName("countByPostId 正确统计点赞数")
         void countByPostIdShouldReturnCorrectCount() {
-            postLikeRepository.save(new PostLike(3L, 100L, 201L));
-            postLikeRepository.save(new PostLike(4L, 100L, 202L));
-            postLikeRepository.save(new PostLike(5L, 999L, 203L));
+            assertThat(postLikeRepository.save(new PostLike(3L, 100L, 201L))).isTrue();
+            assertThat(postLikeRepository.save(new PostLike(4L, 100L, 202L))).isTrue();
+            assertThat(postLikeRepository.save(new PostLike(5L, 999L, 203L))).isTrue();
 
             assertThat(postLikeRepository.countByPostId(100L)).isEqualTo(2);
             assertThat(postLikeRepository.countByPostId(999L)).isEqualTo(1);
@@ -74,10 +73,10 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("delete 成功删除点赞记录")
         void deleteShouldRemoveRecord() {
-            postLikeRepository.save(new PostLike(6L, 100L, 200L));
+            assertThat(postLikeRepository.save(new PostLike(6L, 100L, 200L))).isTrue();
             assertThat(postLikeRepository.exists(100L, 200L)).isTrue();
 
-            postLikeRepository.delete(100L, 200L);
+            assertThat(postLikeRepository.delete(100L, 200L)).isTrue();
             assertThat(postLikeRepository.exists(100L, 200L)).isFalse();
         }
     }
@@ -91,12 +90,9 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("重复点赞不抛异常且数据库只有一条记录")
         void duplicateSaveShouldBeIdempotent() {
-            postLikeRepository.save(new PostLike(10L, 100L, 200L));
+            assertThat(postLikeRepository.save(new PostLike(10L, 100L, 200L))).isTrue();
 
-            // 重复保存（不同 ID 但相同 postId+userId）不应抛异常
-            assertThatCode(() ->
-                    postLikeRepository.save(new PostLike(11L, 100L, 200L))
-            ).doesNotThrowAnyException();
+            assertThat(postLikeRepository.save(new PostLike(11L, 100L, 200L))).isFalse();
 
             // 数据库中只有一条记录
             assertThat(postLikeRepository.countByPostId(100L)).isEqualTo(1);
@@ -112,20 +108,16 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("删除不存在的点赞记录不抛异常")
         void deleteNonExistentShouldNotThrow() {
-            assertThatCode(() ->
-                    postLikeRepository.delete(999L, 999L)
-            ).doesNotThrowAnyException();
+            assertThat(postLikeRepository.delete(999L, 999L)).isFalse();
         }
 
         @Test
         @DisplayName("重复删除不抛异常")
         void duplicateDeleteShouldBeIdempotent() {
-            postLikeRepository.save(new PostLike(20L, 100L, 200L));
-            postLikeRepository.delete(100L, 200L);
+            assertThat(postLikeRepository.save(new PostLike(20L, 100L, 200L))).isTrue();
+            assertThat(postLikeRepository.delete(100L, 200L)).isTrue();
 
-            assertThatCode(() ->
-                    postLikeRepository.delete(100L, 200L)
-            ).doesNotThrowAnyException();
+            assertThat(postLikeRepository.delete(100L, 200L)).isFalse();
         }
     }
 
@@ -140,7 +132,7 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
         void postIdIndexShouldBeUsed() {
             // 插入测试数据
             for (long i = 30; i < 40; i++) {
-                postLikeRepository.save(new PostLike(i, 100L, 200L + i));
+                assertThat(postLikeRepository.save(new PostLike(i, 100L, 200L + i))).isTrue();
             }
 
             // 通过 EXPLAIN 验证索引使用（PostgreSQL）
@@ -165,8 +157,8 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
         @DisplayName("findLikedPostIds 正确返回已点赞的文章ID列表")
         void findLikedPostIdsShouldReturnCorrectIds() {
             long userId = 300L;
-            postLikeRepository.save(new PostLike(40L, 101L, userId));
-            postLikeRepository.save(new PostLike(41L, 102L, userId));
+            assertThat(postLikeRepository.save(new PostLike(40L, 101L, userId))).isTrue();
+            assertThat(postLikeRepository.save(new PostLike(41L, 102L, userId))).isTrue();
             // 103L 未点赞
 
             List<Long> likedIds = postLikeRepository.findLikedPostIds(
@@ -193,7 +185,7 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
                 PostLike like = PostLike.reconstitute(
                         50L + i, 100L + i, userId, base.plusMinutes(i)
                 );
-                postLikeRepository.save(like);
+                assertThat(postLikeRepository.save(like)).isTrue();
             }
 
             // 第一页（无游标）

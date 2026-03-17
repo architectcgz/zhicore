@@ -1,7 +1,7 @@
 package com.zhicore.content.infrastructure.service;
 
 import com.zhicore.api.client.IdGeneratorFeignClient;
-import com.zhicore.content.application.service.TagCommandService;
+import com.zhicore.content.application.service.command.TagCommandService;
 import com.zhicore.common.exception.ServiceUnavailableException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.content.domain.model.Tag;

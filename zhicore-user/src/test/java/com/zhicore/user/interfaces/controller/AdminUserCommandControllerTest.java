@@ -1,7 +1,7 @@
 package com.zhicore.user.interfaces.controller;
 
 import com.zhicore.common.exception.GlobalExceptionHandler;
-import com.zhicore.user.application.service.AdminUserCommandService;
+import com.zhicore.user.application.service.command.AdminUserCommandService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

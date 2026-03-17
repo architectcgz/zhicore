@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 
 /**
  * 收藏仓储集成测试（R3）
@@ -42,7 +41,7 @@ class PostFavoriteRepositoryIntegrationTest extends IntegrationTestBase {
         @DisplayName("save 成功写入并可查询")
         void saveShouldPersistAndBeQueryable() {
             PostFavorite fav = new PostFavorite(1L, 100L, 200L);
-            postFavoriteRepository.save(fav);
+            assertThat(postFavoriteRepository.save(fav)).isTrue();
 
             Optional<PostFavorite> found = postFavoriteRepository.findByPostIdAndUserId(100L, 200L);
             assertThat(found).isPresent();
@@ -55,16 +54,16 @@ class PostFavoriteRepositoryIntegrationTest extends IntegrationTestBase {
         void existsShouldReturnCorrectly() {
             assertThat(postFavoriteRepository.exists(100L, 200L)).isFalse();
 
-            postFavoriteRepository.save(new PostFavorite(2L, 100L, 200L));
+            assertThat(postFavoriteRepository.save(new PostFavorite(2L, 100L, 200L))).isTrue();
             assertThat(postFavoriteRepository.exists(100L, 200L)).isTrue();
         }
 
         @Test
         @DisplayName("countByPostId 正确统计收藏数")
         void countByPostIdShouldReturnCorrectCount() {
-            postFavoriteRepository.save(new PostFavorite(3L, 100L, 201L));
-            postFavoriteRepository.save(new PostFavorite(4L, 100L, 202L));
-            postFavoriteRepository.save(new PostFavorite(5L, 999L, 203L));
+            assertThat(postFavoriteRepository.save(new PostFavorite(3L, 100L, 201L))).isTrue();
+            assertThat(postFavoriteRepository.save(new PostFavorite(4L, 100L, 202L))).isTrue();
+            assertThat(postFavoriteRepository.save(new PostFavorite(5L, 999L, 203L))).isTrue();
 
             assertThat(postFavoriteRepository.countByPostId(100L)).isEqualTo(2);
             assertThat(postFavoriteRepository.countByPostId(999L)).isEqualTo(1);
@@ -74,10 +73,10 @@ class PostFavoriteRepositoryIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("delete 成功删除收藏记录")
         void deleteShouldRemoveRecord() {
-            postFavoriteRepository.save(new PostFavorite(6L, 100L, 200L));
+            assertThat(postFavoriteRepository.save(new PostFavorite(6L, 100L, 200L))).isTrue();
             assertThat(postFavoriteRepository.exists(100L, 200L)).isTrue();
 
-            postFavoriteRepository.delete(100L, 200L);
+            assertThat(postFavoriteRepository.delete(100L, 200L)).isTrue();
             assertThat(postFavoriteRepository.exists(100L, 200L)).isFalse();
         }
     }
@@ -91,11 +90,9 @@ class PostFavoriteRepositoryIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("重复收藏不抛异常且数据库只有一条记录")
         void duplicateSaveShouldBeIdempotent() {
-            postFavoriteRepository.save(new PostFavorite(10L, 100L, 200L));
+            assertThat(postFavoriteRepository.save(new PostFavorite(10L, 100L, 200L))).isTrue();
 
-            assertThatCode(() ->
-                    postFavoriteRepository.save(new PostFavorite(11L, 100L, 200L))
-            ).doesNotThrowAnyException();
+            assertThat(postFavoriteRepository.save(new PostFavorite(11L, 100L, 200L))).isFalse();
 
             assertThat(postFavoriteRepository.countByPostId(100L)).isEqualTo(1);
         }
@@ -110,20 +107,16 @@ class PostFavoriteRepositoryIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("删除不存在的收藏记录不抛异常")
         void deleteNonExistentShouldNotThrow() {
-            assertThatCode(() ->
-                    postFavoriteRepository.delete(999L, 999L)
-            ).doesNotThrowAnyException();
+            assertThat(postFavoriteRepository.delete(999L, 999L)).isFalse();
         }
 
         @Test
         @DisplayName("重复删除不抛异常")
         void duplicateDeleteShouldBeIdempotent() {
-            postFavoriteRepository.save(new PostFavorite(20L, 100L, 200L));
-            postFavoriteRepository.delete(100L, 200L);
+            assertThat(postFavoriteRepository.save(new PostFavorite(20L, 100L, 200L))).isTrue();
+            assertThat(postFavoriteRepository.delete(100L, 200L)).isTrue();
 
-            assertThatCode(() ->
-                    postFavoriteRepository.delete(100L, 200L)
-            ).doesNotThrowAnyException();
+            assertThat(postFavoriteRepository.delete(100L, 200L)).isFalse();
         }
     }
 
@@ -137,7 +130,7 @@ class PostFavoriteRepositoryIntegrationTest extends IntegrationTestBase {
         @DisplayName("idx_post_favorites_post_id 索引查询可正常执行")
         void postIdIndexQueryShouldWork() {
             for (long i = 30; i < 40; i++) {
-                postFavoriteRepository.save(new PostFavorite(i, 100L, 200L + i));
+                assertThat(postFavoriteRepository.save(new PostFavorite(i, 100L, 200L + i))).isTrue();
             }
 
             List<String> plan = jdbcTemplate.queryForList(
@@ -158,8 +151,8 @@ class PostFavoriteRepositoryIntegrationTest extends IntegrationTestBase {
         @DisplayName("findFavoritedPostIds 正确返回已收藏的文章ID列表")
         void findFavoritedPostIdsShouldReturnCorrectIds() {
             long userId = 300L;
-            postFavoriteRepository.save(new PostFavorite(40L, 101L, userId));
-            postFavoriteRepository.save(new PostFavorite(41L, 102L, userId));
+            assertThat(postFavoriteRepository.save(new PostFavorite(40L, 101L, userId))).isTrue();
+            assertThat(postFavoriteRepository.save(new PostFavorite(41L, 102L, userId))).isTrue();
 
             List<Long> favIds = postFavoriteRepository.findFavoritedPostIds(
                     userId, List.of(101L, 102L, 103L)
@@ -184,7 +177,7 @@ class PostFavoriteRepositoryIntegrationTest extends IntegrationTestBase {
                 PostFavorite fav = PostFavorite.reconstitute(
                         50L + i, 100L + i, userId, base.plusMinutes(i)
                 );
-                postFavoriteRepository.save(fav);
+                assertThat(postFavoriteRepository.save(fav)).isTrue();
             }
 
             List<PostFavorite> page1 = postFavoriteRepository.findByUserIdCursor(userId, null, 3);

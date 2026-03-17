@@ -1,6 +1,6 @@
 package com.zhicore.comment.interfaces.controller;
 
-import com.zhicore.comment.application.service.CommentLikeCommandService;
+import com.zhicore.comment.application.service.command.CommentLikeCommandService;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;

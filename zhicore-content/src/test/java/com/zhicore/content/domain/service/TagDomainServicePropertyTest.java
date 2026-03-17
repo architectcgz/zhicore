@@ -1,6 +1,6 @@
 package com.zhicore.content.domain.service;
 
-import com.zhicore.content.application.service.TagCommandService;
+import com.zhicore.content.application.service.command.TagCommandService;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.infrastructure.service.TagDomainServiceImpl;

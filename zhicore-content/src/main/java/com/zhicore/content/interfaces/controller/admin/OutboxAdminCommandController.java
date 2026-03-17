@@ -3,7 +3,7 @@ package com.zhicore.content.interfaces.controller.admin;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.content.application.dto.admin.outbox.OutboxRetryResponse;
-import com.zhicore.content.application.service.OutboxAdminCommandService;
+import com.zhicore.content.application.service.command.OutboxAdminCommandService;
 import com.zhicore.content.interfaces.dto.admin.outbox.OutboxRetryRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +29,6 @@ public class OutboxAdminCommandController {
             @Valid @RequestBody OutboxRetryRequest request
     ) {
         Long operatorId = UserContext.requireUserId();
-        return ApiResponse.success(outboxAdminCommandService.retryFailed(eventId, operatorId, request.getReason()));
+        return ApiResponse.success(outboxAdminCommandService.retryDead(eventId, operatorId, request.getReason()));
     }
 }

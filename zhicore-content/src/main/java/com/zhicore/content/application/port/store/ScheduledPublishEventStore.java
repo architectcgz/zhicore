@@ -17,13 +17,30 @@ public interface ScheduledPublishEventStore {
 
     Optional<ScheduledPublishEventRecord> findByEventId(String eventId);
 
+    Optional<ScheduledPublishEventRecord> findByTriggerEventId(String triggerEventId);
+
     void update(ScheduledPublishEventRecord eventRecord);
 
-    List<ScheduledPublishEventRecord> findDueScheduledPending(LocalDateTime dbNow, LocalDateTime cooldownBefore, int limit);
+    List<ScheduledPublishEventRecord> claimCompensationBatch(
+            LocalDateTime dbNow,
+            LocalDateTime reclaimBefore,
+            String claimedBy,
+            int limit
+    );
 
-    List<ScheduledPublishEventRecord> findStaleScheduledPending(LocalDateTime dbNow, LocalDateTime staleBefore, int limit);
-
-    int casUpdateLastEnqueueAt(ScheduledPublishEventRecord eventRecord, LocalDateTime dbNow, String newEventId);
+    Optional<ScheduledPublishEventRecord> claimForConsumption(
+            String eventId,
+            LocalDateTime dbNow,
+            LocalDateTime reclaimBefore,
+            String claimedBy
+    );
 
     Optional<ScheduledPublishEventRecord> findActiveByPostId(Long postId);
+
+    int markTerminalByPostId(
+            Long postId,
+            ScheduledPublishEventRecord.ScheduledPublishStatus status,
+            LocalDateTime dbNow,
+            String lastError
+    );
 }

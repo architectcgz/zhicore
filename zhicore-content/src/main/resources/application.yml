@@ -1,5 +1,12 @@
 server:
-  port: 8102
+  port: ${SERVER_PORT:8102}
+  tomcat:
+    threads:
+      max: 200          # 最大线程数
+      min-spare: 20     # 最小空闲线程
+    accept-count: 100   # 等待队列长度
+    max-connections: 10000  # 最大连接数
+    connection-timeout: 20000  # 连接超时
 
 # 应用环境标识（用于分布式锁键隔离）
 # 推荐值：dev | test | prod
@@ -76,8 +83,8 @@ spring:
     password: ${DB_PASSWORD:postgres123456}
     driver-class-name: org.postgresql.Driver
     hikari:
-      minimum-idle: 5
-      maximum-pool-size: 20
+      minimum-idle: 10
+      maximum-pool-size: 50  # 从 20 增加到 50
       idle-timeout: 30000
       pool-name: PostHikariCP
       max-lifetime: 1800000
@@ -86,9 +93,15 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6800}
+      port: ${REDIS_PORT:6379}  # 修正默认值
       password: ${REDIS_PASSWORD:redis123456}
       database: 0
+      lettuce:
+        pool:
+          max-active: 50   # 最大连接数
+          max-idle: 20     # 最大空闲连接
+          min-idle: 5      # 最小空闲连接
+          max-wait: 3000   # 最大等待时间（毫秒）
     mongodb:
       host: ${MONGO_HOST:localhost}
       port: ${MONGO_PORT:27017}
@@ -121,7 +134,7 @@ performance:
   slow-query-log-enabled: true
 
 rocketmq:
-  name-server: ${ROCKETMQ_NAMESRV:localhost:9876}
+  name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
   producer:
     group: post-producer-group
     send-message-timeout: 3000
@@ -136,8 +149,19 @@ rocketmq:
 internal-event:
   dispatcher:
     batch-size: 100
+    worker-count: 4
     scan-interval: 1000
+    claim-timeout-seconds: 60
     max-retry: 10
+    max-backoff-seconds: 300
+
+outbox:
+  dispatcher:
+    batch-size: 100
+    worker-count: 4
+    scan-interval: 5000
+    claim-timeout-seconds: 60
+    max-retry: 3
     max-backoff-seconds: 300
 
 # File Service 配置
@@ -303,6 +327,20 @@ post:
     # 孤儿数据清理任务执行频率（cron 表达式）- 每天凌晨 3 点执行
     orphan-cleanup-schedule-cron: "0 0 3 * * ?"
 
+# 定时发布补偿扫描配置
+scheduled:
+  publish:
+    scan-batch-size: 100
+    compensation-scan-interval-ms: 1000
+    compensation-initial-delay-ms: 1000
+    upcoming-window-seconds: 60
+    enqueue-cooldown-seconds: 15
+    claim-timeout-seconds: 120
+    max-reschedule-retries: 10
+    max-publish-retries: 3
+    max-delay-minutes: 30
+    timer-message-enabled: true
+
 # 日志配置
 logging:
   level:
@@ -319,13 +357,6 @@ logging:
     name: logs/zhicore-content.log
     max-size: 100MB
     max-history: 30
-
-internal-event:
-  dispatcher:
-    batch-size: 100
-    scan-interval: 5000
-    max-retry: 10
-    max-backoff-seconds: 300
 
 # Knife4j API 文档配置
 springdoc:

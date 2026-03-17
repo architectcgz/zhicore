@@ -8,7 +8,6 @@ import com.zhicore.content.infrastructure.persistence.pg.entity.PostFavoriteEnti
 import com.zhicore.content.infrastructure.persistence.pg.mapper.PostFavoriteMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -30,28 +29,25 @@ public class PostFavoriteRepositoryImpl implements PostFavoriteRepository {
     private final PostFavoriteMapper mapper;
 
     @Override
-    public void save(PostFavorite favorite) {
-        try {
-            PostFavoriteEntity entity = new PostFavoriteEntity();
-            entity.setId(favorite.getId());
-            entity.setPostId(favorite.getPostId());
-            entity.setUserId(favorite.getUserId());
-            entity.setCreatedAt(favorite.getCreatedAt() != null ? favorite.getCreatedAt() : LocalDateTime.now());
-            mapper.insert(entity);
-        } catch (DuplicateKeyException e) {
-            // 唯一约束冲突视为幂等成功
+    public boolean save(PostFavorite favorite) {
+        PostFavoriteEntity entity = new PostFavoriteEntity();
+        entity.setId(favorite.getId());
+        entity.setPostId(favorite.getPostId());
+        entity.setUserId(favorite.getUserId());
+        entity.setCreatedAt(favorite.getCreatedAt() != null ? favorite.getCreatedAt() : LocalDateTime.now());
+
+        int inserted = mapper.insertIgnoreConflict(entity);
+        if (inserted == 0) {
             log.info("Post favorite already exists, treat as idempotent success: postId={}, userId={}",
                     favorite.getPostId(), favorite.getUserId());
+            return false;
         }
+        return true;
     }
 
     @Override
-    public void delete(Long postId, Long userId) {
-        mapper.delete(
-                new LambdaQueryWrapper<PostFavoriteEntity>()
-                        .eq(PostFavoriteEntity::getPostId, postId)
-                        .eq(PostFavoriteEntity::getUserId, userId)
-        );
+    public boolean delete(Long postId, Long userId) {
+        return mapper.deleteByPostIdAndUserId(postId, userId) > 0;
     }
 
     @Override
@@ -116,4 +112,3 @@ public class PostFavoriteRepositoryImpl implements PostFavoriteRepository {
                 .toList();
     }
 }
-

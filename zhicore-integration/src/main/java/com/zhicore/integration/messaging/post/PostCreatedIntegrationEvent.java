@@ -1,5 +1,7 @@
 package com.zhicore.integration.messaging.post;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.integration.messaging.IntegrationEvent;
 import lombok.Getter;
 
@@ -49,12 +51,21 @@ public class PostCreatedIntegrationEvent extends IntegrationEvent {
      * @param createdAt 创建时间
      * @param aggregateVersion 聚合根版本号
      */
-    public PostCreatedIntegrationEvent(String eventId, Instant occurredAt,
-                                      Long postId, String title, String excerpt,
-                                      Long authorId, String authorName,
-                                      List<Long> tagIds, Long topicId, String topicName,
-                                      String status, Instant publishedAt,
-                                      Instant createdAt, Long aggregateVersion) {
+    @JsonCreator
+    public PostCreatedIntegrationEvent(@JsonProperty("eventId") String eventId,
+                                       @JsonProperty("occurredAt") Instant occurredAt,
+                                       @JsonProperty("postId") Long postId,
+                                       @JsonProperty("title") String title,
+                                       @JsonProperty("excerpt") String excerpt,
+                                       @JsonProperty("authorId") Long authorId,
+                                       @JsonProperty("authorName") String authorName,
+                                       @JsonProperty("tagIds") List<Long> tagIds,
+                                       @JsonProperty("topicId") Long topicId,
+                                       @JsonProperty("topicName") String topicName,
+                                       @JsonProperty("status") String status,
+                                       @JsonProperty("publishedAt") Instant publishedAt,
+                                       @JsonProperty("createdAt") Instant createdAt,
+                                       @JsonProperty("aggregateVersion") Long aggregateVersion) {
         super(eventId, occurredAt, aggregateVersion, 1);  // schemaVersion = 1
         this.postId = postId;
         this.title = title;

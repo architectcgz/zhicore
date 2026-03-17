@@ -137,4 +137,14 @@ public interface LockManager {
     default boolean isHeldByCurrentThread(String key, boolean fair) {
         return isHeldByCurrentThread(key);
     }
+
+    /**
+     * 检查锁当前是否已被任意线程持有。
+     *
+     * @param key 锁键
+     * @return 是否处于加锁状态
+     */
+    default boolean isLocked(String key) {
+        throw new UnsupportedOperationException("Lock state inspection is not supported by this LockManager implementation");
+    }
 }

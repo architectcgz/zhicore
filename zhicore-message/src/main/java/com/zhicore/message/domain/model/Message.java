@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
  * 
  * 消息顺序性保证 (CP-MSG-01)：
  * 1. 数据库层面：使用 conversation_id + created_at 索引保证查询顺序
- * 2. 消息队列层面：使用 RocketMQ 顺序消息，以 conversationId 作为 shardingKey
+ * 2. 副作用调度层面：消息发送后的推送 / IM 同步统一通过 outbox 顺序执行
  * 3. 推送层面：WebSocket 推送按消息创建时间排序
  *
  * @author ZhiCore Team

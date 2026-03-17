@@ -32,7 +32,7 @@ public class PostFavoritedEvent extends DomainEvent {
 
     @JsonCreator
     public PostFavoritedEvent(@JsonProperty("eventId") String eventId,
-                              @JsonProperty("occurredAt") java.time.LocalDateTime occurredAt,
+                              @JsonProperty("occurredAt") java.time.Instant occurredAt,
                               @JsonProperty("postId") Long postId,
                               @JsonProperty("userId") Long userId,
                               @JsonProperty("authorId") Long authorId) {

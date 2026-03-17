@@ -20,9 +20,17 @@ public class InternalEventDispatcherProperties {
     @Max(1000)
     private int batchSize = 100;
 
+    @Min(1)
+    @Max(64)
+    private int workerCount = 4;
+
     @Min(1000)
     @Max(60000)
     private long scanInterval = 1000;
+
+    @Min(5)
+    @Max(3600)
+    private long claimTimeoutSeconds = 60;
 
     @Min(1)
     @Max(20)

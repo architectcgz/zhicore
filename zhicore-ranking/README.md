@@ -24,6 +24,33 @@
 
 ## API 端点
 
+### 管理端点
+
+#### 从 ledger 全量补算当前排行榜
+
+```http
+POST /api/v1/ranking/admin/rebuild-from-ledger
+```
+
+**说明**：
+- 仅管理员可调用
+- 执行期间会暂停 ranking live ingestion，避免 replay 与实时落账重复计数
+- 清空 `ranking_delta_bucket`、`ranking_post_state`、`ranking_period_score`
+- 按 `ranking_event_ledger` 顺序重放事件
+- 重建当前权威状态和活跃 Redis 榜单
+
+**响应示例**：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "replayedEvents": 12876,
+    "rebuiltAt": "2026-03-15T09:55:00"
+  }
+}
+```
+
 ### 基础端点（返回 ID 列表）
 
 #### 1. 获取总榜
@@ -61,10 +88,11 @@ GET /api/v1/ranking/posts/daily?date=2024-01-28&limit=20
 #### 3. 获取周榜
 
 ```http
-GET /api/v1/ranking/posts/weekly?week=4&limit=20
+GET /api/v1/ranking/posts/weekly?year=2026&week=4&limit=20
 ```
 
 **参数**：
+- `year`（可选）：ISO week-based year，默认本周所属年份
 - `week`（可选）：周数，默认本周
 - `limit`（可选）：数量限制，默认 20，最大 100
 
@@ -135,10 +163,11 @@ GET /api/v1/ranking/posts/daily/scores?date=2024-01-28&limit=20
 #### 3. 获取周榜（带分数）
 
 ```http
-GET /api/v1/ranking/posts/weekly/scores?week=4&limit=20
+GET /api/v1/ranking/posts/weekly/scores?year=2026&week=4&limit=20
 ```
 
 **参数**：
+- `year`（可选）：ISO week-based year，默认本周所属年份
 - `week`（可选）：周数，默认本周
 - `limit`（可选）：数量限制，默认 20，最大 100
 
@@ -216,7 +245,7 @@ GET /api/v1/ranking/posts/monthly/scores?year=2024&month=1&limit=20
   rank: 1,                     // 排名
   rankingType: "monthly",      // 排行榜类型：daily, weekly, monthly
   period: {                    // 时间周期
-    year: 2024,                // 年份（必需）
+    year: 2024,                // 年份（必需，周榜为 ISO week-based year）
     month: 1,                  // 月份（1-12，月榜使用）
     week: 4,                   // 周数（周榜使用）
     date: ISODate("2024-01-28") // 日期（日榜使用）
@@ -280,7 +309,7 @@ ranking:
     lease-seconds: 60            # PROCESSING 租约时长
     max-retry: 10                # 最大重试次数
     applied-event-window-size: 2048  # recentAppliedEventIds 保留窗口
-    done-retention-days: 400     # DONE inbox 保留天数
+    done-retention-days: 400     # SUCCEEDED/DONE inbox 保留天数
 
   snapshot:
     refresh-interval: 60000      # 当前快照刷新间隔（毫秒）
@@ -355,7 +384,7 @@ ranking:topics:hot
 ranking:posts:daily:2024-01-28
 
 # 周榜（TTL: 14 天）
-ranking:posts:weekly:4
+ranking:posts:weekly:2026:04
 
 # 月榜（TTL: 365 天）
 ranking:posts:monthly:2024:01
@@ -384,7 +413,7 @@ MongoDB: ranking_post_hot_state
 ### 2. 当前排行快照刷新
 
 ```
-ranking_post_hot_state + 当前周期 DONE inbox 事件
+ranking_post_hot_state + 当前周期 SUCCEEDED inbox 事件
     ↓
 RankingSnapshotScheduler
     ↓

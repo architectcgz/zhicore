@@ -6,7 +6,7 @@ import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
 import com.zhicore.notification.application.service.NotificationAggregationService;
-import com.zhicore.notification.application.service.NotificationQueryService;
+import com.zhicore.notification.application.service.query.NotificationQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

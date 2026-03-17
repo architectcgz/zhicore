@@ -14,19 +14,19 @@ public interface RankingArchiveSourceStore {
 
     List<HotScore> getDailyPostRanking(LocalDate date, int limit);
 
-    List<HotScore> getDailyCreatorRanking(int limit);
+    List<HotScore> getDailyCreatorRanking(LocalDate date, int limit);
 
-    List<HotScore> getDailyTopicRanking(int limit);
+    List<HotScore> getDailyTopicRanking(LocalDate date, int limit);
 
-    List<HotScore> getWeeklyPostRanking(int weekNumber, int limit);
+    List<HotScore> getWeeklyPostRanking(int weekBasedYear, int weekNumber, int limit);
 
-    List<HotScore> getWeeklyCreatorRanking(int limit);
+    List<HotScore> getWeeklyCreatorRanking(int weekBasedYear, int weekNumber, int limit);
 
-    List<HotScore> getWeeklyTopicRanking(int limit);
+    List<HotScore> getWeeklyTopicRanking(int weekBasedYear, int weekNumber, int limit);
 
     List<HotScore> getMonthlyPostRanking(int year, int month, int limit);
 
-    List<HotScore> getMonthlyCreatorRanking(int limit);
+    List<HotScore> getMonthlyCreatorRanking(int year, int month, int limit);
 
-    List<HotScore> getMonthlyTopicRanking(int limit);
+    List<HotScore> getMonthlyTopicRanking(int year, int month, int limit);
 }

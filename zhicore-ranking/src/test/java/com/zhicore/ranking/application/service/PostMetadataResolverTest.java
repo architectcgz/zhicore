@@ -15,6 +15,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,5 +39,14 @@ class PostMetadataResolverTest {
 
         assertEquals(ResultCode.SERVICE_DEGRADED.getCode(), exception.getCode());
         assertEquals("文章服务已降级", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("最佳努力解析在文章服务降级时应该返回空结果")
+    void shouldReturnEmptyWhenResolveBestEffortFails() {
+        when(postServiceClient.batchGetPosts(Set.of(1L)))
+                .thenReturn(ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "文章服务已降级"));
+
+        assertTrue(postMetadataResolver.resolveBestEffort(Set.of(1L)).isEmpty());
     }
 }

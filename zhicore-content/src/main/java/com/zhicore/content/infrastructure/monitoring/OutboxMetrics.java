@@ -1,9 +1,10 @@
 package com.zhicore.content.infrastructure.monitoring;
 
+import com.zhicore.common.monitoring.DurableEventQueueMetrics;
+import com.zhicore.content.infrastructure.config.OutboxProperties;
 import com.zhicore.content.infrastructure.persistence.pg.entity.OutboxEventEntity;
 import com.zhicore.content.infrastructure.persistence.pg.mapper.OutboxEventMapper;
 import io.micrometer.core.instrument.MeterRegistry;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -14,29 +15,40 @@ import java.time.Instant;
 /**
  * Outbox 堆积监控指标采集器
  * 
- * 定期采集 Outbox 表的关键指标，用于监控消息堆积情况
+ * 定期采集 Outbox 表的关键指标，并通过统一的 durable queue 指标名暴露给 Prometheus。
  * 
  * 监控指标：
- * 1. outbox.pending.count - PENDING 消息数量
- * 2. outbox.pending.oldest.age.seconds - 最老 PENDING 消息年龄（秒）
- * 3. outbox.dispatch.rate.per.minute - 投递速率（条/分钟）
- * 4. outbox.failure.rate.per.minute - 失败速率（条/分钟）
+ * 1. domain.event.queue.pending.count{queue="content-outbox"} - PENDING 消息数量
+ * 2. domain.event.queue.pending.oldest.age.seconds{queue="content-outbox"} - 最老 PENDING 消息年龄（秒）
+ * 3. domain.event.queue.dispatch.rate.per.minute{queue="content-outbox"} - 投递速率（条/分钟）
+ * 4. domain.event.queue.failure.rate.per.minute{queue="content-outbox"} - 可重试失败速率（条/分钟）
+ * 5. domain.event.queue.dead.rate.per.minute{queue="content-outbox"} - 死信速率（条/分钟）
  * 
  * 告警建议：
  * - PENDING 消息数量 > 1000：消息堆积告警
  * - 最老消息年龄 > 600 秒（10分钟）：消息延迟告警
  * - 投递速率 < 10 条/分钟：投递速率过低告警
  * - 失败速率 > 5 条/分钟：失败率过高告警
+ * - 死信速率 > 0 条/分钟：死信告警
  * 
- * @author ZhiCore Team
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class OutboxMetrics {
-    
+
+    private static final String QUEUE_NAME = "content-outbox";
+
     private final OutboxEventMapper outboxEventMapper;
-    private final MeterRegistry meterRegistry;
+    private final OutboxProperties outboxProperties;
+    private final DurableEventQueueMetrics queueMetrics;
+
+    public OutboxMetrics(OutboxEventMapper outboxEventMapper,
+                         OutboxProperties outboxProperties,
+                         MeterRegistry meterRegistry) {
+        this.outboxEventMapper = outboxEventMapper;
+        this.outboxProperties = outboxProperties;
+        this.queueMetrics = new DurableEventQueueMetrics(meterRegistry, QUEUE_NAME);
+    }
     
     /**
      * 定期采集 Outbox 指标（每分钟）
@@ -47,42 +59,44 @@ public class OutboxMetrics {
     @Scheduled(fixedRate = 60000, initialDelay = 30000)
     public void collectMetrics() {
         try {
-            // 1. PENDING 消息数量
             long pendingCount = outboxEventMapper.countByStatus(
-                OutboxEventEntity.OutboxStatus.PENDING.name()
+                    OutboxEventEntity.OutboxStatus.PENDING.name()
             );
-            meterRegistry.gauge("outbox.pending.count", pendingCount);
-            
-            // 2. 最老的 PENDING 消息年龄（秒）
+
             Instant oldestCreatedAt = outboxEventMapper.findOldestPendingCreatedAt();
-            if (oldestCreatedAt != null) {
-                long ageSeconds = Duration.between(oldestCreatedAt, Instant.now()).getSeconds();
-                meterRegistry.gauge("outbox.pending.oldest.age.seconds", ageSeconds);
-            } else {
-                // 没有 PENDING 消息，设置为 0
-                meterRegistry.gauge("outbox.pending.oldest.age.seconds", 0);
-            }
-            
-            // 3. 投递速率（过去1分钟）
-            long dispatchedLastMinute = outboxEventMapper.countDispatchedSince(
-                Instant.now().minus(Duration.ofMinutes(1))
-            );
-            meterRegistry.gauge("outbox.dispatch.rate.per.minute", dispatchedLastMinute);
-            
-            // 4. 失败率（过去1分钟）
+            long oldestAgeSeconds = oldestCreatedAt != null
+                    ? Duration.between(oldestCreatedAt, Instant.now()).getSeconds()
+                    : 0L;
+
+            Instant since = Instant.now().minus(Duration.ofMinutes(1));
+            long dispatchedLastMinute = outboxEventMapper.countSucceededSince(since);
+
             long failedLastMinute = outboxEventMapper.countFailedSince(
-                Instant.now().minus(Duration.ofMinutes(1))
+                since,
+                outboxProperties.getMaxRetry()
             );
-            meterRegistry.gauge("outbox.failure.rate.per.minute", failedLastMinute);
-            
-            // 记录调试日志
-            log.debug("Outbox metrics collected: pending={}, oldestAge={}s, dispatchRate={}/min, failureRate={}/min",
+
+            long deadLastMinute = outboxEventMapper.countDeadSince(
+                since,
+                outboxProperties.getMaxRetry()
+            );
+
+            queueMetrics.updateSnapshot(
+                    pendingCount,
+                    oldestAgeSeconds,
+                    dispatchedLastMinute,
+                    failedLastMinute,
+                    deadLastMinute
+            );
+
+            log.debug("Outbox metrics collected: pending={}, oldestAge={}s, dispatchRate={}/min, failureRate={}/min, deadRate={}/min",
                 pendingCount, 
-                oldestCreatedAt != null ? Duration.between(oldestCreatedAt, Instant.now()).getSeconds() : 0,
+                oldestAgeSeconds,
                 dispatchedLastMinute,
-                failedLastMinute
+                failedLastMinute,
+                deadLastMinute
             );
-            
+
         } catch (Exception e) {
             log.error("Failed to collect Outbox metrics", e);
         }

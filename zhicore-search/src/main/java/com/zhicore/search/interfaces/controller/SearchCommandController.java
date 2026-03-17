@@ -2,7 +2,7 @@ package com.zhicore.search.interfaces.controller;
 
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
-import com.zhicore.search.application.service.SuggestionCommandService;
+import com.zhicore.search.application.service.command.SuggestionCommandService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;

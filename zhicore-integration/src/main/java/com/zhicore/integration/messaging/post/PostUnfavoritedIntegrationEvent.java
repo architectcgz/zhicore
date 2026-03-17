@@ -1,5 +1,7 @@
 package com.zhicore.integration.messaging.post;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.integration.messaging.IntegrationEvent;
 import lombok.Getter;
 
@@ -13,8 +15,12 @@ public class PostUnfavoritedIntegrationEvent extends IntegrationEvent {
     private final Long postId;
     private final Long userId;
 
-    public PostUnfavoritedIntegrationEvent(String eventId, Instant occurredAt, Long aggregateVersion,
-                                           Long postId, Long userId) {
+    @JsonCreator
+    public PostUnfavoritedIntegrationEvent(@JsonProperty("eventId") String eventId,
+                                           @JsonProperty("occurredAt") Instant occurredAt,
+                                           @JsonProperty("aggregateVersion") Long aggregateVersion,
+                                           @JsonProperty("postId") Long postId,
+                                           @JsonProperty("userId") Long userId) {
         super(eventId, occurredAt, aggregateVersion, 1);
         this.postId = postId;
         this.userId = userId;

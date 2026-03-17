@@ -9,6 +9,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 评论服务启动类
@@ -17,6 +18,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  */
 @SpringBootApplication(scanBasePackages = {"com.zhicore.comment", "com.zhicore.common", "com.zhicore.api"})
 @EnableDiscoveryClient
+@EnableScheduling
 @EnableFeignClients(clients = {
         IdGeneratorFeignClient.class,
         PostServiceClient.class,

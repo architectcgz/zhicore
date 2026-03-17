@@ -1,7 +1,7 @@
 package com.zhicore.content.infrastructure.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zhicore.common.cache.port.LockManager;
+import com.zhicore.common.dispatcher.ClaimBasedDispatcher;
 import com.zhicore.content.domain.event.DomainEvent;
 import com.zhicore.content.domain.event.PostContentUpdatedEvent;
 import com.zhicore.content.domain.event.PostCreatedDomainEvent;
@@ -11,16 +11,14 @@ import com.zhicore.content.domain.event.PostPublishedDomainEvent;
 import com.zhicore.content.domain.event.PostPurgedEvent;
 import com.zhicore.content.domain.event.PostRestoredEvent;
 import com.zhicore.content.domain.event.PostTagsUpdatedDomainEvent;
-import com.zhicore.content.infrastructure.cache.LockKeys;
 import com.zhicore.content.infrastructure.config.InternalEventDispatcherProperties;
 import com.zhicore.content.infrastructure.event.PostMongoDBSyncEventHandler;
 import com.zhicore.content.infrastructure.event.TagStatsEventHandler;
 import com.zhicore.content.infrastructure.persistence.pg.entity.InternalEventTaskEntity;
 import com.zhicore.content.infrastructure.persistence.pg.mapper.InternalEventTaskMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.SchedulingConfigurer;
-import org.springframework.scheduling.config.ScheduledTaskRegistrar;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionOperations;
 
@@ -30,79 +28,92 @@ import java.util.List;
 
 /**
  * 内容服务内部事件任务派发器。
+ *
+ * <p>新的派发模型不再依赖全局分布式锁，而是通过数据库 claim + 本地 worker 并发处理：
+ * - 事务提交后主动唤醒
+ * - 定时任务只负责兜底补扫
+ * - PROCESSING 超时任务会被重新 claim
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class InternalEventTaskDispatcher implements SchedulingConfigurer {
-
-    private static final Duration LOCK_WAIT_TIME = Duration.ZERO;
+public class InternalEventTaskDispatcher extends ClaimBasedDispatcher<InternalEventTaskEntity> {
 
     private final InternalEventTaskMapper internalEventTaskMapper;
     private final InternalEventDispatcherProperties properties;
-    private final LockManager lockManager;
-    private final LockKeys lockKeys;
     private final ObjectMapper objectMapper;
     private final PostMongoDBSyncEventHandler postMongoDBSyncEventHandler;
     private final TagStatsEventHandler tagStatsEventHandler;
-    private final TransactionOperations transactionOperations;
+
+    public InternalEventTaskDispatcher(InternalEventTaskMapper internalEventTaskMapper,
+                                       InternalEventDispatcherProperties properties,
+                                       @Qualifier("asyncEventExecutor") TaskExecutor taskExecutor,
+                                       ObjectMapper objectMapper,
+                                       PostMongoDBSyncEventHandler postMongoDBSyncEventHandler,
+                                       TagStatsEventHandler tagStatsEventHandler,
+                                       TransactionOperations transactionOperations) {
+        super(
+                "internal-event",
+                properties.getWorkerCount(),
+                Duration.ofSeconds(properties.getClaimTimeoutSeconds()),
+                taskExecutor,
+                transactionOperations
+        );
+        this.internalEventTaskMapper = internalEventTaskMapper;
+        this.properties = properties;
+        this.objectMapper = objectMapper;
+        this.postMongoDBSyncEventHandler = postMongoDBSyncEventHandler;
+        this.tagStatsEventHandler = tagStatsEventHandler;
+    }
 
     @Override
-    public void configureTasks(ScheduledTaskRegistrar taskRegistrar) {
-        taskRegistrar.addFixedDelayTask(this::dispatch, Duration.ofMillis(properties.getScanInterval()));
+    protected long sweepIntervalMillis() {
+        return properties.getScanInterval();
     }
 
-    public void dispatch() {
-        String lockKey = lockKeys.internalEventDispatcher();
-        boolean locked = lockManager.tryLockWithWatchdog(lockKey, LOCK_WAIT_TIME);
-        if (!locked) {
-            return;
-        }
-
-        try {
-            List<InternalEventTaskEntity> tasks = internalEventTaskMapper.findDispatchable(Instant.now(), properties.getBatchSize());
-            for (InternalEventTaskEntity task : tasks) {
-                try {
-                    transactionOperations.executeWithoutResult(status -> dispatchSingle(task));
-                } catch (Exception e) {
-                    transactionOperations.executeWithoutResult(status -> markFailure(task, e));
-                }
-            }
-        } finally {
-            try {
-                lockManager.unlock(lockKey);
-            } catch (Exception e) {
-                log.error("Failed to unlock internal event dispatcher", e);
-            }
-        }
+    @Override
+    protected int batchSize() {
+        return properties.getBatchSize();
     }
 
-    protected void dispatchSingle(InternalEventTaskEntity task) {
+    @Override
+    protected List<InternalEventTaskEntity> claimBatch(String workerId, int limit, Duration claimTimeout) {
+        Instant now = Instant.now();
+        Instant reclaimBefore = now.minus(claimTimeout);
+        return internalEventTaskMapper.claimDispatchable(now, reclaimBefore, workerId, limit);
+    }
+
+    @Override
+    protected void handleClaimed(InternalEventTaskEntity task) {
         try {
             Class<?> eventClass = Class.forName(task.getEventType());
             DomainEvent<?> event = (DomainEvent<?>) objectMapper.readValue(task.getPayload(), eventClass);
             route(event);
 
             Instant now = Instant.now();
-            task.setStatus(InternalEventTaskEntity.InternalEventTaskStatus.DISPATCHED);
+            task.setStatus(InternalEventTaskEntity.InternalEventTaskStatus.SUCCEEDED);
             task.setDispatchedAt(now);
             task.setUpdatedAt(now);
+            task.setClaimedAt(null);
+            task.setClaimedBy(null);
             task.setLastError(null);
             internalEventTaskMapper.updateById(task);
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to dispatch internal event task: eventId=" + task.getEventId(), e);
+        } catch (RuntimeException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to dispatch internal event task: eventId=" + task.getEventId(), ex);
         }
     }
 
-    protected void markFailure(InternalEventTaskEntity task, Exception exception) {
+    @Override
+    protected void handleFailure(InternalEventTaskEntity task, Exception exception) {
         int retryCount = task.getRetryCount() == null ? 0 : task.getRetryCount();
         retryCount++;
         Instant now = Instant.now();
         task.setRetryCount(retryCount);
         task.setUpdatedAt(now);
         task.setLastError(exception.getMessage());
+        task.setClaimedAt(null);
+        task.setClaimedBy(null);
 
         if (retryCount >= properties.getMaxRetry()) {
             task.setStatus(InternalEventTaskEntity.InternalEventTaskStatus.DEAD);

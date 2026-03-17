@@ -2,7 +2,7 @@ package com.zhicore.content.interfaces.controller;
 
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
-import com.zhicore.content.application.service.PostFavoriteCommandService;
+import com.zhicore.content.application.service.command.PostFavoriteCommandService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

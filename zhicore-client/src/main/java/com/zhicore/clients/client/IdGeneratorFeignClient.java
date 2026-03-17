@@ -17,6 +17,7 @@ import java.util.List;
  */
 @FeignClient(
     name = "zhicore-id-generator",
+    url = "${zhicore.id-generator.server-url:${ID_GENERATOR_SERVER_URL:http://localhost:8011}}",
     path = "/api/v1/id",
     fallbackFactory = IdGeneratorFeignClientFallbackFactory.class,
     primary = false

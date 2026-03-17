@@ -47,23 +47,31 @@ public class RedisPostRankingStore implements PostRankingStore {
     }
 
     @Override
-    public List<String> getWeeklyHotPosts(int weekNumber, int limit) {
-        return rankingRepository.getWeeklyHotPosts(weekNumber, limit);
+    public List<String> getWeeklyHotPosts(int weekBasedYear, int weekNumber, int limit) {
+        return rankingRepository.getWeeklyHotPosts(weekBasedYear, weekNumber, limit);
     }
 
     @Override
-    public List<HotScore> getWeeklyHotPostsWithScore(int weekNumber, int limit) {
-        return rankingRepository.getWeeklyHotPostsWithScore(weekNumber, limit);
+    public List<HotScore> getWeeklyHotPostsWithScore(int weekBasedYear, int weekNumber, int limit) {
+        return rankingRepository.getWeeklyHotPostsWithScore(weekBasedYear, weekNumber, limit);
     }
 
     @Override
     public List<String> getCurrentWeekHotPosts(int limit) {
-        return getWeeklyHotPosts(RankingRedisKeys.getCurrentWeekNumber(), limit);
+        return getWeeklyHotPosts(
+                RankingRedisKeys.getCurrentWeekBasedYear(),
+                RankingRedisKeys.getCurrentWeekNumber(),
+                limit
+        );
     }
 
     @Override
     public List<HotScore> getCurrentWeekHotPostsWithScore(int limit) {
-        return getWeeklyHotPostsWithScore(RankingRedisKeys.getCurrentWeekNumber(), limit);
+        return getWeeklyHotPostsWithScore(
+                RankingRedisKeys.getCurrentWeekBasedYear(),
+                RankingRedisKeys.getCurrentWeekNumber(),
+                limit
+        );
     }
 
     @Override

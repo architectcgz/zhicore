@@ -1,12 +1,14 @@
 package com.zhicore.message.application.service;
 
-import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
-import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.message.application.dto.MessageVO;
+import com.zhicore.message.application.event.MessageRecallSyncRequest;
 import com.zhicore.message.application.event.MessageSentPublishRequest;
+import com.zhicore.message.application.port.event.MessageTransactionEventPort;
+import com.zhicore.message.application.port.id.MessageIdGenerator;
+import com.zhicore.message.application.service.command.MessageCommandService;
 import com.zhicore.message.domain.model.Conversation;
 import com.zhicore.message.domain.model.Message;
 import com.zhicore.message.domain.model.MessageStatus;
@@ -23,7 +25,6 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -55,16 +56,19 @@ class MessageApplicationServiceTest {
     private MessageRestrictionService messageRestrictionService;
 
     @Mock
-    private IdGeneratorFeignClient idGeneratorFeignClient;
+    private MessageIdGenerator messageIdGenerator;
 
     @Mock
-    private ApplicationEventPublisher applicationEventPublisher;
+    private MessageTransactionEventPort messageTransactionEventPort;
 
     @Captor
     private ArgumentCaptor<Message> messageCaptor;
 
     @Captor
     private ArgumentCaptor<MessageSentPublishRequest> requestCaptor;
+
+    @Captor
+    private ArgumentCaptor<MessageRecallSyncRequest> recallRequestCaptor;
 
     @InjectMocks
     private MessageCommandService messageApplicationService;
@@ -74,6 +78,7 @@ class MessageApplicationServiceTest {
         UserContext.clear();
     }
 
+    @Test
     @DisplayName("发送文本消息时应该在事务内只发布提交后事件快照")
     void shouldPublishAfterCommitRequestWhenSendTextMessage() {
         Long senderId = 101L;
@@ -87,15 +92,16 @@ class MessageApplicationServiceTest {
 
         Conversation conversation = Conversation.create(conversationId, senderId, receiverId);
 
-        when(idGeneratorFeignClient.generateSnowflakeId())
-                .thenReturn(ApiResponse.success(conversationId))
-                .thenReturn(ApiResponse.success(messageId));
-        when(messageDomainService.getOrCreateConversation(conversationId, senderId, receiverId))
-                .thenReturn(conversation);
+        when(conversationRepository.findByParticipants(senderId, receiverId))
+                .thenReturn(Optional.empty());
+        when(messageIdGenerator.nextId())
+                .thenReturn(conversationId)
+                .thenReturn(messageId);
         doNothing().when(messageRestrictionService).checkCanSendMessage(senderId, receiverId);
 
         MessageVO result = messageApplicationService.sendTextMessage(receiverId, content);
 
+        verify(conversationRepository).save(any(Conversation.class));
         verify(messageRepository).save(messageCaptor.capture());
         Message savedMessage = messageCaptor.getValue();
         assertNotNull(savedMessage);
@@ -105,8 +111,8 @@ class MessageApplicationServiceTest {
         assertEquals(receiverId, savedMessage.getReceiverId());
         assertEquals(content, savedMessage.getContent());
 
-        verify(messageDomainService).updateConversationLastMessage(conversation, savedMessage);
-        verify(applicationEventPublisher).publishEvent(requestCaptor.capture());
+        verify(conversationRepository).update(any(Conversation.class));
+        verify(messageTransactionEventPort).publishMessageSent(requestCaptor.capture());
 
         MessageSentPublishRequest request = requestCaptor.getValue();
         assertNotNull(request);
@@ -166,5 +172,36 @@ class MessageApplicationServiceTest {
         assertEquals(ResultCode.MESSAGE_RECALL_TIMEOUT.getCode(), exception.getCode());
         assertEquals("消息发送超过2分钟，无法撤回", exception.getMessage());
         verify(messageRepository, never()).update(any());
+    }
+
+    @Test
+    @DisplayName("撤回成功时应该发布带 conversationId 的事务事件快照")
+    void shouldPublishRecallRequestWithConversationId() {
+        Long userId = 101L;
+        Long messageId = 2002L;
+        Long conversationId = 1001L;
+        UserContext.setUser(new UserContext.UserInfo(String.valueOf(userId), "sender"));
+        Message message = Message.reconstitute(
+                messageId,
+                conversationId,
+                userId,
+                202L,
+                MessageType.TEXT,
+                "normal message",
+                null,
+                false,
+                null,
+                MessageStatus.SENT,
+                LocalDateTime.now().minusMinutes(1)
+        );
+        when(messageRepository.findById(messageId)).thenReturn(Optional.of(message));
+
+        messageApplicationService.recallMessage(messageId);
+
+        verify(messageRepository).update(any(Message.class));
+        verify(messageTransactionEventPort).publishMessageRecalled(recallRequestCaptor.capture());
+        assertEquals(messageId, recallRequestCaptor.getValue().getMessageId());
+        assertEquals(conversationId, recallRequestCaptor.getValue().getConversationId());
+        assertEquals(userId, recallRequestCaptor.getValue().getSenderId());
     }
 }

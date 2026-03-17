@@ -17,10 +17,18 @@ spring:
         group: ZHICORE-SERVICE
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
+  datasource:
+    url: ${RANKING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:zhicore_ranking}}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
   data:
     mongodb:
       uri: mongodb://admin:mongo123456@localhost:27017/zhicore?authSource=admin
       database: zhicore
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/ranking-schema.sql
 
 # SpringDoc OpenAPI 配置
 springdoc:
@@ -97,18 +105,17 @@ ranking:
   archive:
     # 归档数量限制
     limit: 100
-  inbox:
-    scan-interval: 5000
-    batch-size: 500
-    lease-seconds: 60
-    max-retry: 10
-    applied-event-window-size: 2048
-    done-retention-days: 400
   snapshot:
-    refresh-interval: 60000
+    refresh-interval: 3600000
     top-size: 10000
+  pipeline:
+    bucket-window-seconds: 10
+    flush-delay-seconds: 10
+    flush-interval: 5000
+    flush-batch-size: 200
   # 定时任务调度配置（修改后需重启生效）
   scheduler:
+    enabled: true
     hot-posts-cron: "0 0 * * * ?"         # 热榜清理与淘汰，每小时
     creator-cron: "0 30 2 * * ?"          # 创作者排行刷新，每日 02:30
     topic-cron: "0 0 3 * * ?"             # 话题排行刷新，每日 03:00

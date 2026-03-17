@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -78,6 +79,36 @@ public class PostStatsRepositoryImpl implements PostStatsRepository {
                 postIds.stream().map(PostId::getValue).collect(Collectors.toList()), e);
             return Map.of();
         }
+    }
+
+    @Override
+    public void incrementLikeCount(PostId postId) {
+        postStatsMapper.incrementLikeCount(postId.getValue(), LocalDateTime.now());
+    }
+
+    @Override
+    public void decrementLikeCount(PostId postId) {
+        postStatsMapper.decrementLikeCount(postId.getValue(), LocalDateTime.now());
+    }
+
+    @Override
+    public void incrementFavoriteCount(PostId postId) {
+        postStatsMapper.incrementFavoriteCount(postId.getValue(), LocalDateTime.now());
+    }
+
+    @Override
+    public void decrementFavoriteCount(PostId postId) {
+        postStatsMapper.decrementFavoriteCount(postId.getValue(), LocalDateTime.now());
+    }
+
+    @Override
+    public void incrementCommentCount(PostId postId) {
+        postStatsMapper.incrementCommentCount(postId.getValue(), LocalDateTime.now());
+    }
+
+    @Override
+    public void decrementCommentCount(PostId postId) {
+        postStatsMapper.decrementCommentCount(postId.getValue(), LocalDateTime.now());
     }
     
     @Override

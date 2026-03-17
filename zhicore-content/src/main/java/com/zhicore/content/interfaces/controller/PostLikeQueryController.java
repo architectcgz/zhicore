@@ -2,7 +2,7 @@ package com.zhicore.content.interfaces.controller;
 
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
-import com.zhicore.content.application.service.PostLikeQueryService;
+import com.zhicore.content.application.service.query.PostLikeQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

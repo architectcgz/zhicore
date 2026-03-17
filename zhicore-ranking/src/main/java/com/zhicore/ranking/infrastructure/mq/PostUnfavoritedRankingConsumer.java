@@ -3,7 +3,7 @@ package com.zhicore.ranking.infrastructure.mq;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.integration.messaging.post.PostUnfavoritedIntegrationEvent;
-import com.zhicore.ranking.application.service.RankingEventInboxService;
+import com.zhicore.ranking.application.service.RankingLedgerIngestionService;
 import com.zhicore.ranking.domain.model.RankingMetricType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
@@ -31,15 +31,15 @@ public class PostUnfavoritedRankingConsumer extends BaseRankingConsumer
         implements RocketMQListener<String> {
 
     public PostUnfavoritedRankingConsumer(ObjectMapper objectMapper,
-                                          RankingEventInboxService rankingEventInboxService) {
-        super(objectMapper, rankingEventInboxService);
+                                          RankingLedgerIngestionService rankingLedgerIngestionService) {
+        super(objectMapper, rankingLedgerIngestionService);
     }
 
     @Override
     public void onMessage(String message) {
         try {
             PostUnfavoritedIntegrationEvent event = objectMapper.readValue(message, PostUnfavoritedIntegrationEvent.class);
-            boolean created = saveInboxEvent(
+            boolean created = saveLedgerEvent(
                     event.getEventId(),
                     event.getClass().getSimpleName(),
                     event.getPostId(),
@@ -51,10 +51,10 @@ public class PostUnfavoritedRankingConsumer extends BaseRankingConsumer
                     null
             );
             if (!created) {
-                log.debug("Post unfavorited 事件已写入 ranking inbox，跳过重复消费: eventId={}", event.getEventId());
+                log.debug("Post unfavorited 事件已写入 ranking ledger，跳过重复消费: eventId={}", event.getEventId());
                 return;
             }
-            log.info("Post unfavorited 事件已写入 ranking inbox: postId={}, userId={}",
+            log.info("Post unfavorited 事件已写入 ranking ledger: postId={}, userId={}",
                     event.getPostId(), event.getUserId());
         } catch (Exception e) {
             log.error("Failed to process post unfavorited event: {}", message, e);

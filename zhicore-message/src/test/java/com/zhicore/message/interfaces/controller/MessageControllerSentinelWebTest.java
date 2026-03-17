@@ -9,7 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.sentinel.web.ApiResponseBlockExceptionHandler;
-import com.zhicore.message.application.service.MessageQueryService;
+import com.zhicore.message.application.service.query.MessageQueryService;
 import com.zhicore.message.infrastructure.sentinel.MessageRoutes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

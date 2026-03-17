@@ -1,7 +1,7 @@
 package com.zhicore.content.infrastructure.persistence.pg.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.FieldStrategy;
@@ -16,7 +16,8 @@ import java.time.LocalDateTime;
  *
  * 注意：
  * - 时间比较必须以数据库时间为准（SELECT CURRENT_TIMESTAMP），避免应用节点时钟漂移。
- * - last_enqueue_at 用作扫描入队的 CAS 闸门，防止多实例/多线程重复入队风暴。
+ * - next_attempt_at 统一表达“下次可被补偿/重试处理的时间”。
+ * - claimed_at / claimed_by 用于 claim 生命周期与超时回收。
  */
 @Data
 @TableName("scheduled_publish_event")
@@ -26,13 +27,21 @@ public class ScheduledPublishEventEntity {
     private Long id;
 
     /**
-     * 事件ID（建议与 MQ/Outbox 里的 event_id 保持一致，便于串联排查）
+     * 定时发布任务ID（稳定标识）
      */
     private String eventId;
+
+    /**
+     * 最近一次投递到 MQ 的触发事件ID（会随每次重发变化）
+     */
+    @TableField(updateStrategy = FieldStrategy.IGNORED)
+    private String triggerEventId;
 
     private Long postId;
 
     private LocalDateTime scheduledAt;
+
+    private LocalDateTime nextAttemptAt;
 
     private ScheduledPublishStatus status;
 
@@ -41,13 +50,16 @@ public class ScheduledPublishEventEntity {
     private Integer publishRetryCount;
 
     /**
-     * 上次入队时间（CAS 闸门字段）
-     *
-     * 说明：补扫/重置场景需要把该字段显式更新为 NULL。
-     * MyBatis-Plus 默认会忽略 NULL 值更新，因此这里将 updateStrategy 设为 IGNORED，确保“置空”能落库。
+     * 当前 claim 时间
      */
     @TableField(updateStrategy = FieldStrategy.IGNORED)
-    private LocalDateTime lastEnqueueAt;
+    private LocalDateTime claimedAt;
+
+    /**
+     * 当前 claim worker
+     */
+    @TableField(updateStrategy = FieldStrategy.IGNORED)
+    private String claimedBy;
 
     /**
      * 最近一次错误信息
@@ -63,20 +75,24 @@ public class ScheduledPublishEventEntity {
 
     public enum ScheduledPublishStatus {
         /**
-         * 已入队（首次）但尚未最终收敛的状态
+         * 待处理/待补偿
          */
         PENDING,
         /**
-         * 因未到点/重试上限等原因转入扫描兜底队列
+         * 已被某个 worker/消费者 claim
          */
-        SCHEDULED_PENDING,
+        PROCESSING,
         /**
-         * 已发布并幂等收敛
+         * 可重试失败
          */
-        PUBLISHED,
+        FAILED,
         /**
-         * 已失败（达到发布重试上限或状态非法/文章不存在）
+         * 已成功收敛（包括取消定时后的终态）
          */
-        FAILED
+        SUCCEEDED,
+        /**
+         * 需要人工介入的终态失败
+         */
+        DEAD
     }
 }

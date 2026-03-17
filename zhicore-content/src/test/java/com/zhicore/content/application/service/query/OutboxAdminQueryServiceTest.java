@@ -1,7 +1,7 @@
 package com.zhicore.content.application.service.query;
 
 import com.zhicore.common.result.PageResult;
-import com.zhicore.content.application.dto.admin.outbox.OutboxFailedPageResponse;
+import com.zhicore.content.application.dto.admin.outbox.OutboxDeadPageResponse;
 import com.zhicore.content.application.model.OutboxEventRecord;
 import com.zhicore.content.application.port.store.OutboxEventStore;
 import org.junit.jupiter.api.Test;
@@ -27,12 +27,12 @@ class OutboxAdminQueryServiceTest {
     private OutboxAdminQueryService outboxAdminQueryService;
 
     @Test
-    void listFailedShouldNormalizePaginationAndMapRecords() {
-        OutboxEventRecord record = failedRecord();
-        when(outboxEventStore.findFailed(1, 100, "TYPE_A"))
+    void listDeadShouldNormalizePaginationAndMapRecords() {
+        OutboxEventRecord record = deadRecord();
+        when(outboxEventStore.findDead(1, 100, "TYPE_A"))
                 .thenReturn(PageResult.of(1, 100, 1, List.of(record)));
 
-        OutboxFailedPageResponse response = outboxAdminQueryService.listFailed(0, 1000, "  TYPE_A  ");
+        OutboxDeadPageResponse response = outboxAdminQueryService.listDead(0, 1000, "  TYPE_A  ");
 
         assertEquals(1, response.getPage());
         assertEquals(100, response.getSize());
@@ -40,10 +40,10 @@ class OutboxAdminQueryServiceTest {
         assertEquals(1, response.getItems().size());
         assertEquals("EVENT_1", response.getItems().get(0).getEventId());
         assertEquals("TYPE_A", response.getItems().get(0).getEventType());
-        verify(outboxEventStore).findFailed(1, 100, "TYPE_A");
+        verify(outboxEventStore).findDead(1, 100, "TYPE_A");
     }
 
-    private OutboxEventRecord failedRecord() {
+    private OutboxEventRecord deadRecord() {
         Instant now = Instant.parse("2026-03-10T10:15:30Z");
         return OutboxEventRecord.builder()
                 .id(1L)
@@ -59,7 +59,7 @@ class OutboxAdminQueryServiceTest {
                 .dispatchedAt(now.minusSeconds(10))
                 .retryCount(3)
                 .lastError("boom")
-                .status(OutboxEventRecord.OutboxStatus.FAILED)
+                .status(OutboxEventRecord.OutboxStatus.DEAD)
                 .build();
     }
 }

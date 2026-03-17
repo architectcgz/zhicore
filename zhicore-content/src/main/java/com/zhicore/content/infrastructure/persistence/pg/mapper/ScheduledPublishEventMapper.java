@@ -16,6 +16,36 @@ import java.util.List;
 @Mapper
 public interface ScheduledPublishEventMapper extends BaseMapper<ScheduledPublishEventEntity> {
 
+    @Select("SELECT COUNT(*) FROM scheduled_publish_event WHERE status = #{status}")
+    long countByStatus(@Param("status") String status);
+
+    @Select("SELECT MIN(created_at) FROM scheduled_publish_event WHERE status = 'PENDING'")
+    LocalDateTime findOldestPendingCreatedAt();
+
+    @Select("""
+            SELECT COUNT(*)
+            FROM scheduled_publish_event
+            WHERE status = 'SUCCEEDED'
+              AND updated_at >= #{since}
+            """)
+    long countSucceededSince(@Param("since") LocalDateTime since);
+
+    @Select("""
+            SELECT COUNT(*)
+            FROM scheduled_publish_event
+            WHERE status = 'FAILED'
+              AND updated_at >= #{since}
+            """)
+    long countFailedSince(@Param("since") LocalDateTime since);
+
+    @Select("""
+            SELECT COUNT(*)
+            FROM scheduled_publish_event
+            WHERE status = 'DEAD'
+              AND updated_at >= #{since}
+            """)
+    long countDeadSince(@Param("since") LocalDateTime since);
+
     /**
      * 获取数据库当前时间（用于统一时间基准）
      */
@@ -25,82 +55,94 @@ public interface ScheduledPublishEventMapper extends BaseMapper<ScheduledPublish
     LocalDateTime selectDbNow();
 
     /**
-     * 扫描到点且满足冷却期的 SCHEDULED_PENDING 事件
+     * claim 一批需要补偿的定时发布任务。
      */
     @Select("""
-            SELECT *
-            FROM scheduled_publish_event
-            WHERE status = 'SCHEDULED_PENDING'
-              AND scheduled_at <= #{dbNow}
-              AND (last_enqueue_at IS NULL OR last_enqueue_at < #{cooldownBefore})
-            ORDER BY scheduled_at ASC, id ASC
-            LIMIT #{limit}
+            WITH claimable AS (
+                SELECT task.id
+                FROM scheduled_publish_event task
+                WHERE (
+                        task.status IN ('PENDING', 'FAILED')
+                        AND task.next_attempt_at <= #{now}
+                    )
+                   OR (
+                        task.status = 'PROCESSING'
+                        AND task.claimed_at IS NOT NULL
+                        AND task.claimed_at <= #{reclaimBefore}
+                    )
+                ORDER BY task.next_attempt_at ASC, task.scheduled_at ASC, task.id ASC
+                LIMIT #{limit}
+                FOR UPDATE OF task SKIP LOCKED
+            )
+            UPDATE scheduled_publish_event target
+            SET status = 'PROCESSING',
+                claimed_at = #{now},
+                claimed_by = #{claimedBy},
+                updated_at = #{now}
+            FROM claimable
+            WHERE target.id = claimable.id
+            RETURNING target.*
             """)
-    List<ScheduledPublishEventEntity> findDueScheduledPending(
-            @Param("dbNow") LocalDateTime dbNow,
-            @Param("cooldownBefore") LocalDateTime cooldownBefore,
+    List<ScheduledPublishEventEntity> claimCompensationBatch(
+            @Param("now") LocalDateTime now,
+            @Param("reclaimBefore") LocalDateTime reclaimBefore,
+            @Param("claimedBy") String claimedBy,
             @Param("limit") int limit
     );
 
     /**
-     * 补扫：扫描 last_enqueue_at 超时（>10分钟）且到点的事件
+     * claim 单条被消息触发的定时发布任务。
      */
     @Select("""
-            SELECT *
-            FROM scheduled_publish_event
-            WHERE status = 'SCHEDULED_PENDING'
-              AND scheduled_at <= #{dbNow}
-              AND last_enqueue_at IS NOT NULL
-              AND last_enqueue_at < #{staleBefore}
-            ORDER BY scheduled_at ASC, id ASC
-            LIMIT #{limit}
+            WITH claimable AS (
+                SELECT task.id
+                FROM scheduled_publish_event task
+                WHERE task.event_id = #{eventId}
+                  AND (
+                        task.status IN ('PENDING', 'FAILED')
+                     OR (
+                            task.status = 'PROCESSING'
+                        AND task.claimed_at IS NOT NULL
+                        AND task.claimed_at <= #{reclaimBefore}
+                     )
+                  )
+                LIMIT 1
+                FOR UPDATE OF task SKIP LOCKED
+            )
+            UPDATE scheduled_publish_event target
+            SET status = 'PROCESSING',
+                claimed_at = #{now},
+                claimed_by = #{claimedBy},
+                updated_at = #{now}
+            FROM claimable
+            WHERE target.id = claimable.id
+            RETURNING target.*
             """)
-    List<ScheduledPublishEventEntity> findStaleScheduledPending(
-            @Param("dbNow") LocalDateTime dbNow,
-            @Param("staleBefore") LocalDateTime staleBefore,
-            @Param("limit") int limit
+    List<ScheduledPublishEventEntity> claimForConsumption(
+            @Param("eventId") String eventId,
+            @Param("now") LocalDateTime now,
+            @Param("reclaimBefore") LocalDateTime reclaimBefore,
+            @Param("claimedBy") String claimedBy
     );
 
     /**
-     * 扫描入队 CAS 闸门：last_enqueue_at 为 NULL 的场景
-     *
-     * 注意：WHERE 条件必须包含 status + scheduled_at + last_enqueue_at，且以 affected_rows==1 作为唯一入队凭证。
+     * 将指定 post 的所有活动任务收敛为终态。
      */
     @Update("""
             UPDATE scheduled_publish_event
-            SET last_enqueue_at = #{dbNow},
-                event_id = #{newEventId},
+            SET status = #{status},
+                next_attempt_at = #{dbNow},
+                claimed_at = NULL,
+                claimed_by = NULL,
+                last_error = #{lastError},
                 updated_at = #{dbNow}
-            WHERE id = #{id}
-              AND status = 'SCHEDULED_PENDING'
-              AND scheduled_at = #{scheduledAt}
-              AND last_enqueue_at IS NULL
+            WHERE post_id = #{postId}
+              AND status IN ('PENDING', 'PROCESSING', 'FAILED')
             """)
-    int casUpdateLastEnqueueAtWhenNull(
-            @Param("id") Long id,
-            @Param("scheduledAt") LocalDateTime scheduledAt,
+    int markTerminalByPostId(
+            @Param("postId") Long postId,
+            @Param("status") String status,
             @Param("dbNow") LocalDateTime dbNow,
-            @Param("newEventId") String newEventId
-    );
-
-    /**
-     * 扫描入队 CAS 闸门：last_enqueue_at 非 NULL 的场景
-     */
-    @Update("""
-            UPDATE scheduled_publish_event
-            SET last_enqueue_at = #{dbNow},
-                event_id = #{newEventId},
-                updated_at = #{dbNow}
-            WHERE id = #{id}
-              AND status = 'SCHEDULED_PENDING'
-              AND scheduled_at = #{scheduledAt}
-              AND last_enqueue_at = #{expectedLastEnqueueAt}
-            """)
-    int casUpdateLastEnqueueAt(
-            @Param("id") Long id,
-            @Param("scheduledAt") LocalDateTime scheduledAt,
-            @Param("expectedLastEnqueueAt") LocalDateTime expectedLastEnqueueAt,
-            @Param("dbNow") LocalDateTime dbNow,
-            @Param("newEventId") String newEventId
+            @Param("lastError") String lastError
     );
 }

@@ -2,7 +2,7 @@ package com.zhicore.user.interfaces.controller;
 
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.user.application.dto.FollowStatsVO;
-import com.zhicore.user.application.service.FollowQueryService;
+import com.zhicore.user.application.service.query.FollowQueryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

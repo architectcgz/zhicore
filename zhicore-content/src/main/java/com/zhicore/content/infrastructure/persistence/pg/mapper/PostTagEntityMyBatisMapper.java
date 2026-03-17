@@ -18,6 +18,13 @@ import java.util.List;
 @Mapper
 public interface PostTagEntityMyBatisMapper extends BaseMapper<PostTagEntity> {
 
+    @Insert("""
+            INSERT INTO post_tags (post_id, tag_id, created_at)
+            VALUES (#{postId}, #{tagId}, #{createdAt})
+            ON CONFLICT (post_id, tag_id) DO NOTHING
+            """)
+    int insertOneIgnoreConflict(PostTagEntity entity);
+
     /**
      * 批量插入关联
      *
@@ -30,9 +37,10 @@ public interface PostTagEntityMyBatisMapper extends BaseMapper<PostTagEntity> {
             "<foreach collection='list' item='item' separator=','>",
             "(#{item.postId}, #{item.tagId}, #{item.createdAt})",
             "</foreach>",
+            "ON CONFLICT (post_id, tag_id) DO NOTHING",
             "</script>"
     })
-    int insertBatch(@Param("list") List<PostTagEntity> postTagList);
+    int insertBatchIgnoreConflict(@Param("list") List<PostTagEntity> postTagList);
 
     /**
      * 查询文章的所有标签ID

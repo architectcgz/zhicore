@@ -3,12 +3,10 @@ package com.zhicore.content.infrastructure.messaging;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.zhicore.common.cache.port.LockManager;
 import com.zhicore.content.domain.event.PostCreatedDomainEvent;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.model.UserId;
-import com.zhicore.content.infrastructure.cache.LockKeys;
 import com.zhicore.content.infrastructure.config.InternalEventDispatcherProperties;
 import com.zhicore.content.infrastructure.event.PostMongoDBSyncEventHandler;
 import com.zhicore.content.infrastructure.event.TagStatsEventHandler;
@@ -27,6 +25,7 @@ import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.core.task.TaskExecutor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -48,12 +47,6 @@ class InternalEventTaskDispatcherTest {
     private InternalEventTaskMapper internalEventTaskMapper;
 
     @Mock
-    private LockManager lockManager;
-
-    @Mock
-    private LockKeys lockKeys;
-
-    @Mock
     private PostMongoDBSyncEventHandler postMongoDBSyncEventHandler;
 
     @Mock
@@ -63,11 +56,11 @@ class InternalEventTaskDispatcherTest {
     @DisplayName("派发创建事件时应该驱动 Mongo 与 Tag 投影")
     void shouldDispatchCreatedEvent() throws Exception {
         InternalEventDispatcherProperties properties = new InternalEventDispatcherProperties();
+        TaskExecutor taskExecutor = Runnable::run;
         InternalEventTaskDispatcher dispatcher = new InternalEventTaskDispatcher(
                 internalEventTaskMapper,
                 properties,
-                lockManager,
-                lockKeys,
+                taskExecutor,
                 objectMapper,
                 postMongoDBSyncEventHandler,
                 tagStatsEventHandler,
@@ -91,27 +84,28 @@ class InternalEventTaskDispatcherTest {
                 1L
         );
 
-        when(lockKeys.internalEventDispatcher()).thenReturn("lock:key");
-        when(lockManager.tryLockWithWatchdog(anyString(), any())).thenReturn(true);
-        when(internalEventTaskMapper.findDispatchable(any(), anyInt())).thenReturn(List.of(task(event)));
+        when(internalEventTaskMapper.claimDispatchable(any(), any(), anyString(), anyInt()))
+                .thenReturn(List.of(task(event)))
+                .thenReturn(List.of());
 
-        dispatcher.dispatch();
+        dispatcher.signal();
 
+        ArgumentCaptor<InternalEventTaskEntity> captor = ArgumentCaptor.forClass(InternalEventTaskEntity.class);
         verify(postMongoDBSyncEventHandler).handlePostCreated(any(PostCreatedDomainEvent.class));
         verify(tagStatsEventHandler).handlePostCreated(any(PostCreatedDomainEvent.class));
-        verify(internalEventTaskMapper).updateById(any(InternalEventTaskEntity.class));
-        verify(lockManager).unlock("lock:key");
+        verify(internalEventTaskMapper).updateById(captor.capture());
+        assertEquals(InternalEventTaskEntity.InternalEventTaskStatus.SUCCEEDED, captor.getValue().getStatus());
     }
 
     @Test
     @DisplayName("投影失败时应该进入 FAILED 并增加重试次数")
     void shouldMarkTaskFailedWhenProjectionThrows() throws Exception {
         InternalEventDispatcherProperties properties = new InternalEventDispatcherProperties();
+        TaskExecutor taskExecutor = Runnable::run;
         InternalEventTaskDispatcher dispatcher = new InternalEventTaskDispatcher(
                 internalEventTaskMapper,
                 properties,
-                lockManager,
-                lockKeys,
+                taskExecutor,
                 objectMapper,
                 postMongoDBSyncEventHandler,
                 tagStatsEventHandler,
@@ -136,13 +130,13 @@ class InternalEventTaskDispatcherTest {
         );
         InternalEventTaskEntity task = task(event);
 
-        when(lockKeys.internalEventDispatcher()).thenReturn("lock:key");
-        when(lockManager.tryLockWithWatchdog(anyString(), any())).thenReturn(true);
-        when(internalEventTaskMapper.findDispatchable(any(), anyInt())).thenReturn(List.of(task));
+        when(internalEventTaskMapper.claimDispatchable(any(), any(), anyString(), anyInt()))
+                .thenReturn(List.of(task))
+                .thenReturn(List.of());
         doThrow(new IllegalStateException("projection failed"))
                 .when(postMongoDBSyncEventHandler).handlePostCreated(any(PostCreatedDomainEvent.class));
 
-        dispatcher.dispatch();
+        dispatcher.signal();
 
         ArgumentCaptor<InternalEventTaskEntity> captor = ArgumentCaptor.forClass(InternalEventTaskEntity.class);
         verify(internalEventTaskMapper).updateById(captor.capture());

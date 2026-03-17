@@ -3,7 +3,7 @@ package com.zhicore.ranking.infrastructure.mq;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.integration.messaging.post.PostLikedIntegrationEvent;
-import com.zhicore.ranking.application.service.RankingEventInboxService;
+import com.zhicore.ranking.application.service.RankingLedgerIngestionService;
 import com.zhicore.ranking.domain.model.RankingMetricType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
@@ -31,15 +31,15 @@ public class PostLikedRankingConsumer extends BaseRankingConsumer
         implements RocketMQListener<String> {
 
     public PostLikedRankingConsumer(ObjectMapper objectMapper,
-                                    RankingEventInboxService rankingEventInboxService) {
-        super(objectMapper, rankingEventInboxService);
+                                    RankingLedgerIngestionService rankingLedgerIngestionService) {
+        super(objectMapper, rankingLedgerIngestionService);
     }
 
     @Override
     public void onMessage(String message) {
         try {
             PostLikedIntegrationEvent event = objectMapper.readValue(message, PostLikedIntegrationEvent.class);
-            boolean created = saveInboxEvent(
+            boolean created = saveLedgerEvent(
                     event.getEventId(),
                     event.getClass().getSimpleName(),
                     event.getPostId(),
@@ -53,10 +53,10 @@ public class PostLikedRankingConsumer extends BaseRankingConsumer
                             : null
             );
             if (!created) {
-                log.debug("Post liked 事件已写入 ranking inbox，跳过重复消费: eventId={}", event.getEventId());
+                log.debug("Post liked 事件已写入 ranking ledger，跳过重复消费: eventId={}", event.getEventId());
                 return;
             }
-            log.info("Post liked 事件已写入 ranking inbox: postId={}, authorId={}",
+            log.info("Post liked 事件已写入 ranking ledger: postId={}, authorId={}",
                     event.getPostId(), event.getAuthorId());
         } catch (Exception e) {
             log.error("Failed to process post liked event: {}", message, e);

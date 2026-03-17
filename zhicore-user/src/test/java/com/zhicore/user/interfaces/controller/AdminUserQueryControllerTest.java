@@ -3,7 +3,7 @@ package com.zhicore.user.interfaces.controller;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.user.application.query.view.UserManageView;
-import com.zhicore.user.application.service.UserManageQueryService;
+import com.zhicore.user.application.service.query.UserManageQueryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

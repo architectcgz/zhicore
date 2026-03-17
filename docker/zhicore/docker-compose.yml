@@ -1,0 +1,238 @@
+name: zhicore
+
+x-service-base: &service-base
+  restart: unless-stopped
+  networks:
+    - shared-infra
+
+x-common-env: &common-env
+  SPRING_PROFILES_ACTIVE: prod
+  NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR}
+  NACOS_SERVER: ${NACOS_SERVER}
+  NACOS_USERNAME: ${NACOS_USERNAME}
+  NACOS_PASSWORD: ${NACOS_PASSWORD}
+  NACOS_GROUP: ${NACOS_GROUP}
+  DB_HOST: ${DB_HOST}
+  DB_PORT: ${DB_PORT}
+  DB_USERNAME: ${DB_USERNAME}
+  DB_PASSWORD: ${DB_PASSWORD}
+  REDIS_HOST: ${REDIS_HOST}
+  REDIS_PORT: ${REDIS_PORT}
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
+  ROCKETMQ_NAME_SERVER: ${ROCKETMQ_NAME_SERVER}
+  ROCKETMQ_NAMESRV: ${ROCKETMQ_NAMESRV}
+  JWT_SECRET: ${JWT_SECRET}
+  MONGO_HOST: ${MONGO_HOST}
+  MONGO_PORT: ${MONGO_PORT}
+  MONGO_USERNAME: ${MONGO_USERNAME}
+  MONGO_PASSWORD: ${MONGO_PASSWORD}
+  MONGO_DATABASE: ${MONGO_DATABASE}
+  ELASTICSEARCH_HOST: ${ELASTICSEARCH_HOST}
+  ELASTICSEARCH_PORT: ${ELASTICSEARCH_PORT}
+  ELASTICSEARCH_SCHEME: ${ELASTICSEARCH_SCHEME}
+  ES_HOST: ${ES_HOST}
+  ES_PORT: ${ES_PORT}
+  FILE_SERVICE_URL: ${FILE_SERVICE_URL}
+
+services:
+  zhicore-gateway:
+    <<: *service-base
+    build:
+      context: ../../zhicore-gateway
+      dockerfile: Dockerfile
+    container_name: zhicore-gateway
+    environment:
+      <<: *common-env
+      SPRING_APPLICATION_NAME: zhicore-gateway
+      SERVER_PORT: 8000
+    ports:
+      - "${ZHICORE_GATEWAY_PORT}:8000"
+
+  zhicore-user:
+    <<: *service-base
+    build:
+      context: ../../zhicore-user
+      dockerfile: Dockerfile
+    container_name: zhicore-user
+    environment:
+      <<: *common-env
+      SPRING_APPLICATION_NAME: zhicore-user
+      SERVER_PORT: 8081
+      ID_GENERATOR_SERVER_URL: http://zhicore-id-generator:8088
+      FILE_SERVICE_URL: ${FILE_SERVICE_URL}
+    depends_on:
+      - zhicore-id-generator
+    ports:
+      - "${ZHICORE_USER_PORT}:8081"
+
+  zhicore-content:
+    <<: *service-base
+    build:
+      context: ../../zhicore-content
+      dockerfile: Dockerfile
+    container_name: zhicore-content
+    environment:
+      <<: *common-env
+      SPRING_APPLICATION_NAME: zhicore-content
+      SERVER_PORT: 8082
+      DB_NAME: zhicore_content
+      ID_GENERATOR_SERVER_URL: http://zhicore-id-generator:8088
+      FILE_SERVICE_URL: ${FILE_SERVICE_URL}
+    depends_on:
+      - zhicore-id-generator
+    ports:
+      - "${ZHICORE_CONTENT_PORT}:8082"
+
+  zhicore-comment:
+    <<: *service-base
+    build:
+      context: ../../zhicore-comment
+      dockerfile: Dockerfile
+    container_name: zhicore-comment
+    environment:
+      <<: *common-env
+      SPRING_APPLICATION_NAME: zhicore-comment
+      SERVER_PORT: 8083
+      ID_GENERATOR_SERVER_URL: http://zhicore-id-generator:8088
+      FILE_SERVICE_URL: ${FILE_SERVICE_URL}
+    depends_on:
+      - zhicore-id-generator
+      - zhicore-content
+    ports:
+      - "${ZHICORE_COMMENT_PORT}:8083"
+
+  zhicore-id-generator:
+    <<: *service-base
+    build:
+      context: ../../zhicore-id-generator
+      dockerfile: Dockerfile
+    container_name: zhicore-id-generator
+    environment:
+      <<: *common-env
+      SPRING_APPLICATION_NAME: zhicore-id-generator
+      SERVER_PORT: 8088
+      ID_GENERATOR_SERVER_URL: http://id-generator-nginx:8011
+    ports:
+      - "${ZHICORE_ID_GENERATOR_PORT}:8088"
+
+  zhicore-message:
+    <<: *service-base
+    build:
+      context: ../../zhicore-message
+      dockerfile: Dockerfile
+    container_name: zhicore-message
+    environment:
+      <<: *common-env
+      SPRING_APPLICATION_NAME: zhicore-message
+      SERVER_PORT: 8084
+      ID_GENERATOR_URL: http://zhicore-id-generator:8088
+      ZHICORE_USER_URL: http://zhicore-user:8081
+    depends_on:
+      - zhicore-id-generator
+      - zhicore-user
+    ports:
+      - "${ZHICORE_MESSAGE_PORT}:8084"
+
+  zhicore-notification:
+    <<: *service-base
+    build:
+      context: ../../zhicore-notification
+      dockerfile: Dockerfile
+    container_name: zhicore-notification
+    environment:
+      <<: *common-env
+      SPRING_APPLICATION_NAME: zhicore-notification
+      SERVER_PORT: 8085
+      ID_GENERATOR_SERVER_URL: http://zhicore-id-generator:8088
+    depends_on:
+      - zhicore-id-generator
+    ports:
+      - "${ZHICORE_NOTIFICATION_PORT}:8085"
+
+  zhicore-search:
+    <<: *service-base
+    build:
+      context: ../../zhicore-search
+      dockerfile: Dockerfile
+    container_name: zhicore-search
+    environment:
+      <<: *common-env
+      SPRING_APPLICATION_NAME: zhicore-search
+      SERVER_PORT: 8086
+      ELASTICSEARCH_HOST: ${ELASTICSEARCH_HOST}
+      ELASTICSEARCH_PORT: ${ELASTICSEARCH_PORT}
+      SPRING_ELASTICSEARCH_URIS: http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}
+    ports:
+      - "${ZHICORE_SEARCH_PORT}:8086"
+
+  zhicore-ranking:
+    <<: *service-base
+    build:
+      context: ../../zhicore-ranking
+      dockerfile: Dockerfile
+    container_name: zhicore-ranking
+    environment:
+      <<: *common-env
+      SPRING_APPLICATION_NAME: zhicore-ranking
+      SERVER_PORT: 8087
+      DB_NAME: zhicore_ranking
+      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DATABASE}?authSource=admin
+    ports:
+      - "${ZHICORE_RANKING_PORT}:8087"
+
+  zhicore-upload:
+    <<: *service-base
+    build:
+      context: ../../zhicore-upload
+      dockerfile: Dockerfile
+    container_name: zhicore-upload
+    environment:
+      <<: *common-env
+      SPRING_APPLICATION_NAME: zhicore-upload
+      SERVER_PORT: 8089
+      FILE_SERVICE_URL: ${FILE_SERVICE_URL}
+    ports:
+      - "${ZHICORE_UPLOAD_PORT}:8089"
+
+  zhicore-admin:
+    <<: *service-base
+    build:
+      context: ../../zhicore-admin
+      dockerfile: Dockerfile
+    container_name: zhicore-admin
+    environment:
+      <<: *common-env
+      SPRING_APPLICATION_NAME: zhicore-admin
+      SERVER_PORT: 8090
+      ID_GENERATOR_SERVER_URL: http://zhicore-id-generator:8088
+    depends_on:
+      - zhicore-user
+      - zhicore-content
+      - zhicore-comment
+      - zhicore-id-generator
+    ports:
+      - "${ZHICORE_ADMIN_PORT}:8090"
+
+  zhicore-ops:
+    <<: *service-base
+    build:
+      context: ../../zhicore-ops
+      dockerfile: Dockerfile
+    container_name: zhicore-ops
+    environment:
+      <<: *common-env
+      SPRING_APPLICATION_NAME: zhicore-ops
+      SERVER_PORT: 8091
+      DB_NAME: zhicore_user
+      SPRING_DATASOURCE_JDBC_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/zhicore_user
+      MIGRATION_SOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/zhicore_user
+      MIGRATION_SOURCE_USERNAME: ${DB_USERNAME}
+      MIGRATION_SOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_CONFIG_IMPORT: optional:nacos:common.yml?group=ZHICORE-SERVICE&refreshEnabled=true
+      SPRING_CLOUD_NACOS_CONFIG_IMPORT_CHECK_ENABLED: "false"
+    ports:
+      - "${ZHICORE_OPS_PORT}:8091"
+
+networks:
+  shared-infra:
+    external: true

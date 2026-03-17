@@ -5,12 +5,14 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.content.application.model.OutboxEventRecord;
 import com.zhicore.content.application.port.store.OutboxEventStore;
+import com.zhicore.content.infrastructure.config.OutboxProperties;
 import com.zhicore.content.infrastructure.persistence.pg.entity.OutboxEventEntity;
 import com.zhicore.content.infrastructure.persistence.pg.mapper.OutboxEventMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.time.Instant;
 
 /**
  * Outbox 事件存储实现。
@@ -20,17 +22,23 @@ import java.util.Optional;
 public class OutboxEventStoreImpl implements OutboxEventStore {
 
     private final OutboxEventMapper outboxEventMapper;
+    private final OutboxProperties outboxProperties;
 
     @Override
     public void save(OutboxEventRecord eventRecord) {
-        outboxEventMapper.insert(toEntity(eventRecord));
+        OutboxEventRecord normalized = normalizeForSave(eventRecord);
+        outboxEventMapper.insert(toEntity(normalized));
     }
 
     @Override
-    public PageResult<OutboxEventRecord> findFailed(int page, int size, String eventType) {
+    public PageResult<OutboxEventRecord> findDead(int page, int size, String eventType) {
         Page<OutboxEventEntity> mpPage = new Page<>(page, size);
         LambdaQueryWrapper<OutboxEventEntity> wrapper = new LambdaQueryWrapper<OutboxEventEntity>()
-                .eq(OutboxEventEntity::getStatus, OutboxEventEntity.OutboxStatus.FAILED)
+                .nested(condition -> condition
+                        .eq(OutboxEventEntity::getStatus, OutboxEventEntity.OutboxStatus.DEAD)
+                        .or()
+                        .eq(OutboxEventEntity::getStatus, OutboxEventEntity.OutboxStatus.FAILED)
+                        .ge(OutboxEventEntity::getRetryCount, outboxProperties.getMaxRetry()))
                 .orderByDesc(OutboxEventEntity::getUpdatedAt)
                 .orderByDesc(OutboxEventEntity::getCreatedAt);
 
@@ -76,10 +84,13 @@ public class OutboxEventStoreImpl implements OutboxEventStore {
                 .occurredAt(entity.getOccurredAt())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
+                .nextAttemptAt(entity.getNextAttemptAt())
+                .claimedAt(entity.getClaimedAt())
+                .claimedBy(entity.getClaimedBy())
                 .dispatchedAt(entity.getDispatchedAt())
                 .retryCount(entity.getRetryCount())
                 .lastError(entity.getLastError())
-                .status(toRecordStatus(entity.getStatus()))
+                .status(toRecordStatus(entity))
                 .build();
     }
 
@@ -95,11 +106,25 @@ public class OutboxEventStoreImpl implements OutboxEventStore {
         entity.setOccurredAt(eventRecord.getOccurredAt());
         entity.setCreatedAt(eventRecord.getCreatedAt());
         entity.setUpdatedAt(eventRecord.getUpdatedAt());
+        entity.setNextAttemptAt(eventRecord.getNextAttemptAt());
+        entity.setClaimedAt(eventRecord.getClaimedAt());
+        entity.setClaimedBy(eventRecord.getClaimedBy());
         entity.setDispatchedAt(eventRecord.getDispatchedAt());
         entity.setRetryCount(eventRecord.getRetryCount());
         entity.setLastError(eventRecord.getLastError());
         entity.setStatus(toEntityStatus(eventRecord.getStatus()));
         return entity;
+    }
+
+    private OutboxEventRecord normalizeForSave(OutboxEventRecord eventRecord) {
+        if (eventRecord == null) {
+            throw new IllegalArgumentException("eventRecord 不能为空");
+        }
+        if (eventRecord.getStatus() == OutboxEventRecord.OutboxStatus.PENDING
+                && eventRecord.getNextAttemptAt() == null) {
+            return eventRecord.withNextAttemptAt(Instant.now());
+        }
+        return eventRecord;
     }
 
     private OutboxEventEntity.OutboxStatus toEntityStatus(OutboxEventRecord.OutboxStatus status) {
@@ -109,10 +134,24 @@ public class OutboxEventStoreImpl implements OutboxEventStore {
         return OutboxEventEntity.OutboxStatus.valueOf(status.name());
     }
 
-    private OutboxEventRecord.OutboxStatus toRecordStatus(OutboxEventEntity.OutboxStatus status) {
+    private OutboxEventRecord.OutboxStatus toRecordStatus(OutboxEventEntity entity) {
+        OutboxEventEntity.OutboxStatus status = entity.getStatus();
         if (status == null) {
             return null;
         }
+        if (status == OutboxEventEntity.OutboxStatus.DISPATCHED
+                || status == OutboxEventEntity.OutboxStatus.SUCCEEDED) {
+            return OutboxEventRecord.OutboxStatus.SUCCEEDED;
+        }
+        if (status == OutboxEventEntity.OutboxStatus.DEAD || isLegacyDeadLetter(entity)) {
+            return OutboxEventRecord.OutboxStatus.DEAD;
+        }
         return OutboxEventRecord.OutboxStatus.valueOf(status.name());
+    }
+
+    private boolean isLegacyDeadLetter(OutboxEventEntity entity) {
+        return entity.getStatus() == OutboxEventEntity.OutboxStatus.FAILED
+                && entity.getRetryCount() != null
+                && entity.getRetryCount() >= outboxProperties.getMaxRetry();
     }
 }

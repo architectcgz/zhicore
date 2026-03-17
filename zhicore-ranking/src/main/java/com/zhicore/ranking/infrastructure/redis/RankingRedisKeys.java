@@ -1,10 +1,9 @@
 package com.zhicore.ranking.infrastructure.redis;
 
 import com.zhicore.common.cache.CacheConstants;
+import com.zhicore.common.util.IsoWeekUtils;
 
 import java.time.LocalDate;
-import java.time.temporal.WeekFields;
-import java.util.Locale;
 
 /**
  * 排行榜 Redis Key 常量
@@ -60,13 +59,14 @@ public final class RankingRedisKeys {
 
     /**
      * 热门文章周榜
-     * Key: ranking:posts:weekly:{weekNumber}
+     * Key: ranking:posts:weekly:{weekBasedYear}:{weekNumber}
      * 
+     * @param weekBasedYear 周所属 ISO week-based year
      * @param weekNumber 周数
      * @return Redis key
      */
-    public static String weeklyPosts(int weekNumber) {
-        return prefix() + ":posts:weekly:" + weekNumber;
+    public static String weeklyPosts(int weekBasedYear, int weekNumber) {
+        return prefix() + ":posts:weekly:" + weekBasedYear + ":" + String.format("%02d", weekNumber);
     }
 
     /**
@@ -76,7 +76,8 @@ public final class RankingRedisKeys {
      * @return Redis key
      */
     public static String currentWeekPosts() {
-        return weeklyPosts(getCurrentWeekNumber());
+        LocalDate now = LocalDate.now();
+        return weeklyPosts(getWeekBasedYear(now), getWeekNumber(now));
     }
 
     /**
@@ -125,6 +126,20 @@ public final class RankingRedisKeys {
         return prefix() + ":creators:daily:" + date.toString();
     }
 
+    /**
+     * 创作者周榜。
+     */
+    public static String weeklyCreators(int weekBasedYear, int weekNumber) {
+        return prefix() + ":creators:weekly:" + weekBasedYear + ":" + String.format("%02d", weekNumber);
+    }
+
+    /**
+     * 创作者月榜。
+     */
+    public static String monthlyCreators(int year, int month) {
+        return prefix() + ":creators:monthly:" + year + ":" + String.format("%02d", month);
+    }
+
     // ==================== 话题排行榜 ====================
 
     /**
@@ -146,6 +161,20 @@ public final class RankingRedisKeys {
      */
     public static String dailyTopics(LocalDate date) {
         return prefix() + ":topics:daily:" + date.toString();
+    }
+
+    /**
+     * 话题周榜。
+     */
+    public static String weeklyTopics(int weekBasedYear, int weekNumber) {
+        return prefix() + ":topics:weekly:" + weekBasedYear + ":" + String.format("%02d", weekNumber);
+    }
+
+    /**
+     * 话题月榜。
+     */
+    public static String monthlyTopics(int year, int month) {
+        return prefix() + ":topics:monthly:" + year + ":" + String.format("%02d", month);
     }
 
     // ==================== 防刷去重 ====================
@@ -213,6 +242,15 @@ public final class RankingRedisKeys {
     }
 
     /**
+     * ledger 全量补算互斥锁。
+     *
+     * <p>补算期间 ingestion 会据此拒绝新事件，调度器也会被一并排斥。</p>
+     */
+    public static String replayLock() {
+        return prefix() + ":lock:replay:ledger-rebuild";
+    }
+
+    /**
      * 月榜回填加载锁
      * Key: ranking:lock:load:monthly:{year}-{month}
      *
@@ -227,13 +265,32 @@ public final class RankingRedisKeys {
     // ==================== 工具方法 ====================
 
     /**
-     * 获取当前周数
+     * 获取日期对应的 ISO 周数
      * 
-     * @return 当前周数
+     * @return ISO 周数
+     */
+    public static int getWeekNumber(LocalDate date) {
+        return IsoWeekUtils.getWeekNumber(date);
+    }
+
+    /**
+     * 获取日期对应的 ISO week-based year。
+     */
+    public static int getWeekBasedYear(LocalDate date) {
+        return IsoWeekUtils.getWeekBasedYear(date);
+    }
+
+    /**
+     * 获取当前 ISO 周数。
      */
     public static int getCurrentWeekNumber() {
-        LocalDate now = LocalDate.now();
-        WeekFields weekFields = WeekFields.of(Locale.getDefault());
-        return now.get(weekFields.weekOfWeekBasedYear());
+        return getWeekNumber(LocalDate.now());
+    }
+
+    /**
+     * 获取当前 ISO week-based year。
+     */
+    public static int getCurrentWeekBasedYear() {
+        return getWeekBasedYear(LocalDate.now());
     }
 }

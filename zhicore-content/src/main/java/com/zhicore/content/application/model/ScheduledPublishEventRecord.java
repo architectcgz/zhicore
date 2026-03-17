@@ -16,20 +16,24 @@ public class ScheduledPublishEventRecord {
 
     Long id;
     String eventId;
+    String triggerEventId;
     Long postId;
     LocalDateTime scheduledAt;
+    LocalDateTime nextAttemptAt;
     ScheduledPublishStatus status;
     Integer rescheduleRetryCount;
     Integer publishRetryCount;
-    LocalDateTime lastEnqueueAt;
+    LocalDateTime claimedAt;
+    String claimedBy;
     String lastError;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 
     public enum ScheduledPublishStatus {
         PENDING,
-        SCHEDULED_PENDING,
-        PUBLISHED,
-        FAILED
+        PROCESSING,
+        FAILED,
+        SUCCEEDED,
+        DEAD
     }
 }

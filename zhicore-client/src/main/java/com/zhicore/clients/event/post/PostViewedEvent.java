@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.api.event.DomainEvent;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * 文章浏览事件
@@ -35,7 +35,7 @@ public class PostViewedEvent extends DomainEvent {
     /**
      * 文章发布时间（用于热度计算时间衰减）
      */
-    private final LocalDateTime publishedAt;
+    private final Instant publishedAt;
 
     /**
      * 客户端 IP（用于匿名用户浏览去重）
@@ -49,11 +49,11 @@ public class PostViewedEvent extends DomainEvent {
 
     @JsonCreator
     public PostViewedEvent(@JsonProperty("eventId") String eventId,
-                           @JsonProperty("occurredAt") LocalDateTime occurredAt,
+                           @JsonProperty("occurredAt") java.time.Instant occurredAt,
                            @JsonProperty("postId") Long postId,
                            @JsonProperty("userId") Long userId,
                            @JsonProperty("authorId") Long authorId,
-                           @JsonProperty("publishedAt") LocalDateTime publishedAt,
+                           @JsonProperty("publishedAt") Instant publishedAt,
                            @JsonProperty("clientIp") String clientIp,
                            @JsonProperty("userAgent") String userAgent) {
         super(eventId, occurredAt);
@@ -66,7 +66,7 @@ public class PostViewedEvent extends DomainEvent {
     }
 
     public PostViewedEvent(Long postId, Long userId, Long authorId,
-                           LocalDateTime publishedAt, String clientIp, String userAgent) {
+                           Instant publishedAt, String clientIp, String userAgent) {
         this(null, null, postId, userId, authorId, publishedAt, clientIp, userAgent);
     }
 

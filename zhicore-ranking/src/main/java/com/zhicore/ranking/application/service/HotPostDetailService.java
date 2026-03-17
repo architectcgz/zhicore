@@ -7,6 +7,7 @@ import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.ranking.application.dto.HotPostDTO;
+import com.zhicore.ranking.application.service.query.PostRankingQueryService;
 import com.zhicore.ranking.domain.model.HotScore;
 import com.zhicore.ranking.application.sentinel.RankingSentinelHandlers;
 import com.zhicore.ranking.application.sentinel.RankingSentinelResources;

@@ -2,7 +2,7 @@ package com.zhicore.user.interfaces.controller;
 
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.user.application.dto.CheckInVO;
-import com.zhicore.user.application.service.CheckInCommandService;
+import com.zhicore.user.application.service.command.CheckInCommandService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

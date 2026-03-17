@@ -31,6 +31,62 @@ public interface OutboxEventMapper extends BaseMapper<OutboxEventEntity> {
         @Param("status") String status, 
         @Param("limit") int limit
     );
+
+    /**
+     * claim 一批可投递 outbox 事件。
+     *
+     * <p>说明：
+     * - PENDING + next_attempt_at 到期的任务可以直接 claim
+     * - PROCESSING 但 claim 超时的任务允许被回收
+     * - 同一 aggregate 只会 claim 最早未完成的那条，保证投递顺序
+     */
+    @Select("""
+            WITH head_per_aggregate AS (
+                SELECT DISTINCT ON (COALESCE(aggregate_id, -id))
+                    id
+                FROM outbox_event
+                WHERE status NOT IN ('SUCCEEDED', 'DISPATCHED')
+                ORDER BY COALESCE(aggregate_id, -id),
+                         aggregate_version ASC NULLS FIRST,
+                         created_at ASC,
+                         id ASC
+            ),
+            claimed AS (
+                SELECT task.id
+                FROM outbox_event task
+                JOIN head_per_aggregate head ON head.id = task.id
+                WHERE (
+                        task.status = 'PENDING'
+                        AND task.next_attempt_at <= #{now}
+                    )
+                   OR (
+                        task.status = 'FAILED'
+                        AND (task.retry_count IS NULL OR task.retry_count < #{maxRetry})
+                        AND task.next_attempt_at <= #{now}
+                    )
+                   OR (
+                        task.status = 'PROCESSING'
+                        AND task.claimed_at IS NOT NULL
+                        AND task.claimed_at <= #{reclaimBefore}
+                    )
+                ORDER BY task.created_at ASC
+                LIMIT #{limit}
+                FOR UPDATE OF task SKIP LOCKED
+            )
+            UPDATE outbox_event target
+            SET status = 'PROCESSING',
+                claimed_at = #{now},
+                claimed_by = #{claimedBy},
+                updated_at = #{now}
+            FROM claimed
+            WHERE target.id = claimed.id
+            RETURNING target.*
+            """)
+    List<OutboxEventEntity> claimDispatchable(@Param("now") Instant now,
+                                              @Param("reclaimBefore") Instant reclaimBefore,
+                                              @Param("claimedBy") String claimedBy,
+                                              @Param("limit") int limit,
+                                              @Param("maxRetry") int maxRetry);
     
     /**
      * 按聚合根ID查询事件
@@ -74,8 +130,8 @@ public interface OutboxEventMapper extends BaseMapper<OutboxEventEntity> {
      * @param since 起始时间
      * @return 投递成功的消息数量
      */
-    @Select("SELECT COUNT(*) FROM outbox_event WHERE status = 'DISPATCHED' AND dispatched_at >= #{since}")
-    long countDispatchedSince(@Param("since") Instant since);
+    @Select("SELECT COUNT(*) FROM outbox_event WHERE status IN ('SUCCEEDED', 'DISPATCHED') AND dispatched_at >= #{since}")
+    long countSucceededSince(@Param("since") Instant since);
     
     /**
      * 统计指定时间后失败的消息数量
@@ -85,6 +141,23 @@ public interface OutboxEventMapper extends BaseMapper<OutboxEventEntity> {
      * @param since 起始时间
      * @return 失败的消息数量
      */
-    @Select("SELECT COUNT(*) FROM outbox_event WHERE status = 'FAILED' AND updated_at >= #{since}")
-    long countFailedSince(@Param("since") Instant since);
+    @Select("""
+            SELECT COUNT(*)
+            FROM outbox_event
+            WHERE status = 'FAILED'
+              AND (retry_count IS NULL OR retry_count < #{maxRetry})
+              AND updated_at >= #{since}
+            """)
+    long countFailedSince(@Param("since") Instant since, @Param("maxRetry") int maxRetry);
+
+    @Select("""
+            SELECT COUNT(*)
+            FROM outbox_event
+            WHERE (
+                    status = 'DEAD'
+                 OR (status = 'FAILED' AND retry_count >= #{maxRetry})
+                  )
+              AND updated_at >= #{since}
+            """)
+    long countDeadSince(@Param("since") Instant since, @Param("maxRetry") int maxRetry);
 }

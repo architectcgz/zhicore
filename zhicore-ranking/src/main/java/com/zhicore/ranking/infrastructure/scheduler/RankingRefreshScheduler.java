@@ -2,14 +2,15 @@ package com.zhicore.ranking.infrastructure.scheduler;
 
 import com.zhicore.common.cache.DistributedLockExecutor;
 import com.zhicore.ranking.application.port.store.RankingMaintenanceStore;
-import com.zhicore.ranking.application.service.CreatorRankingCommandService;
-import com.zhicore.ranking.application.service.PostRankingCommandService;
+import com.zhicore.ranking.application.service.command.CreatorRankingCommandService;
+import com.zhicore.ranking.application.service.command.PostRankingCommandService;
 import com.zhicore.ranking.domain.model.CreatorStats;
 import com.zhicore.ranking.domain.model.PostStats;
 import com.zhicore.ranking.infrastructure.redis.RankingRedisKeys;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -25,6 +26,7 @@ import java.time.LocalDateTime;
  */
 @Slf4j
 @Component
+@ConditionalOnProperty(prefix = "ranking.scheduler", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class RankingRefreshScheduler {
 
     private final PostRankingCommandService postRankingService;

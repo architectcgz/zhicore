@@ -1,10 +1,13 @@
 package com.zhicore.message.application.service;
 
-import com.zhicore.api.client.UserMessagingClient;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
-import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.ResultCode;
+import com.zhicore.message.application.model.DirectConversationRef;
+import com.zhicore.message.application.model.ImConversationView;
+import com.zhicore.message.application.port.im.ImConversationQueryGateway;
+import com.zhicore.message.application.port.user.UserMessagingPort;
+import com.zhicore.message.application.service.query.ConversationQueryService;
 import com.zhicore.message.domain.model.Conversation;
 import com.zhicore.message.domain.repository.ConversationRepository;
 import com.zhicore.message.domain.service.MessageDomainService;
@@ -39,7 +42,10 @@ class ConversationApplicationServiceTest {
     private MessageDomainService messageDomainService;
 
     @Mock
-    private UserMessagingClient userServiceClient;
+    private UserMessagingPort userMessagingPort;
+
+    @Mock
+    private ImConversationQueryGateway imConversationQueryGateway;
 
     private ConversationQueryService service;
 
@@ -49,7 +55,8 @@ class ConversationApplicationServiceTest {
         service = new ConversationQueryService(
                 conversationRepository,
                 messageDomainService,
-                userServiceClient
+                userMessagingPort,
+                imConversationQueryGateway
         );
     }
 
@@ -61,10 +68,10 @@ class ConversationApplicationServiceTest {
     @Test
     @DisplayName("会话列表组装时用户服务降级应显式失败")
     void shouldFailConversationListWhenUserServiceDegraded() {
-        when(conversationRepository.findByUserId(USER_ID, null, 20))
-                .thenReturn(List.of(createConversation()));
-        when(userServiceClient.getUserSimple(OTHER_USER_ID))
-                .thenReturn(ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "用户服务已降级"));
+        when(imConversationQueryGateway.listConversations(USER_ID, null, 20))
+                .thenReturn(List.of(createConversationView()));
+        when(userMessagingPort.getUserSimple(OTHER_USER_ID))
+                .thenThrow(new RuntimeException("用户服务已降级"));
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> service.getConversationList(null, 20));
@@ -78,8 +85,10 @@ class ConversationApplicationServiceTest {
     void shouldFailConversationDetailWhenUserServiceDegraded() {
         when(conversationRepository.findById(CONVERSATION_ID))
                 .thenReturn(Optional.of(createConversation()));
-        when(userServiceClient.getUserSimple(OTHER_USER_ID))
-                .thenReturn(ApiResponse.fail(ResultCode.SERVICE_DEGRADED, "用户服务已降级"));
+        when(imConversationQueryGateway.findConversation(USER_ID, DirectConversationRef.of(USER_ID, OTHER_USER_ID)))
+                .thenReturn(Optional.of(createConversationView()));
+        when(userMessagingPort.getUserSimple(OTHER_USER_ID))
+                .thenThrow(new RuntimeException("用户服务已降级"));
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> service.getConversation(CONVERSATION_ID));
@@ -100,5 +109,16 @@ class ConversationApplicationServiceTest {
                 1,
                 LocalDateTime.now()
         );
+    }
+
+    private ImConversationView createConversationView() {
+        return ImConversationView.builder()
+                .localConversationId(CONVERSATION_ID)
+                .conversationRef(DirectConversationRef.of(USER_ID, OTHER_USER_ID))
+                .lastMessageContent("hello")
+                .lastMessageAt(LocalDateTime.now())
+                .unreadCount(1)
+                .createdAt(LocalDateTime.now())
+                .build();
     }
 }

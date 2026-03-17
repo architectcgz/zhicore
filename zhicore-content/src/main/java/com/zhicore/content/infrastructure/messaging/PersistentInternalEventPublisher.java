@@ -2,8 +2,17 @@ package com.zhicore.content.infrastructure.messaging;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhicore.common.tx.TransactionCommitSignal;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.domain.event.DomainEvent;
+import com.zhicore.content.domain.event.PostContentUpdatedEvent;
+import com.zhicore.content.domain.event.PostCreatedDomainEvent;
+import com.zhicore.content.domain.event.PostDeletedEvent;
+import com.zhicore.content.domain.event.PostMetadataUpdatedEvent;
+import com.zhicore.content.domain.event.PostPublishedDomainEvent;
+import com.zhicore.content.domain.event.PostPurgedEvent;
+import com.zhicore.content.domain.event.PostRestoredEvent;
+import com.zhicore.content.domain.event.PostTagsUpdatedDomainEvent;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.infrastructure.persistence.pg.entity.InternalEventTaskEntity;
 import com.zhicore.content.infrastructure.persistence.pg.mapper.InternalEventTaskMapper;
@@ -25,12 +34,36 @@ public class PersistentInternalEventPublisher implements EventPublisher {
 
     private final InternalEventTaskMapper internalEventTaskMapper;
     private final ObjectMapper objectMapper;
+    private final TransactionCommitSignal transactionCommitSignal;
+    private final InternalEventTaskDispatcher internalEventTaskDispatcher;
 
     @Override
     @Transactional
     public void publish(DomainEvent event) {
-        if (event == null) {
+        if (persist(event)) {
+            transactionCommitSignal.afterCommit(internalEventTaskDispatcher::signal);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void publishBatch(List<DomainEvent> events) {
+        if (events == null || events.isEmpty()) {
             return;
+        }
+
+        boolean persisted = false;
+        for (DomainEvent event : events) {
+            persisted = persist(event) || persisted;
+        }
+        if (persisted) {
+            transactionCommitSignal.afterCommit(internalEventTaskDispatcher::signal);
+        }
+    }
+
+    private boolean persist(DomainEvent event) {
+        if (event == null) {
+            return false;
         }
 
         try {
@@ -41,6 +74,7 @@ public class PersistentInternalEventPublisher implements EventPublisher {
             entity.setAggregateVersion(event.getAggregateVersion());
             entity.setSchemaVersion(event.getSchemaVersion());
             entity.setPayload(objectMapper.writeValueAsString(event));
+            entity.setPriority(resolvePriority(event));
             entity.setOccurredAt(event.getOccurredAt());
             Instant now = Instant.now();
             entity.setNextAttemptAt(now);
@@ -49,6 +83,7 @@ public class PersistentInternalEventPublisher implements EventPublisher {
             entity.setRetryCount(0);
             entity.setStatus(InternalEventTaskEntity.InternalEventTaskStatus.PENDING);
             internalEventTaskMapper.insert(entity);
+            return true;
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize internal event: eventId={}, eventType={}",
                     event.getEventId(), event.getClass().getSimpleName(), e);
@@ -56,13 +91,20 @@ public class PersistentInternalEventPublisher implements EventPublisher {
         }
     }
 
-    @Override
-    @Transactional
-    public void publishBatch(List<DomainEvent> events) {
-        if (events == null || events.isEmpty()) {
-            return;
+    private int resolvePriority(DomainEvent event) {
+        if (event instanceof PostDeletedEvent
+                || event instanceof PostPurgedEvent
+                || event instanceof PostRestoredEvent
+                || event instanceof PostPublishedDomainEvent) {
+            return InternalEventTaskEntity.PRIORITY_HIGH;
         }
-        events.forEach(this::publish);
+        if (event instanceof PostCreatedDomainEvent
+                || event instanceof PostContentUpdatedEvent
+                || event instanceof PostMetadataUpdatedEvent
+                || event instanceof PostTagsUpdatedDomainEvent) {
+            return InternalEventTaskEntity.PRIORITY_NORMAL;
+        }
+        return InternalEventTaskEntity.PRIORITY_NORMAL;
     }
 
     private Long resolveAggregateId(DomainEvent event) {

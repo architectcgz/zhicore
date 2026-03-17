@@ -2,8 +2,8 @@ package com.zhicore.content.interfaces.controller.admin;
 
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
-import com.zhicore.content.application.dto.admin.outbox.OutboxFailedPageResponse;
-import com.zhicore.content.application.service.OutboxAdminQueryService;
+import com.zhicore.content.application.dto.admin.outbox.OutboxDeadPageResponse;
+import com.zhicore.content.application.service.query.OutboxAdminQueryService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
@@ -22,13 +22,13 @@ public class OutboxAdminQueryController {
 
     private final OutboxAdminQueryService outboxAdminQueryService;
 
-    @GetMapping("/failed")
-    public ApiResponse<OutboxFailedPageResponse> listFailed(
+    @GetMapping({"/dead", "/failed"})
+    public ApiResponse<OutboxDeadPageResponse> listDead(
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             @RequestParam(required = false) String eventType
     ) {
         UserContext.requireUserId();
-        return ApiResponse.success(outboxAdminQueryService.listFailed(page, size, eventType));
+        return ApiResponse.success(outboxAdminQueryService.listDead(page, size, eventType));
     }
 }

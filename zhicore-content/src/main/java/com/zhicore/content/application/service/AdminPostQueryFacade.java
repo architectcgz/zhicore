@@ -4,6 +4,7 @@ import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.dto.admin.PostManageDTO;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.content.application.query.model.AdminPostQueryCriteria;
+import com.zhicore.content.application.service.query.AdminPostListQueryService;
 import com.zhicore.content.application.sentinel.ContentSentinelHandlers;
 import com.zhicore.content.application.sentinel.ContentSentinelResources;
 import lombok.RequiredArgsConstructor;

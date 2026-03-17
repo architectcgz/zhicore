@@ -71,4 +71,23 @@ class ContentSentinelConfigTest {
         assertEquals(1L, detailRules);
         assertEquals(1L, tagRules);
     }
+
+    @Test
+    @DisplayName("当外部数据源清空规则时应该补回缺失的本地默认规则")
+    void shouldRestoreMissingRulesAfterExternalOverride() {
+        ContentSentinelProperties properties = new ContentSentinelProperties();
+        ContentSentinelConfig config = new ContentSentinelConfig(properties);
+
+        config.initFlowRules();
+        FlowRuleManager.loadRules(Collections.emptyList());
+
+        config.reconcileMissingFlowRules();
+
+        assertTrue(FlowRuleManager.getRules().stream()
+                .anyMatch(rule -> ContentSentinelResources.GET_POST_DETAIL.equals(rule.getResource())));
+        assertTrue(FlowRuleManager.getRules().stream()
+                .anyMatch(rule -> ContentSentinelResources.GET_POST_LIST.equals(rule.getResource())));
+        assertTrue(FlowRuleManager.getRules().stream()
+                .anyMatch(rule -> ContentSentinelResources.GET_POST_CONTENT.equals(rule.getResource())));
+    }
 }

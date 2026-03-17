@@ -1,36 +1,41 @@
 package com.zhicore.ranking.application.service;
 
-import com.zhicore.ranking.application.model.SnapshotInboxEvent;
+import com.zhicore.ranking.application.model.SnapshotPeriodScore;
 import com.zhicore.ranking.application.model.SnapshotPostHotState;
 import com.zhicore.ranking.application.port.policy.RankingSnapshotPolicy;
 import com.zhicore.ranking.application.port.store.RankingSnapshotCacheStore;
 import com.zhicore.ranking.application.port.store.RankingSnapshotSourceStore;
 import com.zhicore.ranking.domain.model.HotScore;
 import com.zhicore.ranking.domain.model.PostStats;
-import com.zhicore.ranking.domain.model.RankingMetricType;
 import com.zhicore.ranking.domain.service.HotScoreCalculator;
+import com.zhicore.ranking.infrastructure.redis.RankingRedisKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.temporal.TemporalAdjusters;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * 从权威状态和 DONE inbox 事件刷新 Redis 排行快照。
+ * 从权威状态和周期分数物化结果刷新 Redis 排行快照。
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class RankingSnapshotService {
+
+    private static final int DAILY_RECOVERY_WINDOW_DAYS = 2;
+    private static final int WEEKLY_RECOVERY_WINDOW_DAYS = 20;
+    private static final int MONTHLY_RECOVERY_WINDOW_DAYS = 365;
 
     private final RankingSnapshotSourceStore snapshotSourceStore;
     private final RankingSnapshotCacheStore snapshotCacheStore;
@@ -38,40 +43,29 @@ public class RankingSnapshotService {
     private final HotScoreCalculator hotScoreCalculator;
 
     public void refreshCurrentSnapshots() {
-        List<SnapshotPostHotState> states = snapshotSourceStore.listActivePostStates();
-        Map<Long, SnapshotPostHotState> stateMap = new HashMap<>();
-        states.forEach(state -> stateMap.put(state.getPostId(), state));
-
-        List<HotScore> totalPostRanking = buildPostScores(states);
-        List<HotScore> totalCreatorRanking = buildCreatorScores(totalPostRanking, stateMap);
-        List<HotScore> totalTopicRanking = buildTopicScores(totalPostRanking, stateMap);
-        snapshotCacheStore.replaceTotalRanking(totalPostRanking, totalCreatorRanking, totalTopicRanking);
+        SnapshotContext context = loadSnapshotContext();
+        refreshTotalRanking(context);
 
         LocalDate today = LocalDate.now();
-        PeriodSnapshot dailySnapshot = buildPeriodSnapshot(
-                snapshotSourceStore.listDoneEventsBetween(today.atStartOfDay(), today.plusDays(1).atStartOfDay()),
-                stateMap
-        );
-        snapshotCacheStore.replaceDailyRanking(
-                today,
-                dailySnapshot.postScores(),
-                dailySnapshot.creatorScores(),
-                dailySnapshot.topicScores()
-        );
+        refreshDailyRanking(today, context);
+        refreshWeeklyRanking(RankingRedisKeys.getWeekBasedYear(today), RankingRedisKeys.getWeekNumber(today), context);
+        refreshMonthlyRanking(today.getYear(), today.getMonthValue(), context);
+    }
 
-        LocalDate weekStartDate = today.with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
-        PeriodSnapshot weeklySnapshot = buildPeriodSnapshot(
-                snapshotSourceStore.listDoneEventsBetween(weekStartDate.atStartOfDay(), weekStartDate.plusWeeks(1).atStartOfDay()),
-                stateMap
-        );
-        snapshotCacheStore.replaceWeeklyPostRanking(weeklySnapshot.postScores());
+    public void refreshActiveSnapshots() {
+        SnapshotContext context = loadSnapshotContext();
+        refreshTotalRanking(context);
 
-        LocalDate monthStartDate = today.withDayOfMonth(1);
-        PeriodSnapshot monthlySnapshot = buildPeriodSnapshot(
-                snapshotSourceStore.listDoneEventsBetween(monthStartDate.atStartOfDay(), monthStartDate.plusMonths(1).atStartOfDay()),
-                stateMap
-        );
-        snapshotCacheStore.replaceMonthlyPostRanking(monthlySnapshot.postScores());
+        LocalDate today = LocalDate.now();
+        for (LocalDate date : activeDailyDates(today)) {
+            refreshDailyRanking(date, context);
+        }
+        for (WeekPeriod period : activeWeeklyPeriods(today)) {
+            refreshWeeklyRanking(period.weekBasedYear(), period.weekNumber(), context);
+        }
+        for (YearMonth period : activeMonthlyPeriods(today)) {
+            refreshMonthlyRanking(period.getYear(), period.getMonthValue(), context);
+        }
     }
 
     private List<HotScore> buildPostScores(Collection<SnapshotPostHotState> states) {
@@ -113,37 +107,21 @@ public class RankingSnapshotService {
         return toHotScores(topicScores);
     }
 
-    private PeriodSnapshot buildPeriodSnapshot(List<SnapshotInboxEvent> periodEvents,
+    private PeriodSnapshot buildPeriodSnapshot(List<SnapshotPeriodScore> periodScores,
                                                Map<Long, SnapshotPostHotState> stateMap) {
-        if (periodEvents == null || periodEvents.isEmpty()) {
+        if (periodScores == null || periodScores.isEmpty()) {
             return new PeriodSnapshot(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
         }
 
-        Map<Long, MetricCounter> counters = new LinkedHashMap<>();
-        for (SnapshotInboxEvent event : periodEvents) {
-            if (event.getPostId() == null || event.getMetricType() == null) {
-                continue;
-            }
-            MetricCounter counter = counters.computeIfAbsent(event.getPostId(), ignored -> new MetricCounter());
-            counter.add(event.getMetricType(), event.getCountDelta());
-        }
-
         List<HotScore> postScores = new ArrayList<>();
-        for (Map.Entry<Long, MetricCounter> entry : counters.entrySet()) {
-            SnapshotPostHotState state = stateMap.get(entry.getKey());
+        for (SnapshotPeriodScore periodScore : periodScores) {
+            SnapshotPostHotState state = stateMap.get(periodScore.getPostId());
             if (state == null) {
                 continue;
             }
-            MetricCounter counter = entry.getValue();
-            PostStats stats = PostStats.builder()
-                    .viewCount(Math.max(0, counter.viewCount))
-                    .likeCount(Math.max(0, counter.likeCount))
-                    .commentCount(Math.max(0, counter.commentCount))
-                    .favoriteCount(Math.max(0, counter.favoriteCount))
-                    .build();
-            double score = hotScoreCalculator.calculatePostHotScore(stats, state.getPublishedAt());
+            double score = periodScore.getDeltaScore();
             if (score > 0) {
-                postScores.add(HotScore.of(String.valueOf(entry.getKey()), score));
+                postScores.add(HotScore.of(String.valueOf(periodScore.getPostId()), score));
             }
         }
 
@@ -180,25 +158,94 @@ public class RankingSnapshotService {
                 .build();
     }
 
+    private SnapshotContext loadSnapshotContext() {
+        List<SnapshotPostHotState> states = snapshotSourceStore.listActivePostStates();
+        Map<Long, SnapshotPostHotState> stateMap = new HashMap<>();
+        states.forEach(state -> stateMap.put(state.getPostId(), state));
+        return new SnapshotContext(states, stateMap);
+    }
+
+    private void refreshTotalRanking(SnapshotContext context) {
+        List<HotScore> totalPostRanking = buildPostScores(context.states());
+        List<HotScore> totalCreatorRanking = buildCreatorScores(totalPostRanking, context.stateMap());
+        List<HotScore> totalTopicRanking = buildTopicScores(totalPostRanking, context.stateMap());
+        snapshotCacheStore.replaceTotalRanking(totalPostRanking, totalCreatorRanking, totalTopicRanking);
+    }
+
+    private void refreshDailyRanking(LocalDate date, SnapshotContext context) {
+        PeriodSnapshot snapshot = buildPeriodSnapshot(
+                snapshotSourceStore.listPeriodScores("DAY", date.toString()),
+                context.stateMap()
+        );
+        snapshotCacheStore.replaceDailyRanking(date, snapshot.postScores(), snapshot.creatorScores(), snapshot.topicScores());
+    }
+
+    private void refreshWeeklyRanking(int weekBasedYear, int weekNumber, SnapshotContext context) {
+        String weekKey = "%d-W%02d".formatted(weekBasedYear, weekNumber);
+        PeriodSnapshot snapshot = buildPeriodSnapshot(
+                snapshotSourceStore.listPeriodScores("WEEK", weekKey),
+                context.stateMap()
+        );
+        snapshotCacheStore.replaceWeeklyRanking(
+                weekBasedYear,
+                weekNumber,
+                snapshot.postScores(),
+                snapshot.creatorScores(),
+                snapshot.topicScores()
+        );
+    }
+
+    private void refreshMonthlyRanking(int year, int month, SnapshotContext context) {
+        String monthKey = "%d-%02d".formatted(year, month);
+        PeriodSnapshot snapshot = buildPeriodSnapshot(
+                snapshotSourceStore.listPeriodScores("MONTH", monthKey),
+                context.stateMap()
+        );
+        snapshotCacheStore.replaceMonthlyRanking(
+                year,
+                month,
+                snapshot.postScores(),
+                snapshot.creatorScores(),
+                snapshot.topicScores()
+        );
+    }
+
+    private List<LocalDate> activeDailyDates(LocalDate today) {
+        List<LocalDate> dates = new ArrayList<>();
+        for (int daysAgo = DAILY_RECOVERY_WINDOW_DAYS; daysAgo >= 0; daysAgo--) {
+            dates.add(today.minusDays(daysAgo));
+        }
+        return dates;
+    }
+
+    private List<WeekPeriod> activeWeeklyPeriods(LocalDate today) {
+        Set<WeekPeriod> periods = new LinkedHashSet<>();
+        LocalDate start = today.minusDays(WEEKLY_RECOVERY_WINDOW_DAYS);
+        for (LocalDate date = start; !date.isAfter(today); date = date.plusDays(1)) {
+            periods.add(new WeekPeriod(RankingRedisKeys.getWeekBasedYear(date), RankingRedisKeys.getWeekNumber(date)));
+        }
+        return List.copyOf(periods);
+    }
+
+    private List<YearMonth> activeMonthlyPeriods(LocalDate today) {
+        LocalDate start = today.minusDays(MONTHLY_RECOVERY_WINDOW_DAYS).withDayOfMonth(1);
+        YearMonth end = YearMonth.from(today);
+        List<YearMonth> periods = new ArrayList<>();
+        for (YearMonth current = YearMonth.from(start); !current.isAfter(end); current = current.plusMonths(1)) {
+            periods.add(current);
+        }
+        return periods;
+    }
+
     private record PeriodSnapshot(List<HotScore> postScores,
                                   List<HotScore> creatorScores,
                                   List<HotScore> topicScores) {
     }
 
-    private static class MetricCounter {
+    private record SnapshotContext(List<SnapshotPostHotState> states,
+                                   Map<Long, SnapshotPostHotState> stateMap) {
+    }
 
-        private long viewCount;
-        private int likeCount;
-        private int commentCount;
-        private int favoriteCount;
-
-        private void add(RankingMetricType metricType, int delta) {
-            switch (metricType) {
-                case VIEW -> viewCount += delta;
-                case LIKE -> likeCount += delta;
-                case COMMENT -> commentCount += delta;
-                case FAVORITE -> favoriteCount += delta;
-            }
-        }
+    private record WeekPeriod(int weekBasedYear, int weekNumber) {
     }
 }

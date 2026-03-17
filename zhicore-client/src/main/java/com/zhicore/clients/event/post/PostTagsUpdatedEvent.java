@@ -34,7 +34,7 @@ public class PostTagsUpdatedEvent extends DomainEvent {
 
     @JsonCreator
     public PostTagsUpdatedEvent(@JsonProperty("eventId") String eventId,
-                                @JsonProperty("occurredAt") java.time.LocalDateTime occurredAt,
+                                @JsonProperty("occurredAt") java.time.Instant occurredAt,
                                 @JsonProperty("postId") Long postId,
                                 @JsonProperty("oldTagIds") List<Long> oldTagIds,
                                 @JsonProperty("newTagIds") List<Long> newTagIds) {

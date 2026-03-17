@@ -16,7 +16,7 @@ public interface RankingSnapshotCacheStore {
 
     void replaceDailyRanking(LocalDate date, List<HotScore> postScores, List<HotScore> creatorScores, List<HotScore> topicScores);
 
-    void replaceWeeklyPostRanking(List<HotScore> postScores);
+    void replaceWeeklyRanking(int weekBasedYear, int weekNumber, List<HotScore> postScores, List<HotScore> creatorScores, List<HotScore> topicScores);
 
-    void replaceMonthlyPostRanking(List<HotScore> postScores);
+    void replaceMonthlyRanking(int year, int month, List<HotScore> postScores, List<HotScore> creatorScores, List<HotScore> topicScores);
 }

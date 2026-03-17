@@ -2,7 +2,7 @@ package com.zhicore.user.interfaces.controller;
 
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.user.application.dto.CheckInVO;
-import com.zhicore.user.application.service.CheckInCommandService;
+import com.zhicore.user.application.service.command.CheckInCommandService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

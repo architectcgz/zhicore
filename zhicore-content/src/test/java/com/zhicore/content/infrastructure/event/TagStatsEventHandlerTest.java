@@ -61,7 +61,7 @@ class TagStatsEventHandlerTest {
             now,
             1L
         );
-        deletedEvent = new PostDeletedEvent("e2", now, PostId.of(1L), 2L);
+        deletedEvent = new PostDeletedEvent("e2", now, PostId.of(1L), Set.of(TagId.of(1001L), TagId.of(1002L)), 2L);
         tagsUpdatedEvent = new PostTagsUpdatedDomainEvent(
             "e3",
             now,
@@ -91,6 +91,9 @@ class TagStatsEventHandlerTest {
     void handlePostDeleted_shouldInvalidateHotTagCache() {
         eventHandler.handlePostDeleted(deletedEvent);
 
+        ArgumentCaptor<List<Long>> captor = ArgumentCaptor.forClass(List.class);
+        verify(tagStatsMapper).batchUpsertTagStats(captor.capture());
+        verify(tagStatsCacheStore).evictTagStats(captor.getValue());
         verify(tagStatsCacheStore).evictHotTags();
     }
 

@@ -16,12 +16,12 @@ public interface PostFavoriteRepository {
     /**
      * 保存收藏
      */
-    void save(PostFavorite favorite);
+    boolean save(PostFavorite favorite);
 
     /**
      * 删除收藏
      */
-    void delete(Long postId, Long userId);
+    boolean delete(Long postId, Long userId);
 
     /**
      * 查询收藏记录

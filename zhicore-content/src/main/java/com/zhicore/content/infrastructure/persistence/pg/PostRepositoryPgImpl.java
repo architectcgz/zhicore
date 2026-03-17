@@ -340,13 +340,14 @@ public class PostRepositoryPgImpl implements PostRepository {
                     PostTagEntity entity = new PostTagEntity();
                     entity.setPostId(postId.getValue());  // 值对象转 Long
                     entity.setTagId(tagId.getValue());    // 值对象转 Long
+                    entity.setCreatedAt(LocalDateTime.now());
                     return entity;
                 })
                 .collect(Collectors.toList());
         
         // 批量插入
         if (!postTagList.isEmpty()) {
-            postTagMapper.insertBatch(postTagList);
+            postTagMapper.insertBatchIgnoreConflict(postTagList);
             log.debug("保存标签关联: postId={}, tagCount={}", postId.getValue(), postTagList.size());
         }
     }

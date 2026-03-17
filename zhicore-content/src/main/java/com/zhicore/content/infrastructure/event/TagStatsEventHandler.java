@@ -2,16 +2,15 @@ package com.zhicore.content.infrastructure.event;
 
 import com.zhicore.content.domain.event.PostCreatedDomainEvent;
 import com.zhicore.content.domain.event.PostDeletedEvent;
+import com.zhicore.content.domain.event.PostPurgedEvent;
+import com.zhicore.content.domain.event.PostRestoredEvent;
 import com.zhicore.content.domain.event.PostTagsUpdatedDomainEvent;
 import com.zhicore.content.application.port.store.TagStatsCacheStore;
 import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.infrastructure.persistence.pg.mapper.TagStatsEntityMyBatisMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -19,16 +18,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Tag Statistics Event Handler
- * 
- * 监听文章相关事件，异步更新 tag_stats 表和 Redis 缓存
- * 
- * 处理的事件：
- * - PostCreatedDomainEvent: 文章创建时更新相关标签的统计
- * - PostDeletedEvent: 文章删除时更新相关标签的统计
- * - PostTagsUpdatedDomainEvent: 文章标签更新时更新相关标签的统计
- * 
- * Requirements: 4.4
+ * Tag Statistics Event Handler。
+ *
+ * 基于可重放任务更新 tag_stats 表和 Redis 缓存。
  *
  * @author ZhiCore Team
  */
@@ -47,111 +39,58 @@ public class TagStatsEventHandler {
      * 
      * @param event 文章创建事件
      */
-    @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handlePostCreated(PostCreatedDomainEvent event) {
-        try {
-            log.info("Handling PostCreatedEvent for tag stats: postId={}, tagIds={}", 
-                    event.getPostId(), event.getTagIds());
+        log.info("Handling PostCreatedEvent for tag stats: postId={}, tagIds={}",
+                event.getPostId(), event.getTagIds());
 
-            if (event.getTagIds() == null || event.getTagIds().isEmpty()) {
-                log.debug("No tags to update stats for postId={}", event.getPostId());
-                return;
-            }
-
-            // 转换为 Long 类型
-            List<Long> tagIdList = convertTagIds(event.getTagIds());
-
-            // 批量更新 tag_stats 表
-            updateTagStats(tagIdList);
-
-            // 清除相关缓存
-            invalidateTagStatsCache(tagIdList);
-
-            log.info("Successfully updated tag stats for PostCreatedEvent: postId={}, tagCount={}", 
-                    event.getPostId(), event.getTagIds().size());
-
-        } catch (Exception e) {
-            log.error("Failed to handle PostCreatedEvent for tag stats: postId={}", 
-                    event.getPostId(), e);
+        if (event.getTagIds() == null || event.getTagIds().isEmpty()) {
+            log.debug("No tags to update stats for postId={}", event.getPostId());
+            return;
         }
+
+        List<Long> tagIdList = convertTagIds(event.getTagIds());
+        updateTagStats(tagIdList);
+        invalidateTagStatsCache(tagIdList);
     }
 
     /**
-     * 处理文章删除事件
-     * 
-     * 当文章删除时，需要先查询文章关联的标签，然后更新这些标签的统计数据
-     * 
-     * 注意：由于 PostDeletedEvent 不包含标签信息，这里采用简化策略：
-     * 依赖数据库的 ON DELETE CASCADE 自动删除 post_tags 记录
-     * 然后通过定时任务或手动触发重新计算所有标签的统计
-     * 
-     * @param event 文章删除事件
+     * 处理文章删除事件。
      */
-    @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handlePostDeleted(PostDeletedEvent event) {
-        try {
-            log.info("Handling PostDeletedEvent for tag stats: postId={}", event.getPostId());
-
-            // 由于 PostDeletedEvent 不包含标签信息，且 post_tags 记录已被级联删除
-            // 这里清除热门标签缓存，让下次查询时重新计算
-            invalidateHotTagsCache();
-
-            log.info("Successfully handled PostDeletedEvent for tag stats: postId={}", 
-                    event.getPostId());
-
-        } catch (Exception e) {
-            log.error("Failed to handle PostDeletedEvent for tag stats: postId={}", 
-                    event.getPostId(), e);
-        }
+        refreshTagStats(event.getPostId().toString(), event.getTagIds());
     }
 
     /**
-     * 处理文章标签更新事件
-     * 
-     * 当文章标签更新时，需要更新旧标签和新标签的统计数据
-     * 
-     * @param event 文章标签更新事件
+     * 处理文章标签更新事件。
      */
-    @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handlePostTagsUpdated(PostTagsUpdatedDomainEvent event) {
-        try {
-            log.info("Handling PostTagsUpdatedEvent for tag stats: postId={}, oldTagIds={}, newTagIds={}", 
-                    event.getPostId(), event.getOldTagIds(), event.getNewTagIds());
+        log.info("Handling PostTagsUpdatedEvent for tag stats: postId={}, oldTagIds={}, newTagIds={}",
+                event.getPostId(), event.getOldTagIds(), event.getNewTagIds());
 
-            // 收集所有受影响的标签ID（旧标签 + 新标签）
-            Set<Long> affectedTagIds = new HashSet<>();
-            
-            if (event.getOldTagIds() != null) {
-                affectedTagIds.addAll(convertTagIds(event.getOldTagIds()));
-            }
-            
-            if (event.getNewTagIds() != null) {
-                affectedTagIds.addAll(convertTagIds(event.getNewTagIds()));
-            }
-
-            if (affectedTagIds.isEmpty()) {
-                log.debug("No tags to update stats for postId={}", event.getPostId());
-                return;
-            }
-
-            List<Long> tagIdList = new ArrayList<>(affectedTagIds);
-
-            // 批量更新 tag_stats 表
-            updateTagStats(tagIdList);
-
-            // 清除相关缓存
-            invalidateTagStatsCache(tagIdList);
-
-            log.info("Successfully updated tag stats for PostTagsUpdatedEvent: postId={}, affectedTagCount={}", 
-                    event.getPostId(), affectedTagIds.size());
-
-        } catch (Exception e) {
-            log.error("Failed to handle PostTagsUpdatedEvent for tag stats: postId={}", 
-                    event.getPostId(), e);
+        Set<Long> affectedTagIds = new HashSet<>();
+        if (event.getOldTagIds() != null) {
+            affectedTagIds.addAll(convertTagIds(event.getOldTagIds()));
         }
+        if (event.getNewTagIds() != null) {
+            affectedTagIds.addAll(convertTagIds(event.getNewTagIds()));
+        }
+
+        if (affectedTagIds.isEmpty()) {
+            log.debug("No tags to update stats for postId={}", event.getPostId());
+            return;
+        }
+
+        List<Long> tagIdList = new ArrayList<>(affectedTagIds);
+        updateTagStats(tagIdList);
+        invalidateTagStatsCache(tagIdList);
+    }
+
+    public void handlePostRestored(PostRestoredEvent event) {
+        refreshTagStats(event.getPostId().toString(), event.getTagIds());
+    }
+
+    public void handlePostPurged(PostPurgedEvent event) {
+        refreshTagStats(event.getPostId().toString(), event.getTagIds());
     }
 
     /**
@@ -166,14 +105,9 @@ public class TagStatsEventHandler {
             return;
         }
 
-        try {
-            log.debug("Updating tag stats for {} tags", tagIds.size());
-            tagStatsMapper.batchUpsertTagStats(tagIds);
-            log.debug("Successfully updated tag stats for {} tags", tagIds.size());
-        } catch (Exception e) {
-            log.error("Failed to update tag stats for tagIds={}", tagIds, e);
-            throw e;
-        }
+        log.debug("Updating tag stats for {} tags", tagIds.size());
+        tagStatsMapper.batchUpsertTagStats(tagIds);
+        log.debug("Successfully updated tag stats for {} tags", tagIds.size());
     }
 
     /**
@@ -190,14 +124,8 @@ public class TagStatsEventHandler {
             return;
         }
 
-        try {
-            tagStatsCacheStore.evictTagStats(tagIds);
-            tagStatsCacheStore.evictHotTags();
-
-        } catch (Exception e) {
-            log.error("Failed to invalidate tag stats cache for tagIds={}", tagIds, e);
-            // 缓存失效失败不影响主流程，只记录日志
-        }
+        tagStatsCacheStore.evictTagStats(tagIds);
+        tagStatsCacheStore.evictHotTags();
     }
 
     /**
@@ -206,12 +134,7 @@ public class TagStatsEventHandler {
      * 清除所有 tags:hot:* 缓存键
      */
     private void invalidateHotTagsCache() {
-        try {
-            tagStatsCacheStore.evictHotTags();
-        } catch (Exception e) {
-            log.error("Failed to invalidate hot tags cache", e);
-            // 缓存失效失败不影响主流程，只记录日志
-        }
+        tagStatsCacheStore.evictHotTags();
     }
 
     /**
@@ -224,5 +147,17 @@ public class TagStatsEventHandler {
         return tagIds.stream()
                 .map(TagId::getValue)
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    private void refreshTagStats(String postId, Set<TagId> tagIds) {
+        log.info("Refreshing tag stats for postId={}, tagIds={}", postId, tagIds);
+        if (tagIds == null || tagIds.isEmpty()) {
+            invalidateHotTagsCache();
+            return;
+        }
+
+        List<Long> tagIdList = convertTagIds(tagIds);
+        updateTagStats(tagIdList);
+        invalidateTagStatsCache(tagIdList);
     }
 }
