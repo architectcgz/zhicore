@@ -2,6 +2,7 @@ package com.zhicore.user.interfaces.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.common.exception.GlobalExceptionHandler;
+import com.zhicore.user.application.dto.UserVO;
 import com.zhicore.user.application.port.UserQueryPort;
 import com.zhicore.user.application.query.view.UserSimpleView;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,19 +56,35 @@ class UserQueryControllerTest {
     }
 
     @Test
+    @DisplayName("应该成功获取用户详细信息并返回字符串ID")
+    void shouldGetUser() throws Exception {
+        UserVO user = new UserVO();
+        user.setId(1234567890123456789L);
+        user.setUserName("detail-user");
+        user.setNickName("详情用户");
+        when(userQueryPort.getUserById(1234567890123456789L)).thenReturn(user);
+
+        mockMvc.perform(get("/api/v1/users/{userId}", 1234567890123456789L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value("1234567890123456789"))
+                .andExpect(jsonPath("$.data.userName").value("detail-user"))
+                .andExpect(jsonPath("$.data.nickName").value("详情用户"));
+    }
+
+    @Test
     @DisplayName("应该成功获取用户简要信息")
     void shouldGetUserSimple() throws Exception {
         UserSimpleView view = new UserSimpleView();
-        view.setId(1L);
+        view.setId(1234567890123456789L);
         view.setUserName("testuser");
         view.setNickname("测试用户");
         view.setAvatarId("avatar-1");
         view.setProfileVersion(3L);
-        when(userQueryPort.getUserSimpleById(1L)).thenReturn(view);
+        when(userQueryPort.getUserSimpleById(1234567890123456789L)).thenReturn(view);
 
-        mockMvc.perform(get("/api/v1/users/{userId}/simple", 1L))
+        mockMvc.perform(get("/api/v1/users/{userId}/simple", 1234567890123456789L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.id").value(1))
+                .andExpect(jsonPath("$.data.id").value("1234567890123456789"))
                 .andExpect(jsonPath("$.data.userName").value("testuser"))
                 .andExpect(jsonPath("$.data.nickname").value("测试用户"))
                 .andExpect(jsonPath("$.data.avatarId").value("avatar-1"))
@@ -78,17 +95,18 @@ class UserQueryControllerTest {
     @DisplayName("应该成功批量获取用户简要信息")
     void shouldBatchGetUsersSimple() throws Exception {
         UserSimpleView view = new UserSimpleView();
-        view.setId(1L);
+        view.setId(1234567890123456789L);
         view.setUserName("testuser");
         view.setNickname("测试用户");
-        when(userQueryPort.batchGetUsersSimple(java.util.Set.of(1L))).thenReturn(java.util.Map.of(1L, view));
+        when(userQueryPort.batchGetUsersSimple(java.util.Set.of(1234567890123456789L)))
+                .thenReturn(java.util.Map.of(1234567890123456789L, view));
 
         mockMvc.perform(post("/api/v1/users/batch/simple")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(java.util.Set.of(1L))))
+                        .content(objectMapper.writeValueAsString(java.util.Set.of(1234567890123456789L))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.1.id").value(1))
-                .andExpect(jsonPath("$.data.1.userName").value("testuser"))
-                .andExpect(jsonPath("$.data.1.nickname").value("测试用户"));
+                .andExpect(jsonPath("$.data.1234567890123456789.id").value("1234567890123456789"))
+                .andExpect(jsonPath("$.data.1234567890123456789.userName").value("testuser"))
+                .andExpect(jsonPath("$.data.1234567890123456789.nickname").value("测试用户"));
     }
 }

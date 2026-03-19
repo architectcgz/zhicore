@@ -39,16 +39,17 @@ public class PostCommandController {
 
     @Operation(summary = "创建文章", description = "创建新文章，默认状态为草稿")
     @PostMapping
-    public ApiResponse<Long> createPost(@Valid @RequestBody CreatePostRequest request) {
+    public ApiResponse<String> createPost(@Valid @RequestBody CreatePostRequest request) {
         Long userId = UserContext.requireUserId();
-        return ApiResponse.success(postCommandFacade.createPost(userId, new CreatePostAppCommand(
+        Long postId = postCommandFacade.createPost(userId, new CreatePostAppCommand(
                 request.getTitle(),
                 request.getContent(),
                 request.getContentType(),
                 request.getTopicId(),
                 request.getCoverImageId(),
                 request.getTags()
-        )));
+        ));
+        return ApiResponse.success(String.valueOf(postId));
     }
 
     @Operation(summary = "更新文章", description = "更新文章内容、标题、封面等信息")

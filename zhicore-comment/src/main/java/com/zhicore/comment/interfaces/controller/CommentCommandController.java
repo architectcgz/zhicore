@@ -42,12 +42,12 @@ public class CommentCommandController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",
                     description = "创建成功，返回评论ID",
-                    content = @Content(schema = @Schema(implementation = Long.class))
+                    content = @Content(schema = @Schema(implementation = String.class))
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "参数验证失败")
     })
     @PostMapping
-    public ApiResponse<Long> createComment(
+    public ApiResponse<String> createComment(
             @Parameter(description = "评论创建请求", required = true)
             @RequestBody @Valid CreateCommentRequest request) {
         Long userId = UserContext.requireUserId();
@@ -60,7 +60,7 @@ public class CommentCommandController {
                 request.getVoiceId(),
                 request.getVoiceDuration()
         ));
-        return ApiResponse.success(commentId);
+        return ApiResponse.success(String.valueOf(commentId));
     }
 
     @Operation(summary = "更新评论", description = "更新评论内容。只有评论作者可以更新自己的评论。")

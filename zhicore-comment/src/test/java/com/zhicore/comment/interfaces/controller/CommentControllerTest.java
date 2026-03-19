@@ -2,8 +2,10 @@ package com.zhicore.comment.interfaces.controller;
 
 import com.zhicore.comment.application.command.UpdateCommentCommand;
 import com.zhicore.comment.application.dto.CommentSortType;
+import com.zhicore.comment.application.dto.CommentVO;
 import com.zhicore.comment.application.service.command.CommentCommandService;
 import com.zhicore.comment.application.service.query.CommentQueryService;
+import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.comment.interfaces.dto.request.CreateCommentRequest;
 import com.zhicore.comment.interfaces.dto.request.UpdateCommentRequest;
 import com.zhicore.common.constant.CommonConstants;
@@ -22,6 +24,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -38,6 +41,37 @@ class CommentControllerTest extends ControllerTestSupport {
 
     @Mock
     private CommentQueryService commentQueryService;
+
+    @Test
+    @DisplayName("创建评论成功时应该返回字符串评论ID")
+    void shouldCreateCommentAndReturnStringId() throws Exception {
+        CommentCommandController controller = new CommentCommandController(commentCommandService);
+        MockMvc mockMvc = buildMockMvc(controller);
+        CreateCommentRequest request = new CreateCommentRequest();
+        request.setPostId(1234567890123456789L);
+        request.setContent("测试评论");
+        when(commentCommandService.createComment(
+                1001L,
+                new com.zhicore.comment.application.command.CreateCommentCommand(
+                        1234567890123456789L,
+                        "测试评论",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                ))).thenReturn(2234567890123456789L);
+
+        try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
+            userContext.when(UserContext::requireUserId).thenReturn(1001L);
+
+            mockMvc.perform(post("/api/v1/comments")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data").value("2234567890123456789"));
+        }
+    }
 
     @Test
     @DisplayName("未登录创建评论时应该返回未授权")
@@ -118,6 +152,33 @@ class CommentControllerTest extends ControllerTestSupport {
                     .andExpect(jsonPath("$.code").value(ResultCode.COMMENT_ALREADY_DELETED.getCode()))
                     .andExpect(jsonPath("$.message").value("评论已经删除"));
         }
+    }
+
+    @Test
+    @DisplayName("获取评论详情时应该返回字符串ID")
+    void shouldGetCommentWithStringIds() throws Exception {
+        CommentQueryController controller = new CommentQueryController(commentQueryService);
+        MockMvc mockMvc = buildMockMvc(controller);
+        UserSimpleDTO author = new UserSimpleDTO();
+        author.setId(3234567890123456789L);
+        author.setUserName("author");
+        author.setNickname("作者");
+
+        CommentVO comment = CommentVO.builder()
+                .id(2234567890123456789L)
+                .postId(1234567890123456789L)
+                .rootId(1134567890123456789L)
+                .content("评论内容")
+                .author(author)
+                .build();
+        when(commentQueryService.getComment(2234567890123456789L)).thenReturn(comment);
+
+        mockMvc.perform(get("/api/v1/comments/{commentId}", 2234567890123456789L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value("2234567890123456789"))
+                .andExpect(jsonPath("$.data.postId").value("1234567890123456789"))
+                .andExpect(jsonPath("$.data.rootId").value("1134567890123456789"))
+                .andExpect(jsonPath("$.data.author.id").value("3234567890123456789"));
     }
 
     @Test

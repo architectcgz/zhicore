@@ -1,5 +1,7 @@
 package com.zhicore.user.application.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -19,6 +21,7 @@ public class UserVO {
      * 用户ID
      */
     @Schema(description = "用户ID", example = "1")
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     /**

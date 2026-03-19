@@ -47,7 +47,7 @@ public class AuthController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",
                     description = "注册成功",
-                    content = @Content(schema = @Schema(implementation = Long.class))
+                    content = @Content(schema = @Schema(implementation = String.class))
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "400",
@@ -55,7 +55,7 @@ public class AuthController {
             )
     })
     @PostMapping("/register")
-    public ApiResponse<Long> register(
+    public ApiResponse<String> register(
             @Parameter(description = "用户注册信息", required = true)
             @Valid @RequestBody RegisterRequest request) {
         Long userId = userCommandService.register(new RegisterCommand(
@@ -63,7 +63,7 @@ public class AuthController {
                 request.getEmail(),
                 request.getPassword()
         ));
-        return ApiResponse.success(userId);
+        return ApiResponse.success(String.valueOf(userId));
     }
 
     /**

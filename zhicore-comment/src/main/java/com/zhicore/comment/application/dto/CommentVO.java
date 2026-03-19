@@ -1,5 +1,7 @@
 package com.zhicore.comment.application.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import lombok.Builder;
 import lombok.Data;
@@ -19,16 +21,19 @@ public class CommentVO {
     /**
      * 评论ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     /**
      * 文章ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long postId;
 
     /**
      * 根评论ID（顶级评论为null）
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long rootId;
 
     /**

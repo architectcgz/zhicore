@@ -1,5 +1,7 @@
 package com.zhicore.content.application.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,6 +31,7 @@ public class TagStatsDTO implements Serializable {
      * 标签ID
      */
     @Schema(description = "标签ID（雪花算法生成）", example = "1234567890123456789")
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     /**

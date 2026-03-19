@@ -1,5 +1,7 @@
 package com.zhicore.content.application.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -12,8 +14,10 @@ import java.time.LocalDateTime;
 @Data
 public class PostVO {
 
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long ownerId;
 
     private String ownerName;
@@ -32,6 +36,7 @@ public class PostVO {
 
     private String status;
 
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long topicId;
 
     private String topicName;

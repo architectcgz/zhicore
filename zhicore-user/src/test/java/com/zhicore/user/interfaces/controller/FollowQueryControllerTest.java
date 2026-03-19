@@ -44,7 +44,7 @@ class FollowQueryControllerTest {
 
         mockMvc.perform(get("/api/v1/users/{userId}/follow-stats", 1L).param("currentUserId", "2"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.userId").value(1))
+                .andExpect(jsonPath("$.data.userId").value("1"))
                 .andExpect(jsonPath("$.data.followersCount").value(10))
                 .andExpect(jsonPath("$.data.followingCount").value(5));
     }

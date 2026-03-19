@@ -57,10 +57,17 @@ class TagControllerIntegrationTest extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
+        Long springBootTagId = jdbcTemplate.queryForObject(
+                "SELECT id FROM tags WHERE slug = ?",
+                Long.class,
+                "spring-boot"
+        );
+
         // 详情
         mockMvc.perform(get(TAG_BASE + "/{slug}", "spring-boot"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.id").value(String.valueOf(springBootTagId)))
                 .andExpect(jsonPath("$.data.slug").value("spring-boot"));
 
         // 列表
@@ -79,7 +86,7 @@ class TagControllerIntegrationTest extends IntegrationTestBase {
         mockMvc.perform(get(TAG_BASE + "/{slug}/posts", "spring-boot").param("page", "0").param("size", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.records[*].id", hasItem(postId.intValue())));
+                .andExpect(jsonPath("$.data.records[*].id", hasItem(String.valueOf(postId))));
     }
 
     @Test
@@ -102,11 +109,17 @@ class TagControllerIntegrationTest extends IntegrationTestBase {
         jdbcTemplate.update("DELETE FROM tag_stats");
         jdbcTemplate.update("INSERT INTO tag_stats(tag_id, post_count, updated_at) VALUES ((SELECT id FROM tags WHERE slug='java'), 10, CURRENT_TIMESTAMP)");
         jdbcTemplate.update("INSERT INTO tag_stats(tag_id, post_count, updated_at) VALUES ((SELECT id FROM tags WHERE slug='spring-boot'), 5, CURRENT_TIMESTAMP)");
+        Long javaTagId = jdbcTemplate.queryForObject(
+                "SELECT id FROM tags WHERE slug = ?",
+                Long.class,
+                "java"
+        );
 
         mockMvc.perform(get(TAG_BASE + "/hot").param("limit", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data", hasSize(greaterThanOrEqualTo(2))))
+                .andExpect(jsonPath("$.data[0].id").value(String.valueOf(javaTagId)))
                 .andExpect(jsonPath("$.data[0].slug").value("java"));
     }
 
@@ -130,7 +143,11 @@ class TagControllerIntegrationTest extends IntegrationTestBase {
             throw new AssertionError("创建文章失败，HTTP=" + status + ", body=" + response);
         }
 
-        Long postId = objectMapper.readTree(response).path("data").asLong();
+        var dataNode = objectMapper.readTree(response).path("data");
+        if (!dataNode.isTextual()) {
+            throw new AssertionError("创建文章返回的 postId 不是字符串: " + response);
+        }
+        Long postId = dataNode.asLong();
 
         mockMvc.perform(post(POST_BASE + "/{postId}/publish", postId).header(CommonConstants.HEADER_USER_ID, userId))
                 .andExpect(status().isOk())

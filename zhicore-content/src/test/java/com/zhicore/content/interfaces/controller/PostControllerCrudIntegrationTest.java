@@ -88,14 +88,14 @@ class PostControllerCrudIntegrationTest extends IntegrationTestBase {
         mockMvc.perform(get(BASE + "/{postId}", postId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.id").value(postId))
+                .andExpect(jsonPath("$.data.id").value(String.valueOf(postId)))
                 .andExpect(jsonPath("$.data.publishedAt", notNullValue()));
 
         // 列表可见（LATEST 默认 cursor 模式）
         mockMvc.perform(get(BASE).param("size", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.items[*].id", hasItem(postId.intValue())));
+                .andExpect(jsonPath("$.data.items[*].id", hasItem(String.valueOf(postId))));
 
         // 撤销发布
         mockMvc.perform(
@@ -109,7 +109,7 @@ class PostControllerCrudIntegrationTest extends IntegrationTestBase {
         mockMvc.perform(get(BASE).param("size", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.items[*].id", not(hasItem(postId.intValue()))));
+                .andExpect(jsonPath("$.data.items[*].id", not(hasItem(String.valueOf(postId)))));
     }
 
     @Test
@@ -243,7 +243,10 @@ class PostControllerCrudIntegrationTest extends IntegrationTestBase {
             throw new AssertionError("创建文章失败，HTTP=" + status + ", body=" + response);
         }
 
-        // ApiResponse<Long>：data 即 postId
-        return objectMapper.readTree(response).path("data").asLong();
+        var dataNode = objectMapper.readTree(response).path("data");
+        if (!dataNode.isTextual()) {
+            throw new AssertionError("创建文章返回的 postId 不是字符串: " + response);
+        }
+        return dataNode.asLong();
     }
 }
