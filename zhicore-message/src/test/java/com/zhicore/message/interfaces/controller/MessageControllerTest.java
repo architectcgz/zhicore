@@ -86,8 +86,10 @@ class MessageControllerTest {
         request.setContent("hello");
 
         MessageVO message = MessageVO.builder()
-                .id(1L)
-                .receiverId(2L)
+                .id(1234567890123456789L)
+                .conversationId(2234567890123456789L)
+                .senderId(3234567890123456789L)
+                .receiverId(4234567890123456789L)
                 .type(MessageType.TEXT)
                 .content("hello")
                 .build();
@@ -99,7 +101,10 @@ class MessageControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.id").value(1L))
+                .andExpect(jsonPath("$.data.id").value("1234567890123456789"))
+                .andExpect(jsonPath("$.data.conversationId").value("2234567890123456789"))
+                .andExpect(jsonPath("$.data.senderId").value("3234567890123456789"))
+                .andExpect(jsonPath("$.data.receiverId").value("4234567890123456789"))
                 .andExpect(jsonPath("$.data.content").value("hello"));
 
         verify(messageCommandService).sendMessage(eq(2L), eq(MessageType.TEXT), eq("hello"), eq(null));

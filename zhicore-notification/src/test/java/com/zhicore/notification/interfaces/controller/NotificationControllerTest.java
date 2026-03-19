@@ -1,5 +1,6 @@
 package com.zhicore.notification.interfaces.controller;
 
+import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.UnauthorizedException;
@@ -50,9 +51,10 @@ class NotificationControllerTest extends ControllerTestSupport {
         AggregatedNotificationVO item = AggregatedNotificationVO.builder()
                 .type(NotificationType.LIKE)
                 .targetType("post")
-                .targetId(101L)
+                .targetId(1234567890123456789L)
                 .totalCount(3)
                 .unreadCount(2)
+                .recentActors(java.util.List.of(buildActor(2234567890123456789L, "张三")))
                 .aggregatedContent("张三等3人赞了你的内容")
                 .build();
         when(notificationAggregationService.getAggregatedNotifications(11L, 0, 20))
@@ -68,7 +70,8 @@ class NotificationControllerTest extends ControllerTestSupport {
                     .andExpect(jsonPath("$.code").value(ResultCode.SUCCESS.getCode()))
                     .andExpect(jsonPath("$.data.records[0].type").value("LIKE"))
                     .andExpect(jsonPath("$.data.records[0].targetType").value("post"))
-                    .andExpect(jsonPath("$.data.records[0].targetId").value(101))
+                    .andExpect(jsonPath("$.data.records[0].targetId").value("1234567890123456789"))
+                    .andExpect(jsonPath("$.data.records[0].recentActors[0].id").value("2234567890123456789"))
                     .andExpect(jsonPath("$.data.records[0].aggregatedContent").value("张三等3人赞了你的内容"));
         }
     }
@@ -193,5 +196,12 @@ class NotificationControllerTest extends ControllerTestSupport {
 
         org.junit.jupiter.api.Assertions.assertEquals(1, violations.size());
         org.junit.jupiter.api.Assertions.assertEquals("每页数量不能大于100", violations.iterator().next().getMessage());
+    }
+
+    private UserSimpleDTO buildActor(Long userId, String nickname) {
+        UserSimpleDTO actor = new UserSimpleDTO();
+        actor.setId(userId);
+        actor.setNickname(nickname);
+        return actor;
     }
 }

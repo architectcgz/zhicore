@@ -77,7 +77,8 @@ class ConversationControllerTest {
         mockMvc.perform(get("/api/v1/conversations"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data[0].id").value(1L));
+                .andExpect(jsonPath("$.data[0].id").value("1"))
+                .andExpect(jsonPath("$.data[0].otherUserId").value("2"));
     }
 
     @Test

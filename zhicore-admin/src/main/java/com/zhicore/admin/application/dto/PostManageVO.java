@@ -1,5 +1,7 @@
 package com.zhicore.admin.application.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Builder;
 import lombok.Data;
 
@@ -15,6 +17,7 @@ public class PostManageVO {
     /**
      * 文章ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
     
     /**
@@ -25,6 +28,7 @@ public class PostManageVO {
     /**
      * 作者ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long authorId;
     
     /**

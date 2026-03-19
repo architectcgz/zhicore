@@ -1,5 +1,7 @@
 package com.zhicore.admin.application.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Builder;
 import lombok.Data;
 
@@ -15,16 +17,19 @@ public class ReportVO {
     /**
      * 举报ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
     
     /**
      * 举报人ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long reporterId;
     
     /**
      * 被举报用户ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long reportedUserId;
     
     /**
@@ -35,6 +40,7 @@ public class ReportVO {
     /**
      * 目标ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long targetId;
     
     /**
@@ -50,6 +56,7 @@ public class ReportVO {
     /**
      * 处理人ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long handlerId;
     
     /**

@@ -1,5 +1,7 @@
 package com.zhicore.message.application.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Builder;
 import lombok.Data;
 
@@ -17,11 +19,13 @@ public class ConversationVO {
     /**
      * 会话ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     /**
      * 对方用户ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long otherUserId;
 
     /**

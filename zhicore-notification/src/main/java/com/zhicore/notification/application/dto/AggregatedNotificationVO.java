@@ -1,5 +1,7 @@
 package com.zhicore.notification.application.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.notification.domain.model.NotificationType;
 import lombok.AllArgsConstructor;
@@ -34,6 +36,7 @@ public class AggregatedNotificationVO {
     /**
      * 目标ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long targetId;
 
     /**

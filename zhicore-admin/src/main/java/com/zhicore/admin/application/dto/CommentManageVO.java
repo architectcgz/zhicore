@@ -1,5 +1,7 @@
 package com.zhicore.admin.application.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Builder;
 import lombok.Data;
 
@@ -15,11 +17,13 @@ public class CommentManageVO {
     /**
      * 评论ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
     
     /**
      * 文章ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long postId;
     
     /**
@@ -30,6 +34,7 @@ public class CommentManageVO {
     /**
      * 用户ID
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long userId;
     
     /**

@@ -1,5 +1,7 @@
 package com.zhicore.notification.application.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.model.NotificationType;
 import lombok.Builder;
@@ -20,10 +22,13 @@ public class NotificationPushDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
     private NotificationType type;
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long actorId;
     private String targetType;
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long targetId;
     private String content;
     private LocalDateTime createdAt;
