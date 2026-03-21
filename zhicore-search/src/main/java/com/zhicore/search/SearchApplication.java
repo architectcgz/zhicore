@@ -11,7 +11,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  *
  * @author ZhiCore Team
  */
-@SpringBootApplication(scanBasePackages = {"com.ZhiCore.search", "com.zhicore.common"})
+@SpringBootApplication(scanBasePackages = {"com.zhicore.search", "com.zhicore.common"})
 @EnableDiscoveryClient
 @EnableFeignClients(clients = {
         PostServiceClient.class

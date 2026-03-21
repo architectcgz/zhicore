@@ -11,14 +11,14 @@ import org.springframework.stereotype.Component;
  * 通知聚合配置属性类
  * 
  * 用于外部化通知聚合服务的配置参数，支持通过配置文件或 Nacos 动态调整。
- * 配置前缀：ZhiCore.notification.aggregation
+ * 配置前缀：zhicore.notification.aggregation
  * 
  * @author ZhiCore Team
  */
 @Data
 @Component
 @RefreshScope
-@ConfigurationProperties(prefix = "ZhiCore.notification.aggregation")
+@ConfigurationProperties(prefix = "zhicore.notification.aggregation")
 public class NotificationAggregationProperties {
 
     /**

@@ -13,13 +13,13 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  *
  * @author ZhiCore Team
  */
-@SpringBootApplication(scanBasePackages = {"com.ZhiCore.notification", "com.zhicore.common", "com.zhicore.api"})
+@SpringBootApplication(scanBasePackages = {"com.zhicore.notification", "com.zhicore.common", "com.zhicore.api"})
 @EnableDiscoveryClient
 @EnableFeignClients(clients = {
         IdGeneratorFeignClient.class,
         UserServiceClient.class
 })
-@MapperScan("com.ZhiCore.notification.infrastructure.repository.mapper")
+@MapperScan("com.zhicore.notification.infrastructure.repository.mapper")
 public class NotificationApplication {
 
     public static void main(String[] args) {

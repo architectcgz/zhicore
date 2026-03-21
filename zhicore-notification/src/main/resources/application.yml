@@ -63,7 +63,7 @@ notification:
     warm-up-period-sec: 10
 
 # 通知聚合配置（新配置结构）
-ZhiCore:
+zhicore:
   notification:
     aggregation:
       cache:
