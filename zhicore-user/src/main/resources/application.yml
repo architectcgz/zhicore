@@ -143,8 +143,8 @@ cache:
 # 日志配置
 logging:
   level:
-    com.zhicore.user: DEBUG
-    com.zhicore.user.infrastructure.repository.mapper: DEBUG
+    com.zhicore.user: INFO
+    com.zhicore.user.infrastructure.repository.mapper: INFO
 
 # Actuator 配置
 management:

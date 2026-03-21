@@ -41,7 +41,7 @@ public class AdminUserQueryController {
             @RequestParam(value = "page", defaultValue = "1") int page,
             @Parameter(description = "每页大小", example = "20")
             @RequestParam(value = "size", defaultValue = "20") int size) {
-        log.info("Admin query users: keyword={}, status={}, page={}, size={}", keyword, status, page, size);
+        log.debug("Admin query users: keyword={}, status={}, page={}, size={}", keyword, status, page, size);
         PageResult<UserManageView> result = userManageQueryService.queryUsers(keyword, status, page, size);
         return ApiResponse.success(toManageDtoPage(result));
     }

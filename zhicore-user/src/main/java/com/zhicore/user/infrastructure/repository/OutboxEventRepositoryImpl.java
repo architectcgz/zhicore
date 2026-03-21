@@ -279,7 +279,9 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
 
         List<OutboxEvent> events = namedParameterJdbcTemplate.query(sql, params, ROW_MAPPER);
 
-        log.debug("claim 用户服务可投递 outbox 事件: workerId={}, limit={}, found={}", claimedBy, limit, events.size());
+        if (!events.isEmpty()) {
+            log.debug("claim 用户服务可投递 outbox 事件: workerId={}, limit={}, found={}", claimedBy, limit, events.size());
+        }
 
         return events;
     }

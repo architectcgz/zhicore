@@ -52,8 +52,12 @@ public class UserOutboxMetrics {
                     failedLastMinute,
                     deadLastMinute
             );
-            log.debug("User outbox metrics collected: pending={}, oldestAge={}s, dispatchRate={}/min, failureRate={}/min, deadRate={}/min",
-                    pendingCount, oldestAgeSeconds, dispatchedLastMinute, failedLastMinute, deadLastMinute);
+            if (pendingCount > 0 || dispatchedLastMinute > 0 || failedLastMinute > 0 || deadLastMinute > 0) {
+                log.debug("User outbox metrics collected: pending={}, oldestAge={}s, dispatchRate={}/min, failureRate={}/min, deadRate={}/min",
+                        pendingCount, oldestAgeSeconds, dispatchedLastMinute, failedLastMinute, deadLastMinute);
+            } else {
+                log.trace("User outbox idle snapshot: pending=0, dispatchRate=0/min, failureRate=0/min, deadRate=0/min");
+            }
         } catch (Exception e) {
             log.error("Failed to collect user outbox metrics", e);
         }

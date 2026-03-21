@@ -122,9 +122,18 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public List<User> findByConditions(String keyword, String status, int offset, int limit) {
         List<UserPO> poList = userMapper.selectByConditions(keyword, status, offset, limit);
+        if (poList.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        Set<Long> userIds = poList.stream()
+                .map(UserPO::getId)
+                .collect(java.util.stream.Collectors.toSet());
+        Map<Long, Set<Role>> rolesByUserId = roleRepository.findByUserIds(userIds);
+
         List<User> users = new ArrayList<>();
         for (UserPO po : poList) {
-            User user = toDomain(po);
+            User user = toDomain(po, rolesByUserId.getOrDefault(po.getId(), Set.of()));
             if (user != null) {
                 users.add(user);
             }
