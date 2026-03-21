@@ -159,6 +159,32 @@ public interface CommentMapper extends BaseMapper<CommentPO> {
             @Param("limit") int limit
     );
 
+    @Select("""
+            <script>
+            SELECT ranked.*
+            FROM (
+                SELECT c.*, COALESCE(cs.like_count, 0) as like_count,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY c.root_id
+                           ORDER BY COALESCE(cs.like_count, 0) DESC, c.created_at ASC, c.id ASC
+                       ) as rn
+                FROM comments c
+                LEFT JOIN comment_stats cs ON c.id = cs.comment_id
+                WHERE c.root_id IN
+                <foreach collection="rootIds" item="rootId" open="(" separator="," close=")">
+                    #{rootId}
+                </foreach>
+                AND c.parent_id IS NOT NULL AND c.status = 0
+            ) ranked
+            WHERE ranked.rn &lt;= #{limit}
+            ORDER BY ranked.root_id ASC, ranked.rn ASC
+            </script>
+            """)
+    List<CommentPO> findHotRepliesByRootIds(
+            @Param("rootIds") List<Long> rootIds,
+            @Param("limit") int limit
+    );
+
     // ==================== 管理员查询 ====================
 
     @Select("""

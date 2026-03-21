@@ -150,6 +150,16 @@ public class CommentRepositoryImpl implements CommentRepository {
         return poList.stream().map(this::toDomain).collect(Collectors.toList());
     }
 
+    @Override
+    public List<Comment> findHotRepliesByRootIds(List<Long> rootIds, int limit) {
+        if (rootIds == null || rootIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<CommentPO> poList = commentMapper.findHotRepliesByRootIds(rootIds, limit);
+        return poList.stream().map(this::toDomain).collect(Collectors.toList());
+    }
+
     // ========== 统计查询 ==========
 
     @Override

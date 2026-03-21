@@ -87,6 +87,11 @@ public interface CommentRepository {
      */
     List<Comment> findHotRepliesByRootId(Long rootId, int limit);
 
+    /**
+     * 按根评论批量查询热门回复，避免列表页产生 N+1 查询。
+     */
+    List<Comment> findHotRepliesByRootIds(List<Long> rootIds, int limit);
+
     // ========== 统计查询 ==========
 
     /**

@@ -4,8 +4,10 @@ import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.ForbiddenException;
 import com.zhicore.common.exception.UnauthorizedException;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.ranking.application.dto.HotPostCandidatesDTO;
 import com.zhicore.ranking.application.dto.RankingReplayResultDTO;
 import com.zhicore.ranking.application.service.HotPostDetailService;
+import com.zhicore.ranking.application.service.RankingHotPostCandidateService;
 import com.zhicore.ranking.application.service.RankingLedgerReplayService;
 import com.zhicore.ranking.application.service.query.CreatorRankingQueryService;
 import com.zhicore.ranking.application.service.query.PostRankingQueryService;
@@ -47,6 +49,9 @@ class RankingControllerTest {
     @Mock
     private RankingLedgerReplayService rankingLedgerReplayService;
 
+    @Mock
+    private RankingHotPostCandidateService rankingHotPostCandidateService;
+
     @Test
     @DisplayName("周榜接口应拒绝不存在的第 53 周")
     void weeklyEndpointShouldRejectInvalidWeek53() {
@@ -56,6 +61,7 @@ class RankingControllerTest {
                 creatorRankingService,
                 topicRankingService,
                 rankingLedgerReplayService,
+                rankingHotPostCandidateService,
                 rankingProperties()
         );
 
@@ -75,6 +81,7 @@ class RankingControllerTest {
                 creatorRankingService,
                 topicRankingService,
                 rankingLedgerReplayService,
+                rankingHotPostCandidateService,
                 rankingProperties()
         );
         when(postRankingService.getWeeklyHotPostsWithScore(2020, 53, 20))
@@ -96,6 +103,7 @@ class RankingControllerTest {
                 creatorRankingService,
                 topicRankingService,
                 rankingLedgerReplayService,
+                rankingHotPostCandidateService,
                 rankingProperties()
         );
         try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
@@ -120,6 +128,7 @@ class RankingControllerTest {
                 creatorRankingService,
                 topicRankingService,
                 rankingLedgerReplayService,
+                rankingHotPostCandidateService,
                 rankingProperties()
         );
         try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
@@ -139,6 +148,7 @@ class RankingControllerTest {
                 creatorRankingService,
                 topicRankingService,
                 rankingLedgerReplayService,
+                rankingHotPostCandidateService,
                 rankingProperties()
         );
         try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
@@ -148,6 +158,32 @@ class RankingControllerTest {
             assertThrows(ForbiddenException.class, controller::rebuildFromLedger);
             verify(rankingLedgerReplayService, never()).rebuildFromLedger();
         }
+    }
+
+    @Test
+    @DisplayName("热门候选集接口应返回候选快照")
+    void hotCandidatesEndpointShouldReturnSnapshot() {
+        RankingController controller = new RankingController(
+                postRankingService,
+                hotPostDetailService,
+                creatorRankingService,
+                topicRankingService,
+                rankingLedgerReplayService,
+                rankingHotPostCandidateService,
+                rankingProperties()
+        );
+        HotPostCandidatesDTO candidates = HotPostCandidatesDTO.builder()
+                .version("v1")
+                .candidateSize(2)
+                .stale(false)
+                .build();
+        when(rankingHotPostCandidateService.getCandidates()).thenReturn(candidates);
+
+        ApiResponse<HotPostCandidatesDTO> response = controller.getHotPostCandidates();
+
+        assertEquals(200, response.getCode());
+        assertEquals("v1", response.getData().getVersion());
+        verify(rankingHotPostCandidateService).getCandidates();
     }
 
     private RankingProperties rankingProperties() {

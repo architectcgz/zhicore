@@ -141,6 +141,8 @@ class RankingRedisKeysTest {
     @DisplayName("常量Key值正确")
     void constantKeys() {
         assertEquals(NS + ":ranking:posts:hot", RankingRedisKeys.hotPosts());
+        assertEquals(NS + ":ranking:posts:hot:candidates", RankingRedisKeys.hotPostCandidates());
+        assertEquals(NS + ":ranking:posts:hot:candidates:meta", RankingRedisKeys.hotPostCandidatesMeta());
         assertEquals(NS + ":ranking:creators:hot", RankingRedisKeys.hotCreators());
         assertEquals(NS + ":ranking:topics:hot", RankingRedisKeys.hotTopics());
     }

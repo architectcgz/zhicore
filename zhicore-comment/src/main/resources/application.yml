@@ -33,7 +33,6 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
       id-type: input
@@ -53,6 +52,11 @@ cache:
 comment:
   max-content-length: 2000
   hot-replies-limit: 3      # 预加载热门回复数量
+  homepage-cache:
+    ttl-seconds: 30
+    ttl-jitter-seconds: 3
+    ranking-sync-initial-delay-ms: 5000
+    ranking-sync-interval-ms: 30000
   outbox:
     batch-size: 50
     worker-count: 4

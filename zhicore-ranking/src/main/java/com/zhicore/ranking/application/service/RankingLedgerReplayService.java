@@ -33,6 +33,7 @@ public class RankingLedgerReplayService {
     private final RankingSnapshotService snapshotService;
     private final RankingReplayBarrierService replayBarrierService;
     private final LockManager lockManager;
+    private final RankingHotPostCandidateService rankingHotPostCandidateService;
 
     public int rebuildFromLedger() {
         List<String> acquiredLocks = acquireReplayLocks();
@@ -43,6 +44,7 @@ public class RankingLedgerReplayService {
             int replayed = replayLedgerIntoBuckets();
             int flushedBuckets = flushAllBucketsWithoutRedis();
             snapshotService.refreshActiveSnapshots();
+            refreshHotCandidatesAfterReplay();
 
             log.info("ranking ledger 全量补算完成: replayedEvents={}, flushedBuckets={}", replayed, flushedBuckets);
             return replayed;
@@ -123,5 +125,13 @@ public class RankingLedgerReplayService {
                 RankingRedisKeys.schedulerLock("ranking-ledger-flush"),
                 RankingRedisKeys.schedulerLock("ranking-snapshot-refresh")
         );
+    }
+
+    private void refreshHotCandidatesAfterReplay() {
+        try {
+            rankingHotPostCandidateService.refreshCandidates();
+        } catch (Exception e) {
+            log.warn("ranking ledger 全量补算后刷新热门文章候选集失败，保留旧结果", e);
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.zhicore.comment;
 
 import com.zhicore.api.client.IdGeneratorFeignClient;
 import com.zhicore.comment.infrastructure.feign.PostServiceClient;
+import com.zhicore.comment.infrastructure.feign.RankingServiceClient;
 import com.zhicore.comment.infrastructure.feign.UserServiceClient;
 import com.zhicore.comment.infrastructure.feign.ZhiCoreUploadClient;
 import org.mybatis.spring.annotation.MapperScan;
@@ -22,6 +23,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableFeignClients(clients = {
         IdGeneratorFeignClient.class,
         PostServiceClient.class,
+        RankingServiceClient.class,
         UserServiceClient.class,
         ZhiCoreUploadClient.class
 })

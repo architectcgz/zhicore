@@ -1,5 +1,7 @@
 package com.zhicore.comment.infrastructure.cache;
 
+import com.zhicore.comment.application.dto.CommentSortType;
+
 /**
  * 评论服务 Redis Key 定义
  * 
@@ -76,6 +78,30 @@ public final class CommentRedisKeys {
      */
     public static String replies(Long rootId) {
         return PREFIX + ":" + rootId + ":replies";
+    }
+
+    /**
+     * 首页评论快照缓存。
+     * Key: comment:post:{postId}:homepage:{sort}:{size}:{replyLimit}
+     */
+    public static String homepageSnapshot(Long postId, CommentSortType sortType, int size, int hotRepliesLimit) {
+        return PREFIX + ":post:" + postId + ":homepage:" + sortType.name().toLowerCase() + ":" + size + ":" + hotRepliesLimit;
+    }
+
+    /**
+     * ranking 热门文章候选集。
+     * Key: comment:ranking:posts:hot:candidates
+     */
+    public static String rankingHotPostCandidates() {
+        return PREFIX + ":ranking:posts:hot:candidates";
+    }
+
+    /**
+     * ranking 热门文章候选集元信息。
+     * Key: comment:ranking:posts:hot:candidates:meta
+     */
+    public static String rankingHotPostCandidatesMeta() {
+        return PREFIX + ":ranking:posts:hot:candidates:meta";
     }
 
     // ==================== 分布式锁 ====================

@@ -108,6 +108,12 @@ ranking:
   snapshot:
     refresh-interval: 3600000
     top-size: 10000
+  candidate:
+    posts:
+      enabled: true
+      size: 200
+      refresh-interval: 60000
+      stale-threshold: 180000
   pipeline:
     bucket-window-seconds: 10
     flush-delay-seconds: 10

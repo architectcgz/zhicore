@@ -45,6 +45,9 @@ class RankingLedgerReplayServiceTest {
     @Mock
     private LockManager lockManager;
 
+    @Mock
+    private RankingHotPostCandidateService rankingHotPostCandidateService;
+
     private RankingLedgerReplayService service;
 
     @BeforeEach
@@ -58,7 +61,8 @@ class RankingLedgerReplayServiceTest {
                 flushService,
                 snapshotService,
                 replayBarrierService,
-                lockManager
+                lockManager,
+                rankingHotPostCandidateService
         );
     }
 
@@ -90,6 +94,7 @@ class RankingLedgerReplayServiceTest {
         verify(repository).accumulateBucket(eq(third), eq(LocalDateTime.of(2026, 3, 15, 9, 0, 30)));
         verify(flushService, times(3)).flushPendingBuckets(false);
         verify(snapshotService).refreshActiveSnapshots();
+        verify(rankingHotPostCandidateService).refreshCandidates();
         verify(lockManager).unlock(RankingRedisKeys.schedulerLock("ranking-snapshot-refresh"));
         verify(lockManager).unlock(RankingRedisKeys.schedulerLock("ranking-ledger-flush"));
         verify(lockManager).unlock(RankingRedisKeys.replayLock());
