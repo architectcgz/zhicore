@@ -6,8 +6,10 @@ import com.zhicore.content.application.sentinel.ContentSentinelResources;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.cloud.context.environment.EnvironmentChangeEvent;
 
 import java.util.Collections;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -89,5 +91,41 @@ class ContentSentinelConfigTest {
                 .anyMatch(rule -> ContentSentinelResources.GET_POST_LIST.equals(rule.getResource())));
         assertTrue(FlowRuleManager.getRules().stream()
                 .anyMatch(rule -> ContentSentinelResources.GET_POST_CONTENT.equals(rule.getResource())));
+    }
+
+    @Test
+    @DisplayName("相关配置变更后应该重新加载规则")
+    void shouldReloadRulesWhenRelevantConfigurationChanges() {
+        ContentSentinelProperties properties = new ContentSentinelProperties();
+        ContentSentinelConfig config = new ContentSentinelConfig(properties);
+
+        config.initFlowRules();
+        properties.setPostDetailQps(1234);
+
+        config.onEnvironmentChange(new EnvironmentChangeEvent(Set.of("content.sentinel.post-detail-qps")));
+
+        assertEquals(1234.0, FlowRuleManager.getRules().stream()
+                .filter(rule -> ContentSentinelResources.GET_POST_DETAIL.equals(rule.getResource()))
+                .findFirst()
+                .orElseThrow()
+                .getCount());
+    }
+
+    @Test
+    @DisplayName("RefreshScope 刷新后应该重新加载规则")
+    void shouldReloadRulesWhenRefreshScopeRefreshed() {
+        ContentSentinelProperties properties = new ContentSentinelProperties();
+        ContentSentinelConfig config = new ContentSentinelConfig(properties);
+
+        config.initFlowRules();
+        properties.setPostDetailQps(4321);
+
+        config.onRefreshScopeRefreshed();
+
+        assertEquals(4321.0, FlowRuleManager.getRules().stream()
+                .filter(rule -> ContentSentinelResources.GET_POST_DETAIL.equals(rule.getResource()))
+                .findFirst()
+                .orElseThrow()
+                .getCount());
     }
 }

@@ -16,6 +16,11 @@ ranking:
     - hot
     - new
     - trending
+  sentinel:
+    hot-posts-qps: 1000
+    creator-qps: 500
+    topic-qps: 500
+    warm-up-period-sec: 30
 
 cache:
   ttl:

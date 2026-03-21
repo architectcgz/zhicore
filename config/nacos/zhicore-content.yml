@@ -42,3 +42,24 @@ rocketmq:
 zhicore:
   id-generator:
     server-url: ${ID_GENERATOR_SERVER_URL:http://localhost:8011}
+
+content:
+  sentinel:
+    enabled: true
+    post-detail-qps: 300
+    post-list-qps: 200
+    post-content-qps: 150
+    tag-detail-qps: 200
+    tag-list-qps: 150
+    tag-search-qps: 150
+    tag-posts-qps: 120
+    hot-tags-qps: 120
+    post-liked-qps: 250
+    batch-post-liked-qps: 150
+    post-like-count-qps: 250
+    post-favorited-qps: 250
+    batch-post-favorited-qps: 150
+    post-favorite-count-qps: 250
+    admin-query-posts-qps: 100
+    outbox-failed-qps: 80
+    warm-up-period-sec: 10

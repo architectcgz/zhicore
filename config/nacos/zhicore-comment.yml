@@ -5,3 +5,17 @@
 zhicore:
   id-generator:
     server-url: ${ID_GENERATOR_SERVER_URL:http://localhost:8011}
+
+comment:
+  sentinel:
+    enabled: true
+    comment-detail-qps: 200
+    top-level-page-qps: 150
+    top-level-cursor-qps: 250
+    replies-page-qps: 150
+    replies-cursor-qps: 250
+    comment-liked-qps: 300
+    batch-comment-liked-qps: 200
+    comment-like-count-qps: 300
+    admin-query-comments-qps: 120
+    warm-up-period-sec: 10

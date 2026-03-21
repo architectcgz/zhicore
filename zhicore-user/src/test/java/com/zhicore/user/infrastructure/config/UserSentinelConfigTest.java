@@ -5,8 +5,10 @@ import com.zhicore.user.application.sentinel.UserSentinelResources;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.cloud.context.environment.EnvironmentChangeEvent;
 
 import java.util.Collections;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -69,5 +71,41 @@ class UserSentinelConfigTest {
                 .count();
 
         assertEquals(1L, detailRules);
+    }
+
+    @Test
+    @DisplayName("相关配置变更后应该重新加载规则")
+    void shouldReloadRulesWhenRelevantConfigurationChanges() {
+        UserSentinelProperties properties = new UserSentinelProperties();
+        UserSentinelConfig config = new UserSentinelConfig(properties);
+
+        config.initFlowRules();
+        properties.setUserDetailQps(1234);
+
+        config.onEnvironmentChange(new EnvironmentChangeEvent(Set.of("user.sentinel.user-detail-qps")));
+
+        assertEquals(1234.0, FlowRuleManager.getRules().stream()
+                .filter(rule -> UserSentinelResources.GET_USER_DETAIL.equals(rule.getResource()))
+                .findFirst()
+                .orElseThrow()
+                .getCount());
+    }
+
+    @Test
+    @DisplayName("RefreshScope 刷新后应该重新加载规则")
+    void shouldReloadRulesWhenRefreshScopeRefreshed() {
+        UserSentinelProperties properties = new UserSentinelProperties();
+        UserSentinelConfig config = new UserSentinelConfig(properties);
+
+        config.initFlowRules();
+        properties.setUserDetailQps(4321);
+
+        config.onRefreshScopeRefreshed();
+
+        assertEquals(4321.0, FlowRuleManager.getRules().stream()
+                .filter(rule -> UserSentinelResources.GET_USER_DETAIL.equals(rule.getResource()))
+                .findFirst()
+                .orElseThrow()
+                .getCount());
     }
 }

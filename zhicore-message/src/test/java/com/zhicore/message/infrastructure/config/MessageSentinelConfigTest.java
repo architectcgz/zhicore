@@ -6,8 +6,10 @@ import com.zhicore.message.infrastructure.sentinel.MessageRoutes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.cloud.context.environment.EnvironmentChangeEvent;
 
 import java.util.Collections;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -58,5 +60,41 @@ class MessageSentinelConfigTest {
 
         assertEquals(1L, unreadRouteRules);
         assertEquals(1L, rules);
+    }
+
+    @Test
+    @DisplayName("相关配置变更后应该重新加载规则")
+    void shouldReloadRulesWhenRelevantConfigurationChanges() {
+        MessageSentinelProperties properties = new MessageSentinelProperties();
+        MessageSentinelConfig config = new MessageSentinelConfig(properties);
+
+        config.initFlowRules();
+        properties.setConversationListQps(1234);
+
+        config.onEnvironmentChange(new EnvironmentChangeEvent(Set.of("message.sentinel.conversation-list-qps")));
+
+        assertEquals(1234.0, FlowRuleManager.getRules().stream()
+                .filter(rule -> MessageSentinelResources.GET_CONVERSATION_LIST.equals(rule.getResource()))
+                .findFirst()
+                .orElseThrow()
+                .getCount());
+    }
+
+    @Test
+    @DisplayName("RefreshScope 刷新后应该重新加载规则")
+    void shouldReloadRulesWhenRefreshScopeRefreshed() {
+        MessageSentinelProperties properties = new MessageSentinelProperties();
+        MessageSentinelConfig config = new MessageSentinelConfig(properties);
+
+        config.initFlowRules();
+        properties.setConversationListQps(4321);
+
+        config.onRefreshScopeRefreshed();
+
+        assertEquals(4321.0, FlowRuleManager.getRules().stream()
+                .filter(rule -> MessageSentinelResources.GET_CONVERSATION_LIST.equals(rule.getResource()))
+                .findFirst()
+                .orElseThrow()
+                .getCount());
     }
 }

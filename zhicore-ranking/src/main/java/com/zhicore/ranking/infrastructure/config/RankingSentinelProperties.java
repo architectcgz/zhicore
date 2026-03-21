@@ -7,8 +7,7 @@ import org.springframework.stereotype.Component;
 /**
  * 排行榜 Sentinel 限流配置
  *
- * <p>支持通过 Nacos 覆盖默认值，修改后需重启生效。
- * 如需运行时热更新，后续可改为监听 RefreshScopeRefreshedEvent 重新加载规则。</p>
+ * <p>支持通过 Nacos 覆盖默认值，配置变更后会重新加载 Sentinel 规则。</p>
  */
 @Data
 @Component

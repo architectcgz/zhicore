@@ -1,0 +1,12 @@
+# Message Service Configuration
+# Nacos DataId: zhicore-message.yml
+# Group: ZHICORE-SERVICE
+
+message:
+  sentinel:
+    enabled: true
+    conversation-list-qps: 200
+    conversation-detail-qps: 300
+    message-history-qps: 250
+    unread-count-qps: 400
+    warm-up-period-sec: 10

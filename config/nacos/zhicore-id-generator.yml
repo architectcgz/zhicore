@@ -13,6 +13,12 @@ id-generator:
     batch-fetch-size: ${ID_GENERATOR_BATCH_FETCH_SIZE:50}
     async-refill: ${ID_GENERATOR_ASYNC_REFILL:true}
     buffer-enabled: ${ID_GENERATOR_BUFFER_ENABLED:true}
+  sentinel:
+    enabled: true
+    snowflake-qps: 500
+    batch-snowflake-qps: 200
+    segment-qps: 300
+    warm-up-period-sec: 5
 
 logging:
   level:

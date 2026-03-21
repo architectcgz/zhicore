@@ -13,6 +13,13 @@ admin:
     - "1"
   audit-log-retention-days: 90
   operation-timeout-seconds: 30
+  sentinel:
+    enabled: true
+    user-list-qps: 5000
+    post-list-qps: 5000
+    comment-list-qps: 5000
+    report-list-qps: 5000
+    warm-up-period-sec: 0
 
 cache:
   ttl:

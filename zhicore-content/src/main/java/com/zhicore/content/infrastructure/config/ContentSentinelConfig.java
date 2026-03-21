@@ -9,6 +9,8 @@ import com.zhicore.content.infrastructure.sentinel.ContentRoutes;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.cloud.context.environment.EnvironmentChangeEvent;
+import org.springframework.cloud.context.scope.refresh.RefreshScopeRefreshedEvent;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -24,6 +26,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @Configuration
 public class ContentSentinelConfig {
+
+    private static final String CONFIG_PREFIX = "content.sentinel";
 
     private final ContentSentinelProperties properties;
 
@@ -86,6 +90,21 @@ public class ContentSentinelConfig {
                 missingRules.stream().map(FlowRule::getResource).toList());
     }
 
+    @EventListener(EnvironmentChangeEvent.class)
+    public void onEnvironmentChange(EnvironmentChangeEvent event) {
+        if (!hasRelevantChange(event)) {
+            return;
+        }
+        log.info("检测到文章服务 Sentinel 配置变更，重新加载热点读接口规则: {}", event.getKeys());
+        initFlowRules();
+    }
+
+    @EventListener(RefreshScopeRefreshedEvent.class)
+    public void onRefreshScopeRefreshed() {
+        log.info("检测到文章服务 RefreshScope 刷新事件，重新加载热点读接口 Sentinel 规则");
+        initFlowRules();
+    }
+
     private List<FlowRule> buildLocalRules() {
         List<FlowRule> rules = new ArrayList<>();
         rules.add(buildQpsRule(ContentRoutes.TAGS_HOT, properties.getHotTagsQps()));
@@ -130,5 +149,10 @@ public class ContentSentinelConfig {
                 .setCount(qps)
                 .setControlBehavior(RuleConstant.CONTROL_BEHAVIOR_WARM_UP)
                 .setWarmUpPeriodSec(properties.getWarmUpPeriodSec());
+    }
+
+    private boolean hasRelevantChange(EnvironmentChangeEvent event) {
+        return event.getKeys().stream()
+                .anyMatch(key -> key.equals(CONFIG_PREFIX) || key.startsWith(CONFIG_PREFIX + "."));
     }
 }
