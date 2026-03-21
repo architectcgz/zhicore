@@ -25,6 +25,7 @@ file-service:
   client:
     server-url: ${FILE_SERVICE_URL:http://localhost:8089}
     tenant-id: ${FILE_SERVICE_TENANT_ID:zhicore}
+    token: ${FILE_SERVICE_TOKEN:}
     connect-timeout: 10000
     read-timeout: 30000
     max-connections: 50

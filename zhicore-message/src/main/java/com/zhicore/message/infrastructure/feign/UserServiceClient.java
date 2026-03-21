@@ -8,6 +8,10 @@ import org.springframework.cloud.openfeign.FeignClient;
  *
  * @author ZhiCore Team
  */
-@FeignClient(name = "zhicore-user", fallbackFactory = UserServiceFallbackFactory.class)
+@FeignClient(
+        name = "zhicore-user",
+        url = "${ZHICORE_USER_URL:http://zhicore-user:8081}",
+        fallbackFactory = UserServiceFallbackFactory.class
+)
 public interface UserServiceClient extends UserMessagingClient {
 }

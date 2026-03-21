@@ -49,6 +49,7 @@ file-service:
   client:
     server-url: ${FILE_SERVICE_URL:http://localhost:8089}
     tenant-id: ${FILE_SERVICE_TENANT_ID:zhicore}
+    token: ${FILE_SERVICE_TOKEN:}
     
     # 连接设置
     connect-timeout: 10000
