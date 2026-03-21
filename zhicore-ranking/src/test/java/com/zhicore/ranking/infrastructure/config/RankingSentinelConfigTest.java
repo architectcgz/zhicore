@@ -31,6 +31,8 @@ class RankingSentinelConfigTest {
         assertTrue(FlowRuleManager.getRules().stream()
                 .anyMatch(rule -> (RankingRoutes.PREFIX + "/posts/hot").equals(rule.getResource())));
         assertTrue(FlowRuleManager.getRules().stream()
+                .anyMatch(rule -> (RankingRoutes.PREFIX + "/posts/hot/candidates").equals(rule.getResource())));
+        assertTrue(FlowRuleManager.getRules().stream()
                 .anyMatch(rule -> (RankingRoutes.POSTS_ID + "/rank").equals(rule.getResource())));
         assertTrue(FlowRuleManager.getRules().stream()
                 .anyMatch(rule -> (RankingRoutes.CREATORS_ID + "/score").equals(rule.getResource())));

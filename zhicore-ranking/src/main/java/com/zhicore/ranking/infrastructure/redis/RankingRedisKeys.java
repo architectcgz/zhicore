@@ -37,6 +37,22 @@ public final class RankingRedisKeys {
     }
 
     /**
+     * 热门文章候选集。
+     * Key: ranking:posts:hot:candidates
+     */
+    public static String hotPostCandidates() {
+        return prefix() + ":posts:hot:candidates";
+    }
+
+    /**
+     * 热门文章候选集元信息。
+     * Key: ranking:posts:hot:candidates:meta
+     */
+    public static String hotPostCandidatesMeta() {
+        return prefix() + ":posts:hot:candidates:meta";
+    }
+
+    /**
      * 热门文章日榜
      * Key: ranking:posts:daily:{date}
      * 

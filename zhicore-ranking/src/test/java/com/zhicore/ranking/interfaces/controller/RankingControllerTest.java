@@ -4,8 +4,11 @@ import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.ForbiddenException;
 import com.zhicore.common.exception.UnauthorizedException;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.ranking.application.dto.HotPostCandidateItemDTO;
+import com.zhicore.ranking.application.dto.HotPostCandidatesDTO;
 import com.zhicore.ranking.application.dto.RankingReplayResultDTO;
 import com.zhicore.ranking.application.service.HotPostDetailService;
+import com.zhicore.ranking.application.service.RankingHotPostCandidateService;
 import com.zhicore.ranking.application.service.RankingLedgerReplayService;
 import com.zhicore.ranking.application.service.query.CreatorRankingQueryService;
 import com.zhicore.ranking.application.service.query.PostRankingQueryService;
@@ -47,6 +50,9 @@ class RankingControllerTest {
     @Mock
     private RankingLedgerReplayService rankingLedgerReplayService;
 
+    @Mock
+    private RankingHotPostCandidateService rankingHotPostCandidateService;
+
     @Test
     @DisplayName("周榜接口应拒绝不存在的第 53 周")
     void weeklyEndpointShouldRejectInvalidWeek53() {
@@ -56,6 +62,7 @@ class RankingControllerTest {
                 creatorRankingService,
                 topicRankingService,
                 rankingLedgerReplayService,
+                rankingHotPostCandidateService,
                 rankingProperties()
         );
 
@@ -75,6 +82,7 @@ class RankingControllerTest {
                 creatorRankingService,
                 topicRankingService,
                 rankingLedgerReplayService,
+                rankingHotPostCandidateService,
                 rankingProperties()
         );
         when(postRankingService.getWeeklyHotPostsWithScore(2020, 53, 20))
@@ -96,6 +104,7 @@ class RankingControllerTest {
                 creatorRankingService,
                 topicRankingService,
                 rankingLedgerReplayService,
+                rankingHotPostCandidateService,
                 rankingProperties()
         );
         try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
@@ -120,6 +129,7 @@ class RankingControllerTest {
                 creatorRankingService,
                 topicRankingService,
                 rankingLedgerReplayService,
+                rankingHotPostCandidateService,
                 rankingProperties()
         );
         try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
@@ -139,6 +149,7 @@ class RankingControllerTest {
                 creatorRankingService,
                 topicRankingService,
                 rankingLedgerReplayService,
+                rankingHotPostCandidateService,
                 rankingProperties()
         );
         try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
@@ -148,6 +159,38 @@ class RankingControllerTest {
             assertThrows(ForbiddenException.class, controller::rebuildFromLedger);
             verify(rankingLedgerReplayService, never()).rebuildFromLedger();
         }
+    }
+
+    @Test
+    @DisplayName("热门文章候选集接口应返回候选集快照")
+    void getHotPostCandidatesShouldReturnSnapshot() {
+        RankingController controller = new RankingController(
+                postRankingService,
+                hotPostDetailService,
+                creatorRankingService,
+                topicRankingService,
+                rankingLedgerReplayService,
+                rankingHotPostCandidateService,
+                rankingProperties()
+        );
+        HotPostCandidatesDTO snapshot = HotPostCandidatesDTO.builder()
+                .version("v20260321")
+                .candidateSize(2)
+                .stale(false)
+                .items(List.of(
+                        HotPostCandidateItemDTO.builder().postId("1001").rank(1).score(98.5D).build(),
+                        HotPostCandidateItemDTO.builder().postId("1002").rank(2).score(87.0D).build()
+                ))
+                .build();
+        when(rankingHotPostCandidateService.getCandidates()).thenReturn(snapshot);
+
+        ApiResponse<HotPostCandidatesDTO> response = controller.getHotPostCandidates();
+
+        assertEquals(200, response.getCode());
+        assertEquals("v20260321", response.getData().getVersion());
+        assertEquals(2, response.getData().getCandidateSize());
+        assertEquals("1001", response.getData().getItems().get(0).getPostId());
+        verify(rankingHotPostCandidateService).getCandidates();
     }
 
     private RankingProperties rankingProperties() {

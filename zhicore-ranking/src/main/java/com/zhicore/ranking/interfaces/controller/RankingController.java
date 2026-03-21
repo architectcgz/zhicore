@@ -5,9 +5,11 @@ import com.zhicore.common.exception.ForbiddenException;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.util.IsoWeekUtils;
 import com.zhicore.ranking.application.dto.HotPostDTO;
+import com.zhicore.ranking.application.dto.HotPostCandidatesDTO;
 import com.zhicore.ranking.application.dto.RankingReplayResultDTO;
 import com.zhicore.ranking.application.service.query.CreatorRankingQueryService;
 import com.zhicore.ranking.application.service.HotPostDetailService;
+import com.zhicore.ranking.application.service.RankingHotPostCandidateService;
 import com.zhicore.ranking.application.service.RankingLedgerReplayService;
 import com.zhicore.ranking.application.service.query.PostRankingQueryService;
 import com.zhicore.ranking.application.service.query.TopicRankingQueryService;
@@ -44,6 +46,7 @@ public class RankingController {
     private final CreatorRankingQueryService creatorRankingService;
     private final TopicRankingQueryService topicRankingService;
     private final RankingLedgerReplayService rankingLedgerReplayService;
+    private final RankingHotPostCandidateService rankingHotPostCandidateService;
     private final RankingProperties rankingProperties;
 
     // ==================== 文章排行榜 ====================
@@ -142,6 +145,22 @@ public class RankingController {
         size = Math.min(size, rankingProperties.getMaxSize());
         List<HotScore> scores = postRankingService.getHotPostsWithScore(page, size);
         return ApiResponse.success(scores);
+    }
+
+    @Operation(
+            summary = "获取热门文章候选集",
+            description = "直接读取热门文章候选集快照，返回候选版本、生成时间、候选数量和候选文章列表"
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "获取成功",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+            )
+    })
+    @GetMapping("/posts/hot/candidates")
+    public ApiResponse<HotPostCandidatesDTO> getHotPostCandidates() {
+        return ApiResponse.success(rankingHotPostCandidateService.getCandidates());
     }
 
     /**

@@ -38,6 +38,7 @@ public class RankingSentinelConfig {
         // 文章排行榜：固定路径接口
         for (String url : List.of(
                 p + "/posts/hot",
+                p + "/posts/hot/candidates",
                 p + "/posts/hot/details",
                 p + "/posts/hot/scores",
                 p + "/posts/daily",

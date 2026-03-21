@@ -11,7 +11,9 @@ import com.zhicore.comment.application.port.event.CommentIntegrationEventPort;
 import com.zhicore.comment.application.port.store.CommentCounterStore;
 import com.zhicore.comment.application.port.store.CommentDetailCacheStore;
 import com.zhicore.comment.application.service.command.CommentCommandService;
+import com.zhicore.comment.application.service.query.CommentHomepageCacheService;
 import com.zhicore.comment.application.service.query.CommentQueryService;
+import com.zhicore.comment.application.service.query.CommentViewAssembler;
 import com.zhicore.comment.domain.cursor.HotCursorCodec;
 import com.zhicore.comment.domain.cursor.TimeCursorCodec;
 import com.zhicore.comment.domain.model.Comment;
@@ -74,6 +76,8 @@ class CommentApplicationServiceTest {
     @Mock private HotCursorCodec hotCursorCodec;
     @Mock private TimeCursorCodec timeCursorCodec;
     @Mock private TransactionTemplate transactionTemplate;
+    @Mock private CommentViewAssembler commentViewAssembler;
+    @Mock private CommentHomepageCacheService commentHomepageCacheService;
 
     private CommentCommandService commandService;
     private CommentQueryService queryService;
@@ -91,7 +95,7 @@ class CommentApplicationServiceTest {
                 idGeneratorFeignClient, transactionTemplate, new TransactionCommitSignal()
         );
         queryService = new CommentQueryService(
-                commentRepository, commentDetailCacheService, userServiceClient,
+                commentRepository, commentDetailCacheService, commentViewAssembler, commentHomepageCacheService,
                 hotCursorCodec, timeCursorCodec
         );
 
@@ -368,7 +372,12 @@ class CommentApplicationServiceTest {
             user.setId(USER_ID);
             user.setNickname("测试用户");
             when(commentDetailCacheService.findById(COMMENT_ID)).thenReturn(Optional.of(createTopLevelComment()));
-            when(userServiceClient.getUserSimple(USER_ID)).thenReturn(ApiResponse.success(user));
+            when(commentViewAssembler.assembleCommentVO(any(Comment.class)))
+                    .thenReturn(com.zhicore.comment.application.dto.CommentVO.builder()
+                            .id(COMMENT_ID)
+                            .content("顶级评论")
+                            .author(user)
+                            .build());
 
             var vo = queryService.getComment(COMMENT_ID);
 
@@ -381,8 +390,12 @@ class CommentApplicationServiceTest {
         @DisplayName("用户服务失败时不返回伪造作者")
         void shouldNotFabricateAuthorWhenUserServiceUnavailable() {
             when(commentDetailCacheService.findById(COMMENT_ID)).thenReturn(Optional.of(createTopLevelComment()));
-            when(userServiceClient.getUserSimple(USER_ID))
-                    .thenReturn(ApiResponse.fail(ResultCode.SERVICE_UNAVAILABLE, "用户服务暂时不可用"));
+            when(commentViewAssembler.assembleCommentVO(any(Comment.class)))
+                    .thenReturn(com.zhicore.comment.application.dto.CommentVO.builder()
+                            .id(COMMENT_ID)
+                            .content("顶级评论")
+                            .author(null)
+                            .build());
 
             var vo = queryService.getComment(COMMENT_ID);
 

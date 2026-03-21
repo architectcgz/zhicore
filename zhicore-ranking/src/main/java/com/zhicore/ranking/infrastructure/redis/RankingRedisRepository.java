@@ -1,9 +1,12 @@
 package com.zhicore.ranking.infrastructure.redis;
 
+import com.zhicore.ranking.application.model.HotPostCandidateMeta;
 import com.zhicore.ranking.domain.model.HotScore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.data.redis.connection.ReturnType;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -15,9 +18,12 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -270,6 +276,38 @@ public class RankingRedisRepository {
         redisTemplate.delete(key);
     }
 
+    /**
+     * 写入字符串值。
+     *
+     * @param key Redis Key
+     * @param value 字符串值
+     */
+    public void setString(String key, String value) {
+        redisTemplate.opsForValue().set(key, value);
+    }
+
+    /**
+     * 读取字符串值。
+     *
+     * @param key Redis Key
+     * @return 字符串值，不存在时返回 null
+     */
+    public String getString(String key) {
+        Object value = redisTemplate.opsForValue().get(key);
+        return value != null ? value.toString() : null;
+    }
+
+    /**
+     * 获取有序集合大小。
+     *
+     * @param key Redis Key
+     * @return 成员数量
+     */
+    public long getSortedSetSize(String key) {
+        Long size = redisTemplate.opsForZSet().zCard(key);
+        return size != null ? size : 0L;
+    }
+
     // ==================== 文章排行榜操作 ====================
 
     /**
@@ -407,6 +445,56 @@ public class RankingRedisRepository {
         return getTopRanking(key, 0, limit - 1);
     }
 
+    /**
+     * 替换热门文章候选集及其元数据。
+     */
+    public void replaceHotPostCandidates(List<HotScore> entries, HotPostCandidateMeta meta) {
+        replaceRankingAndMetaAtomic(
+                RankingRedisKeys.hotPostCandidates(),
+                entries,
+                RankingRedisKeys.hotPostCandidatesMeta(),
+                serializeHotPostCandidateMeta(meta)
+        );
+    }
+
+    /**
+     * 读取热门文章候选集。
+     */
+    public List<HotScore> getHotPostCandidates(int limit) {
+        return getTopRanking(RankingRedisKeys.hotPostCandidates(), 0, limit - 1);
+    }
+
+    /**
+     * 读取热门文章候选集元数据。
+     */
+    public HotPostCandidateMeta getHotPostCandidateMeta() {
+        Map<Object, Object> rawMeta = redisTemplate.opsForHash().entries(RankingRedisKeys.hotPostCandidatesMeta());
+        if (rawMeta == null || rawMeta.isEmpty()) {
+            return null;
+        }
+
+        return HotPostCandidateMeta.builder()
+                .version(readString(rawMeta, "version"))
+                .generatedAt(parseInstant(readString(rawMeta, "generatedAt")))
+                .candidateSize(parseInt(readString(rawMeta, "candidateSize")))
+                .sourceKey(readString(rawMeta, "sourceKey"))
+                .sourceCount(parseLong(readString(rawMeta, "sourceCount")))
+                .minScore(parseDouble(readString(rawMeta, "minScore")))
+                .stale(Boolean.parseBoolean(readString(rawMeta, "stale")))
+                .build();
+    }
+
+    /**
+     * 更新候选集 stale 标记。
+     */
+    public void updateHotPostCandidateStale(boolean stale) {
+        redisTemplate.opsForHash().put(
+                RankingRedisKeys.hotPostCandidatesMeta(),
+                "stale",
+                Boolean.toString(stale)
+        );
+    }
+
     // ==================== 创作者排行榜操作 ====================
 
     /**
@@ -517,6 +605,74 @@ public class RankingRedisRepository {
      */
     public void releaseViewDedup(String postId, String userId) {
         redisTemplate.delete(RankingRedisKeys.viewDedup(postId, userId));
+    }
+
+    private void replaceRankingAndMetaAtomic(String rankingKey,
+                                             List<HotScore> entries,
+                                             String metaKey,
+                                             Map<String, String> metaFields) {
+        String rankingTmpKey = rankingKey + ":tmp:" + java.util.UUID.randomUUID();
+        String metaTmpKey = metaKey + ":tmp:" + java.util.UUID.randomUUID();
+        try {
+            if (entries != null && !entries.isEmpty()) {
+                for (HotScore entry : entries) {
+                    redisTemplate.opsForZSet().add(rankingTmpKey, entry.getEntityId(), entry.getScore());
+                }
+            }
+            redisTemplate.opsForHash().putAll(metaTmpKey, metaFields);
+
+            redisTemplate.execute(new SessionCallback<List<Object>>() {
+                @Override
+                @SuppressWarnings("unchecked")
+                public List<Object> execute(RedisOperations operations) {
+                    operations.multi();
+                    if (entries == null || entries.isEmpty()) {
+                        operations.delete(rankingKey);
+                    } else {
+                        operations.rename(rankingTmpKey, rankingKey);
+                    }
+                    operations.rename(metaTmpKey, metaKey);
+                    return operations.exec();
+                }
+            });
+        } catch (Exception e) {
+            redisTemplate.delete(rankingTmpKey);
+            redisTemplate.delete(metaTmpKey);
+            throw e;
+        }
+    }
+
+    private Map<String, String> serializeHotPostCandidateMeta(HotPostCandidateMeta meta) {
+        Map<String, String> metaFields = new LinkedHashMap<>();
+        metaFields.put("version", meta.getVersion());
+        metaFields.put("generatedAt", meta.getGeneratedAt().toString());
+        metaFields.put("candidateSize", Integer.toString(meta.getCandidateSize()));
+        metaFields.put("sourceKey", meta.getSourceKey());
+        metaFields.put("sourceCount", Long.toString(meta.getSourceCount()));
+        metaFields.put("minScore", Double.toString(meta.getMinScore()));
+        metaFields.put("stale", Boolean.toString(meta.isStale()));
+        return metaFields;
+    }
+
+    private String readString(Map<Object, Object> rawMeta, String field) {
+        Object value = rawMeta.get(field);
+        return value != null ? value.toString() : null;
+    }
+
+    private Instant parseInstant(String value) {
+        return value != null ? Instant.parse(value) : null;
+    }
+
+    private int parseInt(String value) {
+        return value != null ? Integer.parseInt(value) : 0;
+    }
+
+    private long parseLong(String value) {
+        return value != null ? Long.parseLong(value) : 0L;
+    }
+
+    private double parseDouble(String value) {
+        return value != null ? Double.parseDouble(value) : 0D;
     }
 
     /**

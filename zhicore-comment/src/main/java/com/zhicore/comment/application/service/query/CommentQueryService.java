@@ -1,8 +1,6 @@
 package com.zhicore.comment.application.service.query;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
-import com.zhicore.api.client.UserSimpleBatchClient;
-import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.comment.application.dto.CommentSortType;
 import com.zhicore.comment.application.dto.CommentVO;
 import com.zhicore.comment.application.dto.CursorPage;
@@ -14,39 +12,30 @@ import com.zhicore.comment.domain.cursor.HotCursorCodec.HotCursor;
 import com.zhicore.comment.domain.cursor.TimeCursorCodec;
 import com.zhicore.comment.domain.cursor.TimeCursorCodec.TimeCursor;
 import com.zhicore.comment.domain.model.Comment;
-import com.zhicore.comment.domain.model.CommentStats;
 import com.zhicore.comment.domain.repository.CommentRepository;
 import com.zhicore.common.constant.CommonConstants;
 import com.zhicore.common.exception.BusinessException;
-import com.zhicore.common.result.ApiResponse;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.common.result.ResultCode;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 评论读服务。
  *
  * 负责评论详情和列表查询，不承载任何写操作。
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CommentQueryService {
 
     private final CommentRepository commentRepository;
     private final CommentDetailCacheService commentDetailCacheService;
-    private final UserSimpleBatchClient userServiceClient;
+    private final CommentViewAssembler commentViewAssembler;
+    private final CommentHomepageCacheService commentHomepageCacheService;
     private final HotCursorCodec hotCursorCodec;
     private final TimeCursorCodec timeCursorCodec;
 
@@ -66,7 +55,7 @@ public class CommentQueryService {
         Comment comment = commentDetailCacheService.findById(commentId)
                 .orElseThrow(() -> new BusinessException(ResultCode.COMMENT_NOT_FOUND));
 
-        return assembleCommentVO(comment);
+        return commentViewAssembler.assembleCommentVO(comment);
     }
 
     /**
@@ -80,16 +69,14 @@ public class CommentQueryService {
     @Transactional(readOnly = true)
     public PageResult<CommentVO> getTopLevelCommentsByPage(Long postId, int page, int size, CommentSortType sortType) {
         validateTraditionalPaginationWindow(page, size);
-        PageResult<Comment> commentPage;
-
-        if (sortType == CommentSortType.HOT) {
-            commentPage = commentRepository.findTopLevelByPostIdOrderByLikesPage(postId, page, size);
-        } else {
-            commentPage = commentRepository.findTopLevelByPostIdOrderByTimePage(postId, page, size);
-        }
-
-        List<CommentVO> voList = assembleCommentVOList(commentPage.getRecords());
-        return PageResult.of(page, size, commentPage.getTotal(), voList);
+        return commentHomepageCacheService.getTopLevelCommentsPage(
+                postId,
+                page,
+                size,
+                sortType,
+                commentViewAssembler.getHotRepliesLimit(),
+                () -> queryTopLevelCommentsByPage(postId, page, size, sortType)
+        );
     }
 
     /**
@@ -127,7 +114,7 @@ public class CommentQueryService {
             }
         }
 
-        List<CommentVO> voList = assembleCommentVOList(comments);
+        List<CommentVO> voList = commentViewAssembler.assembleCommentVOList(comments);
         return CursorPage.of(voList, nextCursor, nextCursor != null);
     }
 
@@ -144,7 +131,7 @@ public class CommentQueryService {
         validateTraditionalPaginationWindow(page, size);
         PageResult<Comment> replyPage = commentRepository.findRepliesByRootIdPage(rootId, page, size);
 
-        List<CommentVO> voList = assembleReplyVOList(replyPage.getRecords());
+        List<CommentVO> voList = commentViewAssembler.assembleReplyVOList(replyPage.getRecords());
         return PageResult.of(page, size, replyPage.getTotal(), voList);
     }
 
@@ -170,7 +157,7 @@ public class CommentQueryService {
             nextCursor = timeCursorCodec.encode(lastReply);
         }
 
-        List<CommentVO> voList = assembleReplyVOList(replies);
+        List<CommentVO> voList = commentViewAssembler.assembleReplyVOList(replies);
         return CursorPage.of(voList, nextCursor, hasMore);
     }
 
@@ -184,135 +171,14 @@ public class CommentQueryService {
         }
     }
 
-    private CommentVO assembleCommentVO(Comment comment) {
-        UserSimpleDTO author = fetchUserOrNull(comment.getAuthorId());
-
-        UserSimpleDTO replyToUser = null;
-        if (comment.getReplyToUserId() != null) {
-            replyToUser = fetchUserOrNull(comment.getReplyToUserId());
+    private PageResult<CommentVO> queryTopLevelCommentsByPage(Long postId, int page, int size, CommentSortType sortType) {
+        PageResult<Comment> commentPage;
+        if (sortType == CommentSortType.HOT) {
+            commentPage = commentRepository.findTopLevelByPostIdOrderByLikesPage(postId, page, size);
+        } else {
+            commentPage = commentRepository.findTopLevelByPostIdOrderByTimePage(postId, page, size);
         }
-
-        return CommentVO.builder()
-                .id(comment.getId())
-                .postId(comment.getPostId())
-                .rootId(comment.isTopLevel() ? null : comment.getRootId())
-                .content(comment.getContent())
-                .imageIds(comment.getImageIds())
-                .voiceId(comment.getVoiceId())
-                .voiceDuration(comment.getVoiceDuration())
-                .author(author)
-                .replyToUser(replyToUser)
-                .likeCount(comment.getStats().getLikeCount())
-                .replyCount(comment.getStats().getReplyCount())
-                .createdAt(comment.getCreatedAt())
-                .liked(false)
-                .build();
-    }
-
-    private List<CommentVO> assembleCommentVOList(List<Comment> comments) {
-        if (comments.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        Set<Long> authorIds = comments.stream()
-                .map(Comment::getAuthorId)
-                .collect(Collectors.toSet());
-        Map<Long, UserSimpleDTO> userMap = batchGetUsers(authorIds);
-
-        List<Long> commentIds = comments.stream().map(Comment::getId).toList();
-        Map<Long, CommentStats> statsMap = commentRepository.batchGetStats(commentIds);
-        Map<Long, List<CommentVO>> hotRepliesMap = preloadHotReplies(commentIds);
-
-        return comments.stream()
-                .map(comment -> {
-                    CommentVO vo = CommentVO.builder()
-                            .id(comment.getId())
-                            .postId(comment.getPostId())
-                            .content(comment.getContent())
-                            .imageIds(comment.getImageIds())
-                            .voiceId(comment.getVoiceId())
-                            .voiceDuration(comment.getVoiceDuration())
-                            .author(userMap.get(comment.getAuthorId()))
-                            .likeCount(statsMap.getOrDefault(comment.getId(), CommentStats.empty()).getLikeCount())
-                            .replyCount(statsMap.getOrDefault(comment.getId(), CommentStats.empty()).getReplyCount())
-                            .createdAt(comment.getCreatedAt())
-                            .liked(false)
-                            .build();
-                    vo.setHotReplies(hotRepliesMap.getOrDefault(comment.getId(), Collections.emptyList()));
-                    return vo;
-                })
-                .collect(Collectors.toList());
-    }
-
-    private Map<Long, List<CommentVO>> preloadHotReplies(List<Long> rootIds) {
-        if (rootIds.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        Map<Long, List<CommentVO>> result = new HashMap<>();
-        for (Long rootId : rootIds) {
-            List<Comment> hotReplies = commentRepository.findHotRepliesByRootId(rootId, 3);
-            if (!hotReplies.isEmpty()) {
-                result.put(rootId, assembleReplyVOList(hotReplies));
-            }
-        }
-        return result;
-    }
-
-    private List<CommentVO> assembleReplyVOList(List<Comment> replies) {
-        if (replies.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        Set<Long> userIds = new HashSet<>();
-        replies.forEach(reply -> {
-            userIds.add(reply.getAuthorId());
-            if (reply.getReplyToUserId() != null) {
-                userIds.add(reply.getReplyToUserId());
-            }
-        });
-        Map<Long, UserSimpleDTO> userMap = batchGetUsers(userIds);
-
-        return replies.stream()
-                .map(reply -> CommentVO.builder()
-                        .id(reply.getId())
-                        .postId(reply.getPostId())
-                        .rootId(reply.getRootId())
-                        .content(reply.getContent())
-                        .imageIds(reply.getImageIds())
-                        .voiceId(reply.getVoiceId())
-                        .voiceDuration(reply.getVoiceDuration())
-                        .author(userMap.get(reply.getAuthorId()))
-                        .replyToUser(reply.getReplyToUserId() != null ? userMap.get(reply.getReplyToUserId()) : null)
-                        .likeCount(reply.getStats().getLikeCount())
-                        .createdAt(reply.getCreatedAt())
-                        .liked(false)
-                        .build())
-                .collect(Collectors.toList());
-    }
-
-    private Map<Long, UserSimpleDTO> batchGetUsers(Set<Long> userIds) {
-        if (userIds.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        try {
-            ApiResponse<Map<Long, UserSimpleDTO>> response = userServiceClient.batchGetUsersSimple(userIds);
-            return response != null && response.isSuccess() && response.getData() != null
-                    ? response.getData()
-                    : Collections.emptyMap();
-        } catch (Exception e) {
-            log.warn("批量获取评论用户信息失败: userIds={}, error={}", userIds, e.getMessage());
-            return Collections.emptyMap();
-        }
-    }
-
-    private UserSimpleDTO fetchUserOrNull(Long userId) {
-        try {
-            ApiResponse<UserSimpleDTO> response = userServiceClient.getUserSimple(userId);
-            return response != null && response.isSuccess() ? response.getData() : null;
-        } catch (Exception e) {
-            log.warn("获取评论用户信息失败: userId={}, error={}", userId, e.getMessage());
-            return null;
-        }
+        List<CommentVO> voList = commentViewAssembler.assembleCommentVOList(commentPage.getRecords());
+        return PageResult.of(page, size, commentPage.getTotal(), voList);
     }
 }
