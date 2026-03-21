@@ -13,6 +13,10 @@ id-generator:
     batch-fetch-size: ${ID_GENERATOR_BATCH_FETCH_SIZE:50}
     async-refill: ${ID_GENERATOR_ASYNC_REFILL:true}
     buffer-enabled: ${ID_GENERATOR_BUFFER_ENABLED:true}
+  proxy-cache:
+    snowflake-capacity: ${ID_GENERATOR_PROXY_SNOWFLAKE_CAPACITY:512}
+    snowflake-refill-threshold: ${ID_GENERATOR_PROXY_SNOWFLAKE_REFILL_THRESHOLD:128}
+    snowflake-prefetch-batch-size: ${ID_GENERATOR_PROXY_SNOWFLAKE_PREFETCH_BATCH_SIZE:256}
   sentinel:
     enabled: true
     snowflake-qps: 500
