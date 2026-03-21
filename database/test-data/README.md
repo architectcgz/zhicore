@@ -116,6 +116,30 @@ cd ZhiCore-microservice/database/test-data/scripts
 .\Generate-TestData.ps1
 ```
 
+### 快速插入一组固定联调数据
+
+如果你只需要一组可重复执行、便于后端联调的最小数据集，可以直接执行仓库里的固定种子脚本：
+
+```bash
+cd ZhiCore-microservice
+
+# PostgreSQL: 用户、关注、文章、标签、互动、评论、私信
+docker exec -i shared-postgres psql -U postgres -d postgres < database/test-data/sql/seed-backend-smoke-data.sql
+
+# MongoDB: 文章读模型与正文
+docker exec -i zhicore-mongodb mongosh -u admin -p mongo123456 --authenticationDatabase admin < database/test-data/scripts/seed-backend-smoke-data.mongo.js
+```
+
+这组数据会插入以下固定账号与内容：
+
+- `test_seed_admin`
+- `test_seed_author`
+- `test_seed_moderator`
+- `test_seed_reader_a`
+- `test_seed_reader_b`
+
+并补齐 3 篇文章、4 条评论、1 个私信会话以及对应的 MongoDB 文章详情数据。
+
 ### 自定义生成
 
 可以使用参数自定义生成行为：

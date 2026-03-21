@@ -264,6 +264,12 @@ CREATE INDEX IF NOT EXISTS idx_comments_root ON comments(root_id);
 CREATE INDEX IF NOT EXISTS idx_comments_parent ON comments(parent_id);
 CREATE INDEX IF NOT EXISTS idx_comments_post_status ON comments(post_id, status);
 CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_comments_post_top_time_active
+    ON comments(post_id, created_at DESC, id DESC)
+    WHERE parent_id IS NULL AND status = 0;
+CREATE INDEX IF NOT EXISTS idx_comments_root_reply_time_active
+    ON comments(root_id, created_at ASC, id ASC)
+    WHERE parent_id IS NOT NULL AND status = 0;
 
 COMMENT ON COLUMN comments.image_ids IS '评论图片文件ID数组（UUIDv7格式）';
 COMMENT ON COLUMN comments.voice_id IS '评论语音文件ID（UUIDv7格式）';

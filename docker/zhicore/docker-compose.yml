@@ -33,6 +33,8 @@ x-common-env: &common-env
   ES_HOST: ${ES_HOST}
   ES_PORT: ${ES_PORT}
   FILE_SERVICE_URL: ${FILE_SERVICE_URL}
+  FILE_SERVICE_TOKEN: ${FILE_SERVICE_TOKEN:-}
+  ID_GENERATOR_SERVER_URL: ${ID_GENERATOR_SERVER_URL:-http://zhicore-id-generator:8088}
 
 services:
   zhicore-gateway:
@@ -58,7 +60,6 @@ services:
       <<: *common-env
       SPRING_APPLICATION_NAME: zhicore-user
       SERVER_PORT: 8081
-      ID_GENERATOR_SERVER_URL: http://zhicore-id-generator:8088
       FILE_SERVICE_URL: ${FILE_SERVICE_URL}
     depends_on:
       - zhicore-id-generator
@@ -76,7 +77,6 @@ services:
       SPRING_APPLICATION_NAME: zhicore-content
       SERVER_PORT: 8082
       DB_NAME: zhicore_content
-      ID_GENERATOR_SERVER_URL: http://zhicore-id-generator:8088
       FILE_SERVICE_URL: ${FILE_SERVICE_URL}
     depends_on:
       - zhicore-id-generator
@@ -93,7 +93,6 @@ services:
       <<: *common-env
       SPRING_APPLICATION_NAME: zhicore-comment
       SERVER_PORT: 8083
-      ID_GENERATOR_SERVER_URL: http://zhicore-id-generator:8088
       FILE_SERVICE_URL: ${FILE_SERVICE_URL}
     depends_on:
       - zhicore-id-generator
@@ -143,7 +142,6 @@ services:
       <<: *common-env
       SPRING_APPLICATION_NAME: zhicore-notification
       SERVER_PORT: 8085
-      ID_GENERATOR_SERVER_URL: http://zhicore-id-generator:8088
     depends_on:
       - zhicore-id-generator
     ports:
@@ -204,7 +202,6 @@ services:
       <<: *common-env
       SPRING_APPLICATION_NAME: zhicore-admin
       SERVER_PORT: 8090
-      ID_GENERATOR_SERVER_URL: http://zhicore-id-generator:8088
     depends_on:
       - zhicore-user
       - zhicore-content
