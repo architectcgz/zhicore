@@ -1,0 +1,163 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: service_capacity.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 120 max VUs, 40s max duration (incl. graceful stop):
+              * stepped_capacity: Up to 120 looping VUs for 35s over 5 stages (gracefulRampDown: 5s, gracefulStop: 30s)
+
+
+running (01.0s), 013/120 VUs, 325 complete and 0 interrupted iterations
+stepped_capacity   [   3% ] 013/120 VUs  01.0s/35.0s
+
+running (02.8s), 017/120 VUs, 626 complete and 0 interrupted iterations
+stepped_capacity   [   6% ] 017/120 VUs  02.0s/35.0s
+
+running (05.1s), 021/120 VUs, 1010 complete and 0 interrupted iterations
+stepped_capacity   [   8% ] 021/120 VUs  03.0s/35.0s
+
+running (06.1s), 025/120 VUs, 1360 complete and 0 interrupted iterations
+stepped_capacity   [  11% ] 025/120 VUs  04.0s/35.0s
+
+running (07.1s), 029/120 VUs, 1733 complete and 0 interrupted iterations
+stepped_capacity   [  14% ] 029/120 VUs  05.0s/35.0s
+
+running (08.1s), 035/120 VUs, 2087 complete and 0 interrupted iterations
+stepped_capacity   [  17% ] 035/120 VUs  06.0s/35.0s
+
+running (09.1s), 041/120 VUs, 2492 complete and 0 interrupted iterations
+stepped_capacity   [  20% ] 041/120 VUs  07.0s/35.0s
+
+running (10.1s), 047/120 VUs, 2864 complete and 0 interrupted iterations
+stepped_capacity   [  23% ] 047/120 VUs  08.0s/35.0s
+
+running (11.1s), 053/120 VUs, 3263 complete and 0 interrupted iterations
+stepped_capacity   [  26% ] 053/120 VUs  09.0s/35.0s
+
+running (12.1s), 059/120 VUs, 3666 complete and 0 interrupted iterations
+stepped_capacity   [  28% ] 059/120 VUs  10.0s/35.0s
+
+running (13.1s), 065/120 VUs, 3992 complete and 0 interrupted iterations
+stepped_capacity   [  31% ] 065/120 VUs  11.0s/35.0s
+
+running (14.1s), 071/120 VUs, 4393 complete and 0 interrupted iterations
+stepped_capacity   [  34% ] 071/120 VUs  12.0s/35.0s
+
+running (15.1s), 077/120 VUs, 4774 complete and 0 interrupted iterations
+stepped_capacity   [  37% ] 077/120 VUs  13.0s/35.0s
+
+running (16.1s), 083/120 VUs, 5178 complete and 0 interrupted iterations
+stepped_capacity   [  40% ] 083/120 VUs  14.0s/35.0s
+
+running (17.1s), 089/120 VUs, 5549 complete and 0 interrupted iterations
+stepped_capacity   [  43% ] 089/120 VUs  15.0s/35.0s
+
+running (18.1s), 095/120 VUs, 5931 complete and 0 interrupted iterations
+stepped_capacity   [  46% ] 095/120 VUs  16.0s/35.0s
+
+running (19.1s), 101/120 VUs, 6163 complete and 0 interrupted iterations
+stepped_capacity   [  48% ] 101/120 VUs  17.0s/35.0s
+
+running (20.1s), 107/120 VUs, 6570 complete and 0 interrupted iterations
+stepped_capacity   [  51% ] 107/120 VUs  18.0s/35.0s
+
+running (21.1s), 113/120 VUs, 6983 complete and 0 interrupted iterations
+stepped_capacity   [  54% ] 113/120 VUs  19.0s/35.0s
+
+running (22.1s), 119/120 VUs, 7378 complete and 0 interrupted iterations
+stepped_capacity   [  57% ] 119/120 VUs  20.0s/35.0s
+
+running (23.1s), 114/120 VUs, 7781 complete and 0 interrupted iterations
+stepped_capacity   [  60% ] 114/120 VUs  21.0s/35.0s
+
+running (24.1s), 105/120 VUs, 8202 complete and 0 interrupted iterations
+stepped_capacity   [  63% ] 105/120 VUs  22.0s/35.0s
+
+running (25.1s), 099/120 VUs, 8598 complete and 0 interrupted iterations
+stepped_capacity   [  66% ] 099/120 VUs  23.0s/35.0s
+
+running (26.1s), 090/120 VUs, 9008 complete and 0 interrupted iterations
+stepped_capacity   [  68% ] 090/120 VUs  24.0s/35.0s
+
+running (27.1s), 081/120 VUs, 9435 complete and 0 interrupted iterations
+stepped_capacity   [  71% ] 081/120 VUs  25.0s/35.0s
+
+running (28.1s), 074/120 VUs, 9864 complete and 0 interrupted iterations
+stepped_capacity   [  74% ] 074/120 VUs  26.0s/35.0s
+
+running (29.1s), 066/120 VUs, 10286 complete and 0 interrupted iterations
+stepped_capacity   [  77% ] 066/120 VUs  27.0s/35.0s
+
+running (30.1s), 057/120 VUs, 10718 complete and 0 interrupted iterations
+stepped_capacity   [  80% ] 057/120 VUs  28.0s/35.0s
+
+running (31.1s), 049/120 VUs, 11144 complete and 0 interrupted iterations
+stepped_capacity   [  83% ] 049/120 VUs  29.0s/35.0s
+
+running (32.1s), 041/120 VUs, 11529 complete and 0 interrupted iterations
+stepped_capacity   [  86% ] 041/120 VUs  30.0s/35.0s
+
+running (33.1s), 033/120 VUs, 11972 complete and 0 interrupted iterations
+stepped_capacity   [  88% ] 033/120 VUs  31.0s/35.0s
+
+running (36.0s), 025/120 VUs, 12346 complete and 0 interrupted iterations
+stepped_capacity   [  91% ] 025/120 VUs  32.0s/35.0s
+
+running (37.0s), 017/120 VUs, 12750 complete and 0 interrupted iterations
+stepped_capacity   [  94% ] 017/120 VUs  33.0s/35.0s
+
+running (38.0s), 009/120 VUs, 13115 complete and 0 interrupted iterations
+stepped_capacity   [  97% ] 009/120 VUs  34.0s/35.0s
+
+running (39.0s), 001/120 VUs, 13540 complete and 0 interrupted iterations
+stepped_capacity   [ 100% ] 001/120 VUs  35.0s/35.0s
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate>0.99' rate=100.00%
+
+    http_req_duration
+    ✓ 'p(95)<1500' p(95)=346.92ms
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 13554   347.608551/s
+    checks_succeeded...: 100.00% 13554 out of 13554
+    checks_failed......: 0.00%   0 out of 13554
+
+    ✓ status is 200
+
+    HTTP
+    http_req_duration..............: avg=163.36ms min=2.45ms med=141.66ms max=1.35s   p(90)=282.3ms p(95)=346.92ms p(99)=602.48ms
+      { expected_response:true }...: avg=163.36ms min=2.45ms med=141.66ms max=1.35s   p(90)=282.3ms p(95)=346.92ms p(99)=602.48ms
+    http_req_failed................: 0.00%  0 out of 13554
+    http_reqs......................: 13554  347.608551/s
+
+    EXECUTION
+    iteration_duration.............: avg=157.21ms min=2.53ms med=140.21ms max=724.8ms p(90)=278.8ms p(95)=327.56ms p(99)=536.22ms
+    iterations.....................: 13554  347.608551/s
+    vus............................: 1      min=1          max=119
+    vus_max........................: 120    min=120        max=120
+
+    NETWORK
+    data_received..................: 3.1 MB 80 kB/s
+    data_sent......................: 1.2 MB 31 kB/s
+
+
+
+
+running (39.0s), 000/120 VUs, 13554 complete and 0 interrupted iterations
+stepped_capacity ✓ [ 100% ] 000/120 VUs  35s
