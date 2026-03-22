@@ -6,7 +6,7 @@ import com.zhicore.comment.application.dto.CommentSortType;
  * 评论服务 Redis Key 定义
  * 
  * 命名规范：{service}:{id}:{entity}:{field}
- * 示例：comment:123:detail, comment:123:stats:likes
+ * 示例：comment:123:detail:v2, comment:123:stats:likes
  *
  * @author ZhiCore Team
  */
@@ -18,10 +18,10 @@ public final class CommentRedisKeys {
 
     /**
      * 评论详情缓存
-     * Key: comment:{commentId}:detail
+     * Key: comment:{commentId}:detail:v2
      */
     public static String detail(Long commentId) {
-        return PREFIX + ":" + commentId + ":detail";
+        return PREFIX + ":" + commentId + ":detail:v2";
     }
 
     /**

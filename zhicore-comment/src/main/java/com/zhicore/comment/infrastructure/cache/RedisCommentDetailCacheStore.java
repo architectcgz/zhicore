@@ -31,14 +31,15 @@ public class RedisCommentDetailCacheStore implements CommentDetailCacheStore {
         if (CacheConstants.isNullMarker(cached)) {
             return CacheResult.nullValue();
         }
-        return CacheResult.hit(objectMapper.convertValue(cached, Comment.class));
+        CommentDetailCacheSnapshot snapshot = objectMapper.convertValue(cached, CommentDetailCacheSnapshot.class);
+        return CacheResult.hit(snapshot.toDomain());
     }
 
     @Override
     public void set(Long commentId, Comment comment, Duration ttl) {
         redisTemplate.opsForValue().set(
                 CommentRedisKeys.detail(commentId),
-                comment,
+                CommentDetailCacheSnapshot.from(comment),
                 ttl.toSeconds(),
                 TimeUnit.SECONDS
         );
