@@ -29,4 +29,10 @@ public class CommentHomepageCacheProperties {
 
     @Min(0)
     private long accessRecordIntervalMs = 1000;
+
+    @Min(0)
+    private long peerBackfillMaxWaitMs = 200;
+
+    @Min(1)
+    private long peerBackfillPollIntervalMs = 20;
 }

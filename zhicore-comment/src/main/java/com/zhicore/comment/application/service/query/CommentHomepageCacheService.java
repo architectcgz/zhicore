@@ -18,8 +18,10 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
 
 /**
@@ -95,13 +97,12 @@ public class CommentHomepageCacheService {
                                                        Supplier<PageResult<CommentVO>> loader) {
         String lockKey = commentCacheKeyResolver.lockHomepageSnapshot(postId, sortType, size, hotRepliesLimit);
         boolean fair = cacheProperties.getLock().isFair();
-        Duration waitTime = Duration.ofSeconds(cacheProperties.getLock().getWaitTime());
+        Duration waitTime = Duration.ZERO;
         Duration leaseTime = Duration.ofSeconds(cacheProperties.getLock().getLeaseTime());
 
         boolean acquired = lockManager.tryLock(lockKey, waitTime, leaseTime, fair);
         if (!acquired) {
-            return commentHomepageCacheStore.get(postId, sortType, size, hotRepliesLimit)
-                    .orElseGet(loader);
+            return waitForPeerBackfill(postId, size, sortType, hotRepliesLimit, loader);
         }
 
         try {
@@ -133,6 +134,51 @@ public class CommentHomepageCacheService {
             log.warn("回填首页评论缓存失败: postId={}, sort={}, error={}", postId, sortType, e.getMessage());
         }
         return snapshot;
+    }
+
+    private PageResult<CommentVO> waitForPeerBackfill(Long postId,
+                                                      int size,
+                                                      CommentSortType sortType,
+                                                      int hotRepliesLimit,
+                                                      Supplier<PageResult<CommentVO>> loader) {
+        Optional<PageResult<CommentVO>> snapshot = tryReadCachedSnapshot(postId, size, sortType, hotRepliesLimit);
+        if (snapshot.isPresent()) {
+            return snapshot.get();
+        }
+
+        long maxWaitMs = properties.getPeerBackfillMaxWaitMs();
+        if (maxWaitMs <= 0) {
+            return loader.get();
+        }
+
+        long deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(maxWaitMs);
+        long pollIntervalMs = Math.max(1L, properties.getPeerBackfillPollIntervalMs());
+
+        while (System.nanoTime() < deadlineNanos) {
+            long remainingNanos = deadlineNanos - System.nanoTime();
+            long waitNanos = Math.min(remainingNanos, TimeUnit.MILLISECONDS.toNanos(pollIntervalMs));
+            LockSupport.parkNanos(waitNanos);
+
+            snapshot = tryReadCachedSnapshot(postId, size, sortType, hotRepliesLimit);
+            if (snapshot.isPresent()) {
+                return snapshot.get();
+            }
+        }
+
+        return loader.get();
+    }
+
+    private Optional<PageResult<CommentVO>> tryReadCachedSnapshot(Long postId,
+                                                                  int size,
+                                                                  CommentSortType sortType,
+                                                                  int hotRepliesLimit) {
+        try {
+            return commentHomepageCacheStore.get(postId, sortType, size, hotRepliesLimit);
+        } catch (Exception e) {
+            log.warn("读取首页评论缓存失败，回退到实时组装: postId={}, sort={}, error={}",
+                    postId, sortType, e.getMessage());
+            return Optional.empty();
+        }
     }
 
     private boolean shouldEnableHomepageCache(Long postId) {

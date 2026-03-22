@@ -59,6 +59,8 @@ class CommentHomepageCacheServiceTest {
         properties.setTtlSeconds(30);
         properties.setTtlJitterSeconds(3);
         properties.setAccessRecordIntervalMs(1000);
+        properties.setPeerBackfillMaxWaitMs(30);
+        properties.setPeerBackfillPollIntervalMs(5);
         CacheProperties cacheProperties = new CacheProperties();
         cacheProperties.getLock().setWaitTime(5);
         cacheProperties.getLock().setLeaseTime(10);
@@ -218,6 +220,38 @@ class CommentHomepageCacheServiceTest {
         assertThat(result).isSameAs(cached);
         assertThat(loadCount).hasValue(0);
         verify(commentHomepageCacheStore, never()).set(anyLong(), any(), anyInt(), anyInt(), any(), any());
+        verify(lockManager, never()).unlock(anyString(), eq(false));
+    }
+
+    @Test
+    @DisplayName("首页缓存 miss 且未获取到锁时应短暂等待同伴回填快照")
+    void shouldWaitBrieflyForPeerBackfillBeforeFallingBack() {
+        Long postId = 1007L;
+        PageResult<CommentVO> cached = PageResult.of(0, 20, 1, List.of(CommentVO.builder().id(7L).build()));
+        AtomicInteger loadCount = new AtomicInteger();
+
+        when(rankingHotPostCandidateStore.contains(postId)).thenReturn(true);
+        when(commentHomepageCacheStore.get(postId, CommentSortType.TIME, 20, 3))
+                .thenReturn(Optional.empty(), Optional.empty(), Optional.of(cached));
+        when(commentCacheKeyResolver.lockHomepageSnapshot(postId, CommentSortType.TIME, 20, 3))
+                .thenReturn("comment:lock:homepage:1007:time:20:3");
+        when(lockManager.tryLock(eq("comment:lock:homepage:1007:time:20:3"), eq(Duration.ZERO), any(Duration.class), eq(false)))
+                .thenReturn(false);
+
+        PageResult<CommentVO> result = service.getTopLevelCommentsPage(
+                postId,
+                0,
+                20,
+                CommentSortType.TIME,
+                3,
+                () -> {
+                    loadCount.incrementAndGet();
+                    return PageResult.of(0, 20, 0, List.of());
+                }
+        );
+
+        assertThat(result).isSameAs(cached);
+        assertThat(loadCount).hasValue(0);
         verify(lockManager, never()).unlock(anyString(), eq(false));
     }
 
