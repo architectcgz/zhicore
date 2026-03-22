@@ -15,7 +15,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 /**
@@ -27,6 +31,7 @@ import java.util.function.Supplier;
 public class CommentHomepageCacheService {
 
     private static final String ENTITY_TYPE_POST = "post";
+    private static final int ACCESS_RECORD_TRACKER_MAX_SIZE = 10_000;
 
     private final CommentHomepageCacheStore commentHomepageCacheStore;
     private final RankingHotPostCandidateStore rankingHotPostCandidateStore;
@@ -35,6 +40,7 @@ public class CommentHomepageCacheService {
     private final LockManager lockManager;
     private final CommentCacheKeyResolver commentCacheKeyResolver;
     private final CacheProperties cacheProperties;
+    private final ConcurrentMap<Long, Long> lastAccessRecordAtMillis = new ConcurrentHashMap<>();
 
     public PageResult<CommentVO> getTopLevelCommentsPage(Long postId,
                                                          int page,
@@ -42,16 +48,25 @@ public class CommentHomepageCacheService {
                                                          CommentSortType sortType,
                                                          int hotRepliesLimit,
                                                          Supplier<PageResult<CommentVO>> loader) {
-        recordPostAccess(postId);
-        if (!isHomepageRequest(page, sortType)) {
+        boolean homepageRequest = isHomepageRequest(page, sortType);
+        if (!homepageRequest) {
+            recordPostAccessIfNeeded(postId);
             return loader.get();
         }
+
+        Optional<PageResult<CommentVO>> cachedSnapshot = getCachedSnapshot(postId, size, sortType, hotRepliesLimit, loader);
+        if (cachedSnapshot.isPresent()) {
+            recordPostAccessIfNeeded(postId);
+            return cachedSnapshot.get();
+        }
+
+        recordPostAccessIfNeeded(postId);
         if (!shouldEnableHomepageCache(postId)) {
             return loader.get();
         }
 
         try {
-            return getOrLoadSnapshot(postId, size, sortType, hotRepliesLimit, loader);
+            return loadAndCacheWithLock(postId, size, sortType, hotRepliesLimit, loader);
         } catch (Exception e) {
             log.warn("读取首页评论缓存失败，回退到实时组装: postId={}, sort={}, error={}",
                     postId, sortType, e.getMessage());
@@ -59,13 +74,18 @@ public class CommentHomepageCacheService {
         }
     }
 
-    private PageResult<CommentVO> getOrLoadSnapshot(Long postId,
-                                                    int size,
-                                                    CommentSortType sortType,
-                                                    int hotRepliesLimit,
-                                                    Supplier<PageResult<CommentVO>> loader) {
-        return commentHomepageCacheStore.get(postId, sortType, size, hotRepliesLimit)
-                .orElseGet(() -> loadAndCacheWithLock(postId, size, sortType, hotRepliesLimit, loader));
+    private Optional<PageResult<CommentVO>> getCachedSnapshot(Long postId,
+                                                              int size,
+                                                              CommentSortType sortType,
+                                                              int hotRepliesLimit,
+                                                              Supplier<PageResult<CommentVO>> loader) {
+        try {
+            return commentHomepageCacheStore.get(postId, sortType, size, hotRepliesLimit);
+        } catch (Exception e) {
+            log.warn("读取首页评论缓存失败，回退到实时组装: postId={}, sort={}, error={}",
+                    postId, sortType, e.getMessage());
+            return Optional.of(loader.get());
+        }
     }
 
     private PageResult<CommentVO> loadAndCacheWithLock(Long postId,
@@ -131,12 +151,44 @@ public class CommentHomepageCacheService {
         }
     }
 
-    private void recordPostAccess(Long postId) {
+    private void recordPostAccessIfNeeded(Long postId) {
+        if (!shouldRecordAccess(postId)) {
+            return;
+        }
         try {
             hotDataIdentifier.recordAccess(ENTITY_TYPE_POST, postId);
         } catch (Exception e) {
             log.warn("记录评论本地访问热度失败: postId={}, error={}", postId, e.getMessage());
         }
+    }
+
+    private boolean shouldRecordAccess(Long postId) {
+        long intervalMs = properties.getAccessRecordIntervalMs();
+        if (intervalMs <= 0) {
+            return true;
+        }
+
+        long now = System.currentTimeMillis();
+        AtomicBoolean shouldRecord = new AtomicBoolean(false);
+        lastAccessRecordAtMillis.compute(postId, (key, lastRecordedAt) -> {
+            if (lastRecordedAt == null || now - lastRecordedAt >= intervalMs) {
+                shouldRecord.set(true);
+                return now;
+            }
+            return lastRecordedAt;
+        });
+
+        cleanupExpiredAccessTrackers(now, intervalMs);
+        return shouldRecord.get();
+    }
+
+    private void cleanupExpiredAccessTrackers(long now, long intervalMs) {
+        if (lastAccessRecordAtMillis.size() <= ACCESS_RECORD_TRACKER_MAX_SIZE) {
+            return;
+        }
+
+        long expireBefore = now - Math.max(intervalMs, 1000L) * 2;
+        lastAccessRecordAtMillis.entrySet().removeIf(entry -> entry.getValue() < expireBefore);
     }
 
     private boolean isHomepageRequest(int page, CommentSortType sortType) {

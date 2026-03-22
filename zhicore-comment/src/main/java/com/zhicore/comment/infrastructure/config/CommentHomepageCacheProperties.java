@@ -26,4 +26,7 @@ public class CommentHomepageCacheProperties {
 
     @Min(1000)
     private long rankingSyncIntervalMs = 30000;
+
+    @Min(0)
+    private long accessRecordIntervalMs = 1000;
 }

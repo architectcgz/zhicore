@@ -56,6 +56,7 @@ comment:
   homepage-cache:
     ttl-seconds: 30
     ttl-jitter-seconds: 3
+    access-record-interval-ms: 1000
     ranking-sync-initial-delay-ms: 5000
     ranking-sync-interval-ms: 30000
   outbox:
