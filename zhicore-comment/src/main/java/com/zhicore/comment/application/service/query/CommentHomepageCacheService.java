@@ -2,10 +2,13 @@ package com.zhicore.comment.application.service.query;
 
 import com.zhicore.comment.application.dto.CommentSortType;
 import com.zhicore.comment.application.dto.CommentVO;
+import com.zhicore.comment.application.port.CommentCacheKeyResolver;
 import com.zhicore.comment.application.port.store.CommentHomepageCacheStore;
 import com.zhicore.comment.application.port.store.RankingHotPostCandidateStore;
 import com.zhicore.comment.infrastructure.config.CommentHomepageCacheProperties;
 import com.zhicore.common.cache.HotDataIdentifier;
+import com.zhicore.common.cache.port.LockManager;
+import com.zhicore.common.config.CacheProperties;
 import com.zhicore.common.result.PageResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +32,9 @@ public class CommentHomepageCacheService {
     private final RankingHotPostCandidateStore rankingHotPostCandidateStore;
     private final HotDataIdentifier hotDataIdentifier;
     private final CommentHomepageCacheProperties properties;
+    private final LockManager lockManager;
+    private final CommentCacheKeyResolver commentCacheKeyResolver;
+    private final CacheProperties cacheProperties;
 
     public PageResult<CommentVO> getTopLevelCommentsPage(Long postId,
                                                          int page,
@@ -45,12 +51,46 @@ public class CommentHomepageCacheService {
         }
 
         try {
-            return commentHomepageCacheStore.get(postId, sortType, size, hotRepliesLimit)
-                    .orElseGet(() -> loadAndCache(postId, size, sortType, hotRepliesLimit, loader));
+            return getOrLoadSnapshot(postId, size, sortType, hotRepliesLimit, loader);
         } catch (Exception e) {
             log.warn("读取首页评论缓存失败，回退到实时组装: postId={}, sort={}, error={}",
                     postId, sortType, e.getMessage());
             return loader.get();
+        }
+    }
+
+    private PageResult<CommentVO> getOrLoadSnapshot(Long postId,
+                                                    int size,
+                                                    CommentSortType sortType,
+                                                    int hotRepliesLimit,
+                                                    Supplier<PageResult<CommentVO>> loader) {
+        return commentHomepageCacheStore.get(postId, sortType, size, hotRepliesLimit)
+                .orElseGet(() -> loadAndCacheWithLock(postId, size, sortType, hotRepliesLimit, loader));
+    }
+
+    private PageResult<CommentVO> loadAndCacheWithLock(Long postId,
+                                                       int size,
+                                                       CommentSortType sortType,
+                                                       int hotRepliesLimit,
+                                                       Supplier<PageResult<CommentVO>> loader) {
+        String lockKey = commentCacheKeyResolver.lockHomepageSnapshot(postId, sortType, size, hotRepliesLimit);
+        boolean fair = cacheProperties.getLock().isFair();
+        Duration waitTime = Duration.ofSeconds(cacheProperties.getLock().getWaitTime());
+        Duration leaseTime = Duration.ofSeconds(cacheProperties.getLock().getLeaseTime());
+
+        boolean acquired = lockManager.tryLock(lockKey, waitTime, leaseTime, fair);
+        if (!acquired) {
+            return commentHomepageCacheStore.get(postId, sortType, size, hotRepliesLimit)
+                    .orElseGet(loader);
+        }
+
+        try {
+            return commentHomepageCacheStore.get(postId, sortType, size, hotRepliesLimit)
+                    .orElseGet(() -> loadAndCache(postId, size, sortType, hotRepliesLimit, loader));
+        } finally {
+            if (lockManager.isHeldByCurrentThread(lockKey, fair)) {
+                lockManager.unlock(lockKey, fair);
+            }
         }
     }
 

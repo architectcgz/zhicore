@@ -113,4 +113,12 @@ public final class CommentRedisKeys {
     public static String lockDetail(Long commentId) {
         return PREFIX + ":lock:detail:" + commentId;
     }
+
+    /**
+     * 首页评论快照锁键
+     * Key: comment:lock:homepage:{postId}:{sort}:{size}:{replyLimit}
+     */
+    public static String lockHomepageSnapshot(Long postId, CommentSortType sortType, int size, int hotRepliesLimit) {
+        return PREFIX + ":lock:homepage:" + postId + ":" + sortType.name().toLowerCase() + ":" + size + ":" + hotRepliesLimit;
+    }
 }
