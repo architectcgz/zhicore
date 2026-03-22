@@ -11,6 +11,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -30,6 +32,9 @@ public class RedisCommentHomepageCacheStore implements CommentHomepageCacheStore
         if (cached == null) {
             return Optional.empty();
         }
+        if (cached instanceof PageResult<?> pageResult && isTypedCommentSnapshot(pageResult.getRecords())) {
+            return Optional.of(castPageResult(pageResult));
+        }
         JavaType javaType = objectMapper.getTypeFactory().constructParametricType(PageResult.class, CommentVO.class);
         return Optional.of(objectMapper.convertValue(cached, javaType));
     }
@@ -47,5 +52,19 @@ public class RedisCommentHomepageCacheStore implements CommentHomepageCacheStore
                 ttl.toSeconds(),
                 TimeUnit.SECONDS
         );
+    }
+
+    private boolean isTypedCommentSnapshot(List<?> records) {
+        if (records == null || records.isEmpty()) {
+            return true;
+        }
+        return records.stream()
+                .filter(Objects::nonNull)
+                .allMatch(CommentVO.class::isInstance);
+    }
+
+    @SuppressWarnings("unchecked")
+    private PageResult<CommentVO> castPageResult(PageResult<?> pageResult) {
+        return (PageResult<CommentVO>) pageResult;
     }
 }

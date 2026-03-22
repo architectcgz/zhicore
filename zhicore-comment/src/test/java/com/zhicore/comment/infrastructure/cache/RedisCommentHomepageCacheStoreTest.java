@@ -50,6 +50,27 @@ class RedisCommentHomepageCacheStoreTest {
         assertThat(result.orElseThrow().getRecords().get(0).getHotReplies()).hasSize(1);
     }
 
+    @Test
+    @DisplayName("命中已反序列化快照对象时应直接复用")
+    void shouldReuseAlreadyDeserializedSnapshot() {
+        RedisTemplate<String, Object> redisTemplate = Mockito.mock(RedisTemplate.class);
+        @SuppressWarnings("unchecked")
+        ValueOperations<String, Object> valueOperations = Mockito.mock(ValueOperations.class);
+        PageResult<CommentVO> snapshot = sampleSnapshot();
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(snapshot);
+
+        RedisCommentHomepageCacheStore store = new RedisCommentHomepageCacheStore(
+                redisTemplate,
+                applicationObjectMapper()
+        );
+
+        Optional<PageResult<CommentVO>> result = store.get(1001L, CommentSortType.TIME, 20, 3);
+
+        assertThat(result).containsSame(snapshot);
+    }
+
     private Object serializeAndDeserialize(PageResult<CommentVO> snapshot) {
         GenericJackson2JsonRedisSerializer serializer =
                 new GenericJackson2JsonRedisSerializer(redisSerializerObjectMapper());
