@@ -1,13 +1,16 @@
 package com.zhicore.ranking.infrastructure.redis;
 
+import com.zhicore.ranking.application.model.HotPostCandidateMeta;
 import com.zhicore.ranking.integration.IntegrationTestBase;
 import com.zhicore.ranking.domain.model.HotScore;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -537,5 +540,50 @@ class RankingRedisRepositoryTest extends IntegrationTestBase {
             assertTrue(result.get(i).getScore() >= result.get(i + 1).getScore(),
                 "分数应该降序排列，第" + i + "个元素的分数应该 >= 第" + (i + 1) + "个元素的分数");
         }
+    }
+
+    @Test
+    @Order(21)
+    @DisplayName("替换热门文章候选集时应同时写入 ZSET 和 meta hash")
+    void replaceHotPostCandidatesShouldPersistRankingAndMeta() {
+        Instant generatedAt = Instant.parse("2026-03-21T12:34:56Z");
+        List<HotScore> candidates = List.of(
+                HotScore.ofWithRank("1001", 98.5D, 1),
+                HotScore.ofWithRank("1002", 87.0D, 2)
+        );
+        HotPostCandidateMeta meta = HotPostCandidateMeta.builder()
+                .version("20260321123456")
+                .generatedAt(generatedAt)
+                .candidateSize(2)
+                .sourceKey(RankingRedisKeys.hotPosts())
+                .sourceCount(10)
+                .minScore(87.0D)
+                .stale(false)
+                .build();
+
+        repository.replaceHotPostCandidates(candidates, meta);
+
+        List<HotScore> persisted = repository.getHotPostCandidates(10);
+        assertEquals(2, persisted.size());
+        assertEquals("1001", persisted.get(0).getEntityId());
+        assertEquals("1002", persisted.get(1).getEntityId());
+
+        HotPostCandidateMeta persistedMeta = repository.getHotPostCandidateMeta();
+        assertNotNull(persistedMeta);
+        assertEquals("20260321123456", persistedMeta.getVersion());
+        assertEquals(generatedAt, persistedMeta.getGeneratedAt());
+        assertEquals(2, persistedMeta.getCandidateSize());
+        assertEquals(RankingRedisKeys.hotPosts(), persistedMeta.getSourceKey());
+        assertEquals(10L, persistedMeta.getSourceCount());
+        assertEquals(87.0D, persistedMeta.getMinScore());
+        assertFalse(persistedMeta.isStale());
+
+        Map<Object, Object> rawMeta = redisTemplate.opsForHash().entries(RankingRedisKeys.hotPostCandidatesMeta());
+        assertEquals("20260321123456", rawMeta.get("version"));
+        assertEquals("2026-03-21T12:34:56Z", rawMeta.get("generatedAt"));
+        assertEquals("2", rawMeta.get("candidateSize"));
+        assertEquals("10", rawMeta.get("sourceCount"));
+        assertEquals("87.0", rawMeta.get("minScore"));
+        assertEquals("false", rawMeta.get("stale"));
     }
 }

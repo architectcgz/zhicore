@@ -1,8 +1,8 @@
 package com.zhicore.comment.application.service;
 
 import com.zhicore.comment.application.dto.RankingHotPostCandidateItem;
-import com.zhicore.comment.application.dto.RankingHotPostCandidateMetadata;
 import com.zhicore.comment.application.dto.RankingHotPostCandidatesResponse;
+import com.zhicore.comment.application.dto.RankingHotPostCandidateMetadata;
 import com.zhicore.comment.application.port.store.RankingHotPostCandidateStore;
 import com.zhicore.comment.infrastructure.feign.RankingServiceClient;
 import com.zhicore.common.result.ApiResponse;

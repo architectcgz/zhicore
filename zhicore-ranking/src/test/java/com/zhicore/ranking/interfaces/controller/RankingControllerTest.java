@@ -4,6 +4,7 @@ import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.ForbiddenException;
 import com.zhicore.common.exception.UnauthorizedException;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.ranking.application.dto.HotPostCandidateItemDTO;
 import com.zhicore.ranking.application.dto.HotPostCandidatesDTO;
 import com.zhicore.ranking.application.dto.RankingReplayResultDTO;
 import com.zhicore.ranking.application.service.HotPostDetailService;
@@ -161,8 +162,8 @@ class RankingControllerTest {
     }
 
     @Test
-    @DisplayName("热门候选集接口应返回候选快照")
-    void hotCandidatesEndpointShouldReturnSnapshot() {
+    @DisplayName("热门文章候选集接口应返回候选集快照")
+    void getHotPostCandidatesShouldReturnSnapshot() {
         RankingController controller = new RankingController(
                 postRankingService,
                 hotPostDetailService,
@@ -172,17 +173,23 @@ class RankingControllerTest {
                 rankingHotPostCandidateService,
                 rankingProperties()
         );
-        HotPostCandidatesDTO candidates = HotPostCandidatesDTO.builder()
-                .version("v1")
+        HotPostCandidatesDTO snapshot = HotPostCandidatesDTO.builder()
+                .version("v20260321")
                 .candidateSize(2)
                 .stale(false)
+                .items(List.of(
+                        HotPostCandidateItemDTO.builder().postId("1001").rank(1).score(98.5D).build(),
+                        HotPostCandidateItemDTO.builder().postId("1002").rank(2).score(87.0D).build()
+                ))
                 .build();
-        when(rankingHotPostCandidateService.getCandidates()).thenReturn(candidates);
+        when(rankingHotPostCandidateService.getCandidates()).thenReturn(snapshot);
 
         ApiResponse<HotPostCandidatesDTO> response = controller.getHotPostCandidates();
 
         assertEquals(200, response.getCode());
-        assertEquals("v1", response.getData().getVersion());
+        assertEquals("v20260321", response.getData().getVersion());
+        assertEquals(2, response.getData().getCandidateSize());
+        assertEquals("1001", response.getData().getItems().get(0).getPostId());
         verify(rankingHotPostCandidateService).getCandidates();
     }
 

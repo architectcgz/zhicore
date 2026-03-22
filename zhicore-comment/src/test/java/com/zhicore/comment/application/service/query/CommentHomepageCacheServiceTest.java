@@ -2,10 +2,13 @@ package com.zhicore.comment.application.service.query;
 
 import com.zhicore.comment.application.dto.CommentSortType;
 import com.zhicore.comment.application.dto.CommentVO;
+import com.zhicore.comment.application.port.CommentCacheKeyResolver;
 import com.zhicore.comment.application.port.store.CommentHomepageCacheStore;
 import com.zhicore.comment.application.port.store.RankingHotPostCandidateStore;
 import com.zhicore.comment.infrastructure.config.CommentHomepageCacheProperties;
 import com.zhicore.common.cache.HotDataIdentifier;
+import com.zhicore.common.cache.port.LockManager;
+import com.zhicore.common.config.CacheProperties;
 import com.zhicore.common.result.PageResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -41,6 +45,12 @@ class CommentHomepageCacheServiceTest {
     @Mock
     private HotDataIdentifier hotDataIdentifier;
 
+    @Mock
+    private LockManager lockManager;
+
+    @Mock
+    private CommentCacheKeyResolver commentCacheKeyResolver;
+
     private CommentHomepageCacheService service;
 
     @BeforeEach
@@ -48,22 +58,28 @@ class CommentHomepageCacheServiceTest {
         CommentHomepageCacheProperties properties = new CommentHomepageCacheProperties();
         properties.setTtlSeconds(30);
         properties.setTtlJitterSeconds(3);
+        properties.setAccessRecordIntervalMs(1000);
+        CacheProperties cacheProperties = new CacheProperties();
+        cacheProperties.getLock().setWaitTime(5);
+        cacheProperties.getLock().setLeaseTime(10);
         service = new CommentHomepageCacheService(
                 commentHomepageCacheStore,
                 rankingHotPostCandidateStore,
                 hotDataIdentifier,
-                properties
+                properties,
+                lockManager,
+                commentCacheKeyResolver,
+                cacheProperties
         );
     }
 
     @Test
-    @DisplayName("首页命中 ranking 候选集且快照存在时应直接返回缓存")
-    void shouldReturnCachedSnapshotWhenRankingCandidateMatched() {
+    @DisplayName("首页快照命中时应直接返回缓存且跳过热度判断")
+    void shouldReturnCachedSnapshotBeforeHotnessChecks() {
         Long postId = 1001L;
         PageResult<CommentVO> cached = PageResult.of(0, 20, 1, List.of(CommentVO.builder().id(1L).build()));
         AtomicInteger loadCount = new AtomicInteger();
 
-        when(rankingHotPostCandidateStore.contains(postId)).thenReturn(true);
         when(commentHomepageCacheStore.get(postId, CommentSortType.HOT, 20, 5)).thenReturn(Optional.of(cached));
 
         PageResult<CommentVO> result = service.getTopLevelCommentsPage(
@@ -81,7 +97,25 @@ class CommentHomepageCacheServiceTest {
         assertThat(result).isSameAs(cached);
         assertThat(loadCount).hasValue(0);
         verify(hotDataIdentifier).recordAccess("post", postId);
+        verify(rankingHotPostCandidateStore, never()).contains(postId);
+        verify(hotDataIdentifier, never()).isHotData("post", postId);
+        verify(lockManager, never()).tryLock(anyString(), any(Duration.class), any(Duration.class), eq(false));
         verify(commentHomepageCacheStore, never()).set(eq(postId), eq(CommentSortType.HOT), eq(20), eq(5), any(), any());
+    }
+
+    @Test
+    @DisplayName("首页快照连续命中时应节流记录访问热度")
+    void shouldThrottleAccessRecordingForCachedHomepageHits() {
+        Long postId = 1010L;
+        PageResult<CommentVO> cached = PageResult.of(0, 20, 1, List.of(CommentVO.builder().id(10L).build()));
+
+        when(commentHomepageCacheStore.get(postId, CommentSortType.HOT, 20, 3)).thenReturn(Optional.of(cached));
+
+        service.getTopLevelCommentsPage(postId, 0, 20, CommentSortType.HOT, 3, () -> PageResult.of(0, 20, 0, List.of()));
+        service.getTopLevelCommentsPage(postId, 0, 20, CommentSortType.HOT, 3, () -> PageResult.of(0, 20, 0, List.of()));
+
+        verify(hotDataIdentifier).recordAccess("post", postId);
+        verify(rankingHotPostCandidateStore, never()).contains(postId);
     }
 
     @Test
@@ -92,7 +126,13 @@ class CommentHomepageCacheServiceTest {
 
         when(rankingHotPostCandidateStore.contains(postId)).thenReturn(false);
         when(hotDataIdentifier.isHotData("post", postId)).thenReturn(true);
-        when(commentHomepageCacheStore.get(postId, CommentSortType.TIME, 10, 6)).thenReturn(Optional.empty());
+        when(commentHomepageCacheStore.get(postId, CommentSortType.TIME, 10, 6))
+                .thenReturn(Optional.empty(), Optional.empty());
+        when(commentCacheKeyResolver.lockHomepageSnapshot(postId, CommentSortType.TIME, 10, 6))
+                .thenReturn("comment:lock:homepage:1002:time:10:6");
+        when(lockManager.tryLock(eq("comment:lock:homepage:1002:time:10:6"), any(Duration.class), any(Duration.class), eq(false)))
+                .thenReturn(true);
+        when(lockManager.isHeldByCurrentThread("comment:lock:homepage:1002:time:10:6", false)).thenReturn(true);
 
         PageResult<CommentVO> result = service.getTopLevelCommentsPage(
                 postId,
@@ -115,13 +155,81 @@ class CommentHomepageCacheServiceTest {
     }
 
     @Test
-    @DisplayName("首页未命中任何启用条件时应直接回源且不读写缓存")
+    @DisplayName("首页缓存 miss 且获取到锁后若二次检查命中则不应回源")
+    void shouldAvoidReloadWhenSnapshotAppearsAfterLockAcquired() {
+        Long postId = 1005L;
+        PageResult<CommentVO> cached = PageResult.of(0, 20, 1, List.of(CommentVO.builder().id(5L).build()));
+        AtomicInteger loadCount = new AtomicInteger();
+
+        when(rankingHotPostCandidateStore.contains(postId)).thenReturn(true);
+        when(commentHomepageCacheStore.get(postId, CommentSortType.HOT, 20, 3))
+                .thenReturn(Optional.empty(), Optional.of(cached));
+        when(commentCacheKeyResolver.lockHomepageSnapshot(postId, CommentSortType.HOT, 20, 3))
+                .thenReturn("comment:lock:homepage:1005:hot:20:3");
+        when(lockManager.tryLock(eq("comment:lock:homepage:1005:hot:20:3"), any(Duration.class), any(Duration.class), eq(false)))
+                .thenReturn(true);
+        when(lockManager.isHeldByCurrentThread("comment:lock:homepage:1005:hot:20:3", false)).thenReturn(true);
+
+        PageResult<CommentVO> result = service.getTopLevelCommentsPage(
+                postId,
+                0,
+                20,
+                CommentSortType.HOT,
+                3,
+                () -> {
+                    loadCount.incrementAndGet();
+                    return PageResult.of(0, 20, 0, List.of());
+                }
+        );
+
+        assertThat(result).isSameAs(cached);
+        assertThat(loadCount).hasValue(0);
+        verify(commentHomepageCacheStore, never()).set(anyLong(), any(), anyInt(), anyInt(), any(), any());
+        verify(lockManager).unlock("comment:lock:homepage:1005:hot:20:3", false);
+    }
+
+    @Test
+    @DisplayName("首页缓存 miss 且未获取到锁时应优先读取同伴已回填的快照")
+    void shouldUseBackfilledSnapshotWhenLockNotAcquired() {
+        Long postId = 1006L;
+        PageResult<CommentVO> cached = PageResult.of(0, 20, 1, List.of(CommentVO.builder().id(6L).build()));
+        AtomicInteger loadCount = new AtomicInteger();
+
+        when(rankingHotPostCandidateStore.contains(postId)).thenReturn(true);
+        when(commentHomepageCacheStore.get(postId, CommentSortType.HOT, 20, 3))
+                .thenReturn(Optional.empty(), Optional.of(cached));
+        when(commentCacheKeyResolver.lockHomepageSnapshot(postId, CommentSortType.HOT, 20, 3))
+                .thenReturn("comment:lock:homepage:1006:hot:20:3");
+        when(lockManager.tryLock(eq("comment:lock:homepage:1006:hot:20:3"), any(Duration.class), any(Duration.class), eq(false)))
+                .thenReturn(false);
+
+        PageResult<CommentVO> result = service.getTopLevelCommentsPage(
+                postId,
+                0,
+                20,
+                CommentSortType.HOT,
+                3,
+                () -> {
+                    loadCount.incrementAndGet();
+                    return PageResult.of(0, 20, 0, List.of());
+                }
+        );
+
+        assertThat(result).isSameAs(cached);
+        assertThat(loadCount).hasValue(0);
+        verify(commentHomepageCacheStore, never()).set(anyLong(), any(), anyInt(), anyInt(), any(), any());
+        verify(lockManager, never()).unlock(anyString(), eq(false));
+    }
+
+    @Test
+    @DisplayName("首页未命中任何启用条件时应在快照 miss 后直接回源且不回填缓存")
     void shouldBypassCacheWhenPostIsNotHot() {
         Long postId = 1003L;
         PageResult<CommentVO> loaded = PageResult.of(0, 20, 0, List.of());
 
         when(rankingHotPostCandidateStore.contains(postId)).thenReturn(false);
         when(hotDataIdentifier.isHotData("post", postId)).thenReturn(false);
+        when(commentHomepageCacheStore.get(postId, CommentSortType.TIME, 20, 3)).thenReturn(Optional.empty());
 
         PageResult<CommentVO> result = service.getTopLevelCommentsPage(
                 postId,
@@ -133,7 +241,6 @@ class CommentHomepageCacheServiceTest {
         );
 
         assertThat(result).isSameAs(loaded);
-        verify(commentHomepageCacheStore, never()).get(anyLong(), any(), anyInt(), anyInt());
         verify(commentHomepageCacheStore, never()).set(anyLong(), any(), anyInt(), anyInt(), any(), any());
     }
 
