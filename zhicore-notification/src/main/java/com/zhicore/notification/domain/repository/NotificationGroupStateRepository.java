@@ -26,12 +26,17 @@ public interface NotificationGroupStateRepository {
     int countByRecipientId(Long recipientId);
 
     /**
+     * 统计用户聚合投影中的未读总数。
+     */
+    int sumUnreadCount(Long recipientId);
+
+    /**
      * 单条通知已读后递减聚合组未读数。
      */
-    void decrementUnreadCount(Long recipientId, String groupKey);
+    int decrementUnreadCount(Long recipientId, String groupKey);
 
     /**
      * 全部已读后重置聚合组未读数。
      */
-    void markAllAsRead(Long recipientId);
+    int markAllAsRead(Long recipientId);
 }

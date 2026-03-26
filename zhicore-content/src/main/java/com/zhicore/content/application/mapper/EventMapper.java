@@ -94,6 +94,26 @@ public class EventMapper {
             domainEvent.getAggregateVersion()
         );
     }
+
+    public PostPublishedIntegrationEvent toIntegrationEvent(PostPublishedDomainEvent domainEvent,
+                                                            Long authorId,
+                                                            String title,
+                                                            String excerpt) {
+        if (domainEvent == null) {
+            return null;
+        }
+
+        return new PostPublishedIntegrationEvent(
+                domainEvent.getEventId(),
+                domainEvent.getOccurredAt(),
+                domainEvent.getPostId().getValue(),
+                authorId,
+                title,
+                excerpt,
+                domainEvent.getPublishedAt(),
+                domainEvent.getAggregateVersion()
+        );
+    }
     
     /**
      * 转换 PostTagsUpdatedDomainEvent 为 PostTagsUpdatedIntegrationEvent

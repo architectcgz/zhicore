@@ -429,6 +429,72 @@ ALTER TABLE notifications
     ADD COLUMN IF NOT EXISTS payload_json JSONB,
     ADD COLUMN IF NOT EXISTS importance SMALLINT DEFAULT 0;
 
+CREATE TABLE IF NOT EXISTS notification_group_state (
+    recipient_id BIGINT NOT NULL,
+    group_key VARCHAR(256) NOT NULL,
+    notification_type VARCHAR(64) NOT NULL,
+    latest_notification_id BIGINT NOT NULL,
+    total_count INT NOT NULL,
+    unread_count INT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (recipient_id, group_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_group_state_recipient_latest
+    ON notification_group_state(recipient_id, latest_notification_id DESC);
+
+CREATE TABLE IF NOT EXISTS notification_campaign (
+    campaign_id BIGINT PRIMARY KEY,
+    campaign_type VARCHAR(64) NOT NULL,
+    source_event_id VARCHAR(128) NOT NULL,
+    author_id BIGINT NOT NULL,
+    post_id BIGINT NOT NULL,
+    audience_estimate INT NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    title VARCHAR(256),
+    excerpt VARCHAR(1024),
+    published_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (source_event_id)
+);
+
+CREATE TABLE IF NOT EXISTS notification_campaign_shard (
+    shard_id BIGINT PRIMARY KEY,
+    campaign_id BIGINT NOT NULL,
+    start_cursor BIGINT NOT NULL,
+    end_cursor BIGINT,
+    shard_size INT NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_campaign_author_status
+    ON notification_campaign(author_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_notification_campaign_shard_campaign
+    ON notification_campaign_shard(campaign_id, start_cursor);
+
+CREATE TABLE IF NOT EXISTS notification_delivery (
+    delivery_id BIGINT PRIMARY KEY,
+    recipient_id BIGINT NOT NULL,
+    campaign_id BIGINT,
+    notification_id BIGINT,
+    channel VARCHAR(32) NOT NULL,
+    notification_type VARCHAR(64) NOT NULL,
+    dedupe_key VARCHAR(256) NOT NULL,
+    delivery_status VARCHAR(32) NOT NULL,
+    failure_reason VARCHAR(128),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (dedupe_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_delivery_campaign_recipient
+    ON notification_delivery(campaign_id, recipient_id);
+
 -- 全局公告表
 CREATE TABLE IF NOT EXISTS global_announcements (
     id BIGINT PRIMARY KEY,

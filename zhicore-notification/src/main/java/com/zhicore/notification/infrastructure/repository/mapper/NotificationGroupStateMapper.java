@@ -64,7 +64,7 @@ public interface NotificationGroupStateMapper {
             ) recent
         ) recent ON TRUE
         WHERE state.recipient_id = #{recipientId}
-        ORDER BY latest.created_at DESC
+        ORDER BY latest.created_at DESC, state.latest_notification_id DESC
         LIMIT #{size} OFFSET #{offset}
         """)
     @Results({
@@ -81,6 +81,13 @@ public interface NotificationGroupStateMapper {
         WHERE recipient_id = #{recipientId}
         """)
     int countByRecipientId(@Param("recipientId") Long recipientId);
+
+    @Select("""
+        SELECT COALESCE(SUM(unread_count), 0)
+        FROM notification_group_state
+        WHERE recipient_id = #{recipientId}
+        """)
+    int sumUnreadCount(@Param("recipientId") Long recipientId);
 
     @Update("""
         UPDATE notification_group_state

@@ -92,23 +92,31 @@ class NotificationAggregationServiceTest {
         }
 
         @Test
-        @DisplayName("Cache miss - group state exists but main list still uses database aggregation")
-        void getAggregatedNotifications_GroupStatePresent_shouldStillUseDatabaseAggregation() {
+        @DisplayName("Cache miss - count matches and main list uses group state")
+        void getAggregatedNotifications_GroupStateCountMatches_shouldUseGroupState() {
             // Given
             when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
 
-            AggregatedNotificationDTO dto = new AggregatedNotificationDTO();
-            dto.setType(NotificationType.LIKE);
-            dto.setTargetType("post");
-            dto.setTargetId("200");
-            dto.setTotalCount(2);
-            dto.setUnreadCount(1);
-            dto.setLatestTime(LocalDateTime.now());
-            dto.setLatestContent("database row");
-            dto.setActorIds(List.of("456"));
-            when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
-                    .thenReturn(List.of(dto));
             when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(1);
+            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(1);
+            when(notificationGroupStateRepository.countByRecipientId(USER_ID)).thenReturn(1);
+            when(notificationGroupStateRepository.sumUnreadCount(USER_ID)).thenReturn(1);
+
+            NotificationGroupState state = NotificationGroupState.builder()
+                    .recipientId(USER_ID)
+                    .groupKey("LIKE:post:200")
+                    .notificationType(NotificationType.LIKE)
+                    .latestNotificationId(2000L)
+                    .totalCount(2)
+                    .unreadCount(1)
+                    .targetType("post")
+                    .targetId("200")
+                    .latestContent("group state row")
+                    .latestTime(LocalDateTime.now())
+                    .actorIds(List.of("456"))
+                    .build();
+            when(notificationGroupStateRepository.findPage(USER_ID, 0, 20, 3))
+                    .thenReturn(List.of(state));
 
             UserSimpleDTO user1 = new UserSimpleDTO();
             user1.setId(456L);
@@ -125,9 +133,160 @@ class NotificationAggregationServiceTest {
             assertEquals(1, result.getTotal());
             assertEquals(1, result.getRecords().size());
             assertEquals(200L, result.getRecords().get(0).getTargetId());
+            assertEquals("group state row", result.getRecords().get(0).getLatestContent());
+            verify(notificationRepository, never()).findAggregatedNotifications(anyString(), anyInt(), anyInt());
+            verify(notificationGroupStateRepository).countByRecipientId(USER_ID);
+            verify(notificationGroupStateRepository).findPage(USER_ID, 0, 20, 3);
+        }
+
+        @Test
+        @DisplayName("Cache miss - count mismatch falls back to database aggregation")
+        void getAggregatedNotifications_GroupStateCountMismatch_shouldFallbackToDatabaseAggregation() {
+            // Given
+            when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
+            when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(2);
+            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(1);
+            when(notificationGroupStateRepository.countByRecipientId(USER_ID)).thenReturn(1);
+            when(notificationGroupStateRepository.sumUnreadCount(USER_ID)).thenReturn(1);
+
+            AggregatedNotificationDTO dto = new AggregatedNotificationDTO();
+            dto.setType(NotificationType.LIKE);
+            dto.setTargetType("post");
+            dto.setTargetId("200");
+            dto.setTotalCount(2);
+            dto.setUnreadCount(1);
+            dto.setLatestTime(LocalDateTime.now());
+            dto.setLatestContent("database row");
+            dto.setActorIds(List.of("456"));
+            when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
+                    .thenReturn(List.of(dto));
+
+            UserSimpleDTO user1 = new UserSimpleDTO();
+            user1.setId(456L);
+            user1.setNickname("Zhang San");
+            when(userServiceClient.batchGetUsersSimple(anySet()))
+                    .thenReturn(ApiResponse.success(Map.of(456L, user1)));
+
+            // When
+            PageResult<AggregatedNotificationVO> result =
+                    aggregationService.getAggregatedNotifications(USER_ID, 0, 20);
+
+            // Then
+            assertNotNull(result);
+            assertEquals(2, result.getTotal());
+            assertEquals(1, result.getRecords().size());
+            assertEquals("database row", result.getRecords().get(0).getLatestContent());
             verify(notificationRepository).findAggregatedNotifications(String.valueOf(USER_ID), 0, 20);
+            verify(notificationGroupStateRepository).countByRecipientId(USER_ID);
             verify(notificationGroupStateRepository, never()).findPage(anyLong(), anyInt(), anyInt(), anyInt());
-            verify(notificationGroupStateRepository, never()).countByRecipientId(anyLong());
+        }
+
+        @Test
+        @DisplayName("Cache miss - incomplete projection page falls back to database aggregation")
+        void getAggregatedNotifications_IncompleteProjectionPage_shouldFallbackToDatabaseAggregation() {
+            // Given
+            when(notificationAggregationStore.get(USER_ID, 0, 2)).thenReturn(null);
+            when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(2);
+            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(2);
+            when(notificationGroupStateRepository.countByRecipientId(USER_ID)).thenReturn(2);
+            when(notificationGroupStateRepository.sumUnreadCount(USER_ID)).thenReturn(2);
+
+            NotificationGroupState state = NotificationGroupState.builder()
+                    .recipientId(USER_ID)
+                    .groupKey("LIKE:post:200")
+                    .notificationType(NotificationType.LIKE)
+                    .latestNotificationId(2000L)
+                    .totalCount(2)
+                    .unreadCount(1)
+                    .targetType("post")
+                    .targetId("200")
+                    .latestContent("partial projection")
+                    .latestTime(LocalDateTime.now())
+                    .actorIds(List.of("456"))
+                    .build();
+            when(notificationGroupStateRepository.findPage(USER_ID, 0, 2, 3))
+                    .thenReturn(List.of(state));
+
+            AggregatedNotificationDTO dto1 = new AggregatedNotificationDTO();
+            dto1.setType(NotificationType.LIKE);
+            dto1.setTargetType("post");
+            dto1.setTargetId("200");
+            dto1.setTotalCount(2);
+            dto1.setUnreadCount(1);
+            dto1.setLatestTime(LocalDateTime.now());
+            dto1.setLatestContent("database row 1");
+            dto1.setActorIds(List.of("456"));
+
+            AggregatedNotificationDTO dto2 = new AggregatedNotificationDTO();
+            dto2.setType(NotificationType.FOLLOW);
+            dto2.setTotalCount(1);
+            dto2.setUnreadCount(1);
+            dto2.setLatestTime(LocalDateTime.now().minusMinutes(1));
+            dto2.setLatestContent("database row 2");
+            dto2.setActorIds(List.of("789"));
+
+            when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 2))
+                    .thenReturn(List.of(dto1, dto2));
+
+            UserSimpleDTO user1 = new UserSimpleDTO();
+            user1.setId(456L);
+            user1.setNickname("Zhang San");
+            UserSimpleDTO user2 = new UserSimpleDTO();
+            user2.setId(789L);
+            user2.setNickname("Li Si");
+            when(userServiceClient.batchGetUsersSimple(anySet()))
+                    .thenReturn(ApiResponse.success(Map.of(456L, user1, 789L, user2)));
+
+            // When
+            PageResult<AggregatedNotificationVO> result =
+                    aggregationService.getAggregatedNotifications(USER_ID, 0, 2);
+
+            // Then
+            assertNotNull(result);
+            assertEquals(2, result.getRecords().size());
+            assertEquals("database row 1", result.getRecords().get(0).getLatestContent());
+            verify(notificationGroupStateRepository).findPage(USER_ID, 0, 2, 3);
+            verify(notificationRepository).findAggregatedNotifications(String.valueOf(USER_ID), 0, 2);
+        }
+
+        @Test
+        @DisplayName("Cache miss - projection unread summary mismatch falls back to database aggregation")
+        void getAggregatedNotifications_ProjectionUnreadMismatch_shouldFallbackToDatabaseAggregation() {
+            // Given
+            when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
+            when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(1);
+            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(2);
+            when(notificationGroupStateRepository.countByRecipientId(USER_ID)).thenReturn(1);
+            when(notificationGroupStateRepository.sumUnreadCount(USER_ID)).thenReturn(1);
+
+            AggregatedNotificationDTO dto = new AggregatedNotificationDTO();
+            dto.setType(NotificationType.LIKE);
+            dto.setTargetType("post");
+            dto.setTargetId("200");
+            dto.setTotalCount(2);
+            dto.setUnreadCount(2);
+            dto.setLatestTime(LocalDateTime.now());
+            dto.setLatestContent("database row");
+            dto.setActorIds(List.of("456"));
+            when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
+                    .thenReturn(List.of(dto));
+
+            UserSimpleDTO user1 = new UserSimpleDTO();
+            user1.setId(456L);
+            user1.setNickname("Zhang San");
+            when(userServiceClient.batchGetUsersSimple(anySet()))
+                    .thenReturn(ApiResponse.success(Map.of(456L, user1)));
+
+            // When
+            PageResult<AggregatedNotificationVO> result =
+                    aggregationService.getAggregatedNotifications(USER_ID, 0, 20);
+
+            // Then
+            assertNotNull(result);
+            assertEquals(1, result.getRecords().size());
+            assertEquals("database row", result.getRecords().get(0).getLatestContent());
+            verify(notificationGroupStateRepository, never()).findPage(anyLong(), anyInt(), anyInt(), anyInt());
+            verify(notificationRepository).findAggregatedNotifications(String.valueOf(USER_ID), 0, 20);
         }
 
         @Test
@@ -135,8 +294,6 @@ class NotificationAggregationServiceTest {
         void getAggregatedNotifications_EmptyResult() {
             // Given
             when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
-            when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
-                    .thenReturn(Collections.emptyList());
 
             // When
             PageResult<AggregatedNotificationVO> result = 
@@ -167,6 +324,7 @@ class NotificationAggregationServiceTest {
             when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
                     .thenReturn(List.of(dto));
             when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(1);
+            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(3);
 
             // Mock user service
             UserSimpleDTO user1 = new UserSimpleDTO();
@@ -218,6 +376,8 @@ class NotificationAggregationServiceTest {
 
             when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
                     .thenReturn(List.of(dto));
+            when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(1);
+            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(1);
             when(userServiceClient.batchGetUsersSimple(anySet()))
                     .thenThrow(new RuntimeException("Service unavailable"));
 
@@ -289,6 +449,7 @@ class NotificationAggregationServiceTest {
             when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
                     .thenReturn(List.of(dto));
             when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(1);
+            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(1);
 
             UserSimpleDTO user = new UserSimpleDTO();
             user.setId(456L);
@@ -321,6 +482,7 @@ class NotificationAggregationServiceTest {
             when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
                     .thenReturn(List.of(dto));
             when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(1);
+            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(5);
 
             UserSimpleDTO user = new UserSimpleDTO();
             user.setId(456L);

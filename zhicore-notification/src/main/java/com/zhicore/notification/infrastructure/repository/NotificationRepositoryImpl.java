@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -91,6 +92,15 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     @Override
     public int countUnread(String recipientId) {
         return notificationMapper.countUnread(recipientId);
+    }
+
+    @Override
+    public Map<Integer, Integer> countUnreadByCategory(String recipientId) {
+        return notificationMapper.countUnreadByCategory(recipientId).stream()
+                .collect(Collectors.toMap(
+                        item -> item.getCategory() == null ? -1 : item.getCategory(),
+                        item -> item.getUnreadCount() == null ? 0 : item.getUnreadCount()
+                ));
     }
 
     @Override

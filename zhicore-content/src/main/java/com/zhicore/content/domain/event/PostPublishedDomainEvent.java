@@ -21,6 +21,9 @@ public class PostPublishedDomainEvent implements DomainEvent<PostId> {
     private final String eventId;
     private final Instant occurredAt;
     private final PostId postId;
+    private final Long authorId;
+    private final String title;
+    private final String excerpt;
     private final Instant publishedAt;
     private final Long aggregateVersion;
     private final Integer schemaVersion;
@@ -38,11 +41,17 @@ public class PostPublishedDomainEvent implements DomainEvent<PostId> {
     public PostPublishedDomainEvent(@JsonProperty("eventId") String eventId,
                                    @JsonProperty("occurredAt") Instant occurredAt,
                                    @JsonProperty("postId") PostId postId,
+                                   @JsonProperty("authorId") Long authorId,
+                                   @JsonProperty("title") String title,
+                                   @JsonProperty("excerpt") String excerpt,
                                    @JsonProperty("publishedAt") Instant publishedAt,
                                    @JsonProperty("aggregateVersion") Long aggregateVersion) {
         this.eventId = eventId;
         this.occurredAt = occurredAt;
         this.postId = postId;
+        this.authorId = authorId;
+        this.title = title;
+        this.excerpt = excerpt;
         this.publishedAt = publishedAt;
         this.aggregateVersion = aggregateVersion;
         this.schemaVersion = 1;  // 当前Schema版本

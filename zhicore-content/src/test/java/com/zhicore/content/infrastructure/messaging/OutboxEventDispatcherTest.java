@@ -421,6 +421,9 @@ class OutboxEventDispatcherTest {
                 eventId,
                 Instant.parse("2026-03-14T10:00:00Z"),
                 1L,
+                2L,
+                "title",
+                "excerpt",
                 Instant.parse("2026-03-14T10:00:00Z"),
                 1L
         );

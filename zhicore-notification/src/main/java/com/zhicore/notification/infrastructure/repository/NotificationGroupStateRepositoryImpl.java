@@ -34,12 +34,17 @@ public class NotificationGroupStateRepositoryImpl implements NotificationGroupSt
     }
 
     @Override
-    public void decrementUnreadCount(Long recipientId, String groupKey) {
-        notificationGroupStateMapper.decrementUnreadCount(recipientId, groupKey);
+    public int sumUnreadCount(Long recipientId) {
+        return notificationGroupStateMapper.sumUnreadCount(recipientId);
     }
 
     @Override
-    public void markAllAsRead(Long recipientId) {
-        notificationGroupStateMapper.markAllAsRead(recipientId);
+    public int decrementUnreadCount(Long recipientId, String groupKey) {
+        return notificationGroupStateMapper.decrementUnreadCount(recipientId, groupKey);
+    }
+
+    @Override
+    public int markAllAsRead(Long recipientId) {
+        return notificationGroupStateMapper.markAllAsRead(recipientId);
     }
 }

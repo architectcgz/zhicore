@@ -13,6 +13,14 @@ notification:
   retention-days: 30
   max-unread: 1000
 
+zhicore:
+  notification:
+    broadcast:
+      shard-size: 2000
+      priority-push-threshold: 100000
+    digest:
+      default-delay-minutes: 30
+
 cache:
   ttl:
     entity-detail: 300

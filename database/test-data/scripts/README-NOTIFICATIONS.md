@@ -281,6 +281,26 @@ cd ZhiCore-microservice
 2. **并行处理**：对于大量用户，可以考虑并行处理
 3. **数据库索引**：确保数据库有适当的索引
 
+## 高粉作者联调建议
+
+用于验证发文广播、免打扰和摘要补发：
+
+1. 准备一个测试作者（例如 `author_id=90001`），批量写入至少 `10000` 条粉丝关系。
+2. 发布一篇作品，确认 `notification_campaign` 和 `notification_campaign_shard` 有新记录。
+3. 对粉丝分组配置偏好：
+   - 一组开启站内+实时推送（PRIORITY）。
+   - 一组仅站内（NORMAL）。
+   - 一组作者订阅 `DIGEST_ONLY`（DIGEST）。
+   - 一组作者订阅 `MUTED`（MUTED）。
+4. 配置内容类免打扰窗口，验证命中窗口时不即时推送，转为 digest。
+
+建议重点观察：
+
+1. `notification_campaign_shard.status` 是否按 `PLANNED -> COMPLETED` 推进。
+2. `notification_delivery.delivery_status` 的分布（如 `INBOX_CREATED`、`DIGEST_PENDING`、`SKIPPED`）。
+3. 通知服务日志中的广播事件 `eventId/campaignId` 链路。
+4. 未读数接口与 `notifications` 表未读条数是否一致。
+
 ## 清理数据
 
 如果需要清理生成的通知数据：

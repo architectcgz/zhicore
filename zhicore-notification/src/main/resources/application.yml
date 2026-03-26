@@ -65,6 +65,11 @@ notification:
 # 通知聚合配置（新配置结构）
 zhicore:
   notification:
+    broadcast:
+      shard-size: 2000
+      priority-push-threshold: 100000
+    digest:
+      default-delay-minutes: 30
     aggregation:
       cache:
         # 缓存TTL（秒）

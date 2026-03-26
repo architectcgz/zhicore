@@ -11,7 +11,9 @@ import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
 import com.zhicore.notification.application.port.policy.NotificationAggregationPolicy;
 import com.zhicore.notification.application.port.store.NotificationAggregationStore;
+import com.zhicore.notification.domain.model.NotificationGroupState;
 import com.zhicore.notification.domain.model.NotificationType;
+import com.zhicore.notification.domain.repository.NotificationGroupStateRepository;
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import com.zhicore.notification.application.sentinel.NotificationSentinelHandlers;
 import com.zhicore.notification.application.sentinel.NotificationSentinelResources;
@@ -42,6 +44,7 @@ public class NotificationAggregationService {
     private static final String USER_SERVICE_DEGRADED_MESSAGE = "用户服务已降级";
 
     private final NotificationRepository notificationRepository;
+    private final NotificationGroupStateRepository notificationGroupStateRepository;
     private final UserBatchSimpleClient userServiceClient;
     private final NotificationAggregationStore notificationAggregationStore;
     private final NotificationAggregationPolicy aggregationPolicy;
@@ -69,19 +72,117 @@ public class NotificationAggregationService {
             return cached;
         }
 
-        // 2. 查询聚合后的通知（数据库层面已完成聚合）
-        List<AggregatedNotificationDTO> aggregatedList = notificationRepository
-                .findAggregatedNotifications(String.valueOf(userId), page, size);
-
-        if (aggregatedList.isEmpty()) {
+        int totalGroups = notificationRepository.countAggregatedGroups(String.valueOf(userId));
+        if (totalGroups == 0) {
             PageResult<AggregatedNotificationVO> emptyResult = PageResult.of(
                     page, size, 0, Collections.emptyList());
             cacheResult(userId, page, size, emptyResult);
             return emptyResult;
         }
 
-        int totalGroups = notificationRepository.countAggregatedGroups(String.valueOf(userId));
+        int unreadCount = notificationRepository.countUnread(String.valueOf(userId));
+        List<AggregatedNotificationDTO> projectedList = getProjectedAggregatedNotifications(
+                userId, page, size, totalGroups, unreadCount);
+        if (projectedList != null) {
+            return buildAndCacheResult(userId, page, size, projectedList, totalGroups);
+        }
+
+        // 2. 投影不可用时回退到数据库聚合查询
+        List<AggregatedNotificationDTO> aggregatedList = notificationRepository
+                .findAggregatedNotifications(String.valueOf(userId), page, size);
+        if (aggregatedList.isEmpty()) {
+            PageResult<AggregatedNotificationVO> emptyResult = PageResult.of(
+                    page, size, totalGroups, Collections.emptyList());
+            cacheResult(userId, page, size, emptyResult);
+            return emptyResult;
+        }
+
         return buildAndCacheResult(userId, page, size, aggregatedList, totalGroups);
+    }
+
+    private List<AggregatedNotificationDTO> getProjectedAggregatedNotifications(Long userId,
+                                                                                int page,
+                                                                                int size,
+                                                                                int totalGroups,
+                                                                                int unreadCount) {
+        ProjectionSummary projectionSummary = getProjectionSummary(userId);
+        if (projectionSummary == null) {
+            return null;
+        }
+        if (projectionSummary.totalGroups() != totalGroups || projectionSummary.unreadCount() != unreadCount) {
+            log.debug("聚合投影摘要不一致，回退数据库聚合: userId={}, projectionGroups={}, dbGroups={}, projectionUnread={}, dbUnread={}",
+                    userId, projectionSummary.totalGroups(), totalGroups,
+                    projectionSummary.unreadCount(), unreadCount);
+            return null;
+        }
+
+        try {
+            List<NotificationGroupState> states = notificationGroupStateRepository.findPage(
+                    userId, page, size, aggregationPolicy.maxRecentActors());
+            if (!isProjectionPageUsable(states, page, size, totalGroups)) {
+                log.debug("聚合投影分页数据不完整，回退数据库聚合: userId={}, page={}, size={}, total={}",
+                        userId, page, size, totalGroups);
+                return null;
+            }
+            return states.stream()
+                    .map(this::toAggregatedDto)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("读取聚合投影失败，回退数据库聚合: userId={}, error={}", userId, e.getMessage());
+            return null;
+        }
+    }
+
+    private ProjectionSummary getProjectionSummary(Long userId) {
+        try {
+            return new ProjectionSummary(
+                    notificationGroupStateRepository.countByRecipientId(userId),
+                    notificationGroupStateRepository.sumUnreadCount(userId)
+            );
+        } catch (Exception e) {
+            log.warn("统计聚合投影摘要失败，回退数据库聚合: userId={}, error={}", userId, e.getMessage());
+            return null;
+        }
+    }
+
+    private boolean isProjectionPageUsable(List<NotificationGroupState> states, int page, int size, int totalGroups) {
+        if (states == null) {
+            return false;
+        }
+        int offset = page * size;
+        if (offset >= totalGroups) {
+            return states.isEmpty();
+        }
+        int expectedSize = Math.min(size, totalGroups - offset);
+        if (states.size() != expectedSize) {
+            return false;
+        }
+        return states.stream().allMatch(this::isProjectionStateComplete);
+    }
+
+    private boolean isProjectionStateComplete(NotificationGroupState state) {
+        return state != null
+                && state.getNotificationType() != null
+                && state.getLatestNotificationId() != null
+                && state.getLatestTime() != null
+                && state.getActorIds() != null;
+    }
+
+    private AggregatedNotificationDTO toAggregatedDto(NotificationGroupState state) {
+        AggregatedNotificationDTO dto = new AggregatedNotificationDTO();
+        dto.setType(state.getNotificationType());
+        dto.setTargetType(state.getTargetType());
+        dto.setTargetId(state.getTargetId());
+        dto.setTotalCount(state.getTotalCount());
+        dto.setUnreadCount(state.getUnreadCount());
+        dto.setLatestTime(state.getLatestTime());
+        dto.setLatestNotificationId(String.valueOf(state.getLatestNotificationId()));
+        dto.setLatestContent(state.getLatestContent());
+        dto.setActorIds(state.getActorIds());
+        return dto;
+    }
+
+    private record ProjectionSummary(int totalGroups, int unreadCount) {
     }
 
     private PageResult<AggregatedNotificationVO> buildAndCacheResult(Long userId,

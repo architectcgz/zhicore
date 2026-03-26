@@ -17,10 +17,13 @@ import java.time.Instant;
  */
 @Getter
 public class PostPublishedIntegrationEvent extends IntegrationEvent {
-
+	
     private static final long serialVersionUID = 1L;
-
-    private final Long postId;              // 原始类型
+	
+    private final Long postId;
+    private final Long authorId;
+    private final String title;
+    private final String excerpt;
     private final Instant publishedAt;
 
     /**
@@ -36,11 +39,38 @@ public class PostPublishedIntegrationEvent extends IntegrationEvent {
     public PostPublishedIntegrationEvent(@JsonProperty("eventId") String eventId,
                                          @JsonProperty("occurredAt") Instant occurredAt,
                                          @JsonProperty("postId") Long postId,
+                                         @JsonProperty("authorId") Long authorId,
+                                         @JsonProperty("title") String title,
+                                         @JsonProperty("excerpt") String excerpt,
                                          @JsonProperty("publishedAt") Instant publishedAt,
-                                         @JsonProperty("aggregateVersion") Long aggregateVersion) {
-        super(eventId, occurredAt, aggregateVersion, 1);  // schemaVersion = 1
+                                         @JsonProperty("aggregateVersion") Long aggregateVersion,
+                                         @JsonProperty("schemaVersion") Integer schemaVersion) {
+        super(eventId, occurredAt, aggregateVersion, normalizeSchemaVersion(schemaVersion, authorId, title, excerpt));
         this.postId = postId;
+        this.authorId = authorId;
+        this.title = title;
+        this.excerpt = excerpt;
         this.publishedAt = publishedAt;
+    }
+
+    public PostPublishedIntegrationEvent(String eventId,
+                                         Instant occurredAt,
+                                         Long postId,
+                                         Long authorId,
+                                         String title,
+                                         String excerpt,
+                                         Instant publishedAt,
+                                         Long aggregateVersion) {
+        this(eventId, occurredAt, postId, authorId, title, excerpt, publishedAt, aggregateVersion, 2);
+    }
+
+    @Deprecated
+    public PostPublishedIntegrationEvent(String eventId,
+                                         Instant occurredAt,
+                                         Long postId,
+                                         Instant publishedAt,
+                                         Long aggregateVersion) {
+        this(eventId, occurredAt, postId, null, null, null, publishedAt, aggregateVersion, 1);
     }
 
     @Override
@@ -51,5 +81,15 @@ public class PostPublishedIntegrationEvent extends IntegrationEvent {
     @Override
     public Long getAggregateId() {
         return postId;
+    }
+
+    private static int normalizeSchemaVersion(Integer schemaVersion,
+                                              Long authorId,
+                                              String title,
+                                              String excerpt) {
+        if (schemaVersion != null) {
+            return schemaVersion;
+        }
+        return authorId != null || title != null || excerpt != null ? 2 : 1;
     }
 }

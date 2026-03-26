@@ -1,7 +1,8 @@
 package com.zhicore.notification;
 
 import com.zhicore.api.client.IdGeneratorFeignClient;
-import com.zhicore.notification.infrastructure.feign.UserServiceClient;
+import com.zhicore.api.client.UserFollowerShardClient;
+import com.zhicore.api.client.UserServiceClient;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -17,6 +18,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @EnableDiscoveryClient
 @EnableFeignClients(clients = {
         IdGeneratorFeignClient.class,
+        UserFollowerShardClient.class,
         UserServiceClient.class
 })
 @MapperScan("com.zhicore.notification.infrastructure.repository.mapper")

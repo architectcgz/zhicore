@@ -5,6 +5,7 @@ import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.model.NotificationType;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -86,6 +87,14 @@ public interface NotificationRepository {
      * @return 未读数量
      */
     int countUnread(String recipientId);
+
+    /**
+     * 按通知分类统计未读数。
+     *
+     * @param recipientId 接收者ID
+     * @return key=category code, value=unread count
+     */
+    Map<Integer, Integer> countUnreadByCategory(String recipientId);
 
     /**
      * 标记单条通知为已读

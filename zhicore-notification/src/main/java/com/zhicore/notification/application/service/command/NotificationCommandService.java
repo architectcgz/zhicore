@@ -136,6 +136,43 @@ public class NotificationCommandService {
     }
 
     @Transactional
+    public Notification createPostPublishedNotification(Long recipientId,
+                                                        Long authorId,
+                                                        Long postId,
+                                                        String groupKey,
+                                                        String content) {
+        Long id = generateId();
+        Notification notification = Notification.createPostPublishedNotification(
+                id, recipientId, authorId, postId, groupKey, content);
+
+        persistNotification(notification);
+
+        log.info("创建关注作者发文通知: id={}, recipient={}, authorId={}, postId={}",
+                id, recipientId, authorId, postId);
+
+        return notification;
+    }
+
+    @Transactional
+    public Notification createPostPublishedDigestNotification(Long recipientId,
+                                                              String groupKey,
+                                                              String content) {
+        Long id = generateId();
+        Notification notification = Notification.createPostPublishedDigestNotification(
+                id,
+                recipientId,
+                groupKey,
+                content
+        );
+
+        persistNotification(notification);
+
+        log.info("创建关注作者发文摘要通知: id={}, recipient={}", id, recipientId);
+
+        return notification;
+    }
+
+    @Transactional
     public void markAsRead(Long notificationId, Long userId) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new BusinessException(ResultCode.NOTIFICATION_NOT_FOUND));
@@ -152,7 +189,11 @@ public class NotificationCommandService {
             log.debug("通知已被其他请求更新，跳过未读递减: notificationId={}, userId={}", notificationId, userId);
             return;
         }
-        notificationGroupStateRepository.decrementUnreadCount(userId, NotificationGroupState.resolveGroupKey(notification));
+        int projectionAffectedRows = notificationGroupStateRepository.decrementUnreadCount(
+                userId, NotificationGroupState.resolveGroupKey(notification));
+        if (projectionAffectedRows <= 0) {
+            log.warn("聚合投影未命中单条已读更新，后续读取将回退数据库聚合: notificationId={}, userId={}", notificationId, userId);
+        }
         decrementUnreadCount(userId);
         evictAggregationCache(userId);
 
@@ -166,7 +207,10 @@ public class NotificationCommandService {
             log.debug("没有未读通知需要批量更新: userId={}", userId);
             return;
         }
-        notificationGroupStateRepository.markAllAsRead(userId);
+        int projectionAffectedRows = notificationGroupStateRepository.markAllAsRead(userId);
+        if (projectionAffectedRows <= 0) {
+            log.warn("聚合投影未命中批量已读更新，后续读取将回退数据库聚合: userId={}", userId);
+        }
         resetUnreadCount(userId);
         evictAggregationCache(userId);
 

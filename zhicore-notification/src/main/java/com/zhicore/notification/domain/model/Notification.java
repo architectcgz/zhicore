@@ -285,6 +285,21 @@ public class Notification {
     }
 
     /**
+     * 创建关注作者发文摘要通知
+     */
+    public static Notification createPostPublishedDigestNotification(Long id, Long recipientId,
+                                                                     String groupKey, String content) {
+        Assert.hasText(groupKey, "分组键不能为空");
+        Assert.hasText(content, "通知内容不能为空");
+
+        Notification notification = new Notification(id, recipientId, NotificationType.POST_PUBLISHED_DIGEST);
+        notification.targetType = "digest";
+        notification.groupKey = groupKey;
+        notification.content = truncate(content, MAX_CONTENT_LENGTH);
+        return notification;
+    }
+
+    /**
      * 从持久化恢复通知
      *
      * @return 通知实例
