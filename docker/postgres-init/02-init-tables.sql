@@ -514,6 +514,52 @@ ALTER TABLE notifications
     ADD COLUMN IF NOT EXISTS payload_json JSONB,
     ADD COLUMN IF NOT EXISTS importance SMALLINT DEFAULT 0;
 
+-- 用户通知默认偏好表
+CREATE TABLE IF NOT EXISTS notification_user_preference (
+    user_id BIGINT NOT NULL,
+    notification_type VARCHAR(64) NOT NULL,
+    channel VARCHAR(32) NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, notification_type, channel)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_user_preference_user
+    ON notification_user_preference(user_id);
+
+-- 用户免打扰配置表
+CREATE TABLE IF NOT EXISTS notification_user_dnd (
+    user_id BIGINT PRIMARY KEY,
+    enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    start_time TIME NOT NULL DEFAULT TIME '22:00:00',
+    end_time TIME NOT NULL DEFAULT TIME '08:00:00',
+    categories VARCHAR(32)[] NOT NULL DEFAULT ARRAY[]::VARCHAR(32)[],
+    channels VARCHAR(32)[] NOT NULL DEFAULT ARRAY[]::VARCHAR(32)[],
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ck_notification_user_dnd_window CHECK (start_time <> end_time)
+);
+
+-- 作者订阅偏好表
+CREATE TABLE IF NOT EXISTS notification_author_subscription (
+    user_id BIGINT NOT NULL,
+    author_id BIGINT NOT NULL,
+    subscription_level VARCHAR(32) NOT NULL,
+    in_app_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    websocket_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    email_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    digest_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, author_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_author_subscription_user
+    ON notification_author_subscription(user_id);
+CREATE INDEX IF NOT EXISTS idx_notification_author_subscription_author
+    ON notification_author_subscription(author_id);
+
 -- 全局公告表
 CREATE TABLE IF NOT EXISTS global_announcements (
     id BIGINT PRIMARY KEY,

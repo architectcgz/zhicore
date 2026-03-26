@@ -20,4 +20,15 @@ public enum NotificationChannel {
         this.code = code;
         this.description = description;
     }
+
+    public static NotificationChannel fromValue(String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("通知渠道不能为空");
+        }
+        try {
+            return NotificationChannel.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("非法通知渠道: " + value);
+        }
+    }
 }

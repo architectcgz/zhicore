@@ -21,6 +21,17 @@ public enum NotificationCategory {
         this.description = description;
     }
 
+    public static NotificationCategory fromValue(String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("通知分类不能为空");
+        }
+        try {
+            return NotificationCategory.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("非法通知分类: " + value);
+        }
+    }
+
     public static NotificationCategory fromCode(int code) {
         for (NotificationCategory category : values()) {
             if (category.code == code) {
