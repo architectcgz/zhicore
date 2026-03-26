@@ -74,11 +74,6 @@ public class Notification {
     private LocalDateTime readAt;
 
     /**
-     * 通知渠道
-     */
-    private NotificationChannel channel;
-
-    /**
      * 事件源ID
      */
     private String sourceEventId;
@@ -119,7 +114,6 @@ public class Notification {
         this.isRead = false;
         this.createdAt = LocalDateTime.now();
         this.category = defaultCategoryFor(type);
-        this.channel = NotificationChannel.IN_APP;
         this.importance = NotificationImportance.NORMAL;
     }
 
@@ -140,7 +134,6 @@ public class Notification {
         this.actorId = actorId;
         this.targetType = targetType;
         this.targetId = targetId;
-        this.channel = NotificationChannel.IN_APP;
         this.sourceEventId = sourceEventId;
         this.groupKey = groupKey;
         this.payloadJson = payloadJson;

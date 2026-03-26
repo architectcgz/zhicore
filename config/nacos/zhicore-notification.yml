@@ -8,11 +8,6 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
-mybatis-plus:
-  configuration:
-    map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
-
 notification:
   batch-size: 100
   retention-days: 30
