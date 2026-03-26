@@ -506,6 +506,14 @@ CREATE INDEX IF NOT EXISTS idx_notifications_recipient_read ON notifications(rec
 CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notifications_recipient_type ON notifications(recipient_id, type);
 
+ALTER TABLE notifications
+    ADD COLUMN IF NOT EXISTS category SMALLINT,
+    ADD COLUMN IF NOT EXISTS notification_type VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS source_event_id VARCHAR(128),
+    ADD COLUMN IF NOT EXISTS group_key VARCHAR(256),
+    ADD COLUMN IF NOT EXISTS payload_json JSONB,
+    ADD COLUMN IF NOT EXISTS importance SMALLINT DEFAULT 0;
+
 -- 全局公告表
 CREATE TABLE IF NOT EXISTS global_announcements (
     id BIGINT PRIMARY KEY,

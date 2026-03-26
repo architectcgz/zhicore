@@ -262,11 +262,13 @@ public class NotificationAggregationService {
             return "与你互动";
         }
         return switch (type) {
-            case LIKE -> "赞了你的内容";
-            case COMMENT -> "评论了你的文章";
-            case FOLLOW -> "关注了你";
-            case REPLY -> "回复了你的评论";
-            case SYSTEM -> "发送了系统通知";
+            case POST_LIKED, LIKE -> "赞了你的内容";
+            case POST_COMMENTED, COMMENT -> "评论了你的文章";
+            case USER_FOLLOWED, FOLLOW -> "关注了你";
+            case COMMENT_REPLIED, REPLY -> "回复了你的评论";
+            case POST_PUBLISHED_BY_FOLLOWING, POST_PUBLISHED_DIGEST -> "发布了新文章";
+            case SYSTEM_ANNOUNCEMENT, SYSTEM -> "发送了系统通知";
+            case SECURITY_ALERT -> "发送了安全提醒";
         };
     }
 }

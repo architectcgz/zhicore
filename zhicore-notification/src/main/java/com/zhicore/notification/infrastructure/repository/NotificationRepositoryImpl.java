@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhicore.common.util.DateTimeUtils;
 import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.domain.model.Notification;
+import com.zhicore.notification.domain.model.NotificationCategory;
+import com.zhicore.notification.domain.model.NotificationImportance;
 import com.zhicore.notification.domain.model.NotificationType;
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import com.zhicore.notification.infrastructure.repository.mapper.NotificationMapper;
@@ -112,10 +114,16 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         po.setId(notification.getId());
         po.setRecipientId(notification.getRecipientId());
         po.setType(notification.getType().getCode());
+        po.setCategory(notification.getCategory().getCode());
+        po.setNotificationType(notification.getType().name());
         po.setActorId(notification.getActorId());
         po.setTargetType(notification.getTargetType());
         po.setTargetId(notification.getTargetId());
+        po.setSourceEventId(notification.getSourceEventId());
+        po.setGroupKey(notification.getGroupKey());
+        po.setPayloadJson(notification.getPayloadJson());
         po.setContent(notification.getContent());
+        po.setImportance(notification.getImportance().getCode());
         po.setIsRead(notification.isRead());
         po.setReadAt(DateTimeUtils.toOffsetDateTime(notification.getReadAt()));
         po.setCreatedAt(DateTimeUtils.toOffsetDateTime(notification.getCreatedAt()));
@@ -126,10 +134,15 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         return Notification.reconstitute(
                 po.getId(),
                 po.getRecipientId(),
-                NotificationType.fromCode(po.getType()),
+                NotificationType.fromValue(po.getNotificationType(), po.getType()),
+                po.getCategory() != null ? NotificationCategory.fromCode(po.getCategory()) : null,
                 po.getActorId(),
                 po.getTargetType(),
                 po.getTargetId(),
+                po.getSourceEventId(),
+                po.getGroupKey(),
+                po.getPayloadJson(),
+                po.getImportance() != null ? NotificationImportance.fromCode(po.getImportance()) : null,
                 po.getContent(),
                 po.getIsRead(),
                 DateTimeUtils.toLocalDateTime(po.getReadAt()),

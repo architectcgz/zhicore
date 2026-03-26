@@ -144,6 +144,17 @@ class NotificationTest {
             assertNull(notification.getActorId());
             assertEquals("系统维护通知", notification.getContent());
         }
+
+        @Test
+        @DisplayName("创建关注作者发文通知 - 应设置分类和分组键")
+        void createPostPublishedNotification_shouldSetCategoryAndGroupKey() {
+            Notification notification = Notification.createPostPublishedNotification(
+                    1L, 200L, 100L, 300L, "post_publish:100:300", "author published");
+
+            assertEquals(NotificationType.POST_PUBLISHED_BY_FOLLOWING, notification.getType());
+            assertEquals(NotificationCategory.CONTENT, notification.getCategory());
+            assertEquals("post_publish:100:300", notification.getGroupKey());
+        }
     }
 
     @Nested

@@ -23,11 +23,11 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
      */
     @Insert("""
         INSERT INTO notifications (
-            id, recipient_id, type, actor_id, target_type, target_id,
-            content, is_read, read_at, created_at
+            id, recipient_id, type, category, notification_type, actor_id, target_type, target_id,
+            source_event_id, group_key, payload_json, content, importance, is_read, read_at, created_at
         ) VALUES (
-            #{id}, #{recipientId}, #{type}, #{actorId}, #{targetType}, #{targetId},
-            #{content}, #{isRead}, #{readAt}, #{createdAt}
+            #{id}, #{recipientId}, #{type}, #{category}, #{notificationType}, #{actorId}, #{targetType}, #{targetId},
+            #{sourceEventId}, #{groupKey}, CAST(#{payloadJson} AS JSONB), #{content}, #{importance}, #{isRead}, #{readAt}, #{createdAt}
         )
         ON CONFLICT (id) DO NOTHING
         """)
