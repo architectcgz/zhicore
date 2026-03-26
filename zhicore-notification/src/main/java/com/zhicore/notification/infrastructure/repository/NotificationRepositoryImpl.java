@@ -31,7 +31,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     @Override
     public void save(Notification notification) {
         NotificationPO po = toPO(notification);
-        notificationMapper.insert(po);
+        notificationMapper.insertOne(po);
     }
 
     @Override
