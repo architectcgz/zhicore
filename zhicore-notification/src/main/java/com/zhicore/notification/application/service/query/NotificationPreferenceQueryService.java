@@ -52,12 +52,12 @@ public class NotificationPreferenceQueryService {
         validateUserId(userId);
         EnumMap<NotificationChannel, Boolean> states = new EnumMap<>(NotificationChannel.class);
         for (NotificationChannel channel : NotificationChannel.values()) {
-            states.put(channel, true);
+            states.put(channel, isSupportedChannel(channel));
         }
 
         for (UserNotificationPreference preference : notificationPreferenceRepository.findPreferencesByUserId(userId)) {
             if (preference.getNotificationType() == notificationType) {
-                states.put(preference.getChannel(), preference.isEnabled());
+                states.put(preference.getChannel(), isSupportedChannel(preference.getChannel()) && preference.isEnabled());
             }
         }
 
@@ -105,6 +105,10 @@ public class NotificationPreferenceQueryService {
         if (authorId == null || authorId <= 0) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "作者ID必须为正数");
         }
+    }
+
+    private boolean isSupportedChannel(NotificationChannel channel) {
+        return channel != NotificationChannel.SMS;
     }
 
     /**

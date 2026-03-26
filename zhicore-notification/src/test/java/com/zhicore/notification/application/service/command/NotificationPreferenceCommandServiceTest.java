@@ -63,6 +63,20 @@ class NotificationPreferenceCommandServiceTest {
     }
 
     @Test
+    @DisplayName("当前阶段不应允许启用 SMS 通知偏好")
+    void updateNotificationPreference_shouldRejectEnablingSmsChannel() {
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                notificationPreferenceCommandService.updateNotificationPreference(
+                        11L,
+                        NotificationType.POST_COMMENTED,
+                        NotificationChannel.SMS,
+                        true
+                ));
+
+        assertTrue(exception.getMessage().contains("SMS"));
+    }
+
+    @Test
     @DisplayName("非法用户ID更新作者订阅时应该拒绝")
     void updateAuthorSubscription_shouldRejectInvalidUserId() {
         BusinessException exception = assertThrows(BusinessException.class, () ->
@@ -77,6 +91,48 @@ class NotificationPreferenceCommandServiceTest {
                 ));
 
         assertTrue(exception.getMessage().contains("用户ID"));
+    }
+
+    @Test
+    @DisplayName("静默作者订阅应归一化为所有即时渠道和摘要都关闭")
+    void updateAuthorSubscription_shouldNormalizeMutedSubscription() {
+        notificationPreferenceCommandService.updateAuthorSubscription(
+                11L,
+                22L,
+                AuthorSubscriptionLevel.MUTED,
+                true,
+                true,
+                true,
+                true
+        );
+
+        verify(notificationPreferenceRepository).upsertAuthorSubscription(argThat(subscription ->
+                subscription.getLevel() == AuthorSubscriptionLevel.MUTED
+                        && !subscription.isInAppEnabled()
+                        && !subscription.isWebsocketEnabled()
+                        && !subscription.isEmailEnabled()
+                        && !subscription.isDigestEnabled()));
+    }
+
+    @Test
+    @DisplayName("摘要作者订阅应归一化为只保留摘要渠道")
+    void updateAuthorSubscription_shouldNormalizeDigestOnlySubscription() {
+        notificationPreferenceCommandService.updateAuthorSubscription(
+                11L,
+                22L,
+                AuthorSubscriptionLevel.DIGEST_ONLY,
+                true,
+                true,
+                true,
+                false
+        );
+
+        verify(notificationPreferenceRepository).upsertAuthorSubscription(argThat(subscription ->
+                subscription.getLevel() == AuthorSubscriptionLevel.DIGEST_ONLY
+                        && !subscription.isInAppEnabled()
+                        && !subscription.isWebsocketEnabled()
+                        && !subscription.isEmailEnabled()
+                        && subscription.isDigestEnabled()));
     }
 
     @Test
@@ -161,6 +217,7 @@ class NotificationPreferenceCommandServiceTest {
         assertTrue(decision.isChannelEnabled(NotificationChannel.IN_APP));
         assertTrue(decision.isChannelEnabled(NotificationChannel.WEBSOCKET));
         assertTrue(decision.isChannelEnabled(NotificationChannel.EMAIL));
+        assertFalse(decision.isChannelEnabled(NotificationChannel.SMS));
     }
 
     @Test

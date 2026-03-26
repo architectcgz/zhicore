@@ -214,6 +214,9 @@ class NotificationPreferenceControllerTest extends ControllerTestSupport {
                     .andExpect(jsonPath("$.code").value(ResultCode.SUCCESS.getCode()))
                     .andExpect(jsonPath("$.data.authorId").value("22"))
                     .andExpect(jsonPath("$.data.level").value("DIGEST_ONLY"))
+                    .andExpect(jsonPath("$.data.inAppEnabled").value(false))
+                    .andExpect(jsonPath("$.data.websocketEnabled").value(false))
+                    .andExpect(jsonPath("$.data.emailEnabled").value(false))
                     .andExpect(jsonPath("$.data.digestEnabled").value(true));
         }
     }

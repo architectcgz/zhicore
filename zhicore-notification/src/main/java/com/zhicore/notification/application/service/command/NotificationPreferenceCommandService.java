@@ -32,6 +32,9 @@ public class NotificationPreferenceCommandService {
                                              NotificationChannel channel,
                                              boolean enabled) {
         validateUserId(userId);
+        if (channel == NotificationChannel.SMS && enabled) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "当前阶段不支持启用SMS通知");
+        }
         UserNotificationPreference preference = UserNotificationPreference.of(userId, notificationType, channel, enabled);
         notificationPreferenceRepository.upsertPreference(preference);
     }
