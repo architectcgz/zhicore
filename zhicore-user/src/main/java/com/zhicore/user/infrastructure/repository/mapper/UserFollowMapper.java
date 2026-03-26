@@ -40,6 +40,16 @@ public interface UserFollowMapper extends BaseMapper<UserFollowPO> {
     List<UserFollowPO> selectFollowings(@Param("userId") Long userId, @Param("offset") int offset, @Param("size") int size);
 
     /**
+     * 按 followerId 游标稳定查询粉丝分片
+     */
+    @Select("SELECT follower_id, created_at FROM user_follows " +
+            "WHERE following_id = #{userId} AND follower_id > #{cursorFollowerId} " +
+            "ORDER BY follower_id ASC LIMIT #{size}")
+    List<UserFollowPO> selectFollowerShard(@Param("userId") Long userId,
+                                           @Param("cursorFollowerId") Long cursorFollowerId,
+                                           @Param("size") int size);
+
+    /**
      * 查询关注统计
      */
     @Select("SELECT * FROM user_follow_stats WHERE user_id = #{userId}")

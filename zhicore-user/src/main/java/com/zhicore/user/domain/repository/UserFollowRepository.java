@@ -58,6 +58,16 @@ public interface UserFollowRepository {
     List<UserFollow> findFollowings(Long userId, int page, int size);
 
     /**
+     * 按 followerId 游标稳定查询粉丝分片。
+     *
+     * @param userId 用户ID
+     * @param cursorFollowerId 起始游标，返回 followerId 大于该值的数据
+     * @param size 分片大小
+     * @return 粉丝分片
+     */
+    List<UserFollow> findFollowerShard(Long userId, Long cursorFollowerId, int size);
+
+    /**
      * 获取用户关注统计
      *
      * @param userId 用户ID

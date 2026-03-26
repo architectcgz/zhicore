@@ -1,5 +1,6 @@
 package com.zhicore.user.interfaces.controller;
 
+import com.zhicore.api.dto.user.FollowerShardPageDTO;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.user.application.dto.FollowStatsVO;
 import com.zhicore.user.application.dto.UserVO;
@@ -34,6 +35,18 @@ public class FollowQueryController {
             @Parameter(description = "每页大小", example = "20")
             @RequestParam(defaultValue = "20") int size) {
         return ApiResponse.success(followQueryService.getFollowers(userId, page, size));
+    }
+
+    @Operation(summary = "获取粉丝分片", description = "按 followerId 游标稳定查询指定用户的粉丝分片")
+    @GetMapping("/{userId}/followers/shard")
+    public ApiResponse<FollowerShardPageDTO> getFollowerShard(
+            @Parameter(description = "用户ID", required = true, example = "1")
+            @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId,
+            @Parameter(description = "游标 followerId，返回大于该值的粉丝", example = "0")
+            @RequestParam(defaultValue = "0") @Min(value = 0, message = "游标必须大于等于0") Long cursorFollowerId,
+            @Parameter(description = "分片大小，最大 2000", example = "2000")
+            @RequestParam(defaultValue = "2000") int size) {
+        return ApiResponse.success(followQueryService.getFollowerShard(userId, cursorFollowerId, size));
     }
 
     @Operation(summary = "获取关注列表", description = "分页查询指定用户的关注列表")
