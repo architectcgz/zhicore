@@ -1,6 +1,6 @@
 package com.zhicore.user.application.service.query;
 
-import com.zhicore.api.dto.user.FollowerShardPageDTO;
+import com.zhicore.user.application.dto.FollowerShardPageVO;
 import com.zhicore.user.application.port.store.FollowStatsStore;
 import com.zhicore.user.domain.model.UserFollow;
 import com.zhicore.user.domain.repository.UserFollowRepository;
@@ -44,7 +44,7 @@ class FollowerShardQueryServiceTest {
                 UserFollow.reconstitute(8L, 200L, LocalDateTime.of(2026, 3, 1, 10, 1))
         ));
 
-        FollowerShardPageDTO result = followQueryService.getFollowerShard(200L, 5L, 2);
+        FollowerShardPageVO result = followQueryService.getFollowerShard(200L, 5L, 2);
 
         assertEquals(List.of(6L, 8L), result.getItems().stream().map(item -> item.getFollowerId()).toList());
         assertEquals(8L, result.getNextCursorFollowerId());
@@ -56,7 +56,7 @@ class FollowerShardQueryServiceTest {
     void getFollowerShard_shouldClampPageSizeAndReturnNullCursorWhenEmpty() {
         when(userFollowRepository.findFollowerShard(200L, 0L, 2000)).thenReturn(List.of());
 
-        FollowerShardPageDTO result = followQueryService.getFollowerShard(200L, -1L, 5000);
+        FollowerShardPageVO result = followQueryService.getFollowerShard(200L, -1L, 5000);
 
         assertEquals(List.of(), result.getItems());
         assertNull(result.getNextCursorFollowerId());

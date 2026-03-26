@@ -1,7 +1,7 @@
 package com.zhicore.user.interfaces.controller;
 
-import com.zhicore.api.dto.user.FollowerShardPageDTO;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.user.application.dto.FollowerShardPageVO;
 import com.zhicore.user.application.dto.FollowStatsVO;
 import com.zhicore.user.application.dto.UserVO;
 import com.zhicore.user.application.service.query.FollowQueryService;
@@ -39,7 +39,7 @@ public class FollowQueryController {
 
     @Operation(summary = "获取粉丝分片", description = "按 followerId 游标稳定查询指定用户的粉丝分片")
     @GetMapping("/{userId}/followers/shard")
-    public ApiResponse<FollowerShardPageDTO> getFollowerShard(
+    public ApiResponse<FollowerShardPageVO> getFollowerShard(
             @Parameter(description = "用户ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId,
             @Parameter(description = "游标 followerId，返回大于该值的粉丝", example = "0")

@@ -1,9 +1,9 @@
 package com.zhicore.user.application.service.query;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
-import com.zhicore.api.dto.user.FollowerShardItemDTO;
-import com.zhicore.api.dto.user.FollowerShardPageDTO;
 import com.zhicore.user.application.assembler.UserAssembler;
+import com.zhicore.user.application.dto.FollowerShardItemVO;
+import com.zhicore.user.application.dto.FollowerShardPageVO;
 import com.zhicore.user.application.dto.FollowStatsVO;
 import com.zhicore.user.application.dto.UserVO;
 import com.zhicore.user.application.port.store.FollowStatsStore;
@@ -83,16 +83,16 @@ public class FollowQueryService {
      * @param size 分片大小
      * @return 粉丝分片页
      */
-    public FollowerShardPageDTO getFollowerShard(Long userId, Long cursorFollowerId, int size) {
+    public FollowerShardPageVO getFollowerShard(Long userId, Long cursorFollowerId, int size) {
         long normalizedCursorFollowerId = normalizeCursorFollowerId(cursorFollowerId);
         int normalizedSize = normalizeFollowerShardSize(size);
 
-        List<FollowerShardItemDTO> items = userFollowRepository.findFollowerShard(userId, normalizedCursorFollowerId, normalizedSize)
+        List<FollowerShardItemVO> items = userFollowRepository.findFollowerShard(userId, normalizedCursorFollowerId, normalizedSize)
                 .stream()
                 .map(this::toFollowerShardItem)
                 .toList();
 
-        FollowerShardPageDTO page = new FollowerShardPageDTO();
+        FollowerShardPageVO page = new FollowerShardPageVO();
         page.setItems(items);
         page.setNextCursorFollowerId(items.isEmpty() ? null : items.get(items.size() - 1).getFollowerId());
         return page;
@@ -212,8 +212,8 @@ public class FollowQueryService {
                 .collect(Collectors.toList());
     }
 
-    private FollowerShardItemDTO toFollowerShardItem(UserFollow follow) {
-        FollowerShardItemDTO item = new FollowerShardItemDTO();
+    private FollowerShardItemVO toFollowerShardItem(UserFollow follow) {
+        FollowerShardItemVO item = new FollowerShardItemVO();
         item.setFollowerId(follow.getFollowerId());
         item.setCreatedAt(follow.getCreatedAt());
         return item;

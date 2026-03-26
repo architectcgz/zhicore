@@ -1,8 +1,8 @@
 package com.zhicore.user.interfaces.controller;
 
-import com.zhicore.api.dto.user.FollowerShardItemDTO;
-import com.zhicore.api.dto.user.FollowerShardPageDTO;
 import com.zhicore.common.exception.GlobalExceptionHandler;
+import com.zhicore.user.application.dto.FollowerShardItemVO;
+import com.zhicore.user.application.dto.FollowerShardPageVO;
 import com.zhicore.user.application.service.query.FollowQueryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,11 +41,11 @@ class FollowQueryControllerFollowerShardTest {
     @Test
     @DisplayName("应该成功获取粉丝分片")
     void shouldGetFollowerShard() throws Exception {
-        FollowerShardItemDTO item = new FollowerShardItemDTO();
+        FollowerShardItemVO item = new FollowerShardItemVO();
         item.setFollowerId(6L);
         item.setCreatedAt(LocalDateTime.of(2026, 3, 1, 10, 0));
 
-        FollowerShardPageDTO page = new FollowerShardPageDTO();
+        FollowerShardPageVO page = new FollowerShardPageVO();
         page.setItems(List.of(item));
         page.setNextCursorFollowerId(6L);
 
