@@ -63,12 +63,12 @@ public class NotificationPreferenceQueryService {
 
         if (authorId != null) {
             validateAuthorId(authorId);
-            UserAuthorSubscription subscription = notificationPreferenceRepository
-                    .findAuthorSubscription(userId, authorId)
-                    .orElse(UserAuthorSubscription.defaultFor(userId, authorId));
-            for (NotificationChannel channel : NotificationChannel.values()) {
-                states.put(channel, states.get(channel) && subscription.allowsChannel(channel));
-            }
+            notificationPreferenceRepository.findAuthorSubscription(userId, authorId)
+                    .ifPresent(subscription -> {
+                        for (NotificationChannel channel : NotificationChannel.values()) {
+                            states.put(channel, states.get(channel) && subscription.allowsChannel(channel));
+                        }
+                    });
         }
 
         NotificationCategory category = resolveCategory(notificationType);

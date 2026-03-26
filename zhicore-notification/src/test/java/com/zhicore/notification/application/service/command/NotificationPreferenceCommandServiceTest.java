@@ -142,4 +142,70 @@ class NotificationPreferenceCommandServiceTest {
         assertFalse(decision.isChannelEnabled(NotificationChannel.WEBSOCKET));
         assertFalse(decision.isChannelEnabled(NotificationChannel.EMAIL));
     }
+
+    @Test
+    @DisplayName("没有作者订阅配置时不应因 authorId 存在而收窄默认渠道")
+    void resolveChannels_shouldKeepDefaultEnabledWhenAuthorSubscriptionMissing() {
+        when(notificationPreferenceRepository.findPreferencesByUserId(11L)).thenReturn(List.of());
+        when(notificationPreferenceRepository.findUserDnd(11L)).thenReturn(Optional.empty());
+        when(notificationPreferenceRepository.findAuthorSubscription(11L, 22L)).thenReturn(Optional.empty());
+
+        NotificationPreferenceQueryService.ChannelDecision decision =
+                notificationPreferenceQueryService.resolveChannels(
+                        11L,
+                        NotificationType.POST_PUBLISHED_BY_FOLLOWING,
+                        22L,
+                        LocalTime.NOON
+                );
+
+        assertTrue(decision.isChannelEnabled(NotificationChannel.IN_APP));
+        assertTrue(decision.isChannelEnabled(NotificationChannel.WEBSOCKET));
+        assertTrue(decision.isChannelEnabled(NotificationChannel.EMAIL));
+    }
+
+    @Test
+    @DisplayName("渠道解析应按默认开启、类型偏好、作者订阅、DND 顺序依次收敛")
+    void resolveChannels_shouldApplyPreferenceThenAuthorSubscriptionThenDnd() {
+        when(notificationPreferenceRepository.findPreferencesByUserId(11L)).thenReturn(List.of(
+                UserNotificationPreference.of(
+                        11L,
+                        NotificationType.POST_PUBLISHED_BY_FOLLOWING,
+                        NotificationChannel.EMAIL,
+                        false
+                )
+        ));
+        when(notificationPreferenceRepository.findAuthorSubscription(11L, 22L)).thenReturn(Optional.of(
+                UserAuthorSubscription.of(
+                        11L,
+                        22L,
+                        AuthorSubscriptionLevel.ALL,
+                        true,
+                        false,
+                        true,
+                        false
+                )
+        ));
+        when(notificationPreferenceRepository.findUserDnd(11L)).thenReturn(Optional.of(
+                UserNotificationDnd.of(
+                        11L,
+                        true,
+                        LocalTime.of(22, 0),
+                        LocalTime.of(8, 0),
+                        EnumSet.of(NotificationCategory.CONTENT),
+                        EnumSet.of(NotificationChannel.IN_APP)
+                )
+        ));
+
+        NotificationPreferenceQueryService.ChannelDecision decision =
+                notificationPreferenceQueryService.resolveChannels(
+                        11L,
+                        NotificationType.POST_PUBLISHED_BY_FOLLOWING,
+                        22L,
+                        LocalTime.of(23, 30)
+                );
+
+        assertFalse(decision.isChannelEnabled(NotificationChannel.IN_APP));
+        assertFalse(decision.isChannelEnabled(NotificationChannel.WEBSOCKET));
+        assertFalse(decision.isChannelEnabled(NotificationChannel.EMAIL));
+    }
 }
