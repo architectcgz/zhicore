@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -131,6 +132,7 @@ class NotificationApplicationServiceTest {
     void shouldMarkAsReadWhenNotificationBelongsToCurrentUser() {
         Notification notification = Notification.createFollowNotification(202L, 11L, 33L);
         when(notificationRepository.findById(202L)).thenReturn(Optional.of(notification));
+        when(notificationRepository.markAsRead(202L, "11")).thenReturn(1);
 
         notificationCommandService.markAsRead(202L, 11L);
 
@@ -141,13 +143,43 @@ class NotificationApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("并发重复标记已读时不应重复递减未读状态")
+    void shouldNotDecrementUnreadStateWhenConcurrentMarkAsReadAffectsNoRows() {
+        Notification notification = Notification.createFollowNotification(303L, 11L, 33L);
+        when(notificationRepository.findById(303L)).thenReturn(Optional.of(notification));
+        when(notificationRepository.markAsRead(303L, "11")).thenReturn(0);
+
+        notificationCommandService.markAsRead(303L, 11L);
+
+        verify(notificationRepository).markAsRead(303L, "11");
+        verify(notificationGroupStateRepository, never()).decrementUnreadCount(anyLong(), anyString());
+        verify(notificationUnreadCountStore, never()).decrement(anyLong(), anyLong());
+        verify(notificationAggregationStore, never()).evictUser(anyLong());
+    }
+
+    @Test
     @DisplayName("全部标记已读时应该重置未读缓存并同步组状态")
     void shouldResetUnreadStateWhenMarkAllAsRead() {
+        when(notificationRepository.markAllAsRead("11")).thenReturn(2);
+
         notificationCommandService.markAllAsRead(11L);
 
         verify(notificationRepository).markAllAsRead("11");
         verify(notificationGroupStateRepository).markAllAsRead(11L);
         verify(notificationUnreadCountStore).set(11L, 0, UNREAD_COUNT_TTL);
         verify(notificationAggregationStore).evictUser(11L);
+    }
+
+    @Test
+    @DisplayName("没有未读通知时全部标记已读不应重复重置状态")
+    void shouldSkipUnreadResetWhenMarkAllAsReadAffectsNoRows() {
+        when(notificationRepository.markAllAsRead("11")).thenReturn(0);
+
+        notificationCommandService.markAllAsRead(11L);
+
+        verify(notificationRepository).markAllAsRead("11");
+        verify(notificationGroupStateRepository, never()).markAllAsRead(anyLong());
+        verify(notificationUnreadCountStore, never()).set(anyLong(), anyInt(), any());
+        verify(notificationAggregationStore, never()).evictUser(anyLong());
     }
 }

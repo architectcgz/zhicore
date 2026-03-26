@@ -92,42 +92,29 @@ class NotificationAggregationServiceTest {
         }
 
         @Test
-        @DisplayName("Cache miss - returns data from group state projection")
-        void getAggregatedNotifications_GroupStateHit() {
+        @DisplayName("Cache miss - group state exists but main list still uses database aggregation")
+        void getAggregatedNotifications_GroupStatePresent_shouldStillUseDatabaseAggregation() {
             // Given
             when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
-            when(notificationGroupStateRepository.findPage(USER_ID, 0, 20, 3)).thenReturn(List.of(
-                    NotificationGroupState.builder()
-                            .recipientId(USER_ID)
-                            .groupKey("LIKE:post:100")
-                            .notificationType(NotificationType.LIKE)
-                            .latestNotificationId(999L)
-                            .totalCount(5)
-                            .unreadCount(3)
-                            .targetType("post")
-                            .targetId("100")
-                            .latestContent("liked your post")
-                            .latestTime(LocalDateTime.now())
-                            .actorIds(Arrays.asList("456", "789", "999"))
-                            .build()
-            ));
-            when(notificationGroupStateRepository.countByRecipientId(USER_ID)).thenReturn(1);
+
+            AggregatedNotificationDTO dto = new AggregatedNotificationDTO();
+            dto.setType(NotificationType.LIKE);
+            dto.setTargetType("post");
+            dto.setTargetId("200");
+            dto.setTotalCount(2);
+            dto.setUnreadCount(1);
+            dto.setLatestTime(LocalDateTime.now());
+            dto.setLatestContent("database row");
+            dto.setActorIds(List.of("456"));
+            when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
+                    .thenReturn(List.of(dto));
+            when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(1);
 
             UserSimpleDTO user1 = new UserSimpleDTO();
             user1.setId(456L);
             user1.setNickname("Zhang San");
-            UserSimpleDTO user2 = new UserSimpleDTO();
-            user2.setId(789L);
-            user2.setNickname("Li Si");
-            UserSimpleDTO user3 = new UserSimpleDTO();
-            user3.setId(999L);
-            user3.setNickname("Wang Wu");
             when(userServiceClient.batchGetUsersSimple(anySet()))
-                    .thenReturn(ApiResponse.success(Map.of(
-                            456L, user1,
-                            789L, user2,
-                            999L, user3
-                    )));
+                    .thenReturn(ApiResponse.success(Map.of(456L, user1)));
 
             // When
             PageResult<AggregatedNotificationVO> result =
@@ -137,8 +124,10 @@ class NotificationAggregationServiceTest {
             assertNotNull(result);
             assertEquals(1, result.getTotal());
             assertEquals(1, result.getRecords().size());
-            verify(notificationGroupStateRepository).findPage(USER_ID, 0, 20, 3);
-            verify(notificationRepository, never()).findAggregatedNotifications(anyString(), anyInt(), anyInt());
+            assertEquals(200L, result.getRecords().get(0).getTargetId());
+            verify(notificationRepository).findAggregatedNotifications(String.valueOf(USER_ID), 0, 20);
+            verify(notificationGroupStateRepository, never()).findPage(anyLong(), anyInt(), anyInt(), anyInt());
+            verify(notificationGroupStateRepository, never()).countByRecipientId(anyLong());
         }
 
         @Test
@@ -146,7 +135,6 @@ class NotificationAggregationServiceTest {
         void getAggregatedNotifications_EmptyResult() {
             // Given
             when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
-            when(notificationGroupStateRepository.findPage(USER_ID, 0, 20, 3)).thenReturn(Collections.emptyList());
             when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
                     .thenReturn(Collections.emptyList());
 
@@ -165,7 +153,6 @@ class NotificationAggregationServiceTest {
         void getAggregatedNotifications_WithData() {
             // Given
             when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
-            when(notificationGroupStateRepository.findPage(USER_ID, 0, 20, 3)).thenReturn(Collections.emptyList());
 
             AggregatedNotificationDTO dto = new AggregatedNotificationDTO();
             dto.setType(NotificationType.LIKE);
@@ -221,7 +208,6 @@ class NotificationAggregationServiceTest {
         void getAggregatedNotifications_UserServiceFailed() {
             // Given
             when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
-            when(notificationGroupStateRepository.findPage(USER_ID, 0, 20, 3)).thenReturn(Collections.emptyList());
 
             AggregatedNotificationDTO dto = new AggregatedNotificationDTO();
             dto.setType(NotificationType.FOLLOW);
@@ -290,7 +276,6 @@ class NotificationAggregationServiceTest {
         void aggregatedContent_SingleLike() {
             // Given
             when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
-            when(notificationGroupStateRepository.findPage(USER_ID, 0, 20, 3)).thenReturn(Collections.emptyList());
 
             AggregatedNotificationDTO dto = new AggregatedNotificationDTO();
             dto.setType(NotificationType.LIKE);
@@ -325,7 +310,6 @@ class NotificationAggregationServiceTest {
         void aggregatedContent_MultipleFollow() {
             // Given
             when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
-            when(notificationGroupStateRepository.findPage(USER_ID, 0, 20, 3)).thenReturn(Collections.emptyList());
 
             AggregatedNotificationDTO dto = new AggregatedNotificationDTO();
             dto.setType(NotificationType.FOLLOW);

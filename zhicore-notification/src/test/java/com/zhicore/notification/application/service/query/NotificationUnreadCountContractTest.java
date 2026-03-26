@@ -82,6 +82,7 @@ class NotificationUnreadCountContractTest {
     void markAsRead_shouldDecrementUnreadCountWithoutFullCacheEvict() {
         Notification notification = Notification.createCommentNotification(202L, 11L, 22L, 33L, 44L, "hello");
         when(notificationRepository.findById(202L)).thenReturn(Optional.of(notification));
+        when(notificationRepository.markAsRead(202L, "11")).thenReturn(1);
 
         notificationCommandService.markAsRead(202L, 11L);
 

@@ -147,7 +147,11 @@ public class NotificationCommandService {
             return;
         }
 
-        notificationRepository.markAsRead(notificationId, String.valueOf(userId));
+        int affectedRows = notificationRepository.markAsRead(notificationId, String.valueOf(userId));
+        if (affectedRows <= 0) {
+            log.debug("通知已被其他请求更新，跳过未读递减: notificationId={}, userId={}", notificationId, userId);
+            return;
+        }
         notificationGroupStateRepository.decrementUnreadCount(userId, NotificationGroupState.resolveGroupKey(notification));
         decrementUnreadCount(userId);
         evictAggregationCache(userId);
@@ -157,7 +161,11 @@ public class NotificationCommandService {
 
     @Transactional
     public void markAllAsRead(Long userId) {
-        notificationRepository.markAllAsRead(String.valueOf(userId));
+        int affectedRows = notificationRepository.markAllAsRead(String.valueOf(userId));
+        if (affectedRows <= 0) {
+            log.debug("没有未读通知需要批量更新: userId={}", userId);
+            return;
+        }
         notificationGroupStateRepository.markAllAsRead(userId);
         resetUnreadCount(userId);
         evictAggregationCache(userId);

@@ -93,14 +93,14 @@ public interface NotificationRepository {
      * @param id 通知ID
      * @param recipientId 接收者ID
      */
-    void markAsRead(Long id, String recipientId);
+    int markAsRead(Long id, String recipientId);
 
     /**
      * 批量标记所有通知为已读
      *
      * @param recipientId 接收者ID
      */
-    void markAllAsRead(String recipientId);
+    int markAllAsRead(String recipientId);
 
     /**
      * 删除通知

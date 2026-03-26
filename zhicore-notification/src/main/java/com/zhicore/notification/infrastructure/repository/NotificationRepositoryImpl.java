@@ -94,13 +94,13 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public void markAsRead(Long id, String recipientId) {
-        notificationMapper.markAsRead(id, recipientId);
+    public int markAsRead(Long id, String recipientId) {
+        return notificationMapper.markAsRead(id, recipientId);
     }
 
     @Override
-    public void markAllAsRead(String recipientId) {
-        notificationMapper.markAllAsRead(recipientId);
+    public int markAllAsRead(String recipientId) {
+        return notificationMapper.markAllAsRead(recipientId);
     }
 
     @Override
