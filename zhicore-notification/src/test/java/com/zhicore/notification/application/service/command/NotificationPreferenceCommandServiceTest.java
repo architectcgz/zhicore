@@ -164,13 +164,13 @@ class NotificationPreferenceCommandServiceTest {
     }
 
     @Test
-    @DisplayName("渠道解析应按默认开启、类型偏好、作者订阅、DND 顺序依次收敛")
+    @DisplayName("渠道解析应按默认开启、类型偏好、作者订阅、DND 顺序依次收敛且后层不能错误重开前层已关闭渠道")
     void resolveChannels_shouldApplyPreferenceThenAuthorSubscriptionThenDnd() {
         when(notificationPreferenceRepository.findPreferencesByUserId(11L)).thenReturn(List.of(
                 UserNotificationPreference.of(
                         11L,
                         NotificationType.POST_PUBLISHED_BY_FOLLOWING,
-                        NotificationChannel.EMAIL,
+                        NotificationChannel.WEBSOCKET,
                         false
                 )
         ));
@@ -180,8 +180,8 @@ class NotificationPreferenceCommandServiceTest {
                         22L,
                         AuthorSubscriptionLevel.ALL,
                         true,
-                        false,
                         true,
+                        false,
                         false
                 )
         ));
