@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS user_follows (
 
 CREATE INDEX IF NOT EXISTS idx_user_follows_follower ON user_follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_user_follows_following ON user_follows(following_id);
+CREATE INDEX IF NOT EXISTS idx_user_follows_following_follower ON user_follows(following_id, follower_id);
 
 -- 用户关注统计表
 CREATE TABLE IF NOT EXISTS user_follow_stats (
