@@ -20,6 +20,10 @@ public final class NotificationRedisKeys {
      * 用户未读通知数量
      * Key: notification:{userId}:unread
      */
+    public static String unreadCount(Long userId) {
+        return unreadCount(String.valueOf(userId));
+    }
+
     public static String unreadCount(String userId) {
         return PREFIX + ":" + userId + ":unread";
     }
@@ -28,6 +32,10 @@ public final class NotificationRedisKeys {
      * 聚合通知列表缓存
      * Key: notification:{userId}:aggregated:{page}:{size}
      */
+    public static String aggregatedList(Long userId, int page, int size) {
+        return aggregatedList(String.valueOf(userId), page, size);
+    }
+
     public static String aggregatedList(String userId, int page, int size) {
         return PREFIX + ":" + userId + ":aggregated:" + page + ":" + size;
     }
@@ -36,6 +44,10 @@ public final class NotificationRedisKeys {
      * 聚合通知列表缓存模式（用于批量删除）
      * Key: notification:{userId}:aggregated:*
      */
+    public static String aggregatedListPattern(Long userId) {
+        return aggregatedListPattern(String.valueOf(userId));
+    }
+
     public static String aggregatedListPattern(String userId) {
         return PREFIX + ":" + userId + ":aggregated:*";
     }

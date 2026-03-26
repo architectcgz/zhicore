@@ -14,5 +14,9 @@ public interface NotificationUnreadCountStore {
 
     void set(Long userId, int count, Duration ttl);
 
+    Long increment(Long userId, long delta, Duration ttl);
+
+    Long decrement(Long userId, long delta);
+
     void evict(Long userId);
 }

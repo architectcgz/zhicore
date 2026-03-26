@@ -515,6 +515,21 @@ ALTER TABLE notifications
     ADD COLUMN IF NOT EXISTS payload_json JSONB,
     ADD COLUMN IF NOT EXISTS importance SMALLINT DEFAULT 0;
 
+CREATE TABLE IF NOT EXISTS notification_group_state (
+    recipient_id BIGINT NOT NULL,
+    group_key VARCHAR(256) NOT NULL,
+    notification_type VARCHAR(64) NOT NULL,
+    latest_notification_id BIGINT NOT NULL,
+    total_count INT NOT NULL,
+    unread_count INT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (recipient_id, group_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_group_state_recipient_latest
+    ON notification_group_state(recipient_id, latest_notification_id DESC);
+
 -- 用户通知默认偏好表
 CREATE TABLE IF NOT EXISTS notification_user_preference (
     user_id BIGINT NOT NULL,

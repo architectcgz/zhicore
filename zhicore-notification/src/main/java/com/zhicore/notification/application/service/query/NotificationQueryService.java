@@ -43,12 +43,15 @@ public class NotificationQueryService {
 
         int count = notificationRepository.countUnread(String.valueOf(userId));
 
+        repairUnreadCountCache(userId, count);
+        return count;
+    }
+
+    private void repairUnreadCountCache(Long userId, int count) {
         try {
             notificationUnreadCountStore.set(userId, count, UNREAD_COUNT_TTL);
         } catch (Exception e) {
             log.warn("缓存未读计数失败: {}", e.getMessage());
         }
-
-        return count;
     }
 }

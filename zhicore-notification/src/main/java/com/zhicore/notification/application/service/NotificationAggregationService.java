@@ -11,7 +11,9 @@ import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
 import com.zhicore.notification.application.port.policy.NotificationAggregationPolicy;
 import com.zhicore.notification.application.port.store.NotificationAggregationStore;
+import com.zhicore.notification.domain.model.NotificationGroupState;
 import com.zhicore.notification.domain.model.NotificationType;
+import com.zhicore.notification.domain.repository.NotificationGroupStateRepository;
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import com.zhicore.notification.application.sentinel.NotificationSentinelHandlers;
 import com.zhicore.notification.application.sentinel.NotificationSentinelResources;
@@ -42,6 +44,7 @@ public class NotificationAggregationService {
     private static final String USER_SERVICE_DEGRADED_MESSAGE = "用户服务已降级";
 
     private final NotificationRepository notificationRepository;
+    private final NotificationGroupStateRepository notificationGroupStateRepository;
     private final UserBatchSimpleClient userServiceClient;
     private final NotificationAggregationStore notificationAggregationStore;
     private final NotificationAggregationPolicy aggregationPolicy;
@@ -69,6 +72,12 @@ public class NotificationAggregationService {
             return cached;
         }
 
+        ProjectionResult projectionResult = loadFromGroupState(userId, page, size);
+        if (projectionResult != null) {
+            return buildAndCacheResult(userId, page, size,
+                    projectionResult.aggregatedList(), projectionResult.totalGroups());
+        }
+
         // 2. 查询聚合后的通知（数据库层面已完成聚合）
         List<AggregatedNotificationDTO> aggregatedList = notificationRepository
                 .findAggregatedNotifications(String.valueOf(userId), page, size);
@@ -80,6 +89,15 @@ public class NotificationAggregationService {
             return emptyResult;
         }
 
+        int totalGroups = notificationRepository.countAggregatedGroups(String.valueOf(userId));
+        return buildAndCacheResult(userId, page, size, aggregatedList, totalGroups);
+    }
+
+    private PageResult<AggregatedNotificationVO> buildAndCacheResult(Long userId,
+                                                                     int page,
+                                                                     int size,
+                                                                     List<AggregatedNotificationDTO> aggregatedList,
+                                                                     int totalGroups) {
         // 3. 批量获取用户信息（避免 N+1）
         Set<String> allActorIds = aggregatedList.stream()
                 .filter(dto -> dto.getActorIds() != null)
@@ -93,9 +111,6 @@ public class NotificationAggregationService {
                 .map(dto -> buildAggregatedVO(dto, userMap))
                 .collect(Collectors.toList());
 
-        // 5. 获取总数
-        int totalGroups = notificationRepository.countAggregatedGroups(String.valueOf(userId));
-
         PageResult<AggregatedNotificationVO> result = PageResult.of(page, size, totalGroups, voList);
 
         // 6. 缓存结果
@@ -105,6 +120,25 @@ public class NotificationAggregationService {
                 userId, page, size, totalGroups);
 
         return result;
+    }
+
+    private ProjectionResult loadFromGroupState(Long userId, int page, int size) {
+        try {
+            List<NotificationGroupState> groupStates = notificationGroupStateRepository.findPage(
+                    userId, page, size, aggregationPolicy.maxRecentActors());
+            if (groupStates == null || groupStates.isEmpty()) {
+                return null;
+            }
+            int totalGroups = notificationGroupStateRepository.countByRecipientId(userId);
+            List<AggregatedNotificationDTO> aggregatedList = groupStates.stream()
+                    .map(this::toAggregatedNotification)
+                    .collect(Collectors.toList());
+            return new ProjectionResult(aggregatedList, totalGroups);
+        } catch (Exception e) {
+            log.warn("读取通知组状态失败，回退明细聚合: userId={}, page={}, size={}, error={}",
+                    userId, page, size, e.getMessage());
+            return null;
+        }
     }
 
     /**
@@ -191,6 +225,21 @@ public class NotificationAggregationService {
         }
     }
 
+    private AggregatedNotificationDTO toAggregatedNotification(NotificationGroupState groupState) {
+        return AggregatedNotificationDTO.builder()
+                .type(groupState.getNotificationType())
+                .targetType(groupState.getTargetType())
+                .targetId(groupState.getTargetId())
+                .totalCount(groupState.getTotalCount())
+                .unreadCount(groupState.getUnreadCount())
+                .latestTime(groupState.getLatestTime())
+                .latestNotificationId(groupState.getLatestNotificationId() != null
+                        ? String.valueOf(groupState.getLatestNotificationId()) : null)
+                .latestContent(groupState.getLatestContent())
+                .actorIds(groupState.getActorIds())
+                .build();
+    }
+
     /**
      * 构建聚合通知VO
      */
@@ -269,5 +318,8 @@ public class NotificationAggregationService {
             case SYSTEM -> "发送了系统通知";
             default -> "发送了通知";
         };
+    }
+
+    private record ProjectionResult(List<AggregatedNotificationDTO> aggregatedList, int totalGroups) {
     }
 }

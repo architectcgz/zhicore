@@ -5,6 +5,7 @@ import com.zhicore.common.util.DateTimeUtils;
 import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.model.NotificationCategory;
+import com.zhicore.notification.domain.model.NotificationGroupState;
 import com.zhicore.notification.domain.model.NotificationImportance;
 import com.zhicore.notification.domain.model.NotificationType;
 import com.zhicore.notification.domain.repository.NotificationRepository;
@@ -120,7 +121,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         po.setTargetType(notification.getTargetType());
         po.setTargetId(notification.getTargetId());
         po.setSourceEventId(notification.getSourceEventId());
-        po.setGroupKey(notification.getGroupKey());
+        po.setGroupKey(NotificationGroupState.resolveGroupKey(notification));
         po.setPayloadJson(notification.getPayloadJson());
         po.setContent(notification.getContent());
         po.setImportance(notification.getImportance().getCode());
