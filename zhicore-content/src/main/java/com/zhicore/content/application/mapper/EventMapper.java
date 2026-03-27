@@ -90,6 +90,7 @@ public class EventMapper {
             domainEvent.getEventId(),
             domainEvent.getOccurredAt(),
             domainEvent.getPostId().getValue(),
+            domainEvent.getAuthorId(),
             domainEvent.getPublishedAt(),
             domainEvent.getAggregateVersion()
         );

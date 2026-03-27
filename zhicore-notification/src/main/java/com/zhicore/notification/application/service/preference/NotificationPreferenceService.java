@@ -17,6 +17,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalTime;
+import java.time.ZoneId;
 
 /**
  * 通知偏好与免打扰服务。
@@ -40,13 +41,16 @@ public class NotificationPreferenceService {
     public NotificationUserPreferenceDTO updatePreference(Long userId, UpdateNotificationPreferenceRequest request) {
         Assert.notNull(userId, "用户ID不能为空");
         Assert.notNull(request, "偏好请求不能为空");
+        NotificationUserPreference current = preferenceRepository.findByUserId(userId)
+                .orElseGet(() -> NotificationUserPreference.defaults(userId));
         NotificationUserPreference preference = NotificationUserPreference.of(
                 userId,
                 Boolean.TRUE.equals(request.getLikeEnabled()),
                 Boolean.TRUE.equals(request.getCommentEnabled()),
                 Boolean.TRUE.equals(request.getFollowEnabled()),
                 Boolean.TRUE.equals(request.getReplyEnabled()),
-                Boolean.TRUE.equals(request.getSystemEnabled())
+                Boolean.TRUE.equals(request.getSystemEnabled()),
+                request.getPublishEnabled() != null ? request.getPublishEnabled() : current.isPublishEnabled()
         );
         preferenceRepository.saveOrUpdate(preference);
         return getPreference(userId);
@@ -77,15 +81,30 @@ public class NotificationPreferenceService {
     public boolean shouldSend(Long userId, NotificationType type, LocalTime now) {
         Assert.notNull(userId, "用户ID不能为空");
         Assert.notNull(type, "通知类型不能为空");
+        return isPreferenceEnabled(userId, type) && !isDndActive(userId, now);
+    }
+
+    public boolean isPreferenceEnabled(Long userId, NotificationType type) {
+        Assert.notNull(userId, "用户ID不能为空");
+        Assert.notNull(type, "通知类型不能为空");
         NotificationUserPreference preference = preferenceRepository.findByUserId(userId)
                 .orElseGet(() -> NotificationUserPreference.defaults(userId));
-        if (!preference.supports(type)) {
-            return false;
-        }
+        return preference.supports(type);
+    }
 
+    public boolean isDndActive(Long userId) {
+        Assert.notNull(userId, "用户ID不能为空");
         NotificationUserDnd dnd = dndRepository.findByUserId(userId)
                 .orElseGet(() -> NotificationUserDnd.defaults(userId, defaultTimezone));
-        return !dnd.isActive(now);
+        ZoneId zoneId = resolveZoneId(dnd.getTimezone());
+        return dnd.isActive(LocalTime.now(zoneId));
+    }
+
+    public boolean isDndActive(Long userId, LocalTime now) {
+        Assert.notNull(userId, "用户ID不能为空");
+        NotificationUserDnd dnd = dndRepository.findByUserId(userId)
+                .orElseGet(() -> NotificationUserDnd.defaults(userId, defaultTimezone));
+        return dnd.isActive(now);
     }
 
     private NotificationUserPreferenceDTO toPreferenceDTO(NotificationUserPreference preference) {
@@ -95,6 +114,7 @@ public class NotificationPreferenceService {
                 .followEnabled(preference.isFollowEnabled())
                 .replyEnabled(preference.isReplyEnabled())
                 .systemEnabled(preference.isSystemEnabled())
+                .publishEnabled(preference.isPublishEnabled())
                 .build();
     }
 
@@ -105,5 +125,13 @@ public class NotificationPreferenceService {
                 .endTime(dnd.getEndTime())
                 .timezone(dnd.getTimezone())
                 .build();
+    }
+
+    private ZoneId resolveZoneId(String timezone) {
+        try {
+            return ZoneId.of(StringUtils.hasText(timezone) ? timezone : defaultTimezone);
+        } catch (Exception ex) {
+            return ZoneId.of(defaultTimezone);
+        }
     }
 }

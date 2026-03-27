@@ -23,11 +23,14 @@ class NotificationPlatformMetadataContractTest {
         assertNotNull(NotificationType.valueOf("FOLLOW"));
         assertNotNull(NotificationType.valueOf("REPLY"));
         assertNotNull(NotificationType.valueOf("SYSTEM"));
+        assertNotNull(NotificationType.valueOf("POST_PUBLISHED"));
 
         assertEquals(NotificationCategory.INTERACTION, NotificationType.LIKE.getCategory());
         assertEquals("interaction.like", NotificationType.LIKE.getEventCode());
         assertEquals(NotificationCategory.SYSTEM, NotificationType.SYSTEM.getCategory());
         assertEquals("system.notice", NotificationType.SYSTEM.getEventCode());
+        assertEquals(NotificationCategory.CONTENT, NotificationType.POST_PUBLISHED.getCategory());
+        assertEquals("content.post-published", NotificationType.POST_PUBLISHED.getEventCode());
     }
 
     @Test
@@ -91,7 +94,34 @@ class NotificationPlatformMetadataContractTest {
 
         assertTrue(dockerSql.contains("notification_user_preference"));
         assertTrue(dockerSql.contains("notification_user_dnd"));
+        assertTrue(dockerSql.contains("publish_enabled"));
         assertTrue(mergedSql.contains("notification_user_preference"));
         assertTrue(mergedSql.contains("notification_user_dnd"));
+        assertTrue(mergedSql.contains("publish_enabled"));
+    }
+
+    @Test
+    @DisplayName("初始化脚本应创建发布广播 campaign、shard、delivery 表")
+    void shouldCreateBroadcastTablesInInitSql() throws Exception {
+        Path dockerSqlPath = Path.of(System.getProperty("user.dir"))
+                .resolve("../docker/postgres-init/02-init-tables.sql")
+                .normalize();
+        Path mergedSqlPath = Path.of(System.getProperty("user.dir"))
+                .resolve("../database/init-all-databases.sql")
+                .normalize();
+
+        String dockerSql = Files.readString(dockerSqlPath);
+        String mergedSql = Files.readString(mergedSqlPath);
+
+        assertTrue(dockerSql.contains("notification_campaign"));
+        assertTrue(dockerSql.contains("notification_campaign_shard"));
+        assertTrue(dockerSql.contains("notification_delivery"));
+        assertTrue(dockerSql.contains("trigger_event_id"));
+        assertTrue(dockerSql.contains("dedupe_key"));
+
+        assertTrue(mergedSql.contains("notification_campaign"));
+        assertTrue(mergedSql.contains("notification_campaign_shard"));
+        assertTrue(mergedSql.contains("notification_delivery"));
+        assertTrue(mergedSql.contains("idx_notification_campaign_shard_pending"));
     }
 }

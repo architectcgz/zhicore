@@ -319,6 +319,7 @@ public class NotificationAggregationService {
             case FOLLOW -> "关注了你";
             case REPLY -> "回复了你的评论";
             case SYSTEM -> "发送了系统通知";
+            case POST_PUBLISHED -> "发布了新作品";
         };
     }
 }

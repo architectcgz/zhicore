@@ -10,6 +10,7 @@ import com.zhicore.user.infrastructure.repository.po.UserFollowStatsPO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -45,6 +46,18 @@ public class UserFollowRepositoryImpl implements UserFollowRepository {
     public List<UserFollow> findFollowers(Long userId, int page, int size) {
         int offset = (page - 1) * size;
         List<UserFollowPO> poList = userFollowMapper.selectFollowers(userId, offset, size);
+        return poList.stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<UserFollow> findFollowersByCursor(Long userId,
+                                                  LocalDateTime afterCreatedAt,
+                                                  Long afterFollowerId,
+                                                  int limit) {
+        List<UserFollowPO> poList = userFollowMapper.selectFollowersByCursor(
+                userId, afterCreatedAt, afterFollowerId, limit);
         return poList.stream()
                 .map(this::toDomain)
                 .collect(Collectors.toList());

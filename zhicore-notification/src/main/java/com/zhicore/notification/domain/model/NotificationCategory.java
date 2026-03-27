@@ -7,5 +7,7 @@ public enum NotificationCategory {
 
     INTERACTION,
 
+    CONTENT,
+
     SYSTEM
 }

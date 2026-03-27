@@ -72,6 +72,8 @@ CREATE TABLE IF NOT EXISTS user_follows (
 
 CREATE INDEX IF NOT EXISTS idx_user_follows_follower ON user_follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_user_follows_following ON user_follows(following_id);
+CREATE INDEX IF NOT EXISTS idx_user_follows_following_cursor
+    ON user_follows(following_id, created_at DESC, follower_id DESC);
 
 -- 用户关注统计表
 CREATE TABLE IF NOT EXISTS user_follow_stats (
@@ -459,9 +461,13 @@ CREATE TABLE IF NOT EXISTS notification_user_preference (
     follow_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     reply_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     system_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    publish_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE notification_user_preference
+    ADD COLUMN IF NOT EXISTS publish_enabled BOOLEAN NOT NULL DEFAULT TRUE;
 
 CREATE TABLE IF NOT EXISTS notification_user_dnd (
     user_id BIGINT PRIMARY KEY,
@@ -472,6 +478,56 @@ CREATE TABLE IF NOT EXISTS notification_user_dnd (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS notification_campaign (
+    id BIGINT PRIMARY KEY,
+    trigger_event_id VARCHAR(64) NOT NULL UNIQUE,
+    campaign_type VARCHAR(32) NOT NULL,
+    post_id BIGINT NOT NULL,
+    author_id BIGINT NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_campaign_author_created
+    ON notification_campaign(author_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS notification_campaign_shard (
+    id BIGINT PRIMARY KEY,
+    campaign_id BIGINT NOT NULL,
+    after_created_at TIMESTAMPTZ,
+    after_follower_id BIGINT,
+    batch_size INT NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_campaign_shard_pending
+    ON notification_campaign_shard(campaign_id, status, id);
+
+CREATE TABLE IF NOT EXISTS notification_delivery (
+    id BIGINT PRIMARY KEY,
+    campaign_id BIGINT NOT NULL,
+    shard_id BIGINT NOT NULL,
+    recipient_id BIGINT NOT NULL,
+    channel VARCHAR(16) NOT NULL,
+    dedupe_key VARCHAR(128) NOT NULL UNIQUE,
+    status VARCHAR(32) NOT NULL,
+    notification_id BIGINT,
+    skip_reason VARCHAR(64),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    sent_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_delivery_campaign_recipient
+    ON notification_delivery(campaign_id, recipient_id);
 
 -- 全局公告表
 CREATE TABLE IF NOT EXISTS global_announcements (

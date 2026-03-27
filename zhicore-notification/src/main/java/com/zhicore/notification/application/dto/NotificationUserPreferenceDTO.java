@@ -19,4 +19,5 @@ public class NotificationUserPreferenceDTO {
     private boolean followEnabled;
     private boolean replyEnabled;
     private boolean systemEnabled;
+    private boolean publishEnabled;
 }

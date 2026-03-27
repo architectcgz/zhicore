@@ -33,7 +33,12 @@ public enum NotificationType {
     /**
      * 系统通知
      */
-    SYSTEM(4, "系统", NotificationCategory.SYSTEM, "system.notice");
+    SYSTEM(4, "系统", NotificationCategory.SYSTEM, "system.notice"),
+
+    /**
+     * 关注作者发布作品通知
+     */
+    POST_PUBLISHED(5, "发布", NotificationCategory.CONTENT, "content.post-published");
 
     private final int code;
     private final String description;

@@ -136,6 +136,17 @@ public class NotificationCommandService {
     }
 
     @Transactional
+    public Optional<Notification> createPostPublishedNotificationIfAbsent(Long notificationId,
+                                                                          Long recipientId,
+                                                                          Long authorId,
+                                                                          Long postId,
+                                                                          Long campaignId) {
+        Notification notification = Notification.createPostPublishedNotification(
+                notificationId, recipientId, authorId, postId, campaignId);
+        return saveIfAbsent(notification);
+    }
+
+    @Transactional
     public void markAsRead(Long notificationId, Long userId) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new BusinessException(ResultCode.NOTIFICATION_NOT_FOUND));

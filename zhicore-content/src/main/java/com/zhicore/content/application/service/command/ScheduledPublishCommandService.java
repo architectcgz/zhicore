@@ -278,10 +278,14 @@ public class ScheduledPublishCommandService {
                         .withLastError(null);
                 scheduledPublishEventStore.update(record);
 
+                Long postId = record.getPostId();
+                Post publishedPost = postRepository.findById(postId)
+                        .orElseThrow(() -> new IllegalStateException("定时发布成功后文章不存在: " + postId));
                 integrationEventPublisher.publish(new PostPublishedIntegrationEvent(
                         newEventId(),
                         Instant.now(),
-                        record.getPostId(),
+                        postId,
+                        publishedPost.getOwnerId().getValue(),
                         dbNow.atZone(ZoneId.systemDefault()).toInstant(),
                         newVersion.get()
                 ));

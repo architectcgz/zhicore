@@ -13,9 +13,9 @@ public interface NotificationUserPreferenceMapper extends BaseMapper<Notificatio
 
     @Insert("""
         INSERT INTO notification_user_preference (
-            user_id, like_enabled, comment_enabled, follow_enabled, reply_enabled, system_enabled
+            user_id, like_enabled, comment_enabled, follow_enabled, reply_enabled, system_enabled, publish_enabled
         ) VALUES (
-            #{userId}, #{likeEnabled}, #{commentEnabled}, #{followEnabled}, #{replyEnabled}, #{systemEnabled}
+            #{userId}, #{likeEnabled}, #{commentEnabled}, #{followEnabled}, #{replyEnabled}, #{systemEnabled}, #{publishEnabled}
         )
         ON CONFLICT (user_id) DO UPDATE SET
             like_enabled = EXCLUDED.like_enabled,
@@ -23,6 +23,7 @@ public interface NotificationUserPreferenceMapper extends BaseMapper<Notificatio
             follow_enabled = EXCLUDED.follow_enabled,
             reply_enabled = EXCLUDED.reply_enabled,
             system_enabled = EXCLUDED.system_enabled,
+            publish_enabled = EXCLUDED.publish_enabled,
             updated_at = NOW()
         """)
     int upsert(NotificationUserPreferencePO po);

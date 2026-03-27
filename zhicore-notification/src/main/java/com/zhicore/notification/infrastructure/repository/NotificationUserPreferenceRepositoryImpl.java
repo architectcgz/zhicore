@@ -30,7 +30,8 @@ public class NotificationUserPreferenceRepositoryImpl implements NotificationUse
                 Boolean.TRUE.equals(po.getCommentEnabled()),
                 Boolean.TRUE.equals(po.getFollowEnabled()),
                 Boolean.TRUE.equals(po.getReplyEnabled()),
-                Boolean.TRUE.equals(po.getSystemEnabled())));
+                Boolean.TRUE.equals(po.getSystemEnabled()),
+                Boolean.TRUE.equals(po.getPublishEnabled())));
     }
 
     @Override
@@ -42,6 +43,7 @@ public class NotificationUserPreferenceRepositoryImpl implements NotificationUse
         po.setFollowEnabled(preference.isFollowEnabled());
         po.setReplyEnabled(preference.isReplyEnabled());
         po.setSystemEnabled(preference.isSystemEnabled());
+        po.setPublishEnabled(preference.isPublishEnabled());
         mapper.upsert(po);
     }
 }

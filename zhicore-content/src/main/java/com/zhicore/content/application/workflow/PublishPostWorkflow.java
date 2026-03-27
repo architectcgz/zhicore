@@ -80,6 +80,7 @@ public class PublishPostWorkflow {
                 domainEventFactory.generateEventId(),
                 domainEventFactory.now(),
                 post.getId(),
+                post.getOwnerId().getValue(),
                 post.getPublishedAt().atZone(ZoneId.systemDefault()).toInstant(),
                 aggregateVersion != null ? aggregateVersion : 0L
         );

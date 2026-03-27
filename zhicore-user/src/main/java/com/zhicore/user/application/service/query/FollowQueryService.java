@@ -1,6 +1,8 @@
 package com.zhicore.user.application.service.query;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.zhicore.api.dto.user.FollowerCursorItemDTO;
+import com.zhicore.api.dto.user.FollowerCursorPageDTO;
 import com.zhicore.user.application.assembler.UserAssembler;
 import com.zhicore.user.application.dto.FollowStatsVO;
 import com.zhicore.user.application.dto.UserVO;
@@ -16,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -33,6 +36,8 @@ public class FollowQueryService {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 100;
+    private static final int DEFAULT_CURSOR_LIMIT = 200;
+    private static final int MAX_CURSOR_LIMIT = 500;
     private static final Duration FOLLOW_STATS_CACHE_TTL = Duration.ofHours(1);
 
     private final UserRepository userRepository;
@@ -53,6 +58,37 @@ public class FollowQueryService {
                 followers.stream().map(UserFollow::getFollowerId).collect(Collectors.toCollection(LinkedHashSet::new)),
                 followers.stream().map(UserFollow::getFollowerId).toList()
         );
+    }
+
+    public FollowerCursorPageDTO getFollowersByCursor(Long userId,
+                                                      LocalDateTime afterCreatedAt,
+                                                      Long afterFollowerId,
+                                                      Integer limit) {
+        int normalizedLimit = normalizeCursorLimit(limit);
+        List<UserFollow> followers = userFollowRepository.findFollowersByCursor(
+                userId, afterCreatedAt, afterFollowerId, normalizedLimit);
+
+        if (followers.isEmpty()) {
+            return FollowerCursorPageDTO.builder()
+                    .items(List.of())
+                    .nextAfterCreatedAt(null)
+                    .nextAfterFollowerId(null)
+                    .hasMore(false)
+                    .build();
+        }
+
+        UserFollow last = followers.get(followers.size() - 1);
+        return FollowerCursorPageDTO.builder()
+                .items(followers.stream()
+                        .map(follow -> FollowerCursorItemDTO.builder()
+                                .followerId(follow.getFollowerId())
+                                .followedAt(follow.getCreatedAt())
+                                .build())
+                        .toList())
+                .nextAfterCreatedAt(last.getCreatedAt())
+                .nextAfterFollowerId(last.getFollowerId())
+                .hasMore(followers.size() == normalizedLimit)
+                .build();
     }
 
     @SentinelResource(
@@ -155,6 +191,13 @@ public class FollowQueryService {
             return DEFAULT_PAGE_SIZE;
         }
         return Math.min(size, MAX_PAGE_SIZE);
+    }
+
+    private int normalizeCursorLimit(Integer limit) {
+        if (limit == null || limit < 1) {
+            return DEFAULT_CURSOR_LIMIT;
+        }
+        return Math.min(limit, MAX_CURSOR_LIMIT);
     }
 
     private List<UserVO> mapUsersInOrder(Set<Long> userIds, List<Long> orderedUserIds) {

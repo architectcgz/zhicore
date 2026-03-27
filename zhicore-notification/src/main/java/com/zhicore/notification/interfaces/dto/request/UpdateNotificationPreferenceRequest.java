@@ -30,4 +30,7 @@ public class UpdateNotificationPreferenceRequest {
     @NotNull(message = "系统通知开关不能为空")
     @Schema(description = "系统通知是否启用", example = "true", requiredMode = Schema.RequiredMode.REQUIRED)
     private Boolean systemEnabled;
+
+    @Schema(description = "关注作者发布通知是否启用；旧客户端可不传，服务端将沿用当前值", example = "true")
+    private Boolean publishEnabled;
 }

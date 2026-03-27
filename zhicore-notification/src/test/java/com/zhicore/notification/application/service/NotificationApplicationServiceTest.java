@@ -9,6 +9,7 @@ import com.zhicore.notification.application.port.store.NotificationAggregationSt
 import com.zhicore.notification.application.port.store.NotificationUnreadCountStore;
 import com.zhicore.notification.application.service.command.NotificationCommandService;
 import com.zhicore.notification.domain.model.Notification;
+import com.zhicore.notification.domain.model.NotificationType;
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,6 +81,21 @@ class NotificationApplicationServiceTest {
 
         assertTrue(result.isPresent());
         assertEquals(101L, result.get().getId());
+        verify(notificationRepository).saveIfAbsent(any(Notification.class));
+        verify(notificationUnreadCountStore).increment(11L);
+        verify(notificationAggregationStore).evictUser(11L);
+    }
+
+    @Test
+    @DisplayName("首次幂等创建发布通知成功时应该落库并失效缓存")
+    void shouldCreatePostPublishedNotificationWhenAbsent() {
+        when(notificationRepository.saveIfAbsent(any(Notification.class))).thenReturn(true);
+
+        Optional<Notification> result = notificationCommandService.createPostPublishedNotificationIfAbsent(
+                501L, 11L, 22L, 33L, 44L);
+
+        assertTrue(result.isPresent());
+        assertEquals(NotificationType.POST_PUBLISHED, result.get().getType());
         verify(notificationRepository).saveIfAbsent(any(Notification.class));
         verify(notificationUnreadCountStore).increment(11L);
         verify(notificationAggregationStore).evictUser(11L);

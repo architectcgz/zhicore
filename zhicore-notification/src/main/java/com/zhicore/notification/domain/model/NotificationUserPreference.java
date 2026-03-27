@@ -15,13 +15,15 @@ public class NotificationUserPreference {
     private final boolean followEnabled;
     private final boolean replyEnabled;
     private final boolean systemEnabled;
+    private final boolean publishEnabled;
 
     private NotificationUserPreference(Long userId,
                                        boolean likeEnabled,
                                        boolean commentEnabled,
                                        boolean followEnabled,
                                        boolean replyEnabled,
-                                       boolean systemEnabled) {
+                                       boolean systemEnabled,
+                                       boolean publishEnabled) {
         Assert.notNull(userId, "用户ID不能为空");
         Assert.isTrue(userId > 0, "用户ID必须为正数");
         this.userId = userId;
@@ -30,10 +32,11 @@ public class NotificationUserPreference {
         this.followEnabled = followEnabled;
         this.replyEnabled = replyEnabled;
         this.systemEnabled = systemEnabled;
+        this.publishEnabled = publishEnabled;
     }
 
     public static NotificationUserPreference defaults(Long userId) {
-        return of(userId, true, true, true, true, true);
+        return of(userId, true, true, true, true, true, true);
     }
 
     public static NotificationUserPreference of(Long userId,
@@ -41,9 +44,10 @@ public class NotificationUserPreference {
                                                 boolean commentEnabled,
                                                 boolean followEnabled,
                                                 boolean replyEnabled,
-                                                boolean systemEnabled) {
+                                                boolean systemEnabled,
+                                                boolean publishEnabled) {
         return new NotificationUserPreference(
-                userId, likeEnabled, commentEnabled, followEnabled, replyEnabled, systemEnabled);
+                userId, likeEnabled, commentEnabled, followEnabled, replyEnabled, systemEnabled, publishEnabled);
     }
 
     public boolean supports(NotificationType type) {
@@ -53,6 +57,7 @@ public class NotificationUserPreference {
             case FOLLOW -> followEnabled;
             case REPLY -> replyEnabled;
             case SYSTEM -> systemEnabled;
+            case POST_PUBLISHED -> publishEnabled;
         };
     }
 }

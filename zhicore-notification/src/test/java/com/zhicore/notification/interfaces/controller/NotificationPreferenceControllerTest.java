@@ -46,6 +46,7 @@ class NotificationPreferenceControllerTest extends ControllerTestSupport {
                         .followEnabled(true)
                         .replyEnabled(true)
                         .systemEnabled(true)
+                        .publishEnabled(true)
                         .build()
         );
 
@@ -70,6 +71,7 @@ class NotificationPreferenceControllerTest extends ControllerTestSupport {
         request.setFollowEnabled(true);
         request.setReplyEnabled(true);
         request.setSystemEnabled(true);
+        request.setPublishEnabled(false);
 
         when(notificationPreferenceService.updatePreference(eq(11L), any(UpdateNotificationPreferenceRequest.class)))
                 .thenReturn(NotificationUserPreferenceDTO.builder()
@@ -78,6 +80,7 @@ class NotificationPreferenceControllerTest extends ControllerTestSupport {
                         .followEnabled(true)
                         .replyEnabled(true)
                         .systemEnabled(true)
+                        .publishEnabled(false)
                         .build());
 
         try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
@@ -88,7 +91,8 @@ class NotificationPreferenceControllerTest extends ControllerTestSupport {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(ResultCode.SUCCESS.getCode()))
-                    .andExpect(jsonPath("$.data.likeEnabled").value(false));
+                    .andExpect(jsonPath("$.data.likeEnabled").value(false))
+                    .andExpect(jsonPath("$.data.publishEnabled").value(false));
         }
     }
 

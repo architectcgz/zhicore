@@ -27,6 +27,8 @@ public class NotificationUserPreferencePO {
 
     private Boolean systemEnabled;
 
+    private Boolean publishEnabled;
+
     private OffsetDateTime createdAt;
 
     private OffsetDateTime updatedAt;

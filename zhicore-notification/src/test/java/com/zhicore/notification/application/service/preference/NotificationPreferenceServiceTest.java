@@ -54,6 +54,7 @@ class NotificationPreferenceServiceTest {
         assertTrue(dto.isFollowEnabled());
         assertTrue(dto.isReplyEnabled());
         assertTrue(dto.isSystemEnabled());
+        assertTrue(dto.isPublishEnabled());
     }
 
     @Test
@@ -65,8 +66,9 @@ class NotificationPreferenceServiceTest {
         request.setFollowEnabled(true);
         request.setReplyEnabled(true);
         request.setSystemEnabled(true);
+        request.setPublishEnabled(false);
 
-        NotificationUserPreference stored = NotificationUserPreference.of(11L, false, true, true, true, true);
+        NotificationUserPreference stored = NotificationUserPreference.of(11L, false, true, true, true, true, false);
         when(preferenceRepository.findByUserId(11L)).thenReturn(Optional.of(stored));
 
         NotificationUserPreferenceDTO dto = notificationPreferenceService.updatePreference(11L, request);
@@ -74,6 +76,7 @@ class NotificationPreferenceServiceTest {
         verify(preferenceRepository).saveOrUpdate(any(NotificationUserPreference.class));
         assertFalse(dto.isLikeEnabled());
         assertTrue(dto.isCommentEnabled());
+        assertFalse(dto.isPublishEnabled());
     }
 
     @Test
@@ -87,6 +90,17 @@ class NotificationPreferenceServiceTest {
         boolean allowed = notificationPreferenceService.shouldSend(11L, NotificationType.LIKE, LocalTime.of(23, 30));
 
         assertFalse(allowed);
+    }
+
+    @Test
+    @DisplayName("发布偏好关闭时应该拒绝生成发布通知")
+    void shouldRejectPostPublishedWhenPreferenceDisabled() {
+        when(preferenceRepository.findByUserId(11L))
+                .thenReturn(Optional.of(NotificationUserPreference.of(11L, true, true, true, true, true, false)));
+
+        boolean enabled = notificationPreferenceService.isPreferenceEnabled(11L, NotificationType.POST_PUBLISHED);
+
+        assertFalse(enabled);
     }
 
     @Test

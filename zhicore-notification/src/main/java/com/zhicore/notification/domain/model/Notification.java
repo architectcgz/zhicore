@@ -1,5 +1,6 @@
 package com.zhicore.notification.domain.model;
 
+import com.zhicore.common.util.JsonUtils;
 import lombok.Getter;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -250,6 +251,31 @@ public class Notification {
 
         Notification notification = new Notification(id, recipientId, NotificationType.SYSTEM);
         notification.content = truncate(content, MAX_CONTENT_LENGTH);
+        return notification;
+    }
+
+    /**
+     * 创建关注作者发布作品通知。
+     */
+    public static Notification createPostPublishedNotification(Long id,
+                                                               Long recipientId,
+                                                               Long authorId,
+                                                               Long postId,
+                                                               Long campaignId) {
+        Assert.notNull(authorId, "作者ID不能为空");
+        Assert.isTrue(authorId > 0, "作者ID必须为正数");
+        Assert.notNull(postId, "文章ID不能为空");
+        Assert.isTrue(postId > 0, "文章ID必须为正数");
+
+        Notification notification = new Notification(id, recipientId, NotificationType.POST_PUBLISHED);
+        notification.actorId = authorId;
+        notification.targetType = "post";
+        notification.targetId = postId;
+        notification.content = "你关注的作者发布了新作品";
+        notification.metadata = JsonUtils.toJson(java.util.Map.of(
+                "campaignId", campaignId,
+                "postId", postId
+        ));
         return notification;
     }
 
