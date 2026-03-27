@@ -1,5 +1,6 @@
 package com.zhicore.notification.application.service.query;
 
+import com.zhicore.notification.application.port.store.NotificationUnreadCountStore;
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import com.zhicore.notification.domain.model.NotificationType;
 import com.zhicore.notification.infrastructure.repository.mapper.NotificationMapper;
@@ -53,6 +54,16 @@ class NotificationUnreadCountContractTest {
         assertEquals(Long.class, findByGroup.getParameterTypes()[0]);
         assertEquals(Long.class, markAsRead.getParameterTypes()[1]);
         assertEquals(Long.class, markAllAsRead.getParameterTypes()[0]);
+    }
+
+    @Test
+    @DisplayName("通知仓储已读更新接口应返回受影响结果以支持并发安全扣减")
+    void shouldReturnAffectedRowsForReadMutation() throws Exception {
+        Method markAsRead = NotificationRepository.class.getMethod("markAsRead", Long.class, Long.class);
+        Method markAllAsRead = NotificationRepository.class.getMethod("markAllAsRead", Long.class);
+
+        assertEquals(boolean.class, markAsRead.getReturnType());
+        assertEquals(int.class, markAllAsRead.getReturnType());
     }
 
     @Test
@@ -112,5 +123,15 @@ class NotificationUnreadCountContractTest {
         assertTrue(
                 latestTimeResult.typeHandler().getName().endsWith("OffsetDateTimeToLocalDateTimeTypeHandler"),
                 "latestTime 字段必须通过显式 TypeHandler 做 TIMESTAMPTZ 到 LocalDateTime 的映射");
+    }
+
+    @Test
+    @DisplayName("未读缓存存储应提供原子增减接口")
+    void shouldExposeAtomicUnreadOperationsInStore() throws Exception {
+        Method increment = NotificationUnreadCountStore.class.getMethod("increment", Long.class);
+        Method decrement = NotificationUnreadCountStore.class.getMethod("decrement", Long.class, int.class);
+
+        assertEquals(boolean.class, increment.getReturnType());
+        assertEquals(boolean.class, decrement.getReturnType());
     }
 }
