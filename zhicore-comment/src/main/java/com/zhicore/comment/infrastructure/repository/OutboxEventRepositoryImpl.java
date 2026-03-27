@@ -24,6 +24,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class OutboxEventRepositoryImpl implements OutboxEventRepository {
 
+    private static final String FAILURE_OBSERVED_AT_SQL = "COALESCE(next_attempt_at, created_at)";
+
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     private static final RowMapper<OutboxEvent> ROW_MAPPER = new RowMapper<>() {
@@ -108,8 +110,7 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
                 sent_at = :sentAt,
                 error_message = :errorMessage,
                 claimed_by = :claimedBy,
-                claimed_at = :claimedAt,
-                updated_at = CURRENT_TIMESTAMP
+                claimed_at = :claimedAt
             WHERE id = :id
             """;
 
@@ -223,13 +224,13 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
 
     @Override
     public long countFailedSince(java.time.LocalDateTime since, int defaultMaxRetries) {
-        String sql = """
+        String sql = ("""
             SELECT COUNT(*)
             FROM outbox_events
             WHERE status = 'FAILED'
               AND COALESCE(retry_count, 0) < COALESCE(max_retries, :defaultMaxRetries)
-              AND updated_at >= :since
-            """;
+              AND %s >= :since
+            """).formatted(FAILURE_OBSERVED_AT_SQL);
 
         Long count = namedParameterJdbcTemplate.queryForObject(
                 sql,
@@ -243,7 +244,7 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
 
     @Override
     public long countDeadSince(java.time.LocalDateTime since, int defaultMaxRetries) {
-        String sql = """
+        String sql = ("""
             SELECT COUNT(*)
             FROM outbox_events
             WHERE (
@@ -253,8 +254,8 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
                     AND COALESCE(retry_count, 0) >= COALESCE(max_retries, :defaultMaxRetries)
                  )
                   )
-              AND updated_at >= :since
-            """;
+              AND %s >= :since
+            """).formatted(FAILURE_OBSERVED_AT_SQL);
 
         Long count = namedParameterJdbcTemplate.queryForObject(
                 sql,

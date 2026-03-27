@@ -9,7 +9,6 @@ CREATE TABLE IF NOT EXISTS outbox_events (
     max_retries INT NOT NULL DEFAULT 10,
     next_attempt_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     sent_at TIMESTAMP,
     error_message TEXT,
     claimed_by VARCHAR(64),

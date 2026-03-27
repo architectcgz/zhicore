@@ -17,12 +17,14 @@ import com.zhicore.common.constant.CommonConstants;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.PageResult;
 import com.zhicore.common.result.ResultCode;
+import com.zhicore.common.util.DateTimeUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 /**
@@ -235,7 +237,11 @@ public class CommentQueryService {
         }
 
         try {
-            return new TimeCursor(LocalDateTime.parse(afterCreatedAt), afterId);
+            LocalDateTime utcCursorTime = LocalDateTime.parse(afterCreatedAt);
+            LocalDateTime businessCursorTime = utcCursorTime.atOffset(ZoneOffset.UTC)
+                    .atZoneSameInstant(DateTimeUtils.BUSINESS_ZONE)
+                    .toLocalDateTime();
+            return new TimeCursor(businessCursorTime, afterId);
         } catch (Exception exception) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "无效的时间游标参数");
         }

@@ -1,5 +1,6 @@
 package com.zhicore.comment.integration;
 
+import com.zhicore.comment.domain.repository.OutboxEventRepository;
 import com.zhicore.common.constant.CommonConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,6 +25,9 @@ class CommentOutboxAdminIntegrationTest extends IntegrationTestBase {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private OutboxEventRepository outboxEventRepository;
+
     @BeforeEach
     void setUp() {
         jdbcTemplate.execute("TRUNCATE TABLE outbox_events");
@@ -32,11 +36,16 @@ class CommentOutboxAdminIntegrationTest extends IntegrationTestBase {
     @Test
     @DisplayName("应基于 PostgreSQL 返回 outbox 摘要统计")
     void shouldReturnSummaryFromPostgres() throws Exception {
-        insertOutboxEvent("evt-pending-1", "PENDING", 0, 10, "2026-03-16 10:00:00", "2026-03-16 10:00:00");
-        insertOutboxEvent("evt-pending-2", "PENDING", 0, 10, "2026-03-16 10:05:00", "2026-03-16 10:05:00");
-        insertOutboxEvent("evt-failed-1", "FAILED", 1, 10, "2026-03-16 10:10:00", "2026-03-16 10:11:00");
-        insertOutboxEvent("evt-dead-1", "DEAD", 10, 10, "2026-03-16 10:20:00", "2026-03-16 10:21:00");
-        insertOutboxEvent("evt-succeeded-1", "SUCCEEDED", 0, 10, "2026-03-16 10:30:00", "2026-03-16 10:31:00");
+        insertOutboxEvent("evt-pending-1", "PENDING", 0, 10,
+                "2026-03-16 10:00:00", "2026-03-16 10:00:00", null);
+        insertOutboxEvent("evt-pending-2", "PENDING", 0, 10,
+                "2026-03-16 10:05:00", "2026-03-16 10:05:00", null);
+        insertOutboxEvent("evt-failed-1", "FAILED", 1, 10,
+                "2026-03-16 10:10:00", "2026-03-16 10:11:00", null);
+        insertOutboxEvent("evt-dead-1", "DEAD", 10, 10,
+                "2026-03-16 10:20:00", "2026-03-16 10:21:00", null);
+        insertOutboxEvent("evt-succeeded-1", "SUCCEEDED", 0, 10,
+                "2026-03-16 10:30:00", "2026-03-16 10:30:00", "2026-03-16 10:31:00");
 
         mockMvc.perform(get("/api/v1/admin/comment-outbox/summary")
                         .header(CommonConstants.HEADER_USER_ID, "1001"))
@@ -52,8 +61,10 @@ class CommentOutboxAdminIntegrationTest extends IntegrationTestBase {
     @Test
     @DisplayName("批量重试 dead 后应将记录重置为 pending")
     void shouldRetryDeadEventsInPostgres() throws Exception {
-        insertOutboxEvent("evt-dead-1", "DEAD", 10, 10, "2026-03-16 10:20:00", "2026-03-16 10:21:00");
-        insertOutboxEvent("evt-dead-2", "DEAD", 10, 10, "2026-03-16 10:22:00", "2026-03-16 10:23:00");
+        insertOutboxEvent("evt-dead-1", "DEAD", 10, 10,
+                "2026-03-16 10:20:00", "2026-03-16 10:21:00", null);
+        insertOutboxEvent("evt-dead-2", "DEAD", 10, 10,
+                "2026-03-16 10:22:00", "2026-03-16 10:23:00", null);
 
         mockMvc.perform(post("/api/v1/admin/comment-outbox/retry-dead")
                         .header(CommonConstants.HEADER_USER_ID, "1001"))
@@ -81,19 +92,39 @@ class CommentOutboxAdminIntegrationTest extends IntegrationTestBase {
         org.junit.jupiter.api.Assertions.assertEquals(0, resetRetryCount);
     }
 
+    @Test
+    @DisplayName("缺少 updated_at 列时也应能统计最近失败和死信事件")
+    void shouldCountRecentFailedAndDeadEventsWithoutUpdatedAtColumn() {
+        insertOutboxEvent("evt-failed-1", "FAILED", 1, 10,
+                "2026-03-16 10:10:00", "2026-03-16 10:11:00", null);
+        insertOutboxEvent("evt-dead-1", "DEAD", 10, 10,
+                "2026-03-16 10:20:00", "2026-03-16 10:21:00", null);
+        insertOutboxEvent("evt-old-failed", "FAILED", 1, 10,
+                "2026-03-16 09:00:00", "2026-03-16 09:01:00", null);
+
+        long failedCount = outboxEventRepository.countFailedSince(
+                java.time.LocalDateTime.of(2026, 3, 16, 10, 10, 30), 10);
+        long deadCount = outboxEventRepository.countDeadSince(
+                java.time.LocalDateTime.of(2026, 3, 16, 10, 20, 30), 10);
+
+        org.junit.jupiter.api.Assertions.assertEquals(1L, failedCount);
+        org.junit.jupiter.api.Assertions.assertEquals(1L, deadCount);
+    }
+
     private void insertOutboxEvent(String id,
                                    String status,
                                    int retryCount,
                                    int maxRetries,
                                    String createdAt,
-                                   String updatedAt) {
+                                   String nextAttemptAt,
+                                   String sentAt) {
         jdbcTemplate.update("""
                         INSERT INTO outbox_events (
                             id, topic, tag, sharding_key, payload, status,
                             retry_count, max_retries, next_attempt_at,
-                            created_at, updated_at, sent_at, error_message,
+                            created_at, sent_at, error_message,
                             claimed_by, claimed_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                 id,
                 "comment-topic",
@@ -103,10 +134,9 @@ class CommentOutboxAdminIntegrationTest extends IntegrationTestBase {
                 status,
                 retryCount,
                 maxRetries,
+                java.sql.Timestamp.valueOf(nextAttemptAt),
                 java.sql.Timestamp.valueOf(createdAt),
-                java.sql.Timestamp.valueOf(createdAt),
-                java.sql.Timestamp.valueOf(updatedAt),
-                "SUCCEEDED".equals(status) ? java.sql.Timestamp.valueOf(updatedAt) : null,
+                sentAt == null ? null : java.sql.Timestamp.valueOf(sentAt),
                 "DEAD".equals(status) ? "mq error" : null,
                 null,
                 null

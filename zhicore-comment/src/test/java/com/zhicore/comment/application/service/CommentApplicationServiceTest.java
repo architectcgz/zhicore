@@ -34,6 +34,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -327,6 +328,25 @@ class CommentApplicationServiceTest {
             assertEquals(2, result.getRecords().size());
             assertEquals("next-top-cursor", result.getCursor());
             org.junit.jupiter.api.Assertions.assertTrue(result.isHasNext());
+        }
+
+        @Test
+        @DisplayName("顶级评论增量查询应将接口返回的 UTC 时间游标转换为业务时间")
+        void shouldConvertUtcCursorToBusinessTimeWhenGetTopLevelCommentsIncremental() {
+            LocalDateTime afterTime = LocalDateTime.of(2026, 3, 27, 11, 0);
+            when(commentRepository.findTopLevelByPostIdIncremental(eq(POST_ID), any(), eq(2)))
+                    .thenReturn(List.of(createTopLevelComment(2002L, afterTime.plusSeconds(1))));
+            when(commentViewAssembler.assembleCommentVOList(any()))
+                    .thenReturn(List.of(com.zhicore.comment.application.dto.CommentVO.builder().id(2002L).build()));
+            when(timeCursorCodec.encode(any(Comment.class))).thenReturn("cursor-after-utc-convert");
+
+            queryService.getTopLevelCommentsIncremental(POST_ID, "2026-03-27T03:00:00", 2001L, 1);
+
+            ArgumentCaptor<TimeCursorCodec.TimeCursor> cursorCaptor =
+                    ArgumentCaptor.forClass(TimeCursorCodec.TimeCursor.class);
+            verify(commentRepository).findTopLevelByPostIdIncremental(eq(POST_ID), cursorCaptor.capture(), eq(2));
+            assertEquals(afterTime, cursorCaptor.getValue().timestamp());
+            assertEquals(2001L, cursorCaptor.getValue().commentId());
         }
 
         @Test
