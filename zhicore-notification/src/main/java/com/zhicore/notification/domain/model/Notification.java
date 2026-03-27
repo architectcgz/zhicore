@@ -2,6 +2,7 @@ package com.zhicore.notification.domain.model;
 
 import lombok.Getter;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 
@@ -18,6 +19,9 @@ import java.time.LocalDateTime;
 @Getter
 public class Notification {
 
+    private static final String LEGACY_EVENT_CODE_SENTINEL = "__legacy__";
+    private static final String LEGACY_EVENT_CODE_SENTINEL_V1 = "legacy.default";
+
     /**
      * 通知ID（雪花ID）
      */
@@ -32,6 +36,21 @@ public class Notification {
      * 通知类型
      */
     private final NotificationType type;
+
+    /**
+     * 平台化分类（第一阶段与类型保持一一对应，后续可独立扩展）。
+     */
+    private String category;
+
+    /**
+     * 平台化事件编码（用于后续模板路由与策略扩展）。
+     */
+    private String eventCode;
+
+    /**
+     * 平台化扩展元数据（JSON 字符串）。
+     */
+    private String metadata;
 
     /**
      * 创建时间
@@ -86,6 +105,9 @@ public class Notification {
         this.id = id;
         this.recipientId = recipientId;
         this.type = type;
+        this.category = type.getCategory().name();
+        this.eventCode = type.getEventCode();
+        this.metadata = null;
         this.isRead = false;
         this.createdAt = LocalDateTime.now();
     }
@@ -94,12 +116,16 @@ public class Notification {
      * 私有构造函数（用于从持久化恢复）
      */
     private Notification(Long id, Long recipientId, NotificationType type,
+                         String category, String eventCode, String metadata,
                          Long actorId, String targetType, Long targetId,
                          String content, boolean isRead, LocalDateTime readAt,
                          LocalDateTime createdAt) {
         this.id = id;
         this.recipientId = recipientId;
         this.type = type;
+        this.category = resolveCategory(type, category, eventCode);
+        this.eventCode = resolveEventCode(type, eventCode);
+        this.metadata = metadata;
         this.actorId = actorId;
         this.targetType = targetType;
         this.targetId = targetId;
@@ -236,7 +262,21 @@ public class Notification {
                                             Long actorId, String targetType, Long targetId,
                                             String content, boolean isRead, LocalDateTime readAt,
                                             LocalDateTime createdAt) {
-        return new Notification(id, recipientId, type, actorId, targetType, targetId,
+        return new Notification(id, recipientId, type, null, null, null,
+                actorId, targetType, targetId,
+                content, isRead, readAt, createdAt);
+    }
+
+    /**
+     * 从持久化恢复通知（扩展元数据版本）。
+     */
+    public static Notification reconstitute(Long id, Long recipientId, NotificationType type,
+                                            String category, String eventCode, String metadata,
+                                            Long actorId, String targetType, Long targetId,
+                                            String content, boolean isRead, LocalDateTime readAt,
+                                            LocalDateTime createdAt) {
+        return new Notification(id, recipientId, type, category, eventCode, metadata,
+                actorId, targetType, targetId,
                 content, isRead, readAt, createdAt);
     }
 
@@ -285,5 +325,28 @@ public class Notification {
             return content;
         }
         return content.substring(0, maxLength) + "...";
+    }
+
+    private static String resolveCategory(NotificationType type, String category, String eventCode) {
+        if (!StringUtils.hasText(category) || isLegacyMetadata(eventCode)) {
+            return type.getCategory().name();
+        }
+        return category;
+    }
+
+    private static String resolveEventCode(NotificationType type, String eventCode) {
+        if (isLegacyMetadata(eventCode)) {
+            return type.getEventCode();
+        }
+        return eventCode;
+    }
+
+    private static boolean isLegacyMetadata(String eventCode) {
+        if (!StringUtils.hasText(eventCode)) {
+            return true;
+        }
+        String normalized = eventCode.trim().toLowerCase();
+        return LEGACY_EVENT_CODE_SENTINEL.equals(normalized)
+                || LEGACY_EVENT_CODE_SENTINEL_V1.equals(normalized);
     }
 }

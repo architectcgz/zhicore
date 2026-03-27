@@ -1,0 +1,78 @@
+package com.zhicore.notification.domain.model;
+
+import com.zhicore.notification.infrastructure.repository.po.NotificationPO;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+@DisplayName("Notification 平台化元数据合同测试")
+class NotificationPlatformMetadataContractTest {
+
+    @Test
+    @DisplayName("通知类型应保留现有类型并补充平台化分类与事件编码")
+    void shouldKeepLegacyTypesAndExposePlatformMetadata() {
+        assertNotNull(NotificationType.valueOf("LIKE"));
+        assertNotNull(NotificationType.valueOf("COMMENT"));
+        assertNotNull(NotificationType.valueOf("FOLLOW"));
+        assertNotNull(NotificationType.valueOf("REPLY"));
+        assertNotNull(NotificationType.valueOf("SYSTEM"));
+
+        assertEquals(NotificationCategory.INTERACTION, NotificationType.LIKE.getCategory());
+        assertEquals("interaction.like", NotificationType.LIKE.getEventCode());
+        assertEquals(NotificationCategory.SYSTEM, NotificationType.SYSTEM.getCategory());
+        assertEquals("system.notice", NotificationType.SYSTEM.getEventCode());
+    }
+
+    @Test
+    @DisplayName("通知持久化模型应预留 category/event_code/metadata 字段")
+    void shouldReservePlatformMetadataFieldsInNotificationPo() throws Exception {
+        assertNotNull(NotificationPO.class.getDeclaredField("category"));
+        assertNotNull(NotificationPO.class.getDeclaredField("eventCode"));
+        assertNotNull(NotificationPO.class.getDeclaredField("metadata"));
+    }
+
+    @Test
+    @DisplayName("历史通知恢复时应按类型回填缺失的平台元数据")
+    void shouldFallbackLegacyMetadataFromNotificationType() {
+        Notification notification = Notification.reconstitute(
+                1L, 2L, NotificationType.SYSTEM,
+                "INTERACTION", "", null,
+                null, null, null, "系统通知",
+                false, null, LocalDateTime.of(2026, 3, 27, 10, 0)
+        );
+
+        assertEquals("SYSTEM", notification.getCategory());
+        assertEquals("system.notice", notification.getEventCode());
+    }
+
+    @Test
+    @DisplayName("初始化脚本应回填历史通知的平台元数据")
+    void shouldBackfillLegacyNotificationMetadataInInitSql() throws Exception {
+        Path dockerSqlPath = Path.of(System.getProperty("user.dir"))
+                .resolve("../docker/postgres-init/02-init-tables.sql")
+                .normalize();
+        Path mergedSqlPath = Path.of(System.getProperty("user.dir"))
+                .resolve("../database/init-all-databases.sql")
+                .normalize();
+
+        String dockerSql = Files.readString(dockerSqlPath);
+        String mergedSql = Files.readString(mergedSqlPath);
+
+        assertTrue(dockerSql.contains("UPDATE notifications"));
+        assertTrue(dockerSql.contains("interaction.like"));
+        assertTrue(dockerSql.contains("system.notice"));
+        assertTrue(dockerSql.contains("idx_notifications_event_code"));
+
+        assertTrue(mergedSql.contains("UPDATE notifications"));
+        assertTrue(mergedSql.contains("interaction.like"));
+        assertTrue(mergedSql.contains("system.notice"));
+        assertTrue(mergedSql.contains("idx_notifications_event_code"));
+    }
+}

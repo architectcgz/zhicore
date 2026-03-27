@@ -121,6 +121,9 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         po.setId(notification.getId());
         po.setRecipientId(notification.getRecipientId());
         po.setType(notification.getType().getCode());
+        po.setCategory(notification.getCategory());
+        po.setEventCode(notification.getEventCode());
+        po.setMetadata(notification.getMetadata());
         po.setActorId(notification.getActorId());
         po.setTargetType(notification.getTargetType());
         po.setTargetId(notification.getTargetId());
@@ -136,6 +139,9 @@ public class NotificationRepositoryImpl implements NotificationRepository {
                 po.getId(),
                 po.getRecipientId(),
                 NotificationType.fromCode(po.getType()),
+                po.getCategory(),
+                po.getEventCode(),
+                po.getMetadata(),
                 po.getActorId(),
                 po.getTargetType(),
                 po.getTargetId(),

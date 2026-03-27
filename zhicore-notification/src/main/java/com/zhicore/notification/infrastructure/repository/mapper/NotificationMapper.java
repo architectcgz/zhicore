@@ -25,10 +25,10 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
      */
     @Insert("""
         INSERT INTO notifications (
-            id, recipient_id, type, actor_id, target_type, target_id,
+            id, recipient_id, type, category, event_code, metadata, actor_id, target_type, target_id,
             content, is_read, read_at, created_at
         ) VALUES (
-            #{id}, #{recipientId}, #{type}, #{actorId}, #{targetType}, #{targetId},
+            #{id}, #{recipientId}, #{type}, #{category}, #{eventCode}, #{metadata}, #{actorId}, #{targetType}, #{targetId},
             #{content}, #{isRead}, #{readAt}, #{createdAt}
         )
         ON CONFLICT (id) DO NOTHING

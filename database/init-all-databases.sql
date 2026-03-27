@@ -411,6 +411,9 @@ CREATE TABLE IF NOT EXISTS notifications (
     id BIGINT PRIMARY KEY,
     recipient_id BIGINT NOT NULL,
     type SMALLINT NOT NULL,
+    category VARCHAR(32) NOT NULL DEFAULT 'INTERACTION',
+    event_code VARCHAR(64) NOT NULL DEFAULT '',
+    metadata TEXT,
     actor_id BIGINT,
     target_type VARCHAR(50),
     target_id BIGINT,
@@ -420,10 +423,34 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE notifications
+    ADD COLUMN IF NOT EXISTS category VARCHAR(32) NOT NULL DEFAULT 'INTERACTION',
+    ADD COLUMN IF NOT EXISTS event_code VARCHAR(64) NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS metadata TEXT;
+
+UPDATE notifications
+SET category = CASE type
+        WHEN 4 THEN 'SYSTEM'
+        ELSE 'INTERACTION'
+    END,
+    event_code = CASE type
+        WHEN 0 THEN 'interaction.like'
+        WHEN 1 THEN 'interaction.comment'
+        WHEN 2 THEN 'interaction.follow'
+        WHEN 3 THEN 'interaction.reply'
+        WHEN 4 THEN 'system.notice'
+        ELSE event_code
+    END
+WHERE COALESCE(NULLIF(BTRIM(category), ''), '') = ''
+   OR COALESCE(NULLIF(BTRIM(event_code), ''), '') = ''
+   OR LOWER(BTRIM(event_code)) IN ('__legacy__', 'legacy.default')
+   OR (type = 4 AND category = 'INTERACTION');
+
 CREATE INDEX IF NOT EXISTS idx_notifications_recipient ON notifications(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_recipient_read ON notifications(recipient_id, is_read);
 CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notifications_recipient_type ON notifications(recipient_id, type);
+CREATE INDEX IF NOT EXISTS idx_notifications_event_code ON notifications(event_code);
 
 -- 全局公告表
 CREATE TABLE IF NOT EXISTS global_announcements (

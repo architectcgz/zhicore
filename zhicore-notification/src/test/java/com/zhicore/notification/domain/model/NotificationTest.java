@@ -40,6 +40,8 @@ class NotificationTest {
             assertEquals(recipientId, notification.getRecipientId());
             assertEquals(actorId, notification.getActorId());
             assertEquals(NotificationType.LIKE, notification.getType());
+            assertEquals("INTERACTION", notification.getCategory());
+            assertEquals("interaction.like", notification.getEventCode());
             assertEquals(targetType, notification.getTargetType());
             assertEquals(targetId, notification.getTargetId());
             assertEquals("赞了你的文章", notification.getContent());
@@ -281,6 +283,35 @@ class NotificationTest {
             assertTrue(notification.isRead());
             assertEquals(readAt, notification.getReadAt());
             assertEquals(createdAt, notification.getCreatedAt());
+        }
+
+        @Test
+        @DisplayName("从持久化重建 - legacy 空 eventCode 应回退到类型默认事件编码")
+        void reconstitute_ShouldFallbackEventCodeWhenLegacyEventCodeIsBlank() {
+            LocalDateTime createdAt = LocalDateTime.now().minusDays(1);
+
+            Notification notification = Notification.reconstitute(
+                    1L, 123L, NotificationType.SYSTEM,
+                    "SYSTEM", " ", null,
+                    null, null, null,
+                    "系统通知", false, null, createdAt);
+
+            assertEquals("system.notice", notification.getEventCode());
+        }
+
+        @Test
+        @DisplayName("从持久化重建 - legacy 哨兵 eventCode 应回退到类型默认事件编码")
+        void reconstitute_ShouldFallbackEventCodeWhenLegacySentinelUsed() {
+            LocalDateTime createdAt = LocalDateTime.now().minusDays(1);
+
+            Notification notification = Notification.reconstitute(
+                    1L, 123L, NotificationType.LIKE,
+                    "INTERACTION", "__legacy__", null,
+                    456L, "post", 100L,
+                    "赞了你的文章", false, null, createdAt);
+
+            assertEquals("interaction.like", notification.getEventCode());
+            assertEquals("INTERACTION", notification.getCategory());
         }
     }
 }
