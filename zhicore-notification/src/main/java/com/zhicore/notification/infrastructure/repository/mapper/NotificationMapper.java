@@ -3,6 +3,8 @@ package com.zhicore.notification.infrastructure.repository.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.infrastructure.repository.po.NotificationPO;
+import com.zhicore.notification.infrastructure.repository.typehandler.NotificationTypeCodeTypeHandler;
+import com.zhicore.notification.infrastructure.repository.typehandler.OffsetDateTimeToLocalDateTimeTypeHandler;
 import com.zhicore.notification.infrastructure.repository.typehandler.StringArrayTypeHandler;
 import org.apache.ibatis.annotations.*;
 
@@ -76,12 +78,67 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
         ORDER BY latest_time DESC
         """)
     @Results({
+        @Result(property = "type", column = "type", typeHandler = NotificationTypeCodeTypeHandler.class),
+        @Result(property = "latestTime", column = "latestTime", typeHandler = OffsetDateTimeToLocalDateTimeTypeHandler.class),
         @Result(property = "actorIds", column = "actorIds", typeHandler = StringArrayTypeHandler.class)
     })
     List<AggregatedNotificationDTO> findAggregatedNotifications(
-            @Param("recipientId") String recipientId,
+            @Param("recipientId") Long recipientId,
             @Param("offset") int offset,
             @Param("size") int size
+    );
+
+    /**
+     * 查询单个聚合组的聚合结果。
+     */
+    @Select("""
+        WITH grouped AS (
+            SELECT
+                type,
+                target_type,
+                target_id,
+                COUNT(*) as total_count,
+                COUNT(*) FILTER (WHERE is_read = false) as unread_count,
+                ARRAY_AGG(DISTINCT actor_id ORDER BY actor_id)
+                    FILTER (WHERE actor_id IS NOT NULL) as actor_ids
+            FROM notifications
+            WHERE recipient_id = #{recipientId}
+              AND type = #{type}
+              AND (target_type = #{targetType} OR (target_type IS NULL AND #{targetType} IS NULL))
+              AND (target_id = #{targetId} OR (target_id IS NULL AND #{targetId} IS NULL))
+            GROUP BY type, target_type, target_id
+        )
+        SELECT g.type,
+               g.target_type as targetType,
+               g.target_id as targetId,
+               g.total_count as totalCount,
+               g.unread_count as unreadCount,
+               n.created_at as latestTime,
+               n.id as latestNotificationId,
+               n.content as latestContent,
+               g.actor_ids as actorIds
+        FROM grouped g
+        JOIN LATERAL (
+            SELECT id, content, created_at
+            FROM notifications
+            WHERE recipient_id = #{recipientId}
+              AND type = g.type
+              AND (target_type = g.target_type OR (target_type IS NULL AND g.target_type IS NULL))
+              AND (target_id = g.target_id OR (target_id IS NULL AND g.target_id IS NULL))
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+        ) n ON TRUE
+        """)
+    @Results({
+        @Result(property = "type", column = "type", typeHandler = NotificationTypeCodeTypeHandler.class),
+        @Result(property = "latestTime", column = "latestTime", typeHandler = OffsetDateTimeToLocalDateTimeTypeHandler.class),
+        @Result(property = "actorIds", column = "actorIds", typeHandler = StringArrayTypeHandler.class)
+    })
+    AggregatedNotificationDTO findAggregatedNotificationByGroup(
+            @Param("recipientId") Long recipientId,
+            @Param("type") int type,
+            @Param("targetType") String targetType,
+            @Param("targetId") String targetId
     );
 
     /**
@@ -92,7 +149,7 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
         FROM notifications
         WHERE recipient_id = #{recipientId}
         """)
-    int countAggregatedGroups(@Param("recipientId") String recipientId);
+    int countAggregatedGroups(@Param("recipientId") Long recipientId);
 
     /**
      * 查询某个聚合组的详细通知列表
@@ -107,7 +164,7 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
         LIMIT #{limit}
         """)
     List<NotificationPO> findByGroup(
-            @Param("recipientId") String recipientId,
+            @Param("recipientId") Long recipientId,
             @Param("type") int type,
             @Param("targetType") String targetType,
             @Param("targetId") String targetId,
@@ -118,17 +175,17 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
      * 统计未读通知数量
      */
     @Select("SELECT COUNT(*) FROM notifications WHERE recipient_id = #{recipientId} AND is_read = false")
-    int countUnread(@Param("recipientId") String recipientId);
+    int countUnread(@Param("recipientId") Long recipientId);
 
     /**
      * 批量标记所有通知为已读
      */
     @Update("UPDATE notifications SET is_read = true, read_at = NOW() WHERE recipient_id = #{recipientId} AND is_read = false")
-    int markAllAsRead(@Param("recipientId") String recipientId);
+    int markAllAsRead(@Param("recipientId") Long recipientId);
 
     /**
      * 标记单条通知为已读
      */
     @Update("UPDATE notifications SET is_read = true, read_at = NOW() WHERE id = #{id} AND recipient_id = #{recipientId}")
-    int markAsRead(@Param("id") Long id, @Param("recipientId") String recipientId);
+    int markAsRead(@Param("id") Long id, @Param("recipientId") Long recipientId);
 }

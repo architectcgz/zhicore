@@ -39,11 +39,21 @@ spring:
           predicates:
             - Path=/api/v1/messages/**,/api/v1/conversations/**
 
+        - id: zhicore-message-websocket
+          uri: lb:ws://zhicore-message
+          predicates:
+            - Path=/ws/message/**
+
         # 通知服务
         - id: zhicore-notification
           uri: lb://zhicore-notification
           predicates:
             - Path=/api/v1/notifications/**
+
+        - id: zhicore-notification-websocket
+          uri: lb:ws://zhicore-notification
+          predicates:
+            - Path=/ws/notification/**
 
         # 搜索服务
         - id: zhicore-search
@@ -63,13 +73,21 @@ spring:
           predicates:
             - Path=/api/v1/id/**
 
-        # 文件服务 (替代原 ZhiCore-upload)
-        - id: file-service
-          uri: lb://file-service
+        # 文件上传代理服务
+        - id: zhicore-upload
+          uri: lb://zhicore-upload
           predicates:
-            - Path=/api/v1/upload/**,/api/v1/files/**
+            - Path=/api/v1/upload/**
           filters:
             - PreserveHostHeader
+
+        # 文件详情与访问票据接口直接转发到 file-service
+        - id: file-service
+          uri: ${FILE_SERVICE_URL:http://file-service-app:8089}
+          predicates:
+            - Path=/api/v1/files/**
+          filters:
+            - AddRequestHeader=X-App-Id, ${FILE_SERVICE_TENANT_ID:zhicore}
 
         # 管理服务
         - id: zhicore-admin
@@ -167,6 +185,14 @@ jwt:
     - /api/v1/posts/*
     - /api/v1/posts/**
     - /api/v1/users/*/profile
+    - GET:/api/v1/users/*
+    - GET:/api/v1/comments/*
+    - GET:/api/v1/comments/post/*/page
+    - GET:/api/v1/comments/*/like-count
+    - GET:/api/v1/comments/*/replies/page
+    - GET:/api/v1/files/*
+    - /ws/message/**
+    - /ws/notification/**
     - /api/v1/search/**
     - /api/v1/ranking/**
     - /api/v1/id/**
@@ -179,6 +205,15 @@ jwt:
     enabled: true      # 启用缓存（生产环境推荐 true，故障排查时可设为 false）
     max-size: 10000    # 最大缓存 Token 数量
     ttl-minutes: 5     # 缓存过期时间（分钟）
+
+cors:
+  # 为本地前端联调和全链路回归显式放开本机来源。
+  # 正式环境如需更严格限制，可通过外部配置覆盖。
+  allowed-origin-patterns:
+    - "http://localhost:[*]"
+    - "http://127.0.0.1:[*]"
+  allowed-origins: []
+  max-age: 3600
 
 # 灰度发布配置
 gray:

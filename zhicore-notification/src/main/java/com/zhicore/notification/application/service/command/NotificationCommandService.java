@@ -145,7 +145,7 @@ public class NotificationCommandService {
             return;
         }
 
-        notificationRepository.markAsRead(notificationId, String.valueOf(userId));
+        notificationRepository.markAsRead(notificationId, userId);
         invalidateCache(userId);
 
         log.debug("标记通知已读: notificationId={}, userId={}", notificationId, userId);
@@ -153,7 +153,7 @@ public class NotificationCommandService {
 
     @Transactional
     public void markAllAsRead(Long userId) {
-        notificationRepository.markAllAsRead(String.valueOf(userId));
+        notificationRepository.markAllAsRead(userId);
         invalidateCache(userId);
 
         log.info("批量标记所有通知已读: userId={}", userId);

@@ -4,6 +4,8 @@ import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.content.application.port.store.PostLikeStore;
 import com.zhicore.content.application.sentinel.ContentSentinelHandlers;
 import com.zhicore.content.application.sentinel.ContentSentinelResources;
+import com.zhicore.content.domain.model.PostId;
+import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostLikeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,7 +36,7 @@ public class PostLikeQueryService {
             return true;
         }
 
-        boolean exists = likeRepository.exists(postId, userId);
+        boolean exists = likeRepository.exists(PostId.of(postId), UserId.of(userId));
         if (exists) {
             postLikeStore.markLiked(userId, postId);
         }
@@ -65,10 +67,13 @@ public class PostLikeQueryService {
         }
 
         if (!missedIds.isEmpty()) {
-            List<Long> likedPostIds = likeRepository.findLikedPostIds(userId, missedIds);
-            for (Long postId : likedPostIds) {
-                likedMap.put(postId, true);
-                postLikeStore.markLiked(userId, postId);
+            List<PostId> likedPostIds = likeRepository.findLikedPostIds(
+                    UserId.of(userId),
+                    missedIds.stream().map(PostId::of).toList());
+            for (PostId likedPostId : likedPostIds) {
+                Long likedPostIdValue = likedPostId.getValue();
+                likedMap.put(likedPostIdValue, true);
+                postLikeStore.markLiked(userId, likedPostIdValue);
             }
         }
         return likedMap;
@@ -85,7 +90,7 @@ public class PostLikeQueryService {
             return count;
         }
 
-        int dbCount = likeRepository.countByPostId(postId);
+        int dbCount = likeRepository.countByPostId(PostId.of(postId));
         postLikeStore.cacheLikeCount(postId, dbCount);
         return dbCount;
     }

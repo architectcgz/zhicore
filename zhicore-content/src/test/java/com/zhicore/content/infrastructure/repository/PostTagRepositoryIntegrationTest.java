@@ -1,10 +1,16 @@
 package com.zhicore.content.infrastructure.repository;
 
+import com.zhicore.content.domain.model.PostId;
+import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.repository.PostTagRepository;
-import net.jqwik.api.*;
+import com.zhicore.content.infrastructure.IntegrationTestBase;
+import net.jqwik.api.Arbitraries;
+import net.jqwik.api.Arbitrary;
+import net.jqwik.api.ForAll;
+import net.jqwik.api.Property;
+import net.jqwik.api.Provide;
 import net.jqwik.api.constraints.LongRange;
 import net.jqwik.api.lifecycle.BeforeTry;
-import com.zhicore.content.infrastructure.IntegrationTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,12 +26,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * PostTagRepository 集成测试
- * 
+ *
  * 测试 PostTagRepository 的数据库操作，包括关联创建、删除、查询等功能
- * 
+ *
  * 包含属性测试：
  * - Property 7: Post-Tag 关联唯一性
- * 
+ *
  * Validates: Requirements 4.2.4, 5.2.2
  *
  * @author ZhiCore Team
@@ -62,10 +68,10 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
         Long tagId = 2001L;
 
         // When: 创建关联
-        postTagRepository.attach(postId, tagId);
+        postTagRepository.attach(PostId.of(postId), TagId.of(tagId));
 
         // Then: 关联应该存在
-        assertThat(postTagRepository.exists(postId, tagId)).isTrue();
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(tagId))).isTrue();
     }
 
     @Test
@@ -76,13 +82,13 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
         Long tagId = 2002L;
 
         // When: 多次创建相同的关联
-        postTagRepository.attach(postId, tagId);
-        postTagRepository.attach(postId, tagId);
-        postTagRepository.attach(postId, tagId);
+        postTagRepository.attach(PostId.of(postId), TagId.of(tagId));
+        postTagRepository.attach(PostId.of(postId), TagId.of(tagId));
+        postTagRepository.attach(PostId.of(postId), TagId.of(tagId));
 
         // Then: 关联应该只存在一次
-        assertThat(postTagRepository.exists(postId, tagId)).isTrue();
-        assertThat(postTagRepository.countTagsByPostId(postId)).isEqualTo(1);
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(tagId))).isTrue();
+        assertThat(postTagRepository.countTagsByPostId(PostId.of(postId))).isEqualTo(1);
     }
 
     @Test
@@ -93,13 +99,13 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
         List<Long> tagIds = Arrays.asList(2003L, 2004L, 2005L);
 
         // When: 批量创建关联
-        postTagRepository.attachBatch(postId, tagIds);
+        postTagRepository.attachBatch(PostId.of(postId), tagIds.stream().map(TagId::of).toList());
 
         // Then: 所有关联应该存在
-        assertThat(postTagRepository.exists(postId, 2003L)).isTrue();
-        assertThat(postTagRepository.exists(postId, 2004L)).isTrue();
-        assertThat(postTagRepository.exists(postId, 2005L)).isTrue();
-        assertThat(postTagRepository.countTagsByPostId(postId)).isEqualTo(3);
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(2003L))).isTrue();
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(2004L))).isTrue();
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(2005L))).isTrue();
+        assertThat(postTagRepository.countTagsByPostId(PostId.of(postId))).isEqualTo(3);
     }
 
     @Test
@@ -110,10 +116,10 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
         List<Long> tagIds = List.of();
 
         // When: 批量创建关联
-        postTagRepository.attachBatch(postId, tagIds);
+        postTagRepository.attachBatch(PostId.of(postId), tagIds.stream().map(TagId::of).toList());
 
         // Then: 不应该有任何关联
-        assertThat(postTagRepository.countTagsByPostId(postId)).isEqualTo(0);
+        assertThat(postTagRepository.countTagsByPostId(PostId.of(postId))).isEqualTo(0);
     }
 
     @Test
@@ -121,20 +127,20 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
     void testAttachBatch_partialExists() {
         // Given: Post ID 和多个 Tag ID，其中一些已存在
         Long postId = 1005L;
-        postTagRepository.attach(postId, 2006L);
-        postTagRepository.attach(postId, 2007L);
+        postTagRepository.attach(PostId.of(postId), TagId.of(2006L));
+        postTagRepository.attach(PostId.of(postId), TagId.of(2007L));
 
         List<Long> tagIds = Arrays.asList(2006L, 2007L, 2008L, 2009L);
 
         // When: 批量创建关联
-        postTagRepository.attachBatch(postId, tagIds);
+        postTagRepository.attachBatch(PostId.of(postId), tagIds.stream().map(TagId::of).toList());
 
         // Then: 所有关联应该存在，但不重复
-        assertThat(postTagRepository.countTagsByPostId(postId)).isEqualTo(4);
-        assertThat(postTagRepository.exists(postId, 2006L)).isTrue();
-        assertThat(postTagRepository.exists(postId, 2007L)).isTrue();
-        assertThat(postTagRepository.exists(postId, 2008L)).isTrue();
-        assertThat(postTagRepository.exists(postId, 2009L)).isTrue();
+        assertThat(postTagRepository.countTagsByPostId(PostId.of(postId))).isEqualTo(4);
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(2006L))).isTrue();
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(2007L))).isTrue();
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(2008L))).isTrue();
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(2009L))).isTrue();
     }
 
     @Test
@@ -143,13 +149,13 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
         // Given: 已存在的关联
         Long postId = 1006L;
         Long tagId = 2010L;
-        postTagRepository.attach(postId, tagId);
+        postTagRepository.attach(PostId.of(postId), TagId.of(tagId));
 
         // When: 删除关联
-        postTagRepository.detach(postId, tagId);
+        postTagRepository.detach(PostId.of(postId), TagId.of(tagId));
 
         // Then: 关联应该不存在
-        assertThat(postTagRepository.exists(postId, tagId)).isFalse();
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(tagId))).isFalse();
     }
 
     @Test
@@ -160,10 +166,10 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
         Long tagId = 2011L;
 
         // When: 删除关联
-        postTagRepository.detach(postId, tagId);
+        postTagRepository.detach(PostId.of(postId), TagId.of(tagId));
 
         // Then: 不应该抛出异常
-        assertThat(postTagRepository.exists(postId, tagId)).isFalse();
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(tagId))).isFalse();
     }
 
     @Test
@@ -171,18 +177,18 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
     void testDetachAllByPostId() {
         // Given: 文章有多个标签
         Long postId = 1008L;
-        postTagRepository.attach(postId, 2012L);
-        postTagRepository.attach(postId, 2013L);
-        postTagRepository.attach(postId, 2014L);
+        postTagRepository.attach(PostId.of(postId), TagId.of(2012L));
+        postTagRepository.attach(PostId.of(postId), TagId.of(2013L));
+        postTagRepository.attach(PostId.of(postId), TagId.of(2014L));
 
         // When: 删除所有关联
-        postTagRepository.detachAllByPostId(postId);
+        postTagRepository.detachAllByPostId(PostId.of(postId));
 
         // Then: 所有关联应该不存在
-        assertThat(postTagRepository.countTagsByPostId(postId)).isEqualTo(0);
-        assertThat(postTagRepository.exists(postId, 2012L)).isFalse();
-        assertThat(postTagRepository.exists(postId, 2013L)).isFalse();
-        assertThat(postTagRepository.exists(postId, 2014L)).isFalse();
+        assertThat(postTagRepository.countTagsByPostId(PostId.of(postId))).isEqualTo(0);
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(2012L))).isFalse();
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(2013L))).isFalse();
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(2014L))).isFalse();
     }
 
     @Test
@@ -190,12 +196,15 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
     void testFindTagIdsByPostId() {
         // Given: 文章有多个标签
         Long postId = 1009L;
-        postTagRepository.attach(postId, 2015L);
-        postTagRepository.attach(postId, 2016L);
-        postTagRepository.attach(postId, 2017L);
+        postTagRepository.attach(PostId.of(postId), TagId.of(2015L));
+        postTagRepository.attach(PostId.of(postId), TagId.of(2016L));
+        postTagRepository.attach(PostId.of(postId), TagId.of(2017L));
 
         // When: 查询标签ID列表
-        List<Long> tagIds = postTagRepository.findTagIdsByPostId(postId);
+        List<Long> tagIds = postTagRepository.findTagIdsByPostId(PostId.of(postId))
+                .stream()
+                .map(TagId::getValue)
+                .toList();
 
         // Then: 应该返回所有标签ID
         assertThat(tagIds).hasSize(3);
@@ -209,7 +218,7 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
         Long postId = 1010L;
 
         // When: 查询标签ID列表
-        List<Long> tagIds = postTagRepository.findTagIdsByPostId(postId);
+        List<TagId> tagIds = postTagRepository.findTagIdsByPostId(PostId.of(postId));
 
         // Then: 应该返回空列表
         assertThat(tagIds).isEmpty();
@@ -220,12 +229,15 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
     void testFindPostIdsByTagId() {
         // Given: 标签关联多篇文章
         Long tagId = 2018L;
-        postTagRepository.attach(1011L, tagId);
-        postTagRepository.attach(1012L, tagId);
-        postTagRepository.attach(1013L, tagId);
+        postTagRepository.attach(PostId.of(1011L), TagId.of(tagId));
+        postTagRepository.attach(PostId.of(1012L), TagId.of(tagId));
+        postTagRepository.attach(PostId.of(1013L), TagId.of(tagId));
 
         // When: 查询文章ID列表
-        List<Long> postIds = postTagRepository.findPostIdsByTagId(tagId);
+        List<Long> postIds = postTagRepository.findPostIdsByTagId(TagId.of(tagId))
+                .stream()
+                .map(PostId::getValue)
+                .toList();
 
         // Then: 应该返回所有文章ID
         assertThat(postIds).hasSize(3);
@@ -239,7 +251,7 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
         Long tagId = 2019L;
 
         // When: 查询文章ID列表
-        List<Long> postIds = postTagRepository.findPostIdsByTagId(tagId);
+        List<PostId> postIds = postTagRepository.findPostIdsByTagId(TagId.of(tagId));
 
         // Then: 应该返回空列表
         assertThat(postIds).isEmpty();
@@ -251,12 +263,12 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
         // Given: 标签关联多篇文章
         Long tagId = 2020L;
         for (long i = 1014L; i <= 1023L; i++) {
-            postTagRepository.attach(i, tagId);
+            postTagRepository.attach(PostId.of(i), TagId.of(tagId));
         }
 
         // When: 分页查询（第一页，每页5条）
         Pageable pageable = PageRequest.of(0, 5);
-        Page<Long> page = postTagRepository.findPostIdsByTagId(tagId, pageable);
+        Page<PostId> page = postTagRepository.findPostIdsByTagId(TagId.of(tagId), pageable);
 
         // Then: 应该返回分页结果
         assertThat(page.getContent()).hasSize(5);
@@ -271,12 +283,12 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
         // Given: 标签关联多篇文章
         Long tagId = 2021L;
         for (long i = 1024L; i <= 1033L; i++) {
-            postTagRepository.attach(i, tagId);
+            postTagRepository.attach(PostId.of(i), TagId.of(tagId));
         }
 
         // When: 分页查询（第二页，每页5条）
         Pageable pageable = PageRequest.of(1, 5);
-        Page<Long> page = postTagRepository.findPostIdsByTagId(tagId, pageable);
+        Page<PostId> page = postTagRepository.findPostIdsByTagId(TagId.of(tagId), pageable);
 
         // Then: 应该返回第二页结果
         assertThat(page.getContent()).hasSize(5);
@@ -291,14 +303,14 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
         // Given: 创建关联
         Long postId = 1034L;
         Long tagId = 2022L;
-        postTagRepository.attach(postId, tagId);
+        postTagRepository.attach(PostId.of(postId), TagId.of(tagId));
 
         // When & Then: 检查存在的关联
-        assertThat(postTagRepository.exists(postId, tagId)).isTrue();
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(tagId))).isTrue();
 
         // When & Then: 检查不存在的关联
-        assertThat(postTagRepository.exists(postId, 9999L)).isFalse();
-        assertThat(postTagRepository.exists(9999L, tagId)).isFalse();
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(9999L))).isFalse();
+        assertThat(postTagRepository.exists(PostId.of(9999L), TagId.of(tagId))).isFalse();
     }
 
     @Test
@@ -306,12 +318,12 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
     void testCountPostsByTagId() {
         // Given: 标签关联多篇文章
         Long tagId = 2023L;
-        postTagRepository.attach(1035L, tagId);
-        postTagRepository.attach(1036L, tagId);
-        postTagRepository.attach(1037L, tagId);
+        postTagRepository.attach(PostId.of(1035L), TagId.of(tagId));
+        postTagRepository.attach(PostId.of(1036L), TagId.of(tagId));
+        postTagRepository.attach(PostId.of(1037L), TagId.of(tagId));
 
         // When: 统计文章数量
-        int count = postTagRepository.countPostsByTagId(tagId);
+        int count = postTagRepository.countPostsByTagId(TagId.of(tagId));
 
         // Then: 应该返回正确的数量
         assertThat(count).isEqualTo(3);
@@ -324,7 +336,7 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
         Long tagId = 2024L;
 
         // When: 统计文章数量
-        int count = postTagRepository.countPostsByTagId(tagId);
+        int count = postTagRepository.countPostsByTagId(TagId.of(tagId));
 
         // Then: 应该返回0
         assertThat(count).isEqualTo(0);
@@ -335,13 +347,13 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
     void testCountTagsByPostId() {
         // Given: 文章有多个标签
         Long postId = 1038L;
-        postTagRepository.attach(postId, 2025L);
-        postTagRepository.attach(postId, 2026L);
-        postTagRepository.attach(postId, 2027L);
-        postTagRepository.attach(postId, 2028L);
+        postTagRepository.attach(PostId.of(postId), TagId.of(2025L));
+        postTagRepository.attach(PostId.of(postId), TagId.of(2026L));
+        postTagRepository.attach(PostId.of(postId), TagId.of(2027L));
+        postTagRepository.attach(PostId.of(postId), TagId.of(2028L));
 
         // When: 统计标签数量
-        int count = postTagRepository.countTagsByPostId(postId);
+        int count = postTagRepository.countTagsByPostId(PostId.of(postId));
 
         // Then: 应该返回正确的数量
         assertThat(count).isEqualTo(4);
@@ -354,7 +366,7 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
         Long postId = 1039L;
 
         // When: 统计标签数量
-        int count = postTagRepository.countTagsByPostId(postId);
+        int count = postTagRepository.countTagsByPostId(PostId.of(postId));
 
         // Then: 应该返回0
         assertThat(count).isEqualTo(0);
@@ -365,12 +377,15 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
     void testMultiplePostsSameTag() {
         // Given: 多个文章关联同一个标签
         Long tagId = 2029L;
-        postTagRepository.attach(1040L, tagId);
-        postTagRepository.attach(1041L, tagId);
-        postTagRepository.attach(1042L, tagId);
+        postTagRepository.attach(PostId.of(1040L), TagId.of(tagId));
+        postTagRepository.attach(PostId.of(1041L), TagId.of(tagId));
+        postTagRepository.attach(PostId.of(1042L), TagId.of(tagId));
 
         // When: 查询标签下的文章
-        List<Long> postIds = postTagRepository.findPostIdsByTagId(tagId);
+        List<Long> postIds = postTagRepository.findPostIdsByTagId(TagId.of(tagId))
+                .stream()
+                .map(PostId::getValue)
+                .toList();
 
         // Then: 应该返回所有文章
         assertThat(postIds).hasSize(3);
@@ -382,12 +397,15 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
     void testSinglePostMultipleTags() {
         // Given: 一个文章关联多个标签
         Long postId = 1043L;
-        postTagRepository.attach(postId, 2030L);
-        postTagRepository.attach(postId, 2031L);
-        postTagRepository.attach(postId, 2032L);
+        postTagRepository.attach(PostId.of(postId), TagId.of(2030L));
+        postTagRepository.attach(PostId.of(postId), TagId.of(2031L));
+        postTagRepository.attach(PostId.of(postId), TagId.of(2032L));
 
         // When: 查询文章的标签
-        List<Long> tagIds = postTagRepository.findTagIdsByPostId(postId);
+        List<Long> tagIds = postTagRepository.findTagIdsByPostId(PostId.of(postId))
+                .stream()
+                .map(TagId::getValue)
+                .toList();
 
         // Then: 应该返回所有标签
         assertThat(tagIds).hasSize(3);
@@ -399,29 +417,32 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
     void testDetachAndQuery() {
         // Given: 文章有多个标签
         Long postId = 1044L;
-        postTagRepository.attach(postId, 2033L);
-        postTagRepository.attach(postId, 2034L);
-        postTagRepository.attach(postId, 2035L);
+        postTagRepository.attach(PostId.of(postId), TagId.of(2033L));
+        postTagRepository.attach(PostId.of(postId), TagId.of(2034L));
+        postTagRepository.attach(PostId.of(postId), TagId.of(2035L));
 
         // When: 删除一个关联
-        postTagRepository.detach(postId, 2034L);
+        postTagRepository.detach(PostId.of(postId), TagId.of(2034L));
 
         // Then: 应该只剩下两个标签
-        List<Long> tagIds = postTagRepository.findTagIdsByPostId(postId);
+        List<Long> tagIds = postTagRepository.findTagIdsByPostId(PostId.of(postId))
+                .stream()
+                .map(TagId::getValue)
+                .toList();
         assertThat(tagIds).hasSize(2);
         assertThat(tagIds).containsExactlyInAnyOrder(2033L, 2035L);
-        assertThat(postTagRepository.exists(postId, 2034L)).isFalse();
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(2034L))).isFalse();
     }
 
     // ==================== 属性测试 ====================
 
     /**
      * Property 7: Post-Tag 关联唯一性
-     * 
+     *
      * 对于任意 Post 和 Tag，多次建立关联应该是幂等的，不会创建重复记录
-     * 
+     *
      * Validates: Requirements 4.2.4, 5.2.2
-     * 
+     *
      * Feature: post-tag-need, Property 7: Post-Tag 关联唯一性
      */
     @Property(tries = 100)
@@ -432,41 +453,41 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
             @ForAll @LongRange(min = 1, max = 5) int attachTimes
     ) {
         // Given: Post ID 和 Tag ID
-        
+
         // When: 多次创建相同的关联
         for (int i = 0; i < attachTimes; i++) {
-            postTagRepository.attach(postId, tagId);
+            postTagRepository.attach(PostId.of(postId), TagId.of(tagId));
         }
 
         // Then: 关联应该只存在一次
-        assertThat(postTagRepository.exists(postId, tagId)).isTrue();
-        
+        assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(tagId))).isTrue();
+
         // 验证通过查询确认只有一条记录
-        List<Long> tagIds = postTagRepository.findTagIdsByPostId(postId);
-        long count = tagIds.stream().filter(id -> id.equals(tagId)).count();
+        List<TagId> tagIds = postTagRepository.findTagIdsByPostId(PostId.of(postId));
+        long count = tagIds.stream().filter(id -> id.getValue().equals(tagId)).count();
         assertThat(count).isEqualTo(1);
-        
+
         // 验证统计数量正确
-        int tagCount = postTagRepository.countTagsByPostId(postId);
+        int tagCount = postTagRepository.countTagsByPostId(PostId.of(postId));
         assertThat(tagCount).isEqualTo(1);
-        
+
         // 验证反向查询也正确
-        List<Long> postIds = postTagRepository.findPostIdsByTagId(tagId);
-        long postCount = postIds.stream().filter(id -> id.equals(postId)).count();
+        List<PostId> postIds = postTagRepository.findPostIdsByTagId(TagId.of(tagId));
+        long postCount = postIds.stream().filter(id -> id.getValue().equals(postId)).count();
         assertThat(postCount).isEqualTo(1);
-        
+
         // 再次调用 attach 应该仍然是幂等的
-        postTagRepository.attach(postId, tagId);
-        assertThat(postTagRepository.countTagsByPostId(postId)).isEqualTo(1);
+        postTagRepository.attach(PostId.of(postId), TagId.of(tagId));
+        assertThat(postTagRepository.countTagsByPostId(PostId.of(postId))).isEqualTo(1);
     }
 
     /**
      * Property 7 扩展: 批量创建关联的唯一性
-     * 
+     *
      * 对于任意 Post 和 Tag 列表，多次批量创建关联应该是幂等的
-     * 
+     *
      * Validates: Requirements 4.2.4, 5.2.2
-     * 
+     *
      * Feature: post-tag-need, Property 7: Post-Tag 关联唯一性（批量操作）
      */
     @Property(tries = 100)
@@ -477,24 +498,27 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
             @ForAll @LongRange(min = 1, max = 3) int batchTimes
     ) {
         // Given: Post ID 和 Tag ID 列表
-        
+
         // When: 多次批量创建相同的关联
         for (int i = 0; i < batchTimes; i++) {
-            postTagRepository.attachBatch(postId, tagIds);
+            postTagRepository.attachBatch(PostId.of(postId), tagIds.stream().map(TagId::of).toList());
         }
 
         // Then: 每个关联应该只存在一次
-        int actualCount = postTagRepository.countTagsByPostId(postId);
+        int actualCount = postTagRepository.countTagsByPostId(PostId.of(postId));
         assertThat(actualCount).isEqualTo(tagIds.size());
-        
+
         // 验证每个标签都只关联一次
-        List<Long> foundTagIds = postTagRepository.findTagIdsByPostId(postId);
+        List<Long> foundTagIds = postTagRepository.findTagIdsByPostId(PostId.of(postId))
+                .stream()
+                .map(TagId::getValue)
+                .toList();
         assertThat(foundTagIds).hasSize(tagIds.size());
         assertThat(foundTagIds).containsExactlyInAnyOrderElementsOf(tagIds);
-        
+
         // 验证每个标签的关联都存在
         for (Long tagId : tagIds) {
-            assertThat(postTagRepository.exists(postId, tagId)).isTrue();
+            assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(tagId))).isTrue();
         }
     }
 
@@ -502,7 +526,7 @@ class PostTagRepositoryIntegrationTest extends IntegrationTestBase {
 
     /**
      * 生成 Tag ID 列表
-     * 
+     *
      * 规则：
      * - 列表大小 1-5
      * - ID 范围 1-999999

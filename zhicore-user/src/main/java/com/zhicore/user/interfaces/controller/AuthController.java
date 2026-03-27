@@ -1,10 +1,13 @@
 package com.zhicore.user.interfaces.controller;
 
+import com.zhicore.common.context.UserContext;
 import com.zhicore.common.result.ApiResponse;
 import com.zhicore.user.application.command.LoginCommand;
 import com.zhicore.user.application.command.RefreshTokenCommand;
 import com.zhicore.user.application.command.RegisterCommand;
 import com.zhicore.user.application.dto.TokenVO;
+import com.zhicore.user.application.dto.UserVO;
+import com.zhicore.user.application.port.UserQueryPort;
 import com.zhicore.user.application.service.command.AuthCommandService;
 import com.zhicore.user.application.service.command.UserCommandService;
 import com.zhicore.user.interfaces.dto.request.LoginRequest;
@@ -32,6 +35,7 @@ public class AuthController {
 
     private final AuthCommandService authCommandService;
     private final UserCommandService userCommandService;
+    private final UserQueryPort userQueryPort;
 
     /**
      * 用户注册
@@ -96,6 +100,21 @@ public class AuthController {
                 request.getPassword()
         ));
         return ApiResponse.success(token);
+    }
+
+    /**
+     * 获取当前登录用户信息。
+     *
+     * @return 当前用户详情
+     */
+    @Operation(
+            summary = "获取当前登录用户",
+            description = "根据认证上下文返回当前登录用户的详细信息"
+    )
+    @GetMapping("/me")
+    public ApiResponse<UserVO> getCurrentUser() {
+        Long userId = UserContext.requireUserId();
+        return ApiResponse.success(userQueryPort.getUserById(userId));
     }
 
     /**

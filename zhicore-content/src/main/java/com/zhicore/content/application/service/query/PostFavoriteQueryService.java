@@ -4,6 +4,8 @@ import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.content.application.port.store.PostFavoriteStore;
 import com.zhicore.content.application.sentinel.ContentSentinelHandlers;
 import com.zhicore.content.application.sentinel.ContentSentinelResources;
+import com.zhicore.content.domain.model.PostId;
+import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostFavoriteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,7 +36,7 @@ public class PostFavoriteQueryService {
             return true;
         }
 
-        boolean exists = favoriteRepository.exists(postId, userId);
+        boolean exists = favoriteRepository.exists(PostId.of(postId), UserId.of(userId));
         if (exists) {
             postFavoriteStore.markFavorited(userId, postId);
         }
@@ -65,10 +67,13 @@ public class PostFavoriteQueryService {
         }
 
         if (!missedIds.isEmpty()) {
-            List<Long> favoritedPostIds = favoriteRepository.findFavoritedPostIds(userId, missedIds);
-            for (Long postId : favoritedPostIds) {
-                favoritedMap.put(postId, true);
-                postFavoriteStore.markFavorited(userId, postId);
+            List<PostId> favoritedPostIds = favoriteRepository.findFavoritedPostIds(
+                    UserId.of(userId),
+                    missedIds.stream().map(PostId::of).toList());
+            for (PostId favoritedPostId : favoritedPostIds) {
+                Long favoritedPostIdValue = favoritedPostId.getValue();
+                favoritedMap.put(favoritedPostIdValue, true);
+                postFavoriteStore.markFavorited(userId, favoritedPostIdValue);
             }
         }
         return favoritedMap;
@@ -85,7 +90,7 @@ public class PostFavoriteQueryService {
             return count;
         }
 
-        int dbCount = favoriteRepository.countByPostId(postId);
+        int dbCount = favoriteRepository.countByPostId(PostId.of(postId));
         postFavoriteStore.cacheFavoriteCount(postId, dbCount);
         return dbCount;
     }

@@ -37,7 +37,7 @@ public class NotificationCommandController {
     }
 
     @Operation(summary = "标记所有通知为已读", description = "将当前用户的所有未读通知标记为已读")
-    @PostMapping("/read-all")
+    @PostMapping({"/read-all", "/mark-all-read"})
     public ApiResponse<Void> markAllAsRead() {
         Long userId = UserContext.requireUserId();
         notificationCommandService.markAllAsRead(userId);

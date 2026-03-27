@@ -9,16 +9,56 @@ spring:
     nacos:
       discovery:
         enabled: false
+      config:
+        enabled: false
     gateway:
       routes:
         - id: protected-test-route
           uri: forward:/__test/protected
           predicates:
-            - Path=/api/v1/users/me
+            - Path=/api/v1/private/users/me
+        - id: public-auth-login-route
+          uri: forward:/__test/public/auth/login
+          predicates:
+            - Path=/api/v1/auth/login
+        - id: public-user-detail-route
+          uri: forward:/__test/public/user-detail
+          predicates:
+            - Path=/api/v1/users/*
         - id: public-test-route
           uri: forward:/__test/public
           predicates:
             - Path=/api/v1/posts/hot
+        - id: public-comment-detail-route
+          uri: forward:/__test/public/comment-detail
+          predicates:
+            - Path=/api/v1/comments/*
+        - id: public-comment-list-route
+          uri: forward:/__test/public/comment-list
+          predicates:
+            - Path=/api/v1/comments/post/*/page
+        - id: public-comment-like-count-route
+          uri: forward:/__test/public/comment-like-count
+          predicates:
+            - Path=/api/v1/comments/*/like-count
+        - id: public-comment-replies-page-route
+          uri: forward:/__test/public/comment-replies-page
+          predicates:
+            - Path=/api/v1/comments/*/replies/page
+        - id: public-file-detail-route
+          uri: forward:/__test/public/file-detail
+          predicates:
+            - Path=/api/v1/files/*
+          filters:
+            - AddRequestHeader=X-App-Id, zhicore
+        - id: websocket-message-info-route
+          uri: forward:/__test/ws/message/info
+          predicates:
+            - Path=/ws/message/info
+        - id: websocket-notification-info-route
+          uri: forward:/__test/ws/notification/info
+          predicates:
+            - Path=/ws/notification/info
 
 # 禁用 Nacos 配置
   config:
@@ -29,6 +69,18 @@ jwt:
   secret: test-secret-key-for-integration-testing-must-be-at-least-256-bits
   access-token-expiration: 3600000
   refresh-token-expiration: 604800000
+  whitelist:
+    - /actuator/**
+    - /api/v1/auth/login
+    - GET:/api/v1/posts/hot
+    - GET:/api/v1/users/*
+    - GET:/api/v1/comments/*
+    - GET:/api/v1/comments/post/*/page
+    - GET:/api/v1/comments/*/like-count
+    - GET:/api/v1/comments/*/replies/page
+    - GET:/api/v1/files/*
+    - /ws/message/**
+    - /ws/notification/**
 
 # 灰度发布测试配置
 gray-release:
@@ -40,6 +92,13 @@ management:
     web:
       exposure:
         include: health,prometheus,info
+  health:
+    redis:
+      enabled: false
+    nacosConfig:
+      enabled: false
+    nacosDiscovery:
+      enabled: false
   endpoint:
     health:
       show-details: always

@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -108,7 +108,7 @@ class NotificationApplicationServiceTest {
 
         assertEquals(ResultCode.RESOURCE_ACCESS_DENIED.getCode(), exception.getCode());
         assertEquals("无权访问该通知", exception.getMessage());
-        verify(notificationRepository, never()).markAsRead(any(), anyString());
+        verify(notificationRepository, never()).markAsRead(any(), anyLong());
         verify(notificationUnreadCountStore, never()).evict(any());
         verify(notificationAggregationStore, never()).evictUser(any());
     }
@@ -121,7 +121,7 @@ class NotificationApplicationServiceTest {
 
         notificationCommandService.markAsRead(202L, 11L);
 
-        verify(notificationRepository).markAsRead(202L, "11");
+        verify(notificationRepository).markAsRead(202L, 11L);
         verify(notificationUnreadCountStore).evict(11L);
         verify(notificationAggregationStore).evictUser(eq(11L));
     }

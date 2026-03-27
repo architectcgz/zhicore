@@ -1,6 +1,7 @@
 package com.zhicore.gateway.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -20,19 +21,12 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
+    private static final List<String> DEFAULT_DEV_ORIGIN_PATTERNS = List.of(
+            "http://localhost:[*]",
+            "http://127.0.0.1:[*]"
+    );
+
     private final Environment environment;
-    
-    @Value("${cors.allowed-origins:}")
-    private List<String> allowedOrigins;
-
-    @Value("${cors.allowed-origin-patterns:}")
-    private List<String> allowedOriginPatterns;
-
-    @Value("${cors.dev-origin-patterns:http://localhost:[*],http://127.0.0.1:[*]}")
-    private List<String> devOriginPatterns;
-
-    @Value("${cors.max-age:3600}")
-    private long maxAge;
 
     public CorsConfig(Environment environment) {
         this.environment = environment;
@@ -41,22 +35,27 @@ public class CorsConfig {
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();
+        List<String> allowedOrigins = bindList("cors.allowed-origins");
+        List<String> allowedOriginPatterns = bindList("cors.allowed-origin-patterns");
+        List<String> devOriginPatterns = bindList("cors.dev-origin-patterns");
+        long maxAge = environment.getProperty("cors.max-age", Long.class, 3600L);
         
         // 环境检测：判断是否为开发环境
         boolean isDevelopment = isDevelopmentEnvironment();
         
         if (isDevelopment) {
             // 开发环境：使用配置的 dev origin patterns
-            devOriginPatterns.forEach(config::addAllowedOriginPattern);
+            (devOriginPatterns.isEmpty() ? DEFAULT_DEV_ORIGIN_PATTERNS : devOriginPatterns)
+                    .forEach(config::addAllowedOriginPattern);
         } else {
             // 生产环境：使用配置的具体 origins
-            if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
+            if (!allowedOrigins.isEmpty()) {
                 allowedOrigins.forEach(config::addAllowedOrigin);
             }
         }
         
         // 如果配置了额外的 origin patterns，也添加进去
-        if (allowedOriginPatterns != null && !allowedOriginPatterns.isEmpty()) {
+        if (!allowedOriginPatterns.isEmpty()) {
             allowedOriginPatterns.forEach(config::addAllowedOriginPattern);
         }
         
@@ -85,6 +84,13 @@ public class CorsConfig {
         source.registerCorsConfiguration("/**", config);
         
         return new CorsWebFilter(source);
+    }
+
+    private List<String> bindList(String propertyName) {
+        // YAML 数组会以 indexed properties 形式进入 Environment，使用 Binder 才能稳定读取成 List。
+        return Binder.get(environment)
+                .bind(propertyName, Bindable.listOf(String.class))
+                .orElse(List.of());
     }
     
     /**

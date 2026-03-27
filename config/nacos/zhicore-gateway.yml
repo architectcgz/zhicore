@@ -26,10 +26,20 @@ spring:
           predicates:
             - Path=/api/v1/messages/**,/api/v1/conversations/**
 
+        - id: zhicore-message-websocket
+          uri: lb:ws://zhicore-message
+          predicates:
+            - Path=/ws/message/**
+
         - id: zhicore-notification
           uri: lb://zhicore-notification
           predicates:
             - Path=/api/v1/notifications/**
+
+        - id: zhicore-notification-websocket
+          uri: lb:ws://zhicore-notification
+          predicates:
+            - Path=/ws/notification/**
 
         - id: zhicore-search
           uri: lb://zhicore-search
@@ -46,12 +56,19 @@ spring:
           predicates:
             - Path=/api/v1/id/**
 
-        - id: file-service
-          uri: lb://file-service
+        - id: zhicore-upload
+          uri: lb://zhicore-upload
           predicates:
-            - Path=/api/v1/upload/**,/api/v1/files/**
+            - Path=/api/v1/upload/**
           filters:
             - PreserveHostHeader
+
+        - id: file-service
+          uri: ${FILE_SERVICE_URL:http://file-service-app:8089}
+          predicates:
+            - Path=/api/v1/files/**
+          filters:
+            - AddRequestHeader=X-App-Id, ${FILE_SERVICE_TENANT_ID:zhicore}
 
         - id: zhicore-admin
           uri: lb://zhicore-admin
@@ -109,9 +126,23 @@ jwt:
     - /api/v1/posts/*
     - /api/v1/posts/**
     - /api/v1/users/*/profile
+    - GET:/api/v1/users/*
+    - GET:/api/v1/comments/*
+    - GET:/api/v1/comments/post/*/page
+    - GET:/api/v1/comments/*/like-count
+    - GET:/api/v1/comments/*/replies/page
+    - GET:/api/v1/files/*
+    - /ws/message/**
+    - /ws/notification/**
     - /api/v1/search/**
     - /api/v1/ranking/**
     - /api/v1/id/**
     - /api/v1/tags/**
     - /api/v1/categories/**
     - /actuator/**
+
+cors:
+  allowed-origin-patterns:
+    - "http://localhost:[*]"
+    - "http://127.0.0.1:[*]"
+  allowed-origins: []

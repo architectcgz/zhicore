@@ -1,6 +1,7 @@
 package com.zhicore.search.infrastructure.elasticsearch;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 import co.elastic.clients.elasticsearch.core.*;
@@ -239,12 +240,23 @@ public class PostSearchRepositoryImpl implements PostSearchRepository {
                 return;
             }
 
-            String indexSettings = getIndexSettings();
-            esClient.indices().create(CreateIndexRequest.of(c -> c
-                .index(INDEX_NAME)
-                .withJson(new StringReader(indexSettings))
-            ));
+            createIndex(getIndexSettings());
             log.info("Created index: {}", INDEX_NAME);
+        } catch (ElasticsearchException e) {
+            if (isAnalysisPluginMissing(e)) {
+                log.warn("Analysis plugins unavailable, falling back to builtin schema for index {}: {}",
+                    INDEX_NAME, extractErrorReason(e));
+                try {
+                    createIndex(getFallbackIndexSettings());
+                    log.info("Created index with builtin schema fallback: {}", INDEX_NAME);
+                    return;
+                } catch (IOException ioException) {
+                    log.error("Failed to create fallback index: {}", INDEX_NAME, ioException);
+                    throw new RuntimeException("Failed to create index", ioException);
+                }
+            }
+            log.error("Failed to create index: {}", INDEX_NAME, e);
+            throw new RuntimeException("Failed to create index", e);
         } catch (IOException e) {
             log.error("Failed to create index: {}", INDEX_NAME, e);
             throw new RuntimeException("Failed to create index", e);
@@ -279,6 +291,28 @@ public class PostSearchRepositoryImpl implements PostSearchRepository {
         }
 
         return new SearchHit<>(doc, score, highlightTitle, highlightContent);
+    }
+
+    private void createIndex(String indexSettings) throws IOException {
+        esClient.indices().create(CreateIndexRequest.of(c -> c
+            .index(INDEX_NAME)
+            .withJson(new StringReader(indexSettings))
+        ));
+    }
+
+    private boolean isAnalysisPluginMissing(ElasticsearchException exception) {
+        String error = extractErrorReason(exception).toLowerCase(Locale.ROOT);
+        return error.contains("unknown filter type [pinyin]")
+            || (error.contains("unknown tokenizer") && error.contains("ik_"))
+            || (error.contains("unknown analyzer") && error.contains("ik_"))
+            || (error.contains("failed to find tokenizer") && error.contains("ik_"));
+    }
+
+    private String extractErrorReason(ElasticsearchException exception) {
+        if (exception.error() != null && exception.error().reason() != null) {
+            return exception.error().reason();
+        }
+        return exception.getMessage() != null ? exception.getMessage() : exception.toString();
     }
 
     private String getIndexSettings() {
@@ -348,6 +382,49 @@ public class PostSearchRepositoryImpl implements PostSearchRepository {
                   "status": { "type": "keyword" },
                   "likeCount": { "type": "integer" },
                   "commentCount": { "type": "integer" },
+                  "viewCount": { "type": "long" },
+                  "publishedAt": { "type": "date" },
+                  "createdAt": { "type": "date" },
+                  "updatedAt": { "type": "date" }
+                }
+              }
+            }
+            """;
+    }
+
+    private String getFallbackIndexSettings() {
+        return """
+            {
+              "settings": {
+                "number_of_shards": 1,
+                "number_of_replicas": 1
+              },
+              "mappings": {
+                "properties": {
+                  "id": { "type": "keyword" },
+                  "title": {
+                    "type": "text",
+                    "fields": {
+                      "pinyin": { "type": "text" }
+                    }
+                  },
+                  "content": { "type": "text" },
+                  "excerpt": { "type": "text" },
+                  "authorId": { "type": "keyword" },
+                  "authorName": { "type": "keyword" },
+                  "tags": {
+                    "type": "nested",
+                    "properties": {
+                      "id": { "type": "keyword" },
+                      "name": { "type": "text" },
+                      "slug": { "type": "keyword" }
+                    }
+                  },
+                  "categoryId": { "type": "keyword" },
+                  "categoryName": { "type": "keyword" },
+                  "status": { "type": "keyword" },
+                  "likeCount": { "type": "long" },
+                  "commentCount": { "type": "long" },
                   "viewCount": { "type": "long" },
                   "publishedAt": { "type": "date" },
                   "createdAt": { "type": "date" },

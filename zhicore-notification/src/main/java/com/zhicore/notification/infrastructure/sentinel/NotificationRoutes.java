@@ -9,5 +9,5 @@ public final class NotificationRoutes {
     }
 
     public static final String PREFIX = "/api/v1/notifications";
-    public static final String UNREAD_COUNT = PREFIX + "/unread-count";
+    public static final String UNREAD_COUNT = PREFIX + "/unread/count";
 }

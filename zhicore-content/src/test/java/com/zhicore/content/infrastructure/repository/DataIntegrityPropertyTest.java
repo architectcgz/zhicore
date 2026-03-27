@@ -1,6 +1,8 @@
 package com.zhicore.content.infrastructure.repository;
 
+import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.Tag;
+import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.application.service.command.TagCommandService;
@@ -90,28 +92,28 @@ class DataIntegrityPropertyTest extends IntegrationTestBase {
         
         // 建立 Post-Tag 关联
         for (Long postId : postIds) {
-            postTagRepository.attach(postId, tagId);
+            postTagRepository.attach(PostId.of(postId), TagId.of(tagId));
         }
         
         // 验证关联已创建
         for (Long postId : postIds) {
-            assertThat(postTagRepository.exists(postId, tagId))
+            assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(tagId)))
                     .as("Post-Tag 关联应该存在: postId=%d, tagId=%d", postId, tagId)
                     .isTrue();
         }
         
-        int initialAssociationCount = postTagRepository.countPostsByTagId(tagId);
+        int initialAssociationCount = postTagRepository.countPostsByTagId(TagId.of(tagId));
         assertThat(initialAssociationCount)
                 .as("Tag 应该关联 %d 个 Post", postIds.size())
                 .isEqualTo(postIds.size());
 
         // When: 业务层级联删除 - 先删除所有关联，再删除 Tag
         // 1. 查询所有关联的 Post
-        List<Long> associatedPostIds = postTagRepository.findPostIdsByTagId(tagId);
+        List<PostId> associatedPostIds = postTagRepository.findPostIdsByTagId(TagId.of(tagId));
         
         // 2. 删除所有 Post-Tag 关联
-        for (Long postId : associatedPostIds) {
-            postTagRepository.detach(postId, tagId);
+        for (PostId postId : associatedPostIds) {
+            postTagRepository.detach(postId, TagId.of(tagId));
         }
         
         // 3. 删除 Tag
@@ -119,13 +121,13 @@ class DataIntegrityPropertyTest extends IntegrationTestBase {
 
         // Then: 所有 Post-Tag 关联应该被删除
         for (Long postId : postIds) {
-            assertThat(postTagRepository.exists(postId, tagId))
+            assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(tagId)))
                     .as("Post-Tag 关联应该被删除: postId=%d, tagId=%d", postId, tagId)
                     .isFalse();
         }
         
         // 验证 Tag 下的 Post 数量为 0
-        int finalAssociationCount = postTagRepository.countPostsByTagId(tagId);
+        int finalAssociationCount = postTagRepository.countPostsByTagId(TagId.of(tagId));
         assertThat(finalAssociationCount)
                 .as("Tag 删除后，关联的 Post 数量应该为 0")
                 .isEqualTo(0);
@@ -158,33 +160,33 @@ class DataIntegrityPropertyTest extends IntegrationTestBase {
         List<Long> tagIds = tags.stream().map(Tag::getId).collect(Collectors.toList());
         
         // 建立 Post-Tag 关联
-        postTagRepository.attachBatch(postId, tagIds);
+        postTagRepository.attachBatch(PostId.of(postId), tagIds.stream().map(TagId::of).toList());
         
         // 验证关联已创建
         for (Long tagId : tagIds) {
-            assertThat(postTagRepository.exists(postId, tagId))
+            assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(tagId)))
                     .as("Post-Tag 关联应该存在: postId=%d, tagId=%d", postId, tagId)
                     .isTrue();
         }
         
-        int initialAssociationCount = postTagRepository.countTagsByPostId(postId);
+        int initialAssociationCount = postTagRepository.countTagsByPostId(PostId.of(postId));
         assertThat(initialAssociationCount)
                 .as("Post 应该关联 %d 个 Tag", tagIds.size())
                 .isEqualTo(tagIds.size());
 
         // When: 删除 Post（通过删除所有关联模拟 Post 删除的级联效果）
         // 注意：由于我们没有 PostRepository，这里通过 detachAllByPostId 模拟级联删除
-        postTagRepository.detachAllByPostId(postId);
+        postTagRepository.detachAllByPostId(PostId.of(postId));
 
         // Then: 所有 Post-Tag 关联应该被删除
         for (Long tagId : tagIds) {
-            assertThat(postTagRepository.exists(postId, tagId))
+            assertThat(postTagRepository.exists(PostId.of(postId), TagId.of(tagId)))
                     .as("Post-Tag 关联应该被删除: postId=%d, tagId=%d", postId, tagId)
                     .isFalse();
         }
         
         // 验证 Post 下的 Tag 数量为 0
-        int finalAssociationCount = postTagRepository.countTagsByPostId(postId);
+        int finalAssociationCount = postTagRepository.countTagsByPostId(PostId.of(postId));
         assertThat(finalAssociationCount)
                 .as("Post 删除后，关联的 Tag 数量应该为 0")
                 .isEqualTo(0);

@@ -78,6 +78,11 @@ psql -h localhost -U postgres -d ZhiCore_notification -f init-all-databases.sql
 - `global_announcements` - 全局公告
 - `assistant_messages` - 小助手消息
 
+### Admin Service (ZhiCore_admin)
+
+- `audit_logs` - 管理员审计日志
+- `reports` - 举报记录与处理结果
+
 ## ID 类型说明
 
 所有主键 ID 均使用 `BIGINT` 类型，由分布式 ID 生成器（Leaf）生成。
@@ -117,6 +122,7 @@ psql -h localhost -U postgres -c "CREATE DATABASE ZhiCore_post;"
 psql -h localhost -U postgres -c "CREATE DATABASE ZhiCore_comment;"
 psql -h localhost -U postgres -c "CREATE DATABASE ZhiCore_message;"
 psql -h localhost -U postgres -c "CREATE DATABASE ZhiCore_notification;"
+psql -h localhost -U postgres -c "CREATE DATABASE ZhiCore_admin;"
 ```
 
 ### 查看已创建的表

@@ -41,7 +41,7 @@ public class NotificationQueryService {
             log.warn("获取未读计数缓存失败: {}", e.getMessage());
         }
 
-        int count = notificationRepository.countUnread(String.valueOf(userId));
+        int count = notificationRepository.countUnread(userId);
 
         try {
             notificationUnreadCountStore.set(userId, count, UNREAD_COUNT_TTL);

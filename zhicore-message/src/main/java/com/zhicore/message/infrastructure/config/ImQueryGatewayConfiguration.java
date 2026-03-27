@@ -3,7 +3,6 @@ package com.zhicore.message.infrastructure.config;
 import com.zhicore.message.application.port.im.ImConversationQueryGateway;
 import com.zhicore.message.application.port.im.ImMessageQueryGateway;
 import com.zhicore.message.domain.repository.ConversationRepository;
-import com.zhicore.message.domain.repository.MessageRepository;
 import com.zhicore.message.infrastructure.integration.localprojection.LocalProjectionImConversationQueryGateway;
 import com.zhicore.message.infrastructure.integration.localprojection.LocalProjectionImMessageQueryGateway;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -27,8 +26,7 @@ public class ImQueryGatewayConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(ImMessageQueryGateway.class)
-    public ImMessageQueryGateway imMessageQueryGateway(ConversationRepository conversationRepository,
-                                                       MessageRepository messageRepository) {
-        return new LocalProjectionImMessageQueryGateway(conversationRepository, messageRepository);
+    public ImMessageQueryGateway imMessageQueryGateway(ConversationRepository conversationRepository) {
+        return new LocalProjectionImMessageQueryGateway(conversationRepository);
     }
 }

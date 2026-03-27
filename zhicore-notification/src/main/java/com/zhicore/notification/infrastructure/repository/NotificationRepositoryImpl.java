@@ -57,7 +57,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public List<AggregatedNotificationDTO> findAggregatedNotifications(String recipientId, int page, int size) {
+    public List<AggregatedNotificationDTO> findAggregatedNotifications(Long recipientId, int page, int size) {
         int offset = page * size;
         List<AggregatedNotificationDTO> results = notificationMapper.findAggregatedNotifications(recipientId, offset, size);
         
@@ -71,12 +71,21 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public int countAggregatedGroups(String recipientId) {
+    public int countAggregatedGroups(Long recipientId) {
         return notificationMapper.countAggregatedGroups(recipientId);
     }
 
     @Override
-    public List<Notification> findByGroup(String recipientId, NotificationType type,
+    public Optional<AggregatedNotificationDTO> findAggregatedNotificationByGroup(Long recipientId,
+                                                                                  NotificationType type,
+                                                                                  String targetType,
+                                                                                  String targetId) {
+        return Optional.ofNullable(notificationMapper.findAggregatedNotificationByGroup(
+                recipientId, type.getCode(), targetType, targetId));
+    }
+
+    @Override
+    public List<Notification> findByGroup(Long recipientId, NotificationType type,
                                           String targetType, String targetId, int limit) {
         List<NotificationPO> poList = notificationMapper.findByGroup(
                 recipientId, type.getCode(), targetType, targetId, limit);
@@ -86,17 +95,17 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public int countUnread(String recipientId) {
+    public int countUnread(Long recipientId) {
         return notificationMapper.countUnread(recipientId);
     }
 
     @Override
-    public void markAsRead(Long id, String recipientId) {
+    public void markAsRead(Long id, Long recipientId) {
         notificationMapper.markAsRead(id, recipientId);
     }
 
     @Override
-    public void markAllAsRead(String recipientId) {
+    public void markAllAsRead(Long recipientId) {
         notificationMapper.markAllAsRead(recipientId);
     }
 

@@ -179,10 +179,10 @@ CREATE TABLE IF NOT EXISTS posts (
     status SMALLINT NOT NULL DEFAULT 0,
     topic_id BIGINT,
     cover_image_id VARCHAR(36),
-    published_at TIMESTAMPTZ,
-    scheduled_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    published_at TIMESTAMP,
+    scheduled_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     owner_name VARCHAR(50) NOT NULL DEFAULT '未知用户',
     owner_avatar_id VARCHAR(36),
     owner_profile_version BIGINT NOT NULL DEFAULT 0
@@ -211,26 +211,31 @@ CREATE TABLE IF NOT EXISTS post_stats (
     view_count INT NOT NULL DEFAULT 0,
     like_count INT NOT NULL DEFAULT 0,
     favorite_count INT NOT NULL DEFAULT 0,
-    comment_count INT NOT NULL DEFAULT 0
+    comment_count INT NOT NULL DEFAULT 0,
+    share_count INT NOT NULL DEFAULT 0,
+    last_updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 文章点赞表
 CREATE TABLE IF NOT EXISTS post_likes (
+    id BIGINT PRIMARY KEY,
     post_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (post_id, user_id)
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_post_likes_post_user UNIQUE (post_id, user_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_post_likes_user ON post_likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_post_likes_post ON post_likes(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_likes_user_id_created_at ON post_likes(user_id, created_at DESC);
 
 -- 文章收藏表
 CREATE TABLE IF NOT EXISTS post_favorites (
+    id BIGINT PRIMARY KEY,
     post_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (post_id, user_id)
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_post_favorites_post_user UNIQUE (post_id, user_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_post_favorites_user ON post_favorites(user_id);
@@ -456,7 +461,50 @@ CREATE INDEX IF NOT EXISTS idx_assistant_messages_user ON assistant_messages(use
 CREATE INDEX IF NOT EXISTS idx_assistant_messages_user_read ON assistant_messages(user_id, is_read);
 
 -- =====================================================
--- 6. Tag Feature (ZhiCore_post 数据库 - 标签功能扩展)
+-- 6. Admin Service (ZhiCore_admin 数据库)
+-- =====================================================
+
+-- 审计日志表
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id BIGINT PRIMARY KEY,
+    operator_id BIGINT NOT NULL,
+    action VARCHAR(64) NOT NULL,
+    target_type VARCHAR(64) NOT NULL,
+    target_id BIGINT NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_operator_created_at
+    ON audit_logs(operator_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_target_created_at
+    ON audit_logs(target_type, target_id, created_at DESC);
+
+-- 举报表
+CREATE TABLE IF NOT EXISTS reports (
+    id BIGINT PRIMARY KEY,
+    reporter_id BIGINT NOT NULL,
+    reported_user_id BIGINT,
+    target_type VARCHAR(64) NOT NULL,
+    target_id BIGINT NOT NULL,
+    reason TEXT NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    handler_id BIGINT,
+    handle_action VARCHAR(32),
+    handle_remark TEXT,
+    handled_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_reports_status_created_at
+    ON reports(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reports_reporter_created_at
+    ON reports(reporter_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reports_target
+    ON reports(target_type, target_id);
+
+-- =====================================================
+-- 7. Tag Feature (ZhiCore_post 数据库 - 标签功能扩展)
 -- =====================================================
 
 -- 标签表
@@ -465,8 +513,8 @@ CREATE TABLE IF NOT EXISTS tags (
     name VARCHAR(50) NOT NULL,
     slug VARCHAR(50) NOT NULL UNIQUE,
     description VARCHAR(200),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     -- 数据质量约束
     CONSTRAINT ck_tags_name_not_blank CHECK (length(btrim(name)) > 0),
@@ -491,7 +539,7 @@ COMMENT ON CONSTRAINT ck_tags_slug_format ON tags IS 'slug 仅允许小写字母
 CREATE TABLE IF NOT EXISTS post_tags (
     post_id BIGINT NOT NULL,
     tag_id BIGINT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (post_id, tag_id)
 );
 

@@ -14,15 +14,15 @@ import java.util.List;
  */
 public interface PostSearchClient extends PostCommentClient {
 
-    @GetMapping("/posts/{postId}")
+    @GetMapping("/api/v1/posts/{postId}")
     ApiResponse<PostDetailDTO> getPostById(@PathVariable("postId") Long postId);
 
-    @GetMapping("/posts/{postId}/simple")
+    @GetMapping("/api/v1/posts/{postId}/simple")
     ApiResponse<PostDTO> getPostSimple(@PathVariable("postId") Long postId);
 
-    @GetMapping("/posts/batch/simple")
+    @GetMapping("/api/v1/posts/batch/simple")
     ApiResponse<List<PostDTO>> getPostsSimple(@RequestParam("postIds") List<Long> postIds);
 
-    @GetMapping("/posts/{postId}/author")
+    @GetMapping("/api/v1/posts/{postId}/author")
     ApiResponse<Long> getPostAuthorId(@PathVariable("postId") Long postId);
 }

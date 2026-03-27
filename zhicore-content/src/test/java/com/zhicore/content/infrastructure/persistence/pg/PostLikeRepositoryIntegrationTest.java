@@ -1,6 +1,8 @@
 package com.zhicore.content.infrastructure.persistence.pg;
 
+import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.PostLike;
+import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostLikeRepository;
 import com.zhicore.content.infrastructure.IntegrationTestBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,44 +42,44 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("save 成功写入并可查询")
         void saveShouldPersistAndBeQueryable() {
-            PostLike like = new PostLike(1L, 100L, 200L);
+            PostLike like = new PostLike(1L, PostId.of(100L), UserId.of(200L));
             assertThat(postLikeRepository.save(like)).isTrue();
 
-            Optional<PostLike> found = postLikeRepository.findByPostIdAndUserId(100L, 200L);
+            Optional<PostLike> found = postLikeRepository.findByPostIdAndUserId(PostId.of(100L), UserId.of(200L));
             assertThat(found).isPresent();
-            assertThat(found.get().getPostId()).isEqualTo(100L);
-            assertThat(found.get().getUserId()).isEqualTo(200L);
+            assertThat(found.get().getPostId().getValue()).isEqualTo(100L);
+            assertThat(found.get().getUserId().getValue()).isEqualTo(200L);
         }
 
         @Test
         @DisplayName("exists 正确判断点赞是否存在")
         void existsShouldReturnCorrectly() {
-            assertThat(postLikeRepository.exists(100L, 200L)).isFalse();
+            assertThat(postLikeRepository.exists(PostId.of(100L), UserId.of(200L))).isFalse();
 
-            assertThat(postLikeRepository.save(new PostLike(2L, 100L, 200L))).isTrue();
-            assertThat(postLikeRepository.exists(100L, 200L)).isTrue();
+            assertThat(postLikeRepository.save(new PostLike(2L, PostId.of(100L), UserId.of(200L)))).isTrue();
+            assertThat(postLikeRepository.exists(PostId.of(100L), UserId.of(200L))).isTrue();
         }
 
         @Test
         @DisplayName("countByPostId 正确统计点赞数")
         void countByPostIdShouldReturnCorrectCount() {
-            assertThat(postLikeRepository.save(new PostLike(3L, 100L, 201L))).isTrue();
-            assertThat(postLikeRepository.save(new PostLike(4L, 100L, 202L))).isTrue();
-            assertThat(postLikeRepository.save(new PostLike(5L, 999L, 203L))).isTrue();
+            assertThat(postLikeRepository.save(new PostLike(3L, PostId.of(100L), UserId.of(201L)))).isTrue();
+            assertThat(postLikeRepository.save(new PostLike(4L, PostId.of(100L), UserId.of(202L)))).isTrue();
+            assertThat(postLikeRepository.save(new PostLike(5L, PostId.of(999L), UserId.of(203L)))).isTrue();
 
-            assertThat(postLikeRepository.countByPostId(100L)).isEqualTo(2);
-            assertThat(postLikeRepository.countByPostId(999L)).isEqualTo(1);
-            assertThat(postLikeRepository.countByPostId(888L)).isEqualTo(0);
+            assertThat(postLikeRepository.countByPostId(PostId.of(100L))).isEqualTo(2);
+            assertThat(postLikeRepository.countByPostId(PostId.of(999L))).isEqualTo(1);
+            assertThat(postLikeRepository.countByPostId(PostId.of(888L))).isEqualTo(0);
         }
 
         @Test
         @DisplayName("delete 成功删除点赞记录")
         void deleteShouldRemoveRecord() {
-            assertThat(postLikeRepository.save(new PostLike(6L, 100L, 200L))).isTrue();
-            assertThat(postLikeRepository.exists(100L, 200L)).isTrue();
+            assertThat(postLikeRepository.save(new PostLike(6L, PostId.of(100L), UserId.of(200L)))).isTrue();
+            assertThat(postLikeRepository.exists(PostId.of(100L), UserId.of(200L))).isTrue();
 
-            assertThat(postLikeRepository.delete(100L, 200L)).isTrue();
-            assertThat(postLikeRepository.exists(100L, 200L)).isFalse();
+            assertThat(postLikeRepository.delete(PostId.of(100L), UserId.of(200L))).isTrue();
+            assertThat(postLikeRepository.exists(PostId.of(100L), UserId.of(200L))).isFalse();
         }
     }
 
@@ -90,12 +92,12 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("重复点赞不抛异常且数据库只有一条记录")
         void duplicateSaveShouldBeIdempotent() {
-            assertThat(postLikeRepository.save(new PostLike(10L, 100L, 200L))).isTrue();
+            assertThat(postLikeRepository.save(new PostLike(10L, PostId.of(100L), UserId.of(200L)))).isTrue();
 
-            assertThat(postLikeRepository.save(new PostLike(11L, 100L, 200L))).isFalse();
+            assertThat(postLikeRepository.save(new PostLike(11L, PostId.of(100L), UserId.of(200L)))).isFalse();
 
             // 数据库中只有一条记录
-            assertThat(postLikeRepository.countByPostId(100L)).isEqualTo(1);
+            assertThat(postLikeRepository.countByPostId(PostId.of(100L))).isEqualTo(1);
         }
     }
 
@@ -108,16 +110,16 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("删除不存在的点赞记录不抛异常")
         void deleteNonExistentShouldNotThrow() {
-            assertThat(postLikeRepository.delete(999L, 999L)).isFalse();
+            assertThat(postLikeRepository.delete(PostId.of(999L), UserId.of(999L))).isFalse();
         }
 
         @Test
         @DisplayName("重复删除不抛异常")
         void duplicateDeleteShouldBeIdempotent() {
-            assertThat(postLikeRepository.save(new PostLike(20L, 100L, 200L))).isTrue();
-            assertThat(postLikeRepository.delete(100L, 200L)).isTrue();
+            assertThat(postLikeRepository.save(new PostLike(20L, PostId.of(100L), UserId.of(200L)))).isTrue();
+            assertThat(postLikeRepository.delete(PostId.of(100L), UserId.of(200L))).isTrue();
 
-            assertThat(postLikeRepository.delete(100L, 200L)).isFalse();
+            assertThat(postLikeRepository.delete(PostId.of(100L), UserId.of(200L))).isFalse();
         }
     }
 
@@ -132,7 +134,7 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
         void postIdIndexShouldBeUsed() {
             // 插入测试数据
             for (long i = 30; i < 40; i++) {
-                assertThat(postLikeRepository.save(new PostLike(i, 100L, 200L + i))).isTrue();
+                assertThat(postLikeRepository.save(new PostLike(i, PostId.of(100L), UserId.of(200L + i)))).isTrue();
             }
 
             // 通过 EXPLAIN 验证索引使用（PostgreSQL）
@@ -157,13 +159,13 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
         @DisplayName("findLikedPostIds 正确返回已点赞的文章ID列表")
         void findLikedPostIdsShouldReturnCorrectIds() {
             long userId = 300L;
-            assertThat(postLikeRepository.save(new PostLike(40L, 101L, userId))).isTrue();
-            assertThat(postLikeRepository.save(new PostLike(41L, 102L, userId))).isTrue();
+            assertThat(postLikeRepository.save(new PostLike(40L, PostId.of(101L), UserId.of(userId)))).isTrue();
+            assertThat(postLikeRepository.save(new PostLike(41L, PostId.of(102L), UserId.of(userId)))).isTrue();
             // 103L 未点赞
 
             List<Long> likedIds = postLikeRepository.findLikedPostIds(
-                    userId, List.of(101L, 102L, 103L)
-            );
+                    UserId.of(userId), List.of(PostId.of(101L), PostId.of(102L), PostId.of(103L))
+            ).stream().map(PostId::getValue).toList();
 
             assertThat(likedIds).containsExactlyInAnyOrder(101L, 102L);
         }
@@ -171,7 +173,10 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
         @Test
         @DisplayName("findLikedPostIds 空列表输入返回空列表")
         void findLikedPostIdsShouldReturnEmptyForEmptyInput() {
-            List<Long> result = postLikeRepository.findLikedPostIds(300L, List.of());
+            List<Long> result = postLikeRepository.findLikedPostIds(UserId.of(300L), List.of())
+                    .stream()
+                    .map(PostId::getValue)
+                    .toList();
             assertThat(result).isEmpty();
         }
 
@@ -182,19 +187,17 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
             LocalDateTime base = LocalDateTime.of(2026, 1, 1, 12, 0);
 
             for (int i = 0; i < 5; i++) {
-                PostLike like = PostLike.reconstitute(
-                        50L + i, 100L + i, userId, base.plusMinutes(i)
-                );
+                PostLike like = PostLike.reconstitute(50L + i, PostId.of(100L + i), UserId.of(userId), base.plusMinutes(i));
                 assertThat(postLikeRepository.save(like)).isTrue();
             }
 
             // 第一页（无游标）
-            List<PostLike> page1 = postLikeRepository.findByUserIdCursor(userId, null, 3);
+            List<PostLike> page1 = postLikeRepository.findByUserIdCursor(UserId.of(userId), null, 3);
             assertThat(page1).hasSize(3);
 
             // 第二页（以第一页最后一条的 createdAt 为游标）
             LocalDateTime cursor = page1.get(page1.size() - 1).getCreatedAt();
-            List<PostLike> page2 = postLikeRepository.findByUserIdCursor(userId, cursor, 3);
+            List<PostLike> page2 = postLikeRepository.findByUserIdCursor(UserId.of(userId), cursor, 3);
             assertThat(page2).hasSize(2);
 
             // 无重复

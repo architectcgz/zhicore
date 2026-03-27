@@ -4,16 +4,16 @@
 # 使用方法:
 # 1. 先启动共享基础设施: cd infra && docker compose up -d
 # 2. 启动 ZhiCore 特有服务: docker compose up -d
-# 3. 确保 ID Generator Service 已启动 (外部服务，端口 8011)
+# 3. 确保上游 ID Generator Service 已启动 (外部服务，端口 8011)
 # 4. 构建服务镜像: docker compose -f docker-compose.services.yml build
 # 5. 启动服务: docker compose -f docker-compose.services.yml up -d
 # ===========================================
 #
 # 注意事项:
 # - 基础设施(PostgreSQL/Redis/Nacos/RocketMQ)由共享 infra 提供
-# - ID Generator Service 是独立部署的外部服务
-# - 默认地址: http://host.docker.internal:8011
-# - 可通过环境变量 ID_GENERATOR_SERVER_URL 覆盖
+# - zhicore-id-generator 代理服务由本 compose 管理
+# - 上游 ID Generator Service 仍为独立部署外部服务
+# - 默认上游地址通过环境变量 UPSTREAM_ID_GENERATOR_SERVER_URL 覆盖
 # ===========================================
 
 name: zhicore
@@ -35,6 +35,9 @@ services:
       - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=shared-redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
     ports:
@@ -70,6 +73,9 @@ services:
       - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=shared-redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - ROCKETMQ_NAME_SERVER=shared-rocketmq-namesrv:9876
       - ID_GENERATOR_SERVER_URL=${ID_GENERATOR_SERVER_URL:-http://zhicore-id-generator:8088}
@@ -109,6 +115,9 @@ services:
       - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=shared-redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
       - MONGO_HOST=zhicore-mongodb
       - MONGO_PORT=27017
       - JWT_SECRET=${JWT_SECRET}
@@ -148,6 +157,9 @@ services:
       - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=shared-redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - ROCKETMQ_NAME_SERVER=shared-rocketmq-namesrv:9876
       - ID_GENERATOR_SERVER_URL=${ID_GENERATOR_SERVER_URL:-http://zhicore-id-generator:8088}
@@ -158,6 +170,37 @@ services:
       - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================
+  # ID Generator Proxy Service
+  # ===========================================
+  zhicore-id-generator:
+    build:
+      context: ../zhicore-id-generator
+      dockerfile: Dockerfile
+    container_name: zhicore-id-generator
+    env_file:
+      - ../.env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SERVER_PORT=8088
+      - NACOS_SERVER_ADDR=shared-nacos:8848
+      - NACOS_GROUP=${NACOS_GROUP:-ZHICORE-SERVICE}
+      - NACOS_USERNAME=${NACOS_USERNAME:-nacos}
+      - NACOS_PASSWORD=${NACOS_PASSWORD:-nacos}
+      - ID_GENERATOR_SERVER_URL=${UPSTREAM_ID_GENERATOR_SERVER_URL:-http://id-generator-server:8011}
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
+    ports:
+      - "8088:8088"
+    networks:
+      - shared-infra
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8088/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -185,6 +228,9 @@ services:
       - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=shared-redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - ROCKETMQ_NAME_SERVER=shared-rocketmq-namesrv:9876
       - ID_GENERATOR_SERVER_URL=${ID_GENERATOR_SERVER_URL:-http://zhicore-id-generator:8088}
@@ -222,6 +268,9 @@ services:
       - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=shared-redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - ROCKETMQ_NAME_SERVER=shared-rocketmq-namesrv:9876
       - ID_GENERATOR_SERVER_URL=${ID_GENERATOR_SERVER_URL:-http://zhicore-id-generator:8088}
@@ -260,6 +309,9 @@ services:
       - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=shared-redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - ROCKETMQ_NAME_SERVER=shared-rocketmq-namesrv:9876
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
@@ -298,6 +350,9 @@ services:
       - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=shared-redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - ROCKETMQ_NAME_SERVER=shared-rocketmq-namesrv:9876
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800
@@ -335,6 +390,9 @@ services:
       - REDIS_HOST=shared-redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=shared-redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - ID_GENERATOR_SERVER_URL=${ID_GENERATOR_SERVER_URL:-http://zhicore-id-generator:8088}
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=zhicore-skywalking-oap:11800

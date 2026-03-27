@@ -48,7 +48,7 @@ public class NotificationQueryController {
     }
 
     @Operation(summary = "获取未读通知数量", description = "获取当前用户的未读通知总数")
-    @GetMapping("/unread-count")
+    @GetMapping({"/unread/count", "/unread-count"})
     public ApiResponse<Integer> getUnreadCount() {
         Long userId = UserContext.requireUserId();
         int count = notificationQueryService.getUnreadCount(userId);

@@ -21,6 +21,7 @@ logs/
 # Documentation
 /docs/
 **/docs/
+.worktrees/
 
 # Sensitive files
 *.key

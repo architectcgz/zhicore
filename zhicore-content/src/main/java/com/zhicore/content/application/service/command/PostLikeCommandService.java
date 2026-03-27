@@ -13,6 +13,7 @@ import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostLike;
 import com.zhicore.content.domain.model.PostStatus;
+import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostLikeRepository;
 import com.zhicore.integration.messaging.post.PostLikedIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostUnlikedIntegrationEvent;
@@ -54,17 +55,19 @@ public class PostLikeCommandService {
         }
 
         Long authorId = post.getOwnerId().getValue();
+        PostId postIdRef = PostId.of(postId);
+        UserId userIdRef = UserId.of(userId);
         transactionTemplate.executeWithoutResult(status -> {
             ApiResponse<Long> idResponse = idGeneratorFeignClient.generateSnowflakeId();
             if (!idResponse.isSuccess() || idResponse.getData() == null) {
                 log.error("Failed to generate like ID: {}", idResponse.getMessage());
                 throw new BusinessException(ResultCode.INTERNAL_ERROR, "生成点赞ID失败");
             }
-            boolean created = likeRepository.save(new PostLike(idResponse.getData(), postId, userId));
+            boolean created = likeRepository.save(new PostLike(idResponse.getData(), postIdRef, userIdRef));
             if (!created) {
                 throw new BusinessException("已经点赞过了");
             }
-            postStatsRepository.incrementLikeCount(PostId.of(postId));
+            postStatsRepository.incrementLikeCount(postIdRef);
 
             // 与点赞主事务一起持久化 outbox，避免业务已提交但事件未落库。
             integrationEventPublisher.publish(new PostLikedIntegrationEvent(
@@ -91,7 +94,9 @@ public class PostLikeCommandService {
     }
 
     public void unlikePost(Long userId, Long postId) {
-        if (!Boolean.TRUE.equals(postLikeStore.isLiked(userId, postId)) && !likeRepository.exists(postId, userId)) {
+        PostId postIdRef = PostId.of(postId);
+        UserId userIdRef = UserId.of(userId);
+        if (!Boolean.TRUE.equals(postLikeStore.isLiked(userId, postId)) && !likeRepository.exists(postIdRef, userIdRef)) {
             throw new BusinessException("尚未点赞");
         }
 
@@ -100,11 +105,11 @@ public class PostLikeCommandService {
                 .orElse(0L);
 
         transactionTemplate.executeWithoutResult(status -> {
-            boolean deleted = likeRepository.delete(postId, userId);
+            boolean deleted = likeRepository.delete(postIdRef, userIdRef);
             if (!deleted) {
                 throw new BusinessException("尚未点赞");
             }
-            postStatsRepository.decrementLikeCount(PostId.of(postId));
+            postStatsRepository.decrementLikeCount(postIdRef);
 
             // 与取消点赞主事务一起持久化 outbox，避免业务已提交但事件未落库。
             integrationEventPublisher.publish(new PostUnlikedIntegrationEvent(

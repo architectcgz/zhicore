@@ -1,6 +1,8 @@
 package com.zhicore.content.application.service.command;
 
 import com.zhicore.content.domain.model.Tag;
+import com.zhicore.content.domain.model.PostId;
+import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,30 +29,34 @@ public class PostTagCommandService {
     private final TagCommandService tagCommandService;
 
     public ReplaceResult replaceTags(Long postId, List<String> tagNames) {
-        List<Long> oldTagIds = postTagRepository.findTagIdsByPostId(postId);
-        postTagRepository.detachAllByPostId(postId);
+        PostId postIdRef = PostId.of(postId);
+        List<TagId> oldTagIds = postTagRepository.findTagIdsByPostId(postIdRef);
+        postTagRepository.detachAllByPostId(postIdRef);
 
-        List<Long> newTagIds = Collections.emptyList();
+        List<TagId> newTagIds = Collections.emptyList();
         if (tagNames != null && !tagNames.isEmpty()) {
             List<Tag> tags = tagCommandService.findOrCreateBatch(tagNames);
             newTagIds = tags.stream()
                     .map(Tag::getId)
+                    .map(TagId::of)
                     .collect(Collectors.toList());
-            postTagRepository.attachBatch(postId, newTagIds);
+            postTagRepository.attachBatch(postIdRef, newTagIds);
         }
 
         log.info("Post tags replaced via command service: postId={}, oldTagCount={}, newTagCount={}",
                 postId, oldTagIds.size(), newTagIds.size());
-        return new ReplaceResult(oldTagIds, newTagIds);
+        return new ReplaceResult(
+                oldTagIds.stream().map(TagId::getValue).toList(),
+                newTagIds.stream().map(TagId::getValue).toList());
     }
 
     public List<String> listRemainingTagNames(Long postId, String removedSlug) {
-        List<Long> tagIds = postTagRepository.findTagIdsByPostId(postId);
+        List<TagId> tagIds = postTagRepository.findTagIdsByPostId(PostId.of(postId));
         if (tagIds.isEmpty()) {
             return Collections.emptyList();
         }
 
-        return tagRepository.findByIdIn(tagIds).stream()
+        return tagRepository.findByIdIn(tagIds.stream().map(TagId::getValue).toList()).stream()
                 .filter(tag -> !tag.getSlug().equals(removedSlug))
                 .map(Tag::getName)
                 .toList();

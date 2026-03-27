@@ -121,6 +121,26 @@ class NotificationControllerTest extends ControllerTestSupport {
     }
 
     @Test
+    @DisplayName("应该支持通过嵌套路由获取未读通知数量")
+    void shouldGetUnreadCountViaNestedRoute() throws Exception {
+        NotificationQueryController controller = new NotificationQueryController(
+                notificationQueryService,
+                notificationAggregationService
+        );
+        MockMvc mockMvc = buildMockMvc(controller);
+        when(notificationQueryService.getUnreadCount(11L)).thenReturn(7);
+
+        try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
+            userContext.when(UserContext::requireUserId).thenReturn(11L);
+
+            mockMvc.perform(get("/api/v1/notifications/unread/count"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(ResultCode.SUCCESS.getCode()))
+                    .andExpect(jsonPath("$.data").value(7));
+        }
+    }
+
+    @Test
     @DisplayName("标记通知已读失败时应该返回业务错误响应")
     void shouldReturnBusinessErrorWhenNotificationNotFound() throws Exception {
         NotificationCommandController controller = new NotificationCommandController(

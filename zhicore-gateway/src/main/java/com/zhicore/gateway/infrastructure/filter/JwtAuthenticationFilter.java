@@ -59,7 +59,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         }
 
         // 检查是否为白名单路径
-        if (isWhitelistPath(path)) {
+        if (isWhitelisted(request)) {
             return chain.filter(exchange);
         }
 
@@ -114,9 +114,21 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         return null;
     }
 
-    private boolean isWhitelistPath(String path) {
+    private boolean isWhitelisted(ServerHttpRequest request) {
+        String method = request.getMethod().name();
+        String path = request.getPath().value();
         return jwtProperties.getWhitelist().stream()
-                .anyMatch(pattern -> pathMatcher.match(pattern, path));
+                .anyMatch(rule -> matchesWhitelistRule(rule, method, path));
+    }
+
+    private boolean matchesWhitelistRule(String rule, String method, String path) {
+        int separatorIndex = rule.indexOf(':');
+        if (separatorIndex > 0 && !rule.substring(0, separatorIndex).contains("/")) {
+            String expectedMethod = rule.substring(0, separatorIndex).trim();
+            String pattern = rule.substring(separatorIndex + 1).trim();
+            return expectedMethod.equalsIgnoreCase(method) && pathMatcher.match(pattern, path);
+        }
+        return pathMatcher.match(rule, path);
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {

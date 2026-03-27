@@ -51,20 +51,4 @@ public class UserId {
         return new UserId(value);
     }
     
-    /**
-     * 从字符串创建 UserId 实例
-     * 
-     * @param value 用户 ID 字符串
-     * @return UserId 实例
-     */
-    public static UserId of(String value) {
-        return new UserId(Long.parseLong(value));
-    }
-
-    /**
-     * 从字符串构造（兼容旧代码中的 new UserId(String) 调用）
-     */
-    public UserId(String value) {
-        this(Long.parseLong(value));
-    }
 }

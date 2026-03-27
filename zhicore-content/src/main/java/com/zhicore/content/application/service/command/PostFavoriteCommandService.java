@@ -13,6 +13,7 @@ import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostFavorite;
 import com.zhicore.content.domain.model.PostStatus;
+import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostFavoriteRepository;
 import com.zhicore.integration.messaging.post.PostFavoritedIntegrationEvent;
 import com.zhicore.integration.messaging.post.PostUnfavoritedIntegrationEvent;
@@ -54,17 +55,19 @@ public class PostFavoriteCommandService {
         }
 
         Long authorId = post.getOwnerId().getValue();
+        PostId postIdRef = PostId.of(postId);
+        UserId userIdRef = UserId.of(userId);
         transactionTemplate.executeWithoutResult(status -> {
             ApiResponse<Long> idResponse = idGeneratorFeignClient.generateSnowflakeId();
             if (!idResponse.isSuccess() || idResponse.getData() == null) {
                 log.error("Failed to generate favorite ID: {}", idResponse.getMessage());
                 throw new BusinessException(ResultCode.INTERNAL_ERROR, "生成收藏ID失败");
             }
-            boolean created = favoriteRepository.save(new PostFavorite(idResponse.getData(), postId, userId));
+            boolean created = favoriteRepository.save(new PostFavorite(idResponse.getData(), postIdRef, userIdRef));
             if (!created) {
                 throw new BusinessException("已经收藏过了");
             }
-            postStatsRepository.incrementFavoriteCount(PostId.of(postId));
+            postStatsRepository.incrementFavoriteCount(postIdRef);
 
             // 与收藏主事务一起持久化 outbox，避免业务已提交但事件未落库。
             integrationEventPublisher.publish(new PostFavoritedIntegrationEvent(
@@ -89,7 +92,9 @@ public class PostFavoriteCommandService {
     }
 
     public void unfavoritePost(Long userId, Long postId) {
-        if (!Boolean.TRUE.equals(postFavoriteStore.isFavorited(userId, postId)) && !favoriteRepository.exists(postId, userId)) {
+        PostId postIdRef = PostId.of(postId);
+        UserId userIdRef = UserId.of(userId);
+        if (!Boolean.TRUE.equals(postFavoriteStore.isFavorited(userId, postId)) && !favoriteRepository.exists(postIdRef, userIdRef)) {
             throw new BusinessException("尚未收藏");
         }
 
@@ -98,11 +103,11 @@ public class PostFavoriteCommandService {
                 .orElse(0L);
 
         transactionTemplate.executeWithoutResult(status -> {
-            boolean deleted = favoriteRepository.delete(postId, userId);
+            boolean deleted = favoriteRepository.delete(postIdRef, userIdRef);
             if (!deleted) {
                 throw new BusinessException("尚未收藏");
             }
-            postStatsRepository.decrementFavoriteCount(PostId.of(postId));
+            postStatsRepository.decrementFavoriteCount(postIdRef);
 
             // 与取消收藏主事务一起持久化 outbox，避免业务已提交但事件未落库。
             integrationEventPublisher.publish(new PostUnfavoritedIntegrationEvent(

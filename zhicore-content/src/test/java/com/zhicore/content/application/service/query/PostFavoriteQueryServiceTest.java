@@ -1,6 +1,8 @@
 package com.zhicore.content.application.service.query;
 
 import com.zhicore.content.application.port.store.PostFavoriteStore;
+import com.zhicore.content.domain.model.PostId;
+import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostFavoriteRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,7 +16,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,15 +39,15 @@ class PostFavoriteQueryServiceTest {
         when(postFavoriteStore.isFavorited(USER_ID, POST_ID)).thenReturn(true);
 
         assertTrue(queryService.isFavorited(USER_ID, POST_ID));
-        verify(favoriteRepository, never()).exists(anyLong(), anyLong());
+        verify(favoriteRepository, never()).exists(any(PostId.class), any(UserId.class));
     }
 
     @Test
     void shouldMergeCacheAndDatabaseForBatchCheck() {
         List<Long> postIds = List.of(POST_ID, POST_ID + 1, POST_ID + 2);
         when(postFavoriteStore.findFavoritedPostIds(USER_ID, postIds)).thenReturn(Set.of(POST_ID));
-        when(favoriteRepository.findFavoritedPostIds(USER_ID, List.of(POST_ID + 1, POST_ID + 2)))
-                .thenReturn(List.of(POST_ID + 2));
+        when(favoriteRepository.findFavoritedPostIds(UserId.of(USER_ID), List.of(PostId.of(POST_ID + 1), PostId.of(POST_ID + 2))))
+                .thenReturn(List.of(PostId.of(POST_ID + 2)));
 
         var result = queryService.batchCheckFavorited(USER_ID, postIds);
 
@@ -58,7 +60,7 @@ class PostFavoriteQueryServiceTest {
     @Test
     void shouldBackfillFavoriteCountWhenCacheMiss() {
         when(postFavoriteStore.getFavoriteCount(POST_ID)).thenReturn(null);
-        when(favoriteRepository.countByPostId(POST_ID)).thenReturn(8);
+        when(favoriteRepository.countByPostId(PostId.of(POST_ID))).thenReturn(8);
 
         assertEquals(8, queryService.getFavoriteCount(POST_ID));
         verify(postFavoriteStore).cacheFavoriteCount(POST_ID, 8);

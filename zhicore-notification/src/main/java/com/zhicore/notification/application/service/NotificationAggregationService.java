@@ -11,6 +11,7 @@ import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
 import com.zhicore.notification.application.port.policy.NotificationAggregationPolicy;
 import com.zhicore.notification.application.port.store.NotificationAggregationStore;
+import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.model.NotificationType;
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import com.zhicore.notification.application.sentinel.NotificationSentinelHandlers;
@@ -71,7 +72,7 @@ public class NotificationAggregationService {
 
         // 2. 查询聚合后的通知（数据库层面已完成聚合）
         List<AggregatedNotificationDTO> aggregatedList = notificationRepository
-                .findAggregatedNotifications(String.valueOf(userId), page, size);
+                .findAggregatedNotifications(userId, page, size);
 
         if (aggregatedList.isEmpty()) {
             PageResult<AggregatedNotificationVO> emptyResult = PageResult.of(
@@ -94,7 +95,7 @@ public class NotificationAggregationService {
                 .collect(Collectors.toList());
 
         // 5. 获取总数
-        int totalGroups = notificationRepository.countAggregatedGroups(String.valueOf(userId));
+        int totalGroups = notificationRepository.countAggregatedGroups(userId);
 
         PageResult<AggregatedNotificationVO> result = PageResult.of(page, size, totalGroups, voList);
 
@@ -119,6 +120,31 @@ public class NotificationAggregationService {
         } catch (Exception e) {
             log.warn("清除通知缓存失败: userId={}, error={}", userId, e.getMessage());
         }
+    }
+
+    /**
+     * 为实时推送构建聚合通知。
+     *
+     * <p>实时推送不能因为用户服务降级而中断，因此这里会在必要时回退到仅包含组内计数的文案。</p>
+     */
+    public AggregatedNotificationVO getAggregatedNotificationForPush(Notification notification) {
+        AggregatedNotificationDTO dto = notificationRepository.findAggregatedNotificationByGroup(
+                        notification.getRecipientId(),
+                        notification.getType(),
+                        notification.getTargetType(),
+                        notification.getTargetId() != null ? String.valueOf(notification.getTargetId()) : null
+                )
+                .orElseGet(() -> buildFallbackAggregatedDTO(notification));
+
+        Map<String, UserSimpleDTO> userMap = Collections.emptyMap();
+        try {
+            userMap = batchGetUsers(new LinkedHashSet<>(toActorIds(dto, notification)));
+        } catch (BusinessException e) {
+            log.warn("实时推送聚合用户信息降级: notificationId={}, error={}",
+                    notification.getId(), e.getMessage());
+        }
+
+        return buildAggregatedVO(dto, userMap);
     }
 
     /**
@@ -189,6 +215,32 @@ public class NotificationAggregationService {
         } catch (Exception e) {
             log.warn("缓存通知结果失败: userId={}, page={}, size={}, error={}", userId, page, size, e.getMessage());
         }
+    }
+
+    private List<String> toActorIds(AggregatedNotificationDTO dto, Notification notification) {
+        if (dto.getActorIds() != null && !dto.getActorIds().isEmpty()) {
+            return dto.getActorIds();
+        }
+        if (notification.getActorId() == null) {
+            return Collections.emptyList();
+        }
+        return List.of(String.valueOf(notification.getActorId()));
+    }
+
+    private AggregatedNotificationDTO buildFallbackAggregatedDTO(Notification notification) {
+        return AggregatedNotificationDTO.builder()
+                .type(notification.getType())
+                .targetType(notification.getTargetType())
+                .targetId(notification.getTargetId() != null ? String.valueOf(notification.getTargetId()) : null)
+                .totalCount(1)
+                .unreadCount(notification.isRead() ? 0 : 1)
+                .latestTime(notification.getCreatedAt())
+                .latestNotificationId(String.valueOf(notification.getId()))
+                .latestContent(notification.getContent())
+                .actorIds(notification.getActorId() != null
+                        ? List.of(String.valueOf(notification.getActorId()))
+                        : Collections.emptyList())
+                .build();
     }
 
     /**

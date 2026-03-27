@@ -6,7 +6,9 @@ import com.zhicore.content.application.assembler.PostViewAssembler;
 import com.zhicore.content.application.dto.PostVO;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.model.Post;
+import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.Tag;
+import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
@@ -40,12 +42,12 @@ public class TagPostQueryService {
                 .orElseThrow(() -> new ResourceNotFoundException("标签不存在: " + slug));
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<Long> postIdPage = postTagRepository.findPostIdsByTagId(tag.getId(), pageable);
+        Page<PostId> postIdPage = postTagRepository.findPostIdsByTagId(TagId.of(tag.getId()), pageable);
         if (postIdPage.isEmpty()) {
             return PageResult.of(page, size, postIdPage.getTotalElements(), Collections.emptyList());
         }
 
-        List<Long> postIds = postIdPage.getContent();
+        List<Long> postIds = postIdPage.getContent().stream().map(PostId::getValue).toList();
         Map<Long, Post> postMap = postRepository.findByIds(postIds);
         List<PostVO> postVOs = postIds.stream()
                 .map(postMap::get)

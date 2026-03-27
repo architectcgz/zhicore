@@ -1,7 +1,6 @@
 package com.zhicore.notification.infrastructure.push;
 
-import com.zhicore.notification.application.dto.NotificationPushDTO;
-import com.zhicore.notification.domain.model.Notification;
+import com.zhicore.notification.application.dto.AggregatedNotificationVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -40,16 +39,16 @@ public class WebSocketNotificationHandler {
      * 发送通知给指定用户
      *
      * @param userId 用户ID
-     * @param notification 通知
+     * @param notification 聚合通知
      */
-    public void sendNotification(String userId, Notification notification) {
-        NotificationPushDTO pushDTO = NotificationPushDTO.from(notification);
+    public void sendNotification(String userId, AggregatedNotificationVO notification) {
         messagingTemplate.convertAndSendToUser(
                 userId,
                 NOTIFICATION_DESTINATION,
-                pushDTO
+                notification
         );
-        log.debug("WebSocket推送通知: userId={}, notificationId={}", userId, notification.getId());
+        log.debug("WebSocket推送聚合通知: userId={}, type={}, targetType={}, targetId={}",
+                userId, notification.getType(), notification.getTargetType(), notification.getTargetId());
     }
 
     /**

@@ -33,18 +33,11 @@ public class PostId {
      * @throws IllegalArgumentException 如果 value 为 null 或非正数
      */
     @JsonCreator  // 支持 Jackson 反序列化
-    public PostId(Long value) {
+    private PostId(Long value) {
         if (value == null || value <= 0) {
             throw new IllegalArgumentException("PostId 值必须为正数");
         }
         this.value = value;
-    }
-
-    /**
-     * 从字符串创建 PostId（兼容旧调用）
-     */
-    public PostId(String value) {
-        this(Long.parseLong(value));
     }
     
     /**

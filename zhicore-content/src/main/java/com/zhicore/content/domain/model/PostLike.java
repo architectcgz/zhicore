@@ -21,25 +21,23 @@ public class PostLike {
     /**
      * 文章ID
      */
-    private final Long postId;
+    private final PostId postId;
 
     /**
      * 用户ID
      */
-    private final Long userId;
+    private final UserId userId;
 
     /**
      * 创建时间
      */
     private final LocalDateTime createdAt;
 
-    public PostLike(Long id, Long postId, Long userId) {
+    public PostLike(Long id, PostId postId, UserId userId) {
         Assert.notNull(id, "点赞ID不能为空");
         Assert.isTrue(id > 0, "点赞ID必须为正数");
         Assert.notNull(postId, "文章ID不能为空");
-        Assert.isTrue(postId > 0, "文章ID必须为正数");
         Assert.notNull(userId, "用户ID不能为空");
-        Assert.isTrue(userId > 0, "用户ID必须为正数");
 
         this.id = id;
         this.postId = postId;
@@ -47,7 +45,13 @@ public class PostLike {
         this.createdAt = LocalDateTime.now();
     }
 
-    public PostLike(Long id, Long postId, Long userId, LocalDateTime createdAt) {
+    public PostLike(Long id, PostId postId, UserId userId, LocalDateTime createdAt) {
+        Assert.notNull(id, "点赞ID不能为空");
+        Assert.isTrue(id > 0, "点赞ID必须为正数");
+        Assert.notNull(postId, "文章ID不能为空");
+        Assert.notNull(userId, "用户ID不能为空");
+        Assert.notNull(createdAt, "创建时间不能为空");
+
         this.id = id;
         this.postId = postId;
         this.userId = userId;
@@ -57,7 +61,7 @@ public class PostLike {
     /**
      * 从持久化恢复
      */
-    public static PostLike reconstitute(Long id, Long postId, Long userId, LocalDateTime createdAt) {
+    public static PostLike reconstitute(Long id, PostId postId, UserId userId, LocalDateTime createdAt) {
         return new PostLike(id, postId, userId, createdAt);
     }
 }

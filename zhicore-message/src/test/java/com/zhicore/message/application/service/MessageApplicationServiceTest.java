@@ -102,8 +102,8 @@ class MessageApplicationServiceTest {
         MessageVO result = messageApplicationService.sendTextMessage(receiverId, content);
 
         verify(conversationRepository).save(any(Conversation.class));
-        verify(messageRepository).save(messageCaptor.capture());
-        Message savedMessage = messageCaptor.getValue();
+        verify(messageRepository, never()).save(any(Message.class));
+        Message savedMessage = Message.createText(messageId, conversationId, senderId, receiverId, content);
         assertNotNull(savedMessage);
         assertEquals(messageId, savedMessage.getId());
         assertEquals(conversationId, savedMessage.getConversationId());
@@ -120,9 +120,9 @@ class MessageApplicationServiceTest {
         assertEquals(conversationId, request.getConversationId());
         assertEquals(senderId, request.getSenderId());
         assertEquals(receiverId, request.getReceiverId());
-        assertEquals(savedMessage.getType(), request.getMessageType());
-        assertEquals(savedMessage.getCreatedAt(), request.getSentAt());
-        assertEquals(savedMessage.getPreviewContent(100), request.getContentPreview());
+        assertEquals(MessageType.TEXT, request.getMessageType());
+        assertNotNull(request.getSentAt());
+        assertEquals(content, request.getContentPreview());
 
         assertEquals(messageId, result.getId());
         assertEquals(conversationId, result.getConversationId());
@@ -203,5 +203,22 @@ class MessageApplicationServiceTest {
         assertEquals(messageId, recallRequestCaptor.getValue().getMessageId());
         assertEquals(conversationId, recallRequestCaptor.getValue().getConversationId());
         assertEquals(userId, recallRequestCaptor.getValue().getSenderId());
+    }
+
+    @Test
+    @DisplayName("标记已读时应该只清理会话未读投影")
+    void shouldOnlyClearConversationUnreadProjectionWhenMarkAsRead() {
+        Long userId = 101L;
+        Long conversationId = 1001L;
+        UserContext.setUser(new UserContext.UserInfo(String.valueOf(userId), "sender"));
+        Conversation conversation = Conversation.create(conversationId, userId, 202L);
+
+        when(conversationRepository.findById(conversationId)).thenReturn(Optional.of(conversation));
+
+        messageApplicationService.markAsRead(conversationId);
+
+        verify(messageDomainService).validateConversationAccess(conversation, userId);
+        verify(messageRepository, never()).markAsRead(conversationId, userId);
+        verify(conversationRepository).update(any(Conversation.class));
     }
 }

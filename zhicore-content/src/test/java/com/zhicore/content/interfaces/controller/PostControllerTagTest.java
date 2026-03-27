@@ -8,6 +8,7 @@ import com.zhicore.content.application.service.PostQueryFacade;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.Tag;
+import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
@@ -88,7 +89,9 @@ class PostControllerTagTest extends IntegrationTestBase {
         postCommandFacade.attachTags(testUserId, testPostId, tagNames);
 
         // Then: 验证标签已添加
-        List<Long> tagIds = postTagRepository.findTagIdsByPostId(testPostId);
+        List<Long> tagIds = postTagRepository.findTagIdsByPostId(PostId.of(testPostId)).stream()
+                .map(TagId::getValue)
+                .toList();
         assertEquals(3, tagIds.size());
 
         // 验证标签内容

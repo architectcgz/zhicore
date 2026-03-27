@@ -2,6 +2,8 @@ package com.zhicore.search.application.service;
 
 import com.zhicore.search.application.dto.PostSearchVO;
 import com.zhicore.search.application.dto.SearchResultVO;
+import com.zhicore.search.application.service.command.SearchIndexCommandService;
+import com.zhicore.search.application.service.query.SearchQueryService;
 import com.zhicore.search.domain.model.PostDocument;
 import com.zhicore.search.domain.repository.PostSearchRepository;
 import com.zhicore.search.domain.repository.PostSearchRepository.SearchHit;

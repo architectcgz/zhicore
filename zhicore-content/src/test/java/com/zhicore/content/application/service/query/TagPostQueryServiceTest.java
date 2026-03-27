@@ -10,6 +10,7 @@ import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.PostStats;
 import com.zhicore.content.domain.model.PostStatus;
 import com.zhicore.content.domain.model.Tag;
+import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.model.WriteState;
 import com.zhicore.content.domain.repository.PostTagRepository;
@@ -62,7 +63,7 @@ class TagPostQueryServiceTest {
         Tag tag = Tag.create(1000L, "Java", "java");
         PageRequest pageable = PageRequest.of(0, 20);
         when(tagRepository.findBySlug("java")).thenReturn(Optional.of(tag));
-        when(postTagRepository.findPostIdsByTagId(1000L, pageable))
+        when(postTagRepository.findPostIdsByTagId(TagId.of(1000L), pageable))
                 .thenReturn(new PageImpl<>(Collections.emptyList(), pageable, 0));
 
         PageResult<PostVO> result = tagPostQueryService.getPostsByTag("java", 0, 20);
@@ -78,8 +79,8 @@ class TagPostQueryServiceTest {
         Post first = post(2001L, "Post A");
         Post second = post(2002L, "Post B");
         when(tagRepository.findBySlug("java")).thenReturn(Optional.of(tag));
-        when(postTagRepository.findPostIdsByTagId(1000L, pageable))
-                .thenReturn(new PageImpl<>(List.of(2002L, 2001L), pageable, 2));
+        when(postTagRepository.findPostIdsByTagId(TagId.of(1000L), pageable))
+                .thenReturn(new PageImpl<>(List.of(PostId.of(2002L), PostId.of(2001L)), pageable, 2));
         when(postRepository.findByIds(List.of(2002L, 2001L))).thenReturn(Map.of(
                 2001L, first,
                 2002L, second

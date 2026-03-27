@@ -19,7 +19,7 @@ import java.util.List;
  */
 @Tag(name = "会话读接口", description = "会话列表、会话详情等查询接口")
 @RestController
-@RequestMapping("/api/v1/conversations")
+@RequestMapping({"/api/v1/messages/conversations", "/api/v1/conversations"})
 @RequiredArgsConstructor
 @Validated
 public class ConversationQueryController {

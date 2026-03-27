@@ -1,9 +1,12 @@
 package com.zhicore.content.domain.repository;
 
+import com.zhicore.content.domain.model.PostId;
+import com.zhicore.content.domain.model.TagId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Post-Tag 关联仓储接口
@@ -20,7 +23,7 @@ public interface PostTagRepository {
      * @param postId 文章ID
      * @param tagId 标签ID
      */
-    void attach(Long postId, Long tagId);
+    void attach(PostId postId, TagId tagId);
 
     /**
      * 批量创建关联
@@ -28,7 +31,7 @@ public interface PostTagRepository {
      * @param postId 文章ID
      * @param tagIds 标签ID列表
      */
-    void attachBatch(Long postId, List<Long> tagIds);
+    void attachBatch(PostId postId, List<TagId> tagIds);
 
     /**
      * 删除关联
@@ -36,14 +39,14 @@ public interface PostTagRepository {
      * @param postId 文章ID
      * @param tagId 标签ID
      */
-    void detach(Long postId, Long tagId);
+    void detach(PostId postId, TagId tagId);
 
     /**
      * 删除文章的所有关联
      * 
      * @param postId 文章ID
      */
-    void detachAllByPostId(Long postId);
+    void detachAllByPostId(PostId postId);
 
     /**
      * 查询文章的所有标签ID
@@ -51,7 +54,7 @@ public interface PostTagRepository {
      * @param postId 文章ID
      * @return 标签ID列表
      */
-    List<Long> findTagIdsByPostId(Long postId);
+    List<TagId> findTagIdsByPostId(PostId postId);
 
     /**
      * 查询标签下的所有文章ID
@@ -59,7 +62,7 @@ public interface PostTagRepository {
      * @param tagId 标签ID
      * @return 文章ID列表
      */
-    List<Long> findPostIdsByTagId(Long tagId);
+    List<PostId> findPostIdsByTagId(TagId tagId);
 
     /**
      * 分页查询标签下的文章ID
@@ -68,7 +71,7 @@ public interface PostTagRepository {
      * @param pageable 分页参数
      * @return 文章ID分页结果
      */
-    Page<Long> findPostIdsByTagId(Long tagId, Pageable pageable);
+    Page<PostId> findPostIdsByTagId(TagId tagId, Pageable pageable);
 
     /**
      * 检查关联是否存在
@@ -77,7 +80,7 @@ public interface PostTagRepository {
      * @param tagId 标签ID
      * @return 是否存在
      */
-    boolean exists(Long postId, Long tagId);
+    boolean exists(PostId postId, TagId tagId);
 
     /**
      * 统计标签下的文章数量
@@ -85,7 +88,7 @@ public interface PostTagRepository {
      * @param tagId 标签ID
      * @return 文章数量
      */
-    int countPostsByTagId(Long tagId);
+    int countPostsByTagId(TagId tagId);
 
     /**
      * 统计文章的标签数量
@@ -93,7 +96,7 @@ public interface PostTagRepository {
      * @param postId 文章ID
      * @return 标签数量
      */
-    int countTagsByPostId(Long postId);
+    int countTagsByPostId(PostId postId);
 
     /**
      * 批量查询文章的标签（避免 N+1 查询）
@@ -103,5 +106,5 @@ public interface PostTagRepository {
      * @param postIds 文章ID列表
      * @return Map<文章ID, 标签ID列表>
      */
-    java.util.Map<Long, List<Long>> findTagIdsByPostIds(List<Long> postIds);
+    Map<PostId, List<TagId>> findTagIdsByPostIds(List<PostId> postIds);
 }

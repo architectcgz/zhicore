@@ -2,6 +2,8 @@ package com.zhicore.content.infrastructure.persistence.pg;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.zhicore.content.domain.model.PostId;
+import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.infrastructure.persistence.pg.entity.PostTagEntity;
 import com.zhicore.content.infrastructure.persistence.pg.mapper.PostTagEntityMyBatisMapper;
@@ -33,7 +35,7 @@ public class PostTagRepositoryPgImpl implements PostTagRepository {
     private final PostTagEntityMyBatisMapper mybatisMapper;
 
     @Override
-    public void attach(Long postId, Long tagId) {
+    public void attach(PostId postId, TagId tagId) {
         // 检查关联是否已存在
         if (exists(postId, tagId)) {
             log.debug("文章-标签关联已存在: postId={}, tagId={}", postId, tagId);
@@ -41,8 +43,8 @@ public class PostTagRepositoryPgImpl implements PostTagRepository {
         }
 
         PostTagEntity entity = new PostTagEntity();
-        entity.setPostId(postId);
-        entity.setTagId(tagId);
+        entity.setPostId(postId.getValue());
+        entity.setTagId(tagId.getValue());
         entity.setCreatedAt(LocalDateTime.now());
 
         int rows = mybatisMapper.insertOneIgnoreConflict(entity);
@@ -55,15 +57,15 @@ public class PostTagRepositoryPgImpl implements PostTagRepository {
     }
 
     @Override
-    public void attachBatch(Long postId, List<Long> tagIds) {
+    public void attachBatch(PostId postId, List<TagId> tagIds) {
         if (tagIds == null || tagIds.isEmpty()) {
             log.debug("标签ID列表为空，跳过批量创建关联: postId={}", postId);
             return;
         }
 
         // 过滤掉已存在的关联
-        List<Long> existingTagIds = findTagIdsByPostId(postId);
-        List<Long> newTagIds = tagIds.stream()
+        List<TagId> existingTagIds = findTagIdsByPostId(postId);
+        List<TagId> newTagIds = tagIds.stream()
                 .filter(tagId -> !existingTagIds.contains(tagId))
                 .collect(Collectors.toList());
 
@@ -77,8 +79,8 @@ public class PostTagRepositoryPgImpl implements PostTagRepository {
         List<PostTagEntity> entities = newTagIds.stream()
                 .map(tagId -> {
                     PostTagEntity entity = new PostTagEntity();
-                    entity.setPostId(postId);
-                    entity.setTagId(tagId);
+                    entity.setPostId(postId.getValue());
+                    entity.setTagId(tagId.getValue());
                     entity.setCreatedAt(now);
                     return entity;
                 })
@@ -91,10 +93,10 @@ public class PostTagRepositoryPgImpl implements PostTagRepository {
     }
 
     @Override
-    public void detach(Long postId, Long tagId) {
+    public void detach(PostId postId, TagId tagId) {
         LambdaQueryWrapper<PostTagEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostTagEntity::getPostId, postId)
-               .eq(PostTagEntity::getTagId, tagId);
+        wrapper.eq(PostTagEntity::getPostId, postId.getValue())
+               .eq(PostTagEntity::getTagId, tagId.getValue());
 
         int rows = mybatisMapper.delete(wrapper);
         
@@ -106,24 +108,28 @@ public class PostTagRepositoryPgImpl implements PostTagRepository {
     }
 
     @Override
-    public void detachAllByPostId(Long postId) {
-        int rows = mybatisMapper.deleteByPostId(postId);
+    public void detachAllByPostId(PostId postId) {
+        int rows = mybatisMapper.deleteByPostId(postId.getValue());
         
         log.info("删除文章的所有标签关联: postId={}, 删除数量={}", postId, rows);
     }
 
     @Override
-    public List<Long> findTagIdsByPostId(Long postId) {
-        return mybatisMapper.selectTagIdsByPostId(postId);
+    public List<TagId> findTagIdsByPostId(PostId postId) {
+        return mybatisMapper.selectTagIdsByPostId(postId.getValue()).stream()
+                .map(TagId::of)
+                .toList();
     }
 
     @Override
-    public List<Long> findPostIdsByTagId(Long tagId) {
-        return mybatisMapper.selectPostIdsByTagId(tagId);
+    public List<PostId> findPostIdsByTagId(TagId tagId) {
+        return mybatisMapper.selectPostIdsByTagId(tagId.getValue()).stream()
+                .map(PostId::of)
+                .toList();
     }
 
     @Override
-    public org.springframework.data.domain.Page<Long> findPostIdsByTagId(Long tagId, Pageable pageable) {
+    public org.springframework.data.domain.Page<PostId> findPostIdsByTagId(TagId tagId, Pageable pageable) {
         // 使用 MyBatis-Plus 分页
         Page<PostTagEntity> page = new Page<>(
                 pageable.getPageNumber() + 1,  // MyBatis-Plus 页码从1开始
@@ -131,47 +137,49 @@ public class PostTagRepositoryPgImpl implements PostTagRepository {
         );
 
         LambdaQueryWrapper<PostTagEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostTagEntity::getTagId, tagId)
+        wrapper.eq(PostTagEntity::getTagId, tagId.getValue())
                .orderByDesc(PostTagEntity::getCreatedAt);
 
         Page<PostTagEntity> result = mybatisMapper.selectPage(page, wrapper);
 
-        List<Long> postIds = result.getRecords().stream()
+        List<PostId> postIds = result.getRecords().stream()
                 .map(PostTagEntity::getPostId)
+                .map(PostId::of)
                 .collect(Collectors.toList());
 
         return new PageImpl<>(postIds, pageable, result.getTotal());
     }
 
     @Override
-    public boolean exists(Long postId, Long tagId) {
-        int count = mybatisMapper.existsByPostIdAndTagId(postId, tagId);
+    public boolean exists(PostId postId, TagId tagId) {
+        int count = mybatisMapper.existsByPostIdAndTagId(postId.getValue(), tagId.getValue());
         return count > 0;
     }
 
     @Override
-    public int countPostsByTagId(Long tagId) {
-        return mybatisMapper.countPostsByTagId(tagId);
+    public int countPostsByTagId(TagId tagId) {
+        return mybatisMapper.countPostsByTagId(tagId.getValue());
     }
 
     @Override
-    public int countTagsByPostId(Long postId) {
-        return mybatisMapper.countTagsByPostId(postId);
+    public int countTagsByPostId(PostId postId) {
+        return mybatisMapper.countTagsByPostId(postId.getValue());
     }
 
     @Override
-    public Map<Long, List<Long>> findTagIdsByPostIds(List<Long> postIds) {
+    public Map<PostId, List<TagId>> findTagIdsByPostIds(List<PostId> postIds) {
         if (postIds == null || postIds.isEmpty()) {
             return new HashMap<>();
         }
 
-        List<PostTagEntity> entities = mybatisMapper.selectByPostIds(postIds);
+        List<Long> rawPostIds = postIds.stream().map(PostId::getValue).toList();
+        List<PostTagEntity> entities = mybatisMapper.selectByPostIds(rawPostIds);
 
         // 按 postId 分组
         return entities.stream()
                 .collect(Collectors.groupingBy(
-                        PostTagEntity::getPostId,
-                        Collectors.mapping(PostTagEntity::getTagId, Collectors.toList())
+                        entity -> PostId.of(entity.getPostId()),
+                        Collectors.mapping(entity -> TagId.of(entity.getTagId()), Collectors.toList())
                 ));
     }
 }

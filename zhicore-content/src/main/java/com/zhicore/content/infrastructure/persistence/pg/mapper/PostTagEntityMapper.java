@@ -1,9 +1,10 @@
 package com.zhicore.content.infrastructure.persistence.pg.mapper;
 
 import com.zhicore.content.domain.model.PostTag;
+import com.zhicore.content.domain.model.PostId;
+import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.infrastructure.persistence.pg.entity.PostTagEntity;
 import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 
 import java.util.List;
 
@@ -24,17 +25,14 @@ public interface PostTagEntityMapper {
      * @param entity 数据库实体
      * @return PostTag 领域模型
      */
-    @Mapping(target = "postId", source = "postId")
-    @Mapping(target = "tagId", source = "tagId")
-    @Mapping(target = "createdAt", source = "createdAt")
     default PostTag toDomain(PostTagEntity entity) {
         if (entity == null) {
             return null;
         }
         
         return PostTag.reconstitute(
-                entity.getPostId(),
-                entity.getTagId(),
+                PostId.of(entity.getPostId()),
+                TagId.of(entity.getTagId()),
                 entity.getCreatedAt()
         );
     }
@@ -45,10 +43,16 @@ public interface PostTagEntityMapper {
      * @param domain PostTag 领域模型
      * @return 数据库实体
      */
-    @Mapping(target = "postId", source = "postId")
-    @Mapping(target = "tagId", source = "tagId")
-    @Mapping(target = "createdAt", source = "createdAt")
-    PostTagEntity toEntity(PostTag domain);
+    default PostTagEntity toEntity(PostTag domain) {
+        if (domain == null) {
+            return null;
+        }
+        PostTagEntity entity = new PostTagEntity();
+        entity.setPostId(domain.getPostId().getValue());
+        entity.setTagId(domain.getTagId().getValue());
+        entity.setCreatedAt(domain.getCreatedAt());
+        return entity;
+    }
 
     /**
      * 批量将 PostTagEntity 列表转换为 PostTag 领域模型列表
@@ -56,5 +60,10 @@ public interface PostTagEntityMapper {
      * @param entities 数据库实体列表
      * @return PostTag 领域模型列表
      */
-    List<PostTag> toDomainList(List<PostTagEntity> entities);
+    default List<PostTag> toDomainList(List<PostTagEntity> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return List.of();
+        }
+        return entities.stream().map(this::toDomain).toList();
+    }
 }

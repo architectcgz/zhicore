@@ -1,6 +1,9 @@
 package com.zhicore.notification.infrastructure.push;
 
+import com.zhicore.notification.application.dto.AggregatedNotificationVO;
+import com.zhicore.notification.application.service.NotificationAggregationService;
 import com.zhicore.notification.domain.model.Notification;
+import com.zhicore.notification.domain.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,6 +20,8 @@ import org.springframework.stereotype.Service;
 public class NotificationPushService {
 
     private final WebSocketNotificationHandler webSocketHandler;
+    private final NotificationRepository notificationRepository;
+    private final NotificationAggregationService notificationAggregationService;
 
     /**
      * 推送通知给用户
@@ -26,14 +31,19 @@ public class NotificationPushService {
      */
     public void push(String userId, Notification notification) {
         try {
+            AggregatedNotificationVO aggregatedNotification =
+                    notificationAggregationService.getAggregatedNotificationForPush(notification);
             // 通过WebSocket推送
-            webSocketHandler.sendNotification(userId, notification);
+            webSocketHandler.sendNotification(userId, aggregatedNotification);
             log.debug("推送通知成功: userId={}, notificationId={}", userId, notification.getId());
         } catch (Exception e) {
             log.warn("推送通知失败: userId={}, notificationId={}, error={}",
                     userId, notification.getId(), e.getMessage());
             // 推送失败不影响主流程，通知已经保存到数据库
+            return;
         }
+
+        pushUnreadCount(userId, notificationRepository.countUnread(Long.valueOf(userId)));
     }
 
     /**

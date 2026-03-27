@@ -61,4 +61,12 @@ public interface ConversationRepository {
      * @return 会话数
      */
     int countByUserId(Long userId);
+
+    /**
+     * 汇总用户在会话投影中的未读消息总数。
+     *
+     * @param userId 用户ID
+     * @return 未读总数
+     */
+    int countUnreadByUserId(Long userId);
 }

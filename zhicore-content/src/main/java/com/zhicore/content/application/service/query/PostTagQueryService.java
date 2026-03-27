@@ -4,6 +4,8 @@ import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.content.application.dto.TagDTO;
 import com.zhicore.content.domain.model.Post;
+import com.zhicore.content.domain.model.PostId;
+import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
@@ -36,12 +38,12 @@ public class PostTagQueryService {
             throw new BusinessException(ResultCode.NOT_FOUND, "文章已删除");
         }
 
-        List<Long> tagIds = postTagRepository.findTagIdsByPostId(postId);
+        List<TagId> tagIds = postTagRepository.findTagIdsByPostId(PostId.of(postId));
         if (tagIds.isEmpty()) {
             return Collections.emptyList();
         }
 
-        return tagRepository.findByIdIn(tagIds).stream()
+        return tagRepository.findByIdIn(tagIds.stream().map(TagId::getValue).toList()).stream()
                 .map(tag -> TagDTO.builder()
                         .id(tag.getId())
                         .name(tag.getName())

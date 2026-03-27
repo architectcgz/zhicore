@@ -132,10 +132,7 @@ public class MessageCommandService {
         Conversation conversation = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new BusinessException(ResultCode.CONVERSATION_NOT_FOUND));
         messageDomainService.validateConversationAccess(conversation, userId);
-        
-        // 批量标记消息为已读
-        messageRepository.markAsRead(conversationId, userId);
-        
+
         // 清除会话未读数
         conversation.clearUnreadCount(userId);
         conversationRepository.update(conversation);
@@ -159,7 +156,6 @@ public class MessageCommandService {
         Long messageId = messageIdGenerator.nextId();
         Message message = createMessage(messageId, conversation.getId(), senderId, receiverId, type, content, mediaUrl);
 
-        messageRepository.save(message);
         updateConversationLastMessage(conversation, message);
         publishAfterCommit(message);
 

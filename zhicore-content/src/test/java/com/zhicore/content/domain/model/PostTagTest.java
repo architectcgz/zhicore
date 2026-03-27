@@ -10,9 +10,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * PostTag 值对象单元测试
- * 
+ *
  * 测试 PostTag 值对象的创建、验证和领域行为
- * 
+ *
  * Requirements: 4.2
  *
  * @author ZhiCore Team
@@ -32,12 +32,12 @@ class PostTagTest {
             Long tagId = 1001L;
 
             // When
-            PostTag postTag = PostTag.create(postId, tagId);
+            PostTag postTag = PostTag.create(PostId.of(postId), TagId.of(tagId));
 
             // Then
             assertNotNull(postTag);
-            assertEquals(postId, postTag.getPostId());
-            assertEquals(tagId, postTag.getTagId());
+            assertEquals(PostId.of(postId), postTag.getPostId());
+            assertEquals(TagId.of(tagId), postTag.getTagId());
             assertNotNull(postTag.getCreatedAt());
             assertTrue(postTag.getCreatedAt().isBefore(LocalDateTime.now().plusSeconds(1)));
         }
@@ -47,7 +47,7 @@ class PostTagTest {
         void shouldThrowExceptionWhenPostIdIsNull() {
             // When & Then
             IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-                    PostTag.create(null, 1001L));
+                    PostTag.create(null, TagId.of(1001L)));
             assertTrue(exception.getMessage().contains("文章ID不能为空"));
         }
 
@@ -56,8 +56,8 @@ class PostTagTest {
         void shouldThrowExceptionWhenPostIdIsZero() {
             // When & Then
             IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-                    PostTag.create(0L, 1001L));
-            assertTrue(exception.getMessage().contains("文章ID必须为正数"));
+                    PostTag.create(PostId.of(0L), TagId.of(1001L)));
+            assertTrue(exception.getMessage().contains("PostId 值必须为正数"));
         }
 
         @Test
@@ -65,8 +65,8 @@ class PostTagTest {
         void shouldThrowExceptionWhenPostIdIsNegative() {
             // When & Then
             IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-                    PostTag.create(-1L, 1001L));
-            assertTrue(exception.getMessage().contains("文章ID必须为正数"));
+                    PostTag.create(PostId.of(-1L), TagId.of(1001L)));
+            assertTrue(exception.getMessage().contains("PostId 值必须为正数"));
         }
 
         @Test
@@ -74,7 +74,7 @@ class PostTagTest {
         void shouldThrowExceptionWhenTagIdIsNull() {
             // When & Then
             IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-                    PostTag.create(1L, null));
+                    PostTag.create(PostId.of(1L), null));
             assertTrue(exception.getMessage().contains("标签ID不能为空"));
         }
 
@@ -83,8 +83,8 @@ class PostTagTest {
         void shouldThrowExceptionWhenTagIdIsZero() {
             // When & Then
             IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-                    PostTag.create(1L, 0L));
-            assertTrue(exception.getMessage().contains("标签ID必须为正数"));
+                    PostTag.create(PostId.of(1L), TagId.of(0L)));
+            assertTrue(exception.getMessage().contains("TagId 值必须为正数"));
         }
 
         @Test
@@ -92,8 +92,8 @@ class PostTagTest {
         void shouldThrowExceptionWhenTagIdIsNegative() {
             // When & Then
             IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-                    PostTag.create(1L, -1L));
-            assertTrue(exception.getMessage().contains("标签ID必须为正数"));
+                    PostTag.create(PostId.of(1L), TagId.of(-1L)));
+            assertTrue(exception.getMessage().contains("TagId 值必须为正数"));
         }
 
         @Test
@@ -103,7 +103,7 @@ class PostTagTest {
             LocalDateTime before = LocalDateTime.now();
 
             // When
-            PostTag postTag = PostTag.create(1L, 1001L);
+            PostTag postTag = PostTag.create(PostId.of(1L), TagId.of(1001L));
 
             // Then
             LocalDateTime after = LocalDateTime.now();
@@ -126,12 +126,12 @@ class PostTagTest {
             LocalDateTime createdAt = LocalDateTime.now().minusDays(1);
 
             // When
-            PostTag postTag = PostTag.reconstitute(postId, tagId, createdAt);
+            PostTag postTag = PostTag.reconstitute(PostId.of(postId), TagId.of(tagId), createdAt);
 
             // Then
             assertNotNull(postTag);
-            assertEquals(postId, postTag.getPostId());
-            assertEquals(tagId, postTag.getTagId());
+            assertEquals(PostId.of(postId), postTag.getPostId());
+            assertEquals(TagId.of(tagId), postTag.getTagId());
             assertEquals(createdAt, postTag.getCreatedAt());
         }
 
@@ -144,7 +144,7 @@ class PostTagTest {
             LocalDateTime originalCreatedAt = LocalDateTime.of(2024, 1, 1, 10, 0, 0);
 
             // When
-            PostTag postTag = PostTag.reconstitute(postId, tagId, originalCreatedAt);
+            PostTag postTag = PostTag.reconstitute(PostId.of(postId), TagId.of(tagId), originalCreatedAt);
 
             // Then
             assertEquals(originalCreatedAt, postTag.getCreatedAt());
@@ -159,8 +159,8 @@ class PostTagTest {
         @DisplayName("相同 postId 和 tagId 的关联应该相等")
         void shouldBeEqualWhenSamePostIdAndTagId() {
             // Given
-            PostTag postTag1 = PostTag.create(1L, 1001L);
-            PostTag postTag2 = PostTag.create(1L, 1001L);
+            PostTag postTag1 = PostTag.create(PostId.of(1L), TagId.of(1001L));
+            PostTag postTag2 = PostTag.create(PostId.of(1L), TagId.of(1001L));
 
             // Then
             assertEquals(postTag1, postTag2);
@@ -171,8 +171,8 @@ class PostTagTest {
         @DisplayName("不同 postId 的关联应该不相等")
         void shouldNotBeEqualWhenDifferentPostId() {
             // Given
-            PostTag postTag1 = PostTag.create(1L, 1001L);
-            PostTag postTag2 = PostTag.create(2L, 1001L);
+            PostTag postTag1 = PostTag.create(PostId.of(1L), TagId.of(1001L));
+            PostTag postTag2 = PostTag.create(PostId.of(2L), TagId.of(1001L));
 
             // Then
             assertNotEquals(postTag1, postTag2);
@@ -182,8 +182,8 @@ class PostTagTest {
         @DisplayName("不同 tagId 的关联应该不相等")
         void shouldNotBeEqualWhenDifferentTagId() {
             // Given
-            PostTag postTag1 = PostTag.create(1L, 1001L);
-            PostTag postTag2 = PostTag.create(1L, 1002L);
+            PostTag postTag1 = PostTag.create(PostId.of(1L), TagId.of(1001L));
+            PostTag postTag2 = PostTag.create(PostId.of(1L), TagId.of(1002L));
 
             // Then
             assertNotEquals(postTag1, postTag2);
@@ -193,8 +193,8 @@ class PostTagTest {
         @DisplayName("不同 postId 和 tagId 的关联应该不相等")
         void shouldNotBeEqualWhenDifferentPostIdAndTagId() {
             // Given
-            PostTag postTag1 = PostTag.create(1L, 1001L);
-            PostTag postTag2 = PostTag.create(2L, 1002L);
+            PostTag postTag1 = PostTag.create(PostId.of(1L), TagId.of(1001L));
+            PostTag postTag2 = PostTag.create(PostId.of(2L), TagId.of(1002L));
 
             // Then
             assertNotEquals(postTag1, postTag2);
@@ -204,7 +204,7 @@ class PostTagTest {
         @DisplayName("关联与自身应该相等")
         void shouldBeEqualToItself() {
             // Given
-            PostTag postTag = PostTag.create(1L, 1001L);
+            PostTag postTag = PostTag.create(PostId.of(1L), TagId.of(1001L));
 
             // Then
             assertEquals(postTag, postTag);
@@ -214,7 +214,7 @@ class PostTagTest {
         @DisplayName("关联与null应该不相等")
         void shouldNotBeEqualToNull() {
             // Given
-            PostTag postTag = PostTag.create(1L, 1001L);
+            PostTag postTag = PostTag.create(PostId.of(1L), TagId.of(1001L));
 
             // Then
             assertNotEquals(postTag, null);
@@ -224,7 +224,7 @@ class PostTagTest {
         @DisplayName("关联与其他类型对象应该不相等")
         void shouldNotBeEqualToDifferentType() {
             // Given
-            PostTag postTag = PostTag.create(1L, 1001L);
+            PostTag postTag = PostTag.create(PostId.of(1L), TagId.of(1001L));
             String other = "PostTag";
 
             // Then
@@ -237,8 +237,8 @@ class PostTagTest {
             // Given
             LocalDateTime time1 = LocalDateTime.now().minusDays(1);
             LocalDateTime time2 = LocalDateTime.now();
-            PostTag postTag1 = PostTag.reconstitute(1L, 1001L, time1);
-            PostTag postTag2 = PostTag.reconstitute(1L, 1001L, time2);
+            PostTag postTag1 = PostTag.reconstitute(PostId.of(1L), TagId.of(1001L), time1);
+            PostTag postTag2 = PostTag.reconstitute(PostId.of(1L), TagId.of(1001L), time2);
 
             // Then
             assertEquals(postTag1, postTag2);
@@ -254,14 +254,14 @@ class PostTagTest {
         @DisplayName("toString 应该包含所有关键字段")
         void shouldContainAllKeyFields() {
             // Given
-            PostTag postTag = PostTag.create(1L, 1001L);
+            PostTag postTag = PostTag.create(PostId.of(1L), TagId.of(1001L));
 
             // When
             String result = postTag.toString();
 
             // Then
-            assertTrue(result.contains("postId=1"));
-            assertTrue(result.contains("tagId=1001"));
+            assertTrue(result.contains("postId=PostId(value=1)"));
+            assertTrue(result.contains("tagId=TagId(value=1001)"));
             assertTrue(result.contains("createdAt="));
         }
 
@@ -269,7 +269,7 @@ class PostTagTest {
         @DisplayName("toString 应该包含类名")
         void shouldContainClassName() {
             // Given
-            PostTag postTag = PostTag.create(1L, 1001L);
+            PostTag postTag = PostTag.create(PostId.of(1L), TagId.of(1001L));
 
             // When
             String result = postTag.toString();
@@ -287,31 +287,31 @@ class PostTagTest {
         @DisplayName("postId 应该不可变")
         void shouldHaveImmutablePostId() {
             // Given
-            PostTag postTag = PostTag.create(1L, 1001L);
-            Long originalPostId = postTag.getPostId();
+            PostTag postTag = PostTag.create(PostId.of(1L), TagId.of(1001L));
+            PostId originalPostId = postTag.getPostId();
 
             // Then
             assertEquals(originalPostId, postTag.getPostId());
-            assertEquals(1L, postTag.getPostId());
+            assertEquals(PostId.of(1L), postTag.getPostId());
         }
 
         @Test
         @DisplayName("tagId 应该不可变")
         void shouldHaveImmutableTagId() {
             // Given
-            PostTag postTag = PostTag.create(1L, 1001L);
-            Long originalTagId = postTag.getTagId();
+            PostTag postTag = PostTag.create(PostId.of(1L), TagId.of(1001L));
+            TagId originalTagId = postTag.getTagId();
 
             // Then
             assertEquals(originalTagId, postTag.getTagId());
-            assertEquals(1001L, postTag.getTagId());
+            assertEquals(TagId.of(1001L), postTag.getTagId());
         }
 
         @Test
         @DisplayName("createdAt 应该不可变")
         void shouldHaveImmutableCreatedAt() {
             // Given
-            PostTag postTag = PostTag.create(1L, 1001L);
+            PostTag postTag = PostTag.create(PostId.of(1L), TagId.of(1001L));
             LocalDateTime originalCreatedAt = postTag.getCreatedAt();
 
             // Then
@@ -322,11 +322,11 @@ class PostTagTest {
         @DisplayName("所有字段都应该是 final 的")
         void shouldHaveAllFinalFields() {
             // Given
-            PostTag postTag = PostTag.create(1L, 1001L);
+            PostTag postTag = PostTag.create(PostId.of(1L), TagId.of(1001L));
 
             // Then - 验证对象创建后字段值不变
-            Long postId = postTag.getPostId();
-            Long tagId = postTag.getTagId();
+            PostId postId = postTag.getPostId();
+            TagId tagId = postTag.getTagId();
             LocalDateTime createdAt = postTag.getCreatedAt();
 
             // 多次获取应该返回相同的值
@@ -344,10 +344,10 @@ class PostTagTest {
         @DisplayName("应该基于 postId 和 tagId 的组合判断唯一性")
         void shouldUseCompositeKeyForUniqueness() {
             // Given
-            PostTag postTag1 = PostTag.create(1L, 1001L);
-            PostTag postTag2 = PostTag.create(1L, 1002L);
-            PostTag postTag3 = PostTag.create(2L, 1001L);
-            PostTag postTag4 = PostTag.create(1L, 1001L);
+            PostTag postTag1 = PostTag.create(PostId.of(1L), TagId.of(1001L));
+            PostTag postTag2 = PostTag.create(PostId.of(1L), TagId.of(1002L));
+            PostTag postTag3 = PostTag.create(PostId.of(2L), TagId.of(1001L));
+            PostTag postTag4 = PostTag.create(PostId.of(1L), TagId.of(1001L));
 
             // Then
             assertEquals(postTag1, postTag4);  // 相同复合主键
@@ -360,9 +360,9 @@ class PostTagTest {
         @DisplayName("hashCode 应该基于复合主键计算")
         void shouldCalculateHashCodeFromCompositeKey() {
             // Given
-            PostTag postTag1 = PostTag.create(1L, 1001L);
-            PostTag postTag2 = PostTag.create(1L, 1001L);
-            PostTag postTag3 = PostTag.create(2L, 1001L);
+            PostTag postTag1 = PostTag.create(PostId.of(1L), TagId.of(1001L));
+            PostTag postTag2 = PostTag.create(PostId.of(1L), TagId.of(1001L));
+            PostTag postTag3 = PostTag.create(PostId.of(2L), TagId.of(1001L));
 
             // Then
             assertEquals(postTag1.hashCode(), postTag2.hashCode());
@@ -378,11 +378,11 @@ class PostTagTest {
         @DisplayName("应该支持最小正整数ID")
         void shouldSupportMinimumPositiveId() {
             // Given & When
-            PostTag postTag = PostTag.create(1L, 1L);
+            PostTag postTag = PostTag.create(PostId.of(1L), TagId.of(1L));
 
             // Then
-            assertEquals(1L, postTag.getPostId());
-            assertEquals(1L, postTag.getTagId());
+            assertEquals(PostId.of(1L), postTag.getPostId());
+            assertEquals(TagId.of(1L), postTag.getTagId());
         }
 
         @Test
@@ -393,19 +393,19 @@ class PostTagTest {
             Long largeTagId = Long.MAX_VALUE - 1;
 
             // When
-            PostTag postTag = PostTag.create(largePostId, largeTagId);
+            PostTag postTag = PostTag.create(PostId.of(largePostId), TagId.of(largeTagId));
 
             // Then
-            assertEquals(largePostId, postTag.getPostId());
-            assertEquals(largeTagId, postTag.getTagId());
+            assertEquals(PostId.of(largePostId), postTag.getPostId());
+            assertEquals(TagId.of(largeTagId), postTag.getTagId());
         }
 
         @Test
         @DisplayName("应该支持不同大小的ID组合")
         void shouldSupportDifferentIdSizes() {
             // Given & When
-            PostTag postTag1 = PostTag.create(1L, Long.MAX_VALUE);
-            PostTag postTag2 = PostTag.create(Long.MAX_VALUE, 1L);
+            PostTag postTag1 = PostTag.create(PostId.of(1L), TagId.of(Long.MAX_VALUE));
+            PostTag postTag2 = PostTag.create(PostId.of(Long.MAX_VALUE), TagId.of(1L));
 
             // Then
             assertNotNull(postTag1);

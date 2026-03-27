@@ -1,6 +1,8 @@
 package com.zhicore.search.application.service;
 
 import com.zhicore.search.application.port.store.SuggestionCacheStore;
+import com.zhicore.search.application.service.command.SuggestionCommandService;
+import com.zhicore.search.application.service.query.SuggestionQueryService;
 import com.zhicore.search.domain.repository.PostSearchRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

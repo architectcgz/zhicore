@@ -1,5 +1,7 @@
 package com.zhicore.content.infrastructure.repository;
 
+import com.zhicore.content.domain.model.PostId;
+import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
@@ -58,47 +60,47 @@ class PostTagBatchQueryTest extends IntegrationTestBase {
 
         // 建立关联
         // Post 1: Java, Spring Boot
-        postTagRepository.attachBatch(postId1, Arrays.asList(tag1.getId(), tag2.getId()));
+        postTagRepository.attachBatch(PostId.of(postId1), Arrays.asList(TagId.of(tag1.getId()), TagId.of(tag2.getId())));
         
         // Post 2: Spring Boot, PostgreSQL
-        postTagRepository.attachBatch(postId2, Arrays.asList(tag2.getId(), tag3.getId()));
+        postTagRepository.attachBatch(PostId.of(postId2), Arrays.asList(TagId.of(tag2.getId()), TagId.of(tag3.getId())));
         
         // Post 3: Java, PostgreSQL
-        postTagRepository.attachBatch(postId3, Arrays.asList(tag1.getId(), tag3.getId()));
+        postTagRepository.attachBatch(PostId.of(postId3), Arrays.asList(TagId.of(tag1.getId()), TagId.of(tag3.getId())));
     }
 
     @Test
     void testFindTagIdsByPostIds() {
         // Given: 多个文章 ID
-        List<Long> postIds = Arrays.asList(postId1, postId2, postId3);
+        List<PostId> postIds = Arrays.asList(PostId.of(postId1), PostId.of(postId2), PostId.of(postId3));
 
         // When: 批量查询标签 ID
-        Map<Long, List<Long>> result = postTagRepository.findTagIdsByPostIds(postIds);
+        Map<PostId, List<TagId>> result = postTagRepository.findTagIdsByPostIds(postIds);
 
         // Then: 验证结果
         assertNotNull(result);
         assertEquals(3, result.size());
 
         // 验证 Post 1 的标签
-        List<Long> post1Tags = result.get(postId1);
+        List<TagId> post1Tags = result.get(PostId.of(postId1));
         assertNotNull(post1Tags);
         assertEquals(2, post1Tags.size());
-        assertTrue(post1Tags.contains(tag1.getId()));
-        assertTrue(post1Tags.contains(tag2.getId()));
+        assertTrue(post1Tags.contains(TagId.of(tag1.getId())));
+        assertTrue(post1Tags.contains(TagId.of(tag2.getId())));
 
         // 验证 Post 2 的标签
-        List<Long> post2Tags = result.get(postId2);
+        List<TagId> post2Tags = result.get(PostId.of(postId2));
         assertNotNull(post2Tags);
         assertEquals(2, post2Tags.size());
-        assertTrue(post2Tags.contains(tag2.getId()));
-        assertTrue(post2Tags.contains(tag3.getId()));
+        assertTrue(post2Tags.contains(TagId.of(tag2.getId())));
+        assertTrue(post2Tags.contains(TagId.of(tag3.getId())));
 
         // 验证 Post 3 的标签
-        List<Long> post3Tags = result.get(postId3);
+        List<TagId> post3Tags = result.get(PostId.of(postId3));
         assertNotNull(post3Tags);
         assertEquals(2, post3Tags.size());
-        assertTrue(post3Tags.contains(tag1.getId()));
-        assertTrue(post3Tags.contains(tag3.getId()));
+        assertTrue(post3Tags.contains(TagId.of(tag1.getId())));
+        assertTrue(post3Tags.contains(TagId.of(tag3.getId())));
     }
 
     @Test
@@ -138,10 +140,10 @@ class PostTagBatchQueryTest extends IntegrationTestBase {
     @Test
     void testFindTagIdsByPostIds_EmptyList() {
         // Given: 空列表
-        List<Long> postIds = List.of();
+        List<PostId> postIds = List.of();
 
         // When: 批量查询
-        Map<Long, List<Long>> result = postTagRepository.findTagIdsByPostIds(postIds);
+        Map<PostId, List<TagId>> result = postTagRepository.findTagIdsByPostIds(postIds);
 
         // Then: 返回空 Map
         assertNotNull(result);
@@ -164,10 +166,10 @@ class PostTagBatchQueryTest extends IntegrationTestBase {
     @Test
     void testFindTagIdsByPostIds_NonExistentPost() {
         // Given: 不存在的文章 ID
-        List<Long> postIds = Arrays.asList(9999L, 9998L);
+        List<PostId> postIds = Arrays.asList(PostId.of(9999L), PostId.of(9998L));
 
         // When: 批量查询
-        Map<Long, List<Long>> result = postTagRepository.findTagIdsByPostIds(postIds);
+        Map<PostId, List<TagId>> result = postTagRepository.findTagIdsByPostIds(postIds);
 
         // Then: 返回空 Map（没有关联）
         assertNotNull(result);

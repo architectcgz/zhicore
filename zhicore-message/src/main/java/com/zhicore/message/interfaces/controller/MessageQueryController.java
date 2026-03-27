@@ -31,7 +31,7 @@ public class MessageQueryController {
     private final MessageQueryService messageQueryService;
 
     @Operation(summary = "查询消息历史", description = "分页查询指定会话的历史消息记录")
-    @GetMapping("/conversation/{conversationId}")
+    @GetMapping({"/conversations/{conversationId}/messages", "/conversation/{conversationId}"})
     public ApiResponse<List<MessageVO>> getMessageHistory(
             @Parameter(description = "会话ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "会话ID必须为正数") Long conversationId,
@@ -45,7 +45,7 @@ public class MessageQueryController {
     }
 
     @Operation(summary = "获取未读消息数", description = "获取当前用户的未读消息总数")
-    @GetMapping("/unread-count")
+    @GetMapping({"/unread/count", "/unread-count"})
     public ApiResponse<Integer> getUnreadCount() {
         UserContext.requireUserId();
         int count = messageQueryService.getUnreadCount();

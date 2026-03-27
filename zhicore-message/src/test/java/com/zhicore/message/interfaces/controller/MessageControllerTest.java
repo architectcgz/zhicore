@@ -23,6 +23,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -69,7 +71,7 @@ class MessageControllerTest {
     void shouldReturnUnauthorizedWhenGetUnreadCountWithoutLogin() throws Exception {
         UserContext.clear();
 
-        mockMvc.perform(get("/api/v1/messages/unread-count"))
+        mockMvc.perform(get("/api/v1/messages/unread/count"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value(ResultCode.UNAUTHORIZED.getCode()))
                 .andExpect(jsonPath("$.message").value("请先登录"));
@@ -108,6 +110,73 @@ class MessageControllerTest {
                 .andExpect(jsonPath("$.data.content").value("hello"));
 
         verify(messageCommandService).sendMessage(eq(2L), eq(MessageType.TEXT), eq("hello"), eq(null));
+    }
+
+    @Test
+    @DisplayName("应该支持通过兼容发送路径发送文本消息")
+    void shouldSendTextMessageViaCompatRoute() throws Exception {
+        UserContext.setUser(new UserContext.UserInfo("1", "sender"));
+
+        SendMessageRequest request = new SendMessageRequest();
+        request.setReceiverId(2L);
+        request.setType(MessageType.TEXT);
+        request.setContent("hello");
+
+        MessageVO message = MessageVO.builder()
+                .id(1234567890123456789L)
+                .conversationId(2234567890123456789L)
+                .senderId(3234567890123456789L)
+                .receiverId(4234567890123456789L)
+                .type(MessageType.TEXT)
+                .content("hello")
+                .build();
+        when(messageCommandService.sendMessage(2L, MessageType.TEXT, "hello", null))
+                .thenReturn(message);
+
+        mockMvc.perform(post("/api/v1/messages/send")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.id").value("1234567890123456789"));
+
+        verify(messageCommandService).sendMessage(eq(2L), eq(MessageType.TEXT), eq("hello"), eq(null));
+    }
+
+    @Test
+    @DisplayName("应该支持通过消息模块嵌套路由获取消息历史")
+    void shouldGetMessageHistoryViaNestedRoute() throws Exception {
+        UserContext.setUser(new UserContext.UserInfo("1", "sender"));
+
+        MessageVO message = MessageVO.builder()
+                .id(11L)
+                .conversationId(22L)
+                .senderId(1L)
+                .receiverId(2L)
+                .type(MessageType.TEXT)
+                .content("hello")
+                .build();
+        when(messageQueryService.getMessageHistory(22L, null, 20))
+                .thenReturn(List.of(message));
+
+        mockMvc.perform(get("/api/v1/messages/conversations/{conversationId}/messages", 22L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data[0].id").value("11"))
+                .andExpect(jsonPath("$.data[0].conversationId").value("22"))
+                .andExpect(jsonPath("$.data[0].content").value("hello"));
+    }
+
+    @Test
+    @DisplayName("应该支持通过消息模块嵌套路由标记会话已读")
+    void shouldMarkConversationAsReadViaNestedRoute() throws Exception {
+        UserContext.setUser(new UserContext.UserInfo("1", "sender"));
+
+        mockMvc.perform(post("/api/v1/messages/conversations/{conversationId}/read", 22L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        verify(messageCommandService).markAsRead(22L);
     }
 
     @Test

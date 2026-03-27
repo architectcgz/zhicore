@@ -1,6 +1,11 @@
 package com.zhicore.message.infrastructure.config;
 
+import com.zhicore.common.config.JwtProperties;
+import com.zhicore.common.websocket.JwtClaimsParser;
+import com.zhicore.common.websocket.StompJwtChannelInterceptor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -15,6 +20,17 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    private final StompJwtChannelInterceptor stompJwtChannelInterceptor;
+
+    @Autowired
+    public WebSocketConfig(JwtProperties jwtProperties) {
+        this(new StompJwtChannelInterceptor(new JwtClaimsParser(jwtProperties)));
+    }
+
+    WebSocketConfig(StompJwtChannelInterceptor stompJwtChannelInterceptor) {
+        this.stompJwtChannelInterceptor = stompJwtChannelInterceptor;
+    }
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
         // 启用简单的内存消息代理
@@ -27,6 +43,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         
         // 用户目的地前缀
         config.setUserDestinationPrefix("/user");
+    }
+
+    @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        registration.interceptors(stompJwtChannelInterceptor);
     }
 
     @Override

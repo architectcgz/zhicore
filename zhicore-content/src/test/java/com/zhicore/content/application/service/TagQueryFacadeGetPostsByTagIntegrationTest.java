@@ -8,6 +8,7 @@ import com.zhicore.content.application.service.command.TagCommandService;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.Tag;
+import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
@@ -83,7 +84,7 @@ class TagQueryFacadeGetPostsByTagIntegrationTest extends IntegrationTestBase {
         for (int i = 0; i < 5; i++) {
             Post post = createAndSavePost("Test Post " + i, 1000L);
             testPosts.add(post);
-            postTagRepository.attach(post.getId().getValue(), testTag.getId());
+            postTagRepository.attach(post.getId(), TagId.of(testTag.getId()));
         }
 
         // When: 查询标签下的文章
@@ -154,7 +155,7 @@ class TagQueryFacadeGetPostsByTagIntegrationTest extends IntegrationTestBase {
         for (int i = 0; i < 25; i++) {
             Post post = createAndSavePost("Test Post " + i, 1000L);
             testPosts.add(post);
-            postTagRepository.attach(post.getId().getValue(), testTag.getId());
+            postTagRepository.attach(post.getId(), TagId.of(testTag.getId()));
         }
 
         // When: 查询第一页（每页 10 条）
@@ -179,7 +180,7 @@ class TagQueryFacadeGetPostsByTagIntegrationTest extends IntegrationTestBase {
         for (int i = 0; i < 25; i++) {
             Post post = createAndSavePost("Test Post " + i, 1000L);
             testPosts.add(post);
-            postTagRepository.attach(post.getId().getValue(), testTag.getId());
+            postTagRepository.attach(post.getId(), TagId.of(testTag.getId()));
         }
 
         // When: 查询第二页（每页 10 条）
@@ -204,7 +205,7 @@ class TagQueryFacadeGetPostsByTagIntegrationTest extends IntegrationTestBase {
         for (int i = 0; i < 25; i++) {
             Post post = createAndSavePost("Test Post " + i, 1000L);
             testPosts.add(post);
-            postTagRepository.attach(post.getId().getValue(), testTag.getId());
+            postTagRepository.attach(post.getId(), TagId.of(testTag.getId()));
         }
 
         // When: 查询第三页（每页 10 条，最后一页只有 5 条）
@@ -229,7 +230,7 @@ class TagQueryFacadeGetPostsByTagIntegrationTest extends IntegrationTestBase {
         for (int i = 0; i < 5; i++) {
             Post post = createAndSavePost("Test Post " + i, 1000L);
             testPosts.add(post);
-            postTagRepository.attach(post.getId().getValue(), testTag.getId());
+            postTagRepository.attach(post.getId(), TagId.of(testTag.getId()));
         }
 
         // When: 查询第 10 页（超出范围）
@@ -266,7 +267,7 @@ class TagQueryFacadeGetPostsByTagIntegrationTest extends IntegrationTestBase {
             for (int i = 0; i < postCount; i++) {
                 Post post = createAndSavePost("Property Test Post " + i + " " + System.currentTimeMillis(), 1000L);
                 posts.add(post);
-                postTagRepository.attach(post.getId().getValue(), tag.getId());
+                postTagRepository.attach(post.getId(), TagId.of(tag.getId()));
             }
             
             // 创建一些不关联该标签的文章（干扰数据）
@@ -326,7 +327,7 @@ class TagQueryFacadeGetPostsByTagIntegrationTest extends IntegrationTestBase {
             
             for (int i = 0; i < postCount; i++) {
                 Post post = createAndSavePost("Consistency Test Post " + i + " " + System.currentTimeMillis(), 1000L);
-                postTagRepository.attach(post.getId().getValue(), tag.getId());
+                postTagRepository.attach(post.getId(), TagId.of(tag.getId()));
             }
             
             // When: 多次查询同一页
@@ -383,7 +384,7 @@ class TagQueryFacadeGetPostsByTagIntegrationTest extends IntegrationTestBase {
             for (int i = 0; i < postCount; i++) {
                 Post post = createAndSavePost("Completeness Test Post " + i + " " + System.currentTimeMillis(), 1000L);
                 expectedPostIds.add(post.getId().getValue());
-                postTagRepository.attach(post.getId().getValue(), tag.getId());
+                postTagRepository.attach(post.getId(), TagId.of(tag.getId()));
             }
             
             // When: 遍历所有分页

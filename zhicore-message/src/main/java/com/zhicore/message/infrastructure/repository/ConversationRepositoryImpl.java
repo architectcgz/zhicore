@@ -60,6 +60,11 @@ public class ConversationRepositoryImpl implements ConversationRepository {
         return conversationMapper.countByUserId(userId);
     }
 
+    @Override
+    public int countUnreadByUserId(Long userId) {
+        return conversationMapper.countUnreadByUserId(userId);
+    }
+
     // ==================== 转换方法 ====================
 
     private ConversationPO toPO(Conversation conversation) {

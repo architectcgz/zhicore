@@ -59,38 +59,38 @@ class TagConcurrencyIntegrationTest extends IntegrationTestBase {
         void attachShouldOnlyAddNewTags() {
             Long postId = 1001L;
             // 先关联标签 1
-            postTagRepository.attach(postId, 1L);
+            postTagRepository.attach(PostId.of(postId), TagId.of(1L));
 
             // 再关联标签 2
-            postTagRepository.attach(postId, 2L);
+            postTagRepository.attach(PostId.of(postId), TagId.of(2L));
 
-            List<Long> tagIds = postTagRepository.findTagIdsByPostId(postId);
-            assertThat(tagIds).containsExactlyInAnyOrder(1L, 2L);
+            List<TagId> tagIds = postTagRepository.findTagIdsByPostId(PostId.of(postId));
+            assertThat(tagIds).containsExactlyInAnyOrder(TagId.of(1L), TagId.of(2L));
         }
 
         @Test
         @DisplayName("detach 只删除指定标签，不影响其他标签")
         void detachShouldOnlyRemoveSpecifiedTag() {
             Long postId = 1002L;
-            postTagRepository.attachBatch(postId, List.of(1L, 2L, 3L));
+            postTagRepository.attachBatch(PostId.of(postId), List.of(TagId.of(1L), TagId.of(2L), TagId.of(3L)));
 
             // 只删除标签 2
-            postTagRepository.detach(postId, 2L);
+            postTagRepository.detach(PostId.of(postId), TagId.of(2L));
 
-            List<Long> tagIds = postTagRepository.findTagIdsByPostId(postId);
-            assertThat(tagIds).containsExactlyInAnyOrder(1L, 3L);
+            List<TagId> tagIds = postTagRepository.findTagIdsByPostId(PostId.of(postId));
+            assertThat(tagIds).containsExactlyInAnyOrder(TagId.of(1L), TagId.of(3L));
         }
 
         @Test
         @DisplayName("attachBatch 幂等：重复 attach 不产生重复关联")
         void attachBatchShouldBeIdempotent() {
             Long postId = 1003L;
-            postTagRepository.attachBatch(postId, List.of(1L, 2L));
+            postTagRepository.attachBatch(PostId.of(postId), List.of(TagId.of(1L), TagId.of(2L)));
             // 再次 attach 包含已有标签
-            postTagRepository.attachBatch(postId, List.of(2L, 3L));
+            postTagRepository.attachBatch(PostId.of(postId), List.of(TagId.of(2L), TagId.of(3L)));
 
-            List<Long> tagIds = postTagRepository.findTagIdsByPostId(postId);
-            assertThat(tagIds).containsExactlyInAnyOrder(1L, 2L, 3L);
+            List<TagId> tagIds = postTagRepository.findTagIdsByPostId(PostId.of(postId));
+            assertThat(tagIds).containsExactlyInAnyOrder(TagId.of(1L), TagId.of(2L), TagId.of(3L));
         }
     }
 

@@ -1,6 +1,8 @@
 package com.zhicore.content.application.service.query;
 
 import com.zhicore.content.application.port.store.PostLikeStore;
+import com.zhicore.content.domain.model.PostId;
+import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostLikeRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,7 +16,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,15 +39,15 @@ class PostLikeQueryServiceTest {
         when(postLikeStore.isLiked(USER_ID, POST_ID)).thenReturn(true);
 
         assertTrue(queryService.isLiked(USER_ID, POST_ID));
-        verify(likeRepository, never()).exists(anyLong(), anyLong());
+        verify(likeRepository, never()).exists(any(PostId.class), any(UserId.class));
     }
 
     @Test
     void shouldMergeCacheAndDatabaseForBatchCheck() {
         List<Long> postIds = List.of(POST_ID, POST_ID + 1, POST_ID + 2);
         when(postLikeStore.findLikedPostIds(USER_ID, postIds)).thenReturn(Set.of(POST_ID));
-        when(likeRepository.findLikedPostIds(USER_ID, List.of(POST_ID + 1, POST_ID + 2)))
-                .thenReturn(List.of(POST_ID + 2));
+        when(likeRepository.findLikedPostIds(UserId.of(USER_ID), List.of(PostId.of(POST_ID + 1), PostId.of(POST_ID + 2))))
+                .thenReturn(List.of(PostId.of(POST_ID + 2)));
 
         var result = queryService.batchCheckLiked(USER_ID, postIds);
 
@@ -58,7 +60,7 @@ class PostLikeQueryServiceTest {
     @Test
     void shouldBackfillLikeCountWhenCacheMiss() {
         when(postLikeStore.getLikeCount(POST_ID)).thenReturn(null);
-        when(likeRepository.countByPostId(POST_ID)).thenReturn(12);
+        when(likeRepository.countByPostId(PostId.of(POST_ID))).thenReturn(12);
 
         assertEquals(12, queryService.getLikeCount(POST_ID));
         verify(postLikeStore).cacheLikeCount(POST_ID, 12);

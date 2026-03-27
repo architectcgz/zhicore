@@ -6,6 +6,7 @@ import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.domain.model.Post;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.Tag;
+import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.domain.repository.PostTagRepository;
 import com.zhicore.content.domain.repository.TagRepository;
@@ -40,7 +41,7 @@ class PostTagQueryServiceTest {
     void shouldReturnEmptyListWhenPostHasNoTags() {
         Post post = Post.createDraft(PostId.of(1001L), UserId.of(2001L), "test");
         when(postRepository.findById(1001L)).thenReturn(Optional.of(post));
-        when(postTagRepository.findTagIdsByPostId(1001L)).thenReturn(List.of());
+        when(postTagRepository.findTagIdsByPostId(PostId.of(1001L))).thenReturn(List.of());
 
         List<TagDTO> result = postTagQueryService.getPostTags(1001L);
 
@@ -54,7 +55,7 @@ class PostTagQueryServiceTest {
         Tag java = Tag.create(1L, "Java", "java");
         Tag spring = Tag.create(2L, "Spring", "spring");
         when(postRepository.findById(1001L)).thenReturn(Optional.of(post));
-        when(postTagRepository.findTagIdsByPostId(1001L)).thenReturn(List.of(1L, 2L));
+        when(postTagRepository.findTagIdsByPostId(PostId.of(1001L))).thenReturn(List.of(TagId.of(1L), TagId.of(2L)));
         when(tagRepository.findByIdIn(List.of(1L, 2L))).thenReturn(List.of(java, spring));
 
         List<TagDTO> result = postTagQueryService.getPostTags(1001L);

@@ -60,4 +60,18 @@ public interface ConversationMapper extends BaseMapper<ConversationPO> {
     @Select("SELECT COUNT(*) FROM conversations " +
             "WHERE participant1_id = #{userId} OR participant2_id = #{userId}")
     int countByUserId(@Param("userId") Long userId);
+
+    /**
+     * 汇总用户在会话投影中的未读消息总数。
+     *
+     * @param userId 用户ID
+     * @return 未读总数
+     */
+    @Select("SELECT COALESCE(SUM(CASE " +
+            "WHEN participant1_id = #{userId} THEN unread_count1 " +
+            "WHEN participant2_id = #{userId} THEN unread_count2 " +
+            "ELSE 0 END), 0) " +
+            "FROM conversations " +
+            "WHERE participant1_id = #{userId} OR participant2_id = #{userId}")
+    int countUnreadByUserId(@Param("userId") Long userId);
 }

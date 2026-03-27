@@ -35,7 +35,7 @@ public class MessageCommandController {
      * @return 消息视图对象
      */
     @Operation(summary = "发送消息", description = "向指定用户发送私信消息")
-    @PostMapping
+    @PostMapping({"", "/send"})
     public ApiResponse<MessageVO> sendMessage(
             @Parameter(description = "发送消息请求", required = true)
             @Valid @RequestBody SendMessageRequest request) {
@@ -72,7 +72,7 @@ public class MessageCommandController {
      * @return 操作结果
      */
     @Operation(summary = "标记消息为已读", description = "将指定会话的所有未读消息标记为已读")
-    @PostMapping("/conversation/{conversationId}/read")
+    @PostMapping({"/conversations/{conversationId}/read", "/conversation/{conversationId}/read"})
     public ApiResponse<Void> markAsRead(
             @Parameter(description = "会话ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "会话ID必须为正数") Long conversationId) {

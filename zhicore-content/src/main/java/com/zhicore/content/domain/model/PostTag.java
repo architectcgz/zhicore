@@ -24,12 +24,12 @@ public class PostTag {
     /**
      * 文章ID
      */
-    private final Long postId;
+    private final PostId postId;
 
     /**
      * 标签ID
      */
-    private final Long tagId;
+    private final TagId tagId;
 
     /**
      * 关联创建时间
@@ -44,11 +44,9 @@ public class PostTag {
      * @param postId 文章ID
      * @param tagId 标签ID
      */
-    private PostTag(Long postId, Long tagId) {
+    private PostTag(PostId postId, TagId tagId) {
         Assert.notNull(postId, "文章ID不能为空");
-        Assert.isTrue(postId > 0, "文章ID必须为正数");
         Assert.notNull(tagId, "标签ID不能为空");
-        Assert.isTrue(tagId > 0, "标签ID必须为正数");
 
         this.postId = postId;
         this.tagId = tagId;
@@ -60,9 +58,13 @@ public class PostTag {
      * 使用 @JsonCreator 支持 Jackson 反序列化
      */
     @JsonCreator
-    private PostTag(@JsonProperty("postId") Long postId,
-                    @JsonProperty("tagId") Long tagId,
+    private PostTag(@JsonProperty("postId") PostId postId,
+                    @JsonProperty("tagId") TagId tagId,
                     @JsonProperty("createdAt") LocalDateTime createdAt) {
+        Assert.notNull(postId, "文章ID不能为空");
+        Assert.notNull(tagId, "标签ID不能为空");
+        Assert.notNull(createdAt, "创建时间不能为空");
+
         this.postId = postId;
         this.tagId = tagId;
         this.createdAt = createdAt;
@@ -77,7 +79,7 @@ public class PostTag {
      * @param tagId 标签ID
      * @return PostTag 实例
      */
-    public static PostTag create(Long postId, Long tagId) {
+    public static PostTag create(PostId postId, TagId tagId) {
         return new PostTag(postId, tagId);
     }
 
@@ -89,7 +91,7 @@ public class PostTag {
      * @param createdAt 创建时间
      * @return PostTag 实例
      */
-    public static PostTag reconstitute(Long postId, Long tagId, LocalDateTime createdAt) {
+    public static PostTag reconstitute(PostId postId, TagId tagId, LocalDateTime createdAt) {
         return new PostTag(postId, tagId, createdAt);
     }
 

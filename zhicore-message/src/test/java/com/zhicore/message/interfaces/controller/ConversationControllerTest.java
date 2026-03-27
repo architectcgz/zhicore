@@ -82,6 +82,25 @@ class ConversationControllerTest {
     }
 
     @Test
+    @DisplayName("应该支持通过消息模块前缀获取会话列表")
+    void shouldGetConversationListViaMessageModuleRoute() throws Exception {
+        UserContext.setUser(new UserContext.UserInfo("1", "sender"));
+
+        ConversationVO conversation = ConversationVO.builder()
+                .id(1L)
+                .otherUserId(2L)
+                .build();
+        when(conversationQueryService.getConversationList(null, 20))
+                .thenReturn(List.of(conversation));
+
+        mockMvc.perform(get("/api/v1/messages/conversations"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data[0].id").value("1"))
+                .andExpect(jsonPath("$.data[0].otherUserId").value("2"));
+    }
+
+    @Test
     @DisplayName("会话不存在时应该返回业务错误响应")
     void shouldReturnBusinessErrorWhenConversationNotFound() throws Exception {
         UserContext.setUser(new UserContext.UserInfo("1", "sender"));

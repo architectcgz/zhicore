@@ -50,20 +50,4 @@ public class TagId {
         return new TagId(value);
     }
     
-    /**
-     * 从字符串创建 TagId 实例
-     * 
-     * @param value 标签 ID 字符串
-     * @return TagId 实例
-     */
-    public static TagId of(String value) {
-        return new TagId(Long.parseLong(value));
-    }
-
-    /**
-     * 从字符串构造（兼容旧代码中的 new TagId(String) 调用）
-     */
-    public TagId(String value) {
-        this(Long.parseLong(value));
-    }
 }
