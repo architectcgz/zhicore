@@ -3,6 +3,7 @@ name: zhicore
 x-service-base: &service-base
   restart: unless-stopped
   networks:
+    - zhicore-app
     - shared-infra
 
 x-common-env: &common-env
@@ -231,5 +232,7 @@ services:
       - "${ZHICORE_OPS_PORT}:8091"
 
 networks:
+  zhicore-app:
+    name: zhicore-app
   shared-infra:
     external: true

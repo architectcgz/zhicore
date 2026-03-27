@@ -4,6 +4,13 @@
 
 ## 快速开始
 
+## 网络拓扑
+
+- `zhicore-app`: ZhiCore 业务服务和自带支撑组件内部网络
+- `shared-infra`: 共享基础设施网络，承载 PostgreSQL、Redis、Nacos、RocketMQ
+- 业务服务同时接入 `zhicore-app` 和 `shared-infra`
+- ZhiCore 自带支撑组件，例如 MongoDB、Elasticsearch、Prometheus，仅接入 `zhicore-app`
+
 ### 1. 启动所有基础设施
 
 ```powershell
@@ -204,7 +211,8 @@ docker exec -it zhicore-redis redis-cli -a redis123456 ping
 ```powershell
 # 检查 Docker 网络
 docker network ls
-docker network inspect zhicore-network
+docker network inspect zhicore-app
+docker network inspect shared-infra
 
 # 测试容器间连接
 docker exec -it zhicore-rocketmq-broker ping zhicore-rocketmq-namesrv

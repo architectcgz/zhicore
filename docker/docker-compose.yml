@@ -10,6 +10,10 @@
 #   2. 再启动本文件:
 #      cd zhicore-microservice/docker && docker compose up -d
 #
+# 网络规划:
+#   zhicore-app:  ZhiCore 业务与自带支撑组件内部网络
+#   shared-infra: 外部共享基础设施网络
+#
 # 共享服务连接信息:
 #   PostgreSQL: shared-postgres:5432 (各服务独立 database)
 #   Redis:      shared-redis:6379   / db=1
@@ -37,7 +41,7 @@ services:
       - mongodb_config:/data/configdb
       - ./mongodb-init:/docker-entrypoint-initdb.d:ro
     networks:
-      - shared-infra
+      - zhicore-app
     command: mongod --auth
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
@@ -62,7 +66,7 @@ services:
     ports:
       - "8091:8081"
     networks:
-      - shared-infra
+      - zhicore-app
     depends_on:
       zhicore-mongodb:
         condition: service_healthy
@@ -95,7 +99,7 @@ services:
       - elasticsearch_data:/usr/share/elasticsearch/data
       - ./elasticsearch/plugins:/usr/share/elasticsearch/plugins
     networks:
-      - shared-infra
+      - zhicore-app
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
       interval: 30s
@@ -115,7 +119,7 @@ services:
     ports:
       - "5601:5601"
     networks:
-      - shared-infra
+      - zhicore-app
     depends_on:
       zhicore-elasticsearch:
         condition: service_healthy
@@ -140,7 +144,7 @@ services:
       - ./prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     networks:
-      - shared-infra
+      - zhicore-app
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
       interval: 30s
@@ -166,15 +170,17 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
-      - shared-infra
+      - zhicore-app
     depends_on:
       - zhicore-prometheus
     restart: unless-stopped
 
 # ===========================================
-# Networks - 引用共享基础设施网络
+# Networks
 # ===========================================
 networks:
+  zhicore-app:
+    name: zhicore-app
   shared-infra:
     external: true
 

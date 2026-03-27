@@ -1,6 +1,12 @@
 # ZhiCore Services In Docker
 
-此目录用于单独启动 ZhiCore 各业务服务，复用已存在的 `shared-infra` 网络与共享基础设施容器。
+此目录用于单独启动 ZhiCore 各业务服务。
+
+网络规划：
+
+- `zhicore-app`：ZhiCore 业务服务内部网络
+- `shared-infra`：共享基础设施网络
+- 业务服务同时接入 `zhicore-app` 和 `shared-infra`
 
 使用方式：
 
@@ -43,5 +49,6 @@ docker compose ps
 
 说明：
 
-- `shared-postgres`、`shared-redis`、`shared-nacos`、`shared-rocketmq-*`、`zhicore-mongodb`、`zhicore-elasticsearch`、`file-service-app`、`id-generator-nginx` 需要已在 `shared-infra` 网络中运行。
+- `shared-postgres`、`shared-redis`、`shared-nacos`、`shared-rocketmq-*` 需要已在 `shared-infra` 网络中运行。
+- `zhicore-mongodb`、`zhicore-elasticsearch`、`file-service-app`、`id-generator-nginx` 需要对业务容器可达；其中 ZhiCore 自带组件推荐接入 `zhicore-app`。
 - 这里的 `zhicore-id-generator` 是站内代理服务，真实上游仍通过 `id-generator-nginx:8011` 访问外部 ID Generator 集群。

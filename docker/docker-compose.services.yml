@@ -11,6 +11,7 @@
 #
 # 注意事项:
 # - 基础设施(PostgreSQL/Redis/Nacos/RocketMQ)由共享 infra 提供
+# - 业务服务同时接入 zhicore-app 和 shared-infra
 # - zhicore-id-generator 代理服务由本 compose 管理
 # - 上游 ID Generator Service 仍为独立部署外部服务
 # - 默认上游地址通过环境变量 UPSTREAM_ID_GENERATOR_SERVER_URL 覆盖
@@ -43,6 +44,7 @@ services:
     ports:
       - "8000:8000"
     networks:
+      - zhicore-app
       - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/actuator/health"]
@@ -84,6 +86,7 @@ services:
     ports:
       - "8081:8081"
     networks:
+      - zhicore-app
       - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8081/actuator/health"]
@@ -127,6 +130,7 @@ services:
     ports:
       - "8082:8082"
     networks:
+      - zhicore-app
       - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8082/actuator/health"]
@@ -167,6 +171,7 @@ services:
     ports:
       - "8083:8083"
     networks:
+      - zhicore-app
       - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8083/actuator/health"]
@@ -198,6 +203,7 @@ services:
     ports:
       - "8088:8088"
     networks:
+      - zhicore-app
       - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8088/actuator/health"]
@@ -238,6 +244,7 @@ services:
     ports:
       - "8084:8084"
     networks:
+      - zhicore-app
       - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8084/actuator/health"]
@@ -278,6 +285,7 @@ services:
     ports:
       - "8085:8085"
     networks:
+      - zhicore-app
       - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8085/actuator/health"]
@@ -318,6 +326,7 @@ services:
     ports:
       - "8086:8086"
     networks:
+      - zhicore-app
       - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8086/actuator/health"]
@@ -359,6 +368,7 @@ services:
     ports:
       - "8087:8087"
     networks:
+      - zhicore-app
       - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8087/actuator/health"]
@@ -399,6 +409,7 @@ services:
     ports:
       - "8090:8090"
     networks:
+      - zhicore-app
       - shared-infra
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health"]
@@ -409,8 +420,10 @@ services:
     restart: unless-stopped
 
 # ===========================================
-# Networks - 引用共享基础设施网络
+# Networks
 # ===========================================
 networks:
+  zhicore-app:
+    name: zhicore-app
   shared-infra:
     external: true
