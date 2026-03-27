@@ -6,6 +6,7 @@ import com.zhicore.notification.application.service.NotificationAggregationServi
 import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.model.NotificationType;
 import com.zhicore.notification.domain.repository.NotificationRepository;
+import com.zhicore.notification.infrastructure.mq.NotificationRealtimeFanoutPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,7 +25,7 @@ import static org.mockito.Mockito.when;
 class NotificationPushServiceTest {
 
     @Mock
-    private WebSocketNotificationHandler webSocketHandler;
+    private NotificationRealtimeFanoutPublisher fanoutPublisher;
 
     @Mock
     private NotificationRepository notificationRepository;
@@ -57,13 +58,12 @@ class NotificationPushServiceTest {
         notificationPushService.push("202", notification);
 
         verify(notificationAggregationService).getAggregatedNotificationForPush(notification);
-        verify(webSocketHandler).sendNotification("202", aggregatedNotification);
         verify(notificationRepository).countUnread(202L);
-        verify(webSocketHandler).sendUnreadCount("202", 4);
+        verify(fanoutPublisher).publishUserNotification("202", aggregatedNotification, 4);
     }
 
     @Test
-    @DisplayName("广播评论流提示时应该委托给 WebSocket handler")
+    @DisplayName("广播评论流提示时应该发布 fanout 事件")
     void shouldBroadcastCommentStreamHint() {
         CommentStreamHintPayload payload = CommentStreamHintPayload.builder()
                 .eventId("evt-1")
@@ -76,6 +76,6 @@ class NotificationPushServiceTest {
 
         notificationPushService.broadcastCommentStreamHint("202", payload);
 
-        verify(webSocketHandler).sendCommentStreamHint("202", payload);
+        verify(fanoutPublisher).publishCommentStreamHint("202", payload);
     }
 }

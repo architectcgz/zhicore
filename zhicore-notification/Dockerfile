@@ -2,7 +2,8 @@
 # ZhiCore Notification Service Dockerfile
 # ===========================================
 
-FROM eclipse-temurin:17-jre
+ARG BASE_IMAGE=eclipse-temurin:17-jre
+FROM ${BASE_IMAGE}
 
 LABEL maintainer="ZhiCore Team"
 LABEL service="zhicore-notification"

@@ -5,6 +5,7 @@ import com.zhicore.notification.application.dto.CommentStreamHintPayload;
 import com.zhicore.notification.application.service.NotificationAggregationService;
 import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.repository.NotificationRepository;
+import com.zhicore.notification.infrastructure.mq.NotificationRealtimeFanoutPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,7 +21,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class NotificationPushService {
 
-    private final WebSocketNotificationHandler webSocketHandler;
+    private final NotificationRealtimeFanoutPublisher fanoutPublisher;
     private final NotificationRepository notificationRepository;
     private final NotificationAggregationService notificationAggregationService;
 
@@ -34,8 +35,8 @@ public class NotificationPushService {
         try {
             AggregatedNotificationVO aggregatedNotification =
                     notificationAggregationService.getAggregatedNotificationForPush(notification);
-            // 通过WebSocket推送
-            webSocketHandler.sendNotification(userId, aggregatedNotification);
+            int unreadCount = notificationRepository.countUnread(Long.valueOf(userId));
+            fanoutPublisher.publishUserNotification(userId, aggregatedNotification, unreadCount);
             log.debug("推送通知成功: userId={}, notificationId={}", userId, notification.getId());
         } catch (Exception e) {
             log.warn("推送通知失败: userId={}, notificationId={}, error={}",
@@ -43,8 +44,6 @@ public class NotificationPushService {
             // 推送失败不影响主流程，通知已经保存到数据库
             return;
         }
-
-        pushUnreadCount(userId, notificationRepository.countUnread(Long.valueOf(userId)));
     }
 
     /**
@@ -55,7 +54,7 @@ public class NotificationPushService {
      */
     public void pushUnreadCount(String userId, int unreadCount) {
         try {
-            webSocketHandler.sendUnreadCount(userId, unreadCount);
+            fanoutPublisher.publishUnreadCount(userId, unreadCount);
             log.debug("推送未读计数成功: userId={}, count={}", userId, unreadCount);
         } catch (Exception e) {
             log.warn("推送未读计数失败: userId={}, error={}", userId, e.getMessage());
@@ -70,7 +69,7 @@ public class NotificationPushService {
      */
     public void broadcastCommentStreamHint(String postId, CommentStreamHintPayload payload) {
         try {
-            webSocketHandler.sendCommentStreamHint(postId, payload);
+            fanoutPublisher.publishCommentStreamHint(postId, payload);
         } catch (Exception e) {
             log.warn("广播评论流提示失败: postId={}, commentId={}, error={}",
                     postId, payload.getCommentId(), e.getMessage());

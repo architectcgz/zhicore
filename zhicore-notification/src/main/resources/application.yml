@@ -41,6 +41,8 @@ mybatis-plus:
 # RocketMQ配置
 rocketmq:
   name-server: ${ROCKETMQ_NAME_SERVER:localhost:9876}
+  producer:
+    group: ${ROCKETMQ_PRODUCER_GROUP:notification-realtime-producer-group}
   consumer:
     group: notification-consumer-group
 

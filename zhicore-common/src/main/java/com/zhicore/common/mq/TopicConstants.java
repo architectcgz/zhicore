@@ -129,6 +129,21 @@ public final class TopicConstants {
      */
     public static final String TAG_MESSAGE_READ = "read";
 
+    /**
+     * 实时评论流广播
+     */
+    public static final String TAG_NOTIFICATION_REALTIME_COMMENT_STREAM = "realtime-comment-stream";
+
+    /**
+     * 实时用户通知广播
+     */
+    public static final String TAG_NOTIFICATION_REALTIME_USER_NOTIFICATION = "realtime-user-notification";
+
+    /**
+     * 实时未读数广播
+     */
+    public static final String TAG_NOTIFICATION_REALTIME_UNREAD_COUNT = "realtime-unread-count";
+
     // ==================== Consumer Groups ====================
 
     /**
