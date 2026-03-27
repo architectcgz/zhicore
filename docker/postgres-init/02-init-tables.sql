@@ -538,6 +538,27 @@ CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created
 CREATE INDEX IF NOT EXISTS idx_notifications_recipient_type ON notifications(recipient_id, type);
 CREATE INDEX IF NOT EXISTS idx_notifications_event_code ON notifications(event_code);
 
+CREATE TABLE IF NOT EXISTS notification_user_preference (
+    user_id BIGINT PRIMARY KEY,
+    like_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    comment_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    follow_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    reply_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    system_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS notification_user_dnd (
+    user_id BIGINT PRIMARY KEY,
+    enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    start_time VARCHAR(5),
+    end_time VARCHAR(5),
+    timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Shanghai',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 全局公告表
 CREATE TABLE IF NOT EXISTS global_announcements (
     id BIGINT PRIMARY KEY,

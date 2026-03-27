@@ -12,6 +12,8 @@ notification:
   batch-size: 100
   retention-days: 30
   max-unread: 1000
+  preference:
+    default-timezone: Asia/Shanghai
 
 cache:
   ttl:

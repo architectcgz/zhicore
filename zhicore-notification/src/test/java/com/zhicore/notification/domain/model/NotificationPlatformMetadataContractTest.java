@@ -75,4 +75,23 @@ class NotificationPlatformMetadataContractTest {
         assertTrue(mergedSql.contains("system.notice"));
         assertTrue(mergedSql.contains("idx_notifications_event_code"));
     }
+
+    @Test
+    @DisplayName("初始化脚本应创建通知偏好与免打扰表")
+    void shouldCreatePreferenceAndDndTablesInInitSql() throws Exception {
+        Path dockerSqlPath = Path.of(System.getProperty("user.dir"))
+                .resolve("../docker/postgres-init/02-init-tables.sql")
+                .normalize();
+        Path mergedSqlPath = Path.of(System.getProperty("user.dir"))
+                .resolve("../database/init-all-databases.sql")
+                .normalize();
+
+        String dockerSql = Files.readString(dockerSqlPath);
+        String mergedSql = Files.readString(mergedSqlPath);
+
+        assertTrue(dockerSql.contains("notification_user_preference"));
+        assertTrue(dockerSql.contains("notification_user_dnd"));
+        assertTrue(mergedSql.contains("notification_user_preference"));
+        assertTrue(mergedSql.contains("notification_user_dnd"));
+    }
 }
