@@ -41,6 +41,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -50,6 +51,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
@@ -130,6 +132,26 @@ class CommentApplicationServiceTest {
                 null, null, null,
                 null, COMMENT_ID, null,
                 CommentStatus.NORMAL, LocalDateTime.now(), LocalDateTime.now(),
+                CommentStats.empty()
+        );
+    }
+
+    private Comment createTopLevelComment(Long commentId, LocalDateTime createdAt) {
+        return Comment.reconstitute(
+                commentId, POST_ID, USER_ID, "顶级评论" + commentId,
+                null, null, null,
+                null, commentId, null,
+                CommentStatus.NORMAL, createdAt, createdAt,
+                CommentStats.empty()
+        );
+    }
+
+    private Comment createReplyComment(Long commentId, Long rootId, LocalDateTime createdAt) {
+        return Comment.reconstitute(
+                commentId, POST_ID, USER_ID, "回复评论" + commentId,
+                null, null, null,
+                rootId, rootId, POST_OWNER_ID,
+                CommentStatus.NORMAL, createdAt, createdAt,
                 CommentStats.empty()
         );
     }
@@ -279,6 +301,66 @@ class CommentApplicationServiceTest {
             assertEquals("传统分页仅支持前" + CommonConstants.MAX_OFFSET_WINDOW + "条数据，请改用游标分页", exception.getMessage());
             verify(commentRepository, never()).findTopLevelByPostIdOrderByTimePage(anyLong(), anyInt(), anyInt());
             verify(commentRepository, never()).findTopLevelByPostIdOrderByLikesPage(anyLong(), anyInt(), anyInt());
+        }
+
+        @Test
+        @DisplayName("顶级评论增量查询应该返回新评论和 nextCursor")
+        void shouldGetTopLevelCommentsIncremental() {
+            LocalDateTime afterTime = LocalDateTime.of(2026, 3, 27, 11, 0);
+            LocalDateTime firstTime = afterTime.plusSeconds(5);
+            LocalDateTime secondTime = afterTime.plusSeconds(10);
+            when(commentRepository.findTopLevelByPostIdIncremental(eq(POST_ID), any(), eq(3)))
+                    .thenReturn(List.of(
+                            createTopLevelComment(2002L, firstTime),
+                            createTopLevelComment(2003L, secondTime),
+                            createTopLevelComment(2004L, secondTime.plusSeconds(5))
+                    ));
+            when(commentViewAssembler.assembleCommentVOList(any()))
+                    .thenReturn(List.of(
+                            com.zhicore.comment.application.dto.CommentVO.builder().id(2002L).build(),
+                            com.zhicore.comment.application.dto.CommentVO.builder().id(2003L).build()
+                    ));
+            when(timeCursorCodec.encode(any(Comment.class))).thenReturn("next-top-cursor");
+
+            var result = queryService.getTopLevelCommentsIncremental(POST_ID, "2026-03-27T11:00:00", 2001L, 2);
+
+            assertEquals(2, result.getRecords().size());
+            assertEquals("next-top-cursor", result.getCursor());
+            org.junit.jupiter.api.Assertions.assertTrue(result.isHasNext());
+        }
+
+        @Test
+        @DisplayName("回复增量查询应该返回新回复和 nextCursor")
+        void shouldGetRepliesIncremental() {
+            LocalDateTime afterTime = LocalDateTime.of(2026, 3, 27, 11, 0);
+            LocalDateTime firstTime = afterTime.plusSeconds(5);
+            when(commentRepository.findRepliesByRootIdCursor(eq(COMMENT_ID), any(), eq(3)))
+                    .thenReturn(List.of(
+                            createReplyComment(3002L, COMMENT_ID, firstTime),
+                            createReplyComment(3003L, COMMENT_ID, firstTime.plusSeconds(3))
+                    ));
+            when(commentViewAssembler.assembleReplyVOList(any()))
+                    .thenReturn(List.of(
+                            com.zhicore.comment.application.dto.CommentVO.builder().id(3002L).rootId(COMMENT_ID).build(),
+                            com.zhicore.comment.application.dto.CommentVO.builder().id(3003L).rootId(COMMENT_ID).build()
+                    ));
+            when(timeCursorCodec.encode(any(Comment.class))).thenReturn("next-reply-cursor");
+
+            var result = queryService.getRepliesIncremental(COMMENT_ID, "2026-03-27T11:00:00", 3001L, 2);
+
+            assertEquals(2, result.getRecords().size());
+            assertEquals("next-reply-cursor", result.getCursor());
+            org.junit.jupiter.api.Assertions.assertFalse(result.isHasNext());
+        }
+
+        @Test
+        @DisplayName("增量查询参数不完整时应该返回参数错误")
+        void shouldRejectIncompleteIncrementalCursorParams() {
+            BusinessException exception = assertThrows(BusinessException.class,
+                    () -> queryService.getTopLevelCommentsIncremental(POST_ID, "2026-03-27T11:00:00", null, 20));
+
+            assertEquals(ResultCode.PARAM_ERROR.getCode(), exception.getCode());
+            assertEquals("增量游标参数必须同时传入", exception.getMessage());
         }
 
     }

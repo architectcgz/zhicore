@@ -109,6 +109,18 @@ public class CommentRepositoryImpl implements CommentRepository {
     }
 
     @Override
+    public List<Comment> findTopLevelByPostIdIncremental(Long postId, TimeCursor cursor, int size) {
+        LocalDateTime cursorTime = cursor != null ? cursor.timestamp() : null;
+        Long cursorId = cursor != null ? cursor.commentId() : null;
+
+        List<CommentPO> poList = commentMapper.findTopLevelByPostIdIncremental(
+                postId, cursorTime, cursorId, size
+        );
+
+        return poList.stream().map(this::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
     public List<Comment> findTopLevelByPostIdOrderByLikesCursor(Long postId, HotCursor cursor, int size) {
         Integer cursorLikeCount = cursor != null ? cursor.likeCount() : null;
         Long cursorId = cursor != null ? cursor.commentId() : null;

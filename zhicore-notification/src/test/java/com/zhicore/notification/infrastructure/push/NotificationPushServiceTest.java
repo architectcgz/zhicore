@@ -1,6 +1,7 @@
 package com.zhicore.notification.infrastructure.push;
 
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
+import com.zhicore.notification.application.dto.CommentStreamHintPayload;
 import com.zhicore.notification.application.service.NotificationAggregationService;
 import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.model.NotificationType;
@@ -12,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 import static org.mockito.Mockito.verify;
@@ -58,5 +60,22 @@ class NotificationPushServiceTest {
         verify(webSocketHandler).sendNotification("202", aggregatedNotification);
         verify(notificationRepository).countUnread(202L);
         verify(webSocketHandler).sendUnreadCount("202", 4);
+    }
+
+    @Test
+    @DisplayName("广播评论流提示时应该委托给 WebSocket handler")
+    void shouldBroadcastCommentStreamHint() {
+        CommentStreamHintPayload payload = CommentStreamHintPayload.builder()
+                .eventId("evt-1")
+                .eventType("COMMENT_CREATED")
+                .postId(202L)
+                .commentId(303L)
+                .parentId(404L)
+                .occurredAt(Instant.parse("2026-03-27T10:00:00Z"))
+                .build();
+
+        notificationPushService.broadcastCommentStreamHint("202", payload);
+
+        verify(webSocketHandler).sendCommentStreamHint("202", payload);
     }
 }

@@ -82,6 +82,27 @@ public interface CommentMapper extends BaseMapper<CommentPO> {
             FROM comments c
             LEFT JOIN comment_stats cs ON c.id = cs.comment_id
             WHERE c.post_id = #{postId} AND c.parent_id IS NULL AND c.status = 0
+            <if test="cursorTime != null">
+                AND (c.created_at &gt; #{cursorTime}
+                     OR (c.created_at = #{cursorTime} AND c.id &gt; #{cursorId}))
+            </if>
+            ORDER BY c.created_at ASC, c.id ASC
+            LIMIT #{size}
+            </script>
+            """)
+    List<CommentPO> findTopLevelByPostIdIncremental(
+            @Param("postId") Long postId,
+            @Param("cursorTime") LocalDateTime cursorTime,
+            @Param("cursorId") Long cursorId,
+            @Param("size") int size
+    );
+
+    @Select("""
+            <script>
+            SELECT c.*, COALESCE(cs.like_count, 0) as like_count, COALESCE(cs.reply_count, 0) as reply_count
+            FROM comments c
+            LEFT JOIN comment_stats cs ON c.id = cs.comment_id
+            WHERE c.post_id = #{postId} AND c.parent_id IS NULL AND c.status = 0
             <if test="cursorLikeCount != null">
                 AND (
                     COALESCE(cs.like_count, 0) &lt; #{cursorLikeCount}

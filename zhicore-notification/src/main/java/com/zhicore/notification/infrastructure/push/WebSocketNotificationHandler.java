@@ -1,5 +1,6 @@
 package com.zhicore.notification.infrastructure.push;
 
+import com.zhicore.notification.application.dto.CommentStreamHintPayload;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ public class WebSocketNotificationHandler {
     private static final String NOTIFICATION_DESTINATION = "/queue/notifications";
     private static final String UNREAD_COUNT_DESTINATION = "/queue/unread-count";
     private static final String ANNOUNCEMENT_DESTINATION = "/topic/announcements";
+    private static final String COMMENT_STREAM_DESTINATION_TEMPLATE = "/topic/posts/%s/comment-stream";
 
     // 在线用户 session 映射
     private final Map<String, Set<String>> userSessions = new ConcurrentHashMap<>();
@@ -81,6 +83,19 @@ public class WebSocketNotificationHandler {
         );
         messagingTemplate.convertAndSend(ANNOUNCEMENT_DESTINATION, payload);
         log.info("WebSocket广播系统公告: title={}", title);
+    }
+
+    /**
+     * 广播文章评论流提示。
+     *
+     * @param postId 文章ID
+     * @param payload 评论流提示载荷
+     */
+    public void sendCommentStreamHint(String postId, CommentStreamHintPayload payload) {
+        String destination = COMMENT_STREAM_DESTINATION_TEMPLATE.formatted(postId);
+        messagingTemplate.convertAndSend(destination, payload);
+        log.debug("WebSocket广播评论流提示: postId={}, commentId={}, parentId={}",
+                postId, payload.getCommentId(), payload.getParentId());
     }
 
     /**

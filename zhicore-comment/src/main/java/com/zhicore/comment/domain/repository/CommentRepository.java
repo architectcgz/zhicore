@@ -66,6 +66,11 @@ public interface CommentRepository {
     List<Comment> findTopLevelByPostIdOrderByTimeCursor(Long postId, TimeCursor cursor, int size);
 
     /**
+     * 按时间游标增量查询顶级评论（查询比游标更新的数据）。
+     */
+    List<Comment> findTopLevelByPostIdIncremental(Long postId, TimeCursor cursor, int size);
+
+    /**
      * 按热度排序查询顶级评论（游标分页）
      */
     List<Comment> findTopLevelByPostIdOrderByLikesCursor(Long postId, HotCursor cursor, int size);

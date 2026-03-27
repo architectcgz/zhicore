@@ -1,6 +1,7 @@
 package com.zhicore.notification.infrastructure.push;
 
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
+import com.zhicore.notification.application.dto.CommentStreamHintPayload;
 import com.zhicore.notification.application.service.NotificationAggregationService;
 import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.repository.NotificationRepository;
@@ -58,6 +59,21 @@ public class NotificationPushService {
             log.debug("推送未读计数成功: userId={}, count={}", userId, unreadCount);
         } catch (Exception e) {
             log.warn("推送未读计数失败: userId={}, error={}", userId, e.getMessage());
+        }
+    }
+
+    /**
+     * 广播文章评论流提示。
+     *
+     * @param postId 文章ID
+     * @param payload 实时提示载荷
+     */
+    public void broadcastCommentStreamHint(String postId, CommentStreamHintPayload payload) {
+        try {
+            webSocketHandler.sendCommentStreamHint(postId, payload);
+        } catch (Exception e) {
+            log.warn("广播评论流提示失败: postId={}, commentId={}, error={}",
+                    postId, payload.getCommentId(), e.getMessage());
         }
     }
 }

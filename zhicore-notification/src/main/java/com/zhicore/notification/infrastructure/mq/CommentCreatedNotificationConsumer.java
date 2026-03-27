@@ -4,6 +4,7 @@ import com.zhicore.common.mq.AbstractEventConsumer;
 import com.zhicore.common.mq.StatefulIdempotentHandler;
 import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.integration.messaging.comment.CommentCreatedIntegrationEvent;
+import com.zhicore.notification.application.dto.CommentStreamHintPayload;
 import com.zhicore.notification.application.service.command.NotificationCommandService;
 import com.zhicore.notification.infrastructure.push.NotificationPushService;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +48,14 @@ public class CommentCreatedNotificationConsumer extends AbstractEventConsumer<Co
         Long commentId = event.getCommentId();
         String commentContent = event.getCommentContent();
         Long replyToUserId = event.getReplyToUserId();
+        pushService.broadcastCommentStreamHint(String.valueOf(postId), CommentStreamHintPayload.builder()
+                .eventId(event.getEventId())
+                .eventType("COMMENT_CREATED")
+                .postId(postId)
+                .commentId(commentId)
+                .parentId(event.getParentId())
+                .occurredAt(event.getOccurredAt())
+                .build());
 
         // 1. 通知文章作者（如果评论者不是作者本人）
         if (!postOwnerId.equals(commentAuthorId)) {

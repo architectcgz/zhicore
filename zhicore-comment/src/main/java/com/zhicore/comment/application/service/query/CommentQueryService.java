@@ -20,7 +20,9 @@ import com.zhicore.common.result.ResultCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -119,6 +121,32 @@ public class CommentQueryService {
     }
 
     /**
+     * 增量查询顶级评论。
+     */
+    @Transactional(readOnly = true)
+    public PageResult<CommentVO> getTopLevelCommentsIncremental(Long postId,
+                                                                String afterCreatedAt,
+                                                                Long afterId,
+                                                                int size) {
+        TimeCursor timeCursor = buildAfterCursor(afterCreatedAt, afterId);
+        List<Comment> comments = commentRepository.findTopLevelByPostIdIncremental(postId, timeCursor, size + 1);
+
+        boolean hasMore = comments.size() > size;
+        String nextCursor = null;
+        if (hasMore) {
+            comments = comments.subList(0, size);
+            Comment lastComment = comments.get(comments.size() - 1);
+            nextCursor = timeCursorCodec.encode(lastComment);
+        } else if (!comments.isEmpty()) {
+            Comment lastComment = comments.get(comments.size() - 1);
+            nextCursor = timeCursorCodec.encode(lastComment);
+        }
+
+        List<CommentVO> voList = commentViewAssembler.assembleCommentVOList(comments);
+        return PageResult.cursor(voList, nextCursor, hasMore);
+    }
+
+    /**
      * 传统分页查询回复。
      */
     @SentinelResource(
@@ -161,6 +189,32 @@ public class CommentQueryService {
         return CursorPage.of(voList, nextCursor, hasMore);
     }
 
+    /**
+     * 增量查询回复。
+     */
+    @Transactional(readOnly = true)
+    public PageResult<CommentVO> getRepliesIncremental(Long rootId,
+                                                       String afterCreatedAt,
+                                                       Long afterId,
+                                                       int size) {
+        TimeCursor timeCursor = buildAfterCursor(afterCreatedAt, afterId);
+        List<Comment> replies = commentRepository.findRepliesByRootIdCursor(rootId, timeCursor, size + 1);
+
+        boolean hasMore = replies.size() > size;
+        String nextCursor = null;
+        if (hasMore) {
+            replies = replies.subList(0, size);
+            Comment lastReply = replies.get(replies.size() - 1);
+            nextCursor = timeCursorCodec.encode(lastReply);
+        } else if (!replies.isEmpty()) {
+            Comment lastReply = replies.get(replies.size() - 1);
+            nextCursor = timeCursorCodec.encode(lastReply);
+        }
+
+        List<CommentVO> voList = commentViewAssembler.assembleReplyVOList(replies);
+        return PageResult.cursor(voList, nextCursor, hasMore);
+    }
+
     private void validateTraditionalPaginationWindow(int page, int size) {
         long offset = (long) page * size;
         if (offset >= CommonConstants.MAX_OFFSET_WINDOW) {
@@ -168,6 +222,22 @@ public class CommentQueryService {
                     ResultCode.PARAM_ERROR,
                     "传统分页仅支持前" + CommonConstants.MAX_OFFSET_WINDOW + "条数据，请改用游标分页"
             );
+        }
+    }
+
+    private TimeCursor buildAfterCursor(String afterCreatedAt, Long afterId) {
+        if (!StringUtils.hasText(afterCreatedAt) && afterId == null) {
+            return null;
+        }
+
+        if (!StringUtils.hasText(afterCreatedAt) || afterId == null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "增量游标参数必须同时传入");
+        }
+
+        try {
+            return new TimeCursor(LocalDateTime.parse(afterCreatedAt), afterId);
+        } catch (Exception exception) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "无效的时间游标参数");
         }
     }
 
