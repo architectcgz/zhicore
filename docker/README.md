@@ -135,6 +135,11 @@ curl http://localhost:9200/_cluster/health
 ### docker-compose.yml
 主配置文件，定义所有基础设施服务。
 
+### PostgreSQL 初始化说明
+
+- `docker/postgres-init/*.sql` 仅在 PostgreSQL 数据卷首次初始化时自动执行
+- notification 第一阶段新增的 `notifications.category/event_code/metadata`、`notification_user_preference`、`notification_user_dnd` 与历史数据回填逻辑，若要应用到已有数据卷，需要手动执行更新后的脚本，或重建 PostgreSQL 数据卷后重新初始化
+
 ### 服务配置目录
 
 ```

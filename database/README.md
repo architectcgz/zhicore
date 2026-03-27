@@ -6,7 +6,7 @@
 
 ### 方式一：使用合并脚本（推荐）
 
-使用 `init-all-databases.sql` 快速初始化所有数据库表结构：
+使用 `init-all-databases.sql` 快速初始化所有数据库表结构。当前脚本已同步 notification 第一阶段 schema，包含 `notifications.category/event_code/metadata`、`notification_user_preference`、`notification_user_dnd` 以及历史 `event_code/category` 回填逻辑：
 
 ```bash
 # 1. 连接到 ZhiCore_user 数据库
@@ -74,7 +74,9 @@ psql -h localhost -U postgres -d ZhiCore_notification -f init-all-databases.sql
 
 ### Notification Service (ZhiCore_notification)
 
-- `notifications` - 用户通知
+- `notifications` - 用户通知（含 `category`、`event_code`、`metadata` 平台化扩展字段）
+- `notification_user_preference` - 用户通知偏好
+- `notification_user_dnd` - 用户免打扰配置
 - `global_announcements` - 全局公告
 - `assistant_messages` - 小助手消息
 
@@ -100,6 +102,7 @@ psql -h localhost -U postgres -d ZhiCore_notification -f init-all-databases.sql
 2. **数据库连接**：确保 PostgreSQL 服务已启动且可访问
 3. **权限要求**：需要有创建表和索引的权限
 4. **字符编码**：数据库应使用 UTF-8 编码
+5. **存量环境迁移**：如果 Docker/PostgreSQL 已存在旧数据卷，初始化脚本不会自动再次执行；需要手动执行更新后的 `init-all-databases.sql` / `docker/postgres-init/02-init-tables.sql`，或重建 PostgreSQL 数据卷后再初始化
 
 ## 故障排查
 
