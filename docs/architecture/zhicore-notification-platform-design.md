@@ -15,7 +15,7 @@
 
 1. 标注“当前实现”的内容，以 `zhicore-notification` 仓内代码为准。
 2. 标注“建议”或“目标设计”的内容，表示后续平台化演进方向。
-3. 除特别说明外，本文以 2026-03-27 仓内实现为基线；当前“交互通知中心 + 平台化一期扩展位 + 偏好/DND”范围已完成，“广播通知 / 作者订阅 / 多通道平台化”仍未落地。
+3. 除特别说明外，本文以 2026-03-27 仓内实现为基线；当前“交互通知中心 + 平台化一期扩展位 + 偏好/DND + 二期发布广播骨架”已完成，作者订阅、digest、多通道真实投递和系统公告链路整合仍未落地。
 
 ## 设计输入
 
@@ -53,7 +53,7 @@
 
 1. 站内通知真相源已经落地。
    - 使用 `notifications` 表保存接收者、类型、触发者、目标对象、内容、已读状态和创建时间。
-   - 一期已为 `notifications` 增加 `category`、`event_code`、`metadata` 扩展位，兼容现有 `LIKE / COMMENT / FOLLOW / REPLY / SYSTEM` 枚举。
+   - 一期已为 `notifications` 增加 `category`、`event_code`、`metadata` 扩展位；当前枚举已扩展到 `LIKE / COMMENT / FOLLOW / REPLY / SYSTEM / POST_PUBLISHED`。
 
 2. 交互通知消费链路已经落地。
    - `PostLikedNotificationConsumer` 消费 `PostLikedEvent`，为文章作者创建点赞通知。
@@ -82,15 +82,23 @@
    - WebSocket 入站链路接入了 JWT 解析拦截。
    - 聚合查询与未读数查询已接入 Sentinel 资源保护。
 
+6. 二期最小发布广播骨架已经落地。
+   - `PostPublishedIntegrationEvent` 已补齐 `authorId`，通知侧不再额外反查内容服务。
+   - 用户服务新增稳定游标接口 `GET /api/v1/users/{userId}/followers/cursor`，并补充 `(following_id, created_at DESC, follower_id DESC)` 索引。
+   - 通知服务已引入 `notification_campaign`、`notification_campaign_shard`、`notification_delivery` 三张表。
+   - `PostPublishedNotificationConsumer` 会创建 campaign、按 shard 扫粉、物化 inbox `notifications` 并记录 delivery。
+   - 偏好关闭时直接记录 `SKIPPED` delivery；DND 命中时仍写 inbox，但跳过 WebSocket 主动推送。
+   - 系统公告仍保留在 `global_announcements` + `/topic/announcements`，不走本条广播链路。
+
 ### 当前仍未落地范围
 
 以下内容仍属于本文后续章节中的平台化设计，不应视为当前代码现状：
 
-1. `PostPublishedIntegrationEvent` 对粉丝广播的 `campaign + shard + delivery` 链路。
-2. 作者级订阅模型及对应 API。
-3. 邮件、短信等独立通道抽象和投递账本。
-4. `notification_group_state`、用户级微批和广播侧物化链路。
-5. 面向高粉作者的 fan-out 分层、摘要补发和运营侧控制面。
+1. 作者级订阅模型及对应 API。
+2. 邮件、短信等独立通道抽象和投递账本。
+3. `notification_group_state`、用户级微批和广播侧物化链路。
+4. 面向高粉作者的 fan-out 分层、摘要补发和运营侧控制面。
+5. 系统公告与广播控制面的统一后台操作链路。
 
 ## 设计目标
 
