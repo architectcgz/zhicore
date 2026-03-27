@@ -132,7 +132,7 @@ public class NotificationAggregationService {
                         notification.getRecipientId(),
                         notification.getType(),
                         notification.getTargetType(),
-                        notification.getTargetId() != null ? String.valueOf(notification.getTargetId()) : null
+                        notification.getTargetId()
                 )
                 .orElseGet(() -> buildFallbackAggregatedDTO(notification));
 

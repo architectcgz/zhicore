@@ -138,7 +138,7 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
             @Param("recipientId") Long recipientId,
             @Param("type") int type,
             @Param("targetType") String targetType,
-            @Param("targetId") String targetId
+            @Param("targetId") Long targetId
     );
 
     /**
@@ -167,7 +167,7 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
             @Param("recipientId") Long recipientId,
             @Param("type") int type,
             @Param("targetType") String targetType,
-            @Param("targetId") String targetId,
+            @Param("targetId") Long targetId,
             @Param("limit") int limit
     );
 

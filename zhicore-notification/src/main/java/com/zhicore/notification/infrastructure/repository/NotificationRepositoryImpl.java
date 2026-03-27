@@ -79,14 +79,14 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     public Optional<AggregatedNotificationDTO> findAggregatedNotificationByGroup(Long recipientId,
                                                                                   NotificationType type,
                                                                                   String targetType,
-                                                                                  String targetId) {
+                                                                                  Long targetId) {
         return Optional.ofNullable(notificationMapper.findAggregatedNotificationByGroup(
                 recipientId, type.getCode(), targetType, targetId));
     }
 
     @Override
     public List<Notification> findByGroup(Long recipientId, NotificationType type,
-                                          String targetType, String targetId, int limit) {
+                                          String targetType, Long targetId, int limit) {
         List<NotificationPO> poList = notificationMapper.findByGroup(
                 recipientId, type.getCode(), targetType, targetId, limit);
         return poList.stream()

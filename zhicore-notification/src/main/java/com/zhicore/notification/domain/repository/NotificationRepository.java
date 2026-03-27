@@ -78,7 +78,7 @@ public interface NotificationRepository {
     Optional<AggregatedNotificationDTO> findAggregatedNotificationByGroup(Long recipientId,
                                                                           NotificationType type,
                                                                           String targetType,
-                                                                          String targetId);
+                                                                          Long targetId);
 
     /**
      * 查询某个聚合组的详细通知列表
@@ -91,7 +91,7 @@ public interface NotificationRepository {
      * @return 通知列表
      */
     List<Notification> findByGroup(Long recipientId, NotificationType type,
-                                   String targetType, String targetId, int limit);
+                                   String targetType, Long targetId, int limit);
 
     /**
      * 统计未读通知数量

@@ -10,6 +10,7 @@ import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
 import com.zhicore.notification.application.port.policy.NotificationAggregationPolicy;
 import com.zhicore.notification.application.port.store.NotificationAggregationStore;
+import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.model.NotificationType;
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -291,6 +293,45 @@ class NotificationAggregationServiceTest {
             String content = result.getRecords().get(0).getAggregatedContent();
             assertTrue(content.contains("Zhang San"));
             assertTrue(content.contains("10"));
+        }
+    }
+
+    @Nested
+    @DisplayName("Realtime Push Aggregation Tests")
+    class RealtimePushAggregationTests {
+
+        @Test
+        @DisplayName("实时推送聚合查询应该使用数值目标ID")
+        void getAggregatedNotificationForPush_ShouldQueryGroupWithNumericTargetId() {
+            Notification notification = Notification.createCommentNotification(
+                    9001L, USER_ID, 456L, 1001L, 7001L, "新的评论");
+            AggregatedNotificationDTO dto = AggregatedNotificationDTO.builder()
+                    .type(NotificationType.COMMENT)
+                    .targetType("post")
+                    .targetId("1001")
+                    .totalCount(2)
+                    .unreadCount(2)
+                    .latestTime(LocalDateTime.of(2026, 3, 27, 13, 0))
+                    .latestNotificationId("9001")
+                    .latestContent("新的评论")
+                    .actorIds(List.of("456"))
+                    .build();
+            UserSimpleDTO actor = new UserSimpleDTO();
+            actor.setId(456L);
+            actor.setNickname("Zhang San");
+
+            when(notificationRepository.findAggregatedNotificationByGroup(
+                    USER_ID, NotificationType.COMMENT, "post", 1001L))
+                    .thenReturn(java.util.Optional.of(dto));
+            when(userServiceClient.batchGetUsersSimple(Set.of(456L)))
+                    .thenReturn(ApiResponse.success(Map.of(456L, actor)));
+
+            AggregatedNotificationVO result = aggregationService.getAggregatedNotificationForPush(notification);
+
+            assertNotNull(result);
+            assertEquals(1001L, result.getTargetId());
+            assertEquals(2, result.getTotalCount());
+            assertTrue(result.getAggregatedContent().contains("Zhang San"));
         }
     }
 }
