@@ -100,13 +100,13 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public void markAsRead(Long id, Long recipientId) {
-        notificationMapper.markAsRead(id, recipientId);
+    public boolean markAsRead(Long id, Long recipientId) {
+        return notificationMapper.markAsRead(id, recipientId) > 0;
     }
 
     @Override
-    public void markAllAsRead(Long recipientId) {
-        notificationMapper.markAllAsRead(recipientId);
+    public int markAllAsRead(Long recipientId) {
+        return notificationMapper.markAllAsRead(recipientId);
     }
 
     @Override

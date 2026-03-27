@@ -186,6 +186,7 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
     /**
      * 标记单条通知为已读
      */
-    @Update("UPDATE notifications SET is_read = true, read_at = NOW() WHERE id = #{id} AND recipient_id = #{recipientId}")
+    @Update("UPDATE notifications SET is_read = true, read_at = NOW() " +
+            "WHERE id = #{id} AND recipient_id = #{recipientId} AND is_read = false")
     int markAsRead(@Param("id") Long id, @Param("recipientId") Long recipientId);
 }
