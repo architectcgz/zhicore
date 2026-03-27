@@ -43,6 +43,12 @@ spring:
           uri: lb:ws://zhicore-message
           predicates:
             - Path=/ws/message/**
+            - Header=Upgrade, (?i)websocket
+
+        - id: zhicore-message-websocket-sockjs
+          uri: lb://zhicore-message
+          predicates:
+            - Path=/ws/message/**
 
         # 通知服务
         - id: zhicore-notification
@@ -52,6 +58,12 @@ spring:
 
         - id: zhicore-notification-websocket
           uri: lb:ws://zhicore-notification
+          predicates:
+            - Path=/ws/notification/**
+            - Header=Upgrade, (?i)websocket
+
+        - id: zhicore-notification-websocket-sockjs
+          uri: lb://zhicore-notification
           predicates:
             - Path=/ws/notification/**
 
