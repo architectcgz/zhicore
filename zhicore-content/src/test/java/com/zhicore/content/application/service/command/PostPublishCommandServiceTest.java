@@ -47,6 +47,7 @@ class PostPublishCommandServiceTest {
                 "evt-published",
                 Instant.now(),
                 PostId.of(postId),
+                userId,
                 Instant.now(),
                 5L
         );
@@ -54,6 +55,7 @@ class PostPublishCommandServiceTest {
                 "evt-published",
                 Instant.now(),
                 postId,
+                userId,
                 Instant.now(),
                 5L
         );

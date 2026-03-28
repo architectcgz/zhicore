@@ -218,6 +218,22 @@ public final class PostRedisKeys {
         return favoriteCount(PostId.of(postId));
     }
 
+    public static String presenceSessions(Long postId) {
+        return prefix() + ":presence:" + postId + ":sessions";
+    }
+
+    public static String presenceSession(String sessionId) {
+        return prefix() + ":presence:session:" + sessionId;
+    }
+
+    public static String presenceAnonymousRegisterThrottle(Long postId, String fingerprint) {
+        return prefix() + ":presence:" + postId + ":anon:register:" + fingerprint;
+    }
+
+    public static String presenceHeartbeatThrottle(Long postId, String sessionId) {
+        return prefix() + ":presence:" + postId + ":heartbeat:" + sessionId;
+    }
+
     // ==================== 分布式锁 ====================
 
     /**
