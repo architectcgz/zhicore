@@ -5,6 +5,7 @@ import com.zhicore.content.application.command.commands.PurgePostCommand;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostCacheInvalidationStore;
+import com.zhicore.content.application.service.PostReaderPresenceAppService;
 import com.zhicore.content.application.port.store.PostContentStore;
 import com.zhicore.content.domain.event.PostPurgedEvent;
 import com.zhicore.content.domain.exception.PostErrorMessages;
@@ -38,6 +39,7 @@ public class PurgePostHandler {
     private final PostContentStore postContentStore;
     private final EventPublisher eventPublisher;
     private final PostCacheInvalidationStore postCacheInvalidationStore;
+    private final PostReaderPresenceAppService postReaderPresenceAppService;
     
     /**
      * 处理物理删除文章命令
@@ -132,6 +134,7 @@ public class PurgePostHandler {
         postCacheInvalidationStore.evictLatestList();
         postCacheInvalidationStore.evictAuthorLists(post.getOwnerId());
         postCacheInvalidationStore.evictStats(postId);
+        postReaderPresenceAppService.evictPost(postId.getValue());
         
         log.debug("Cleared all cache for post: {}", postId);
     }

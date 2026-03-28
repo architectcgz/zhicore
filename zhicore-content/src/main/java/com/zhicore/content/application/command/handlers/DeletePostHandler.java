@@ -4,6 +4,7 @@ import com.zhicore.content.application.command.commands.DeletePostCommand;
 import com.zhicore.content.application.port.messaging.EventPublisher;
 import com.zhicore.content.application.port.repo.PostRepository;
 import com.zhicore.content.application.port.store.PostCacheInvalidationStore;
+import com.zhicore.content.application.service.PostReaderPresenceAppService;
 import com.zhicore.content.domain.event.DomainEventFactory;
 import com.zhicore.content.domain.event.PostDeletedEvent;
 import com.zhicore.content.domain.exception.PostErrorMessages;
@@ -34,6 +35,7 @@ public class DeletePostHandler {
     private final EventPublisher eventPublisher;
     private final PostCacheInvalidationStore postCacheInvalidationStore;
     private final DomainEventFactory eventFactory;
+    private final PostReaderPresenceAppService postReaderPresenceAppService;
     
     /**
      * 处理删除文章命令
@@ -91,6 +93,7 @@ public class DeletePostHandler {
         postCacheInvalidationStore.evictLatestList();
         postCacheInvalidationStore.evictAuthorLists(post.getOwnerSnapshot().getOwnerId());
         postCacheInvalidationStore.evictTagLists(post.getTagIds());
+        postReaderPresenceAppService.evictPost(postId.getValue());
         
         log.debug("Invalidated all cache for post: {}", postId);
     }
