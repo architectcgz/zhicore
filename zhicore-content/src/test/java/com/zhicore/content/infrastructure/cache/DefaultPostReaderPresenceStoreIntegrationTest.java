@@ -1,26 +1,77 @@
 package com.zhicore.content.infrastructure.cache;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.content.application.dto.PostReaderPresenceSessionSnapshot;
 import com.zhicore.content.application.dto.PostReaderPresenceView;
 import com.zhicore.content.application.port.store.PostReaderPresenceStore;
-import com.zhicore.content.infrastructure.IntegrationTestBase;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class DefaultPostReaderPresenceStoreIntegrationTest extends IntegrationTestBase {
+class DefaultPostReaderPresenceStoreIntegrationTest {
 
-    @Autowired
-    private PostReaderPresenceStore postReaderPresenceStore;
+    private static LettuceConnectionFactory connectionFactory;
+    private static StringRedisTemplate redisTemplate;
+    private static PostReaderPresenceStore postReaderPresenceStore;
+
+    @BeforeAll
+    static void setUpRedis() {
+        String host = System.getProperty("test.redis.host",
+                System.getenv().getOrDefault("TEST_REDIS_HOST", "127.0.0.1"));
+        int port = Integer.parseInt(System.getProperty("test.redis.port",
+                System.getenv().getOrDefault("TEST_REDIS_PORT", "6379")));
+        String password = System.getProperty("test.redis.password",
+                System.getenv().getOrDefault("TEST_REDIS_PASSWORD",
+                        System.getenv().getOrDefault("REDIS_PASSWORD", "redis123456")));
+
+        RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration(host, port);
+        if (!password.isBlank()) {
+            configuration.setPassword(password);
+        }
+
+        connectionFactory = new LettuceConnectionFactory(configuration);
+        connectionFactory.afterPropertiesSet();
+
+        redisTemplate = new StringRedisTemplate();
+        redisTemplate.setConnectionFactory(connectionFactory);
+        redisTemplate.afterPropertiesSet();
+
+        redisTemplate.getConnectionFactory()
+                .getConnection()
+                .serverCommands()
+                .flushDb();
+
+        postReaderPresenceStore = new DefaultPostReaderPresenceStore(redisTemplate, new ObjectMapper());
+    }
+
+    @AfterAll
+    static void tearDownRedis() {
+        if (redisTemplate != null && redisTemplate.getConnectionFactory() != null) {
+            redisTemplate.getConnectionFactory()
+                    .getConnection()
+                    .serverCommands()
+                    .flushDb();
+        }
+        if (connectionFactory != null) {
+            connectionFactory.destroy();
+        }
+    }
 
     @BeforeEach
-    void setUp() {
-        cleanupRedis();
+    void cleanupRedis() {
+        redisTemplate.getConnectionFactory()
+                .getConnection()
+                .serverCommands()
+                .flushDb();
     }
 
     @Test
