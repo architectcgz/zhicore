@@ -87,6 +87,16 @@ class GatewayIntegrationTest {
     }
 
     @Test
+    @DisplayName("用户公开文章列表接口应允许匿名访问")
+    void publicUserPostsEndpoint_shouldAllowAnonymousAccess() {
+        ResponseEntity<String> response = restTemplate.getForEntity(
+                "/api/v1/users/123456789/posts?page=1&size=20", String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo("user-posts");
+    }
+
+    @Test
     @DisplayName("评论详情接口应允许匿名访问")
     void publicCommentDetailEndpoint_shouldAllowAnonymousAccess() {
         ResponseEntity<String> response = restTemplate.getForEntity(

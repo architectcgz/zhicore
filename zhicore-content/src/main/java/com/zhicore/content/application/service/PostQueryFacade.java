@@ -110,6 +110,11 @@ public class PostQueryFacade {
     }
 
     @Transactional(readOnly = true)
+    public HybridPageResult<PostDTO> getPublishedPostsByAuthor(Long authorId, int page, int size) {
+        return publishedPostQueryService.getPublishedPostsByAuthor(authorId, page, size);
+    }
+
+    @Transactional(readOnly = true)
     public Map<Long, PostDTO> batchGetPosts(Set<Long> postIds) {
         return postBatchQueryService.batchGetPosts(postIds);
     }

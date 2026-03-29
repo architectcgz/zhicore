@@ -123,6 +123,10 @@ public interface PostRepository {
      */
     List<Post> findPublishedPopular(int offset, int limit);
 
+    List<Post> findPublishedByAuthor(Long authorId, int offset, int limit);
+
+    long countPublishedByAuthor(Long authorId);
+
     /**
      * 定时发布幂等条件更新（R1）
      *

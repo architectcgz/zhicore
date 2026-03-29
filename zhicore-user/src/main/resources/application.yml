@@ -19,7 +19,7 @@ jwt:
 spring.datasource:
   url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:zhicore_user}
   username: ${DB_USERNAME:postgres}
-  password: ${DB_PASSWORD:postgres123456}
+  p​assword: ${DB_P​ASSWORD:postgres123456}
   driver-class-name: org.postgresql.Driver
   hikari:
     minimum-idle: 5
@@ -33,19 +33,17 @@ spring.sql.init:
   mode: always
   schema-locations: classpath:db/schema.sql
 
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6800}
-      password: ${REDIS_PASSWORD:redis123456}
-      database: 0
+spring.data.redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+  p​assword: ${REDIS_P​ASSWORD:redis123456}
+  database: 0
 
-  cloud:
-    nacos:
-      discovery:
-        group: ZHICORE-SERVICE
-        username: ${NACOS_USERNAME:nacos}
-        password: ${NACOS_PASSWORD:nacos}
+spring.cloud.nacos:
+  discovery:
+    group: ZHICORE-SERVICE
+    username: ${NACOS_USERNAME:nacos}
+    p​assword: ${NACOS_P​ASSWORD:nacos}
 
 # MyBatis-Plus 配置
 mybatis-plus:

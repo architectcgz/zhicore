@@ -84,6 +84,14 @@ public class PostQueryController {
         return ApiResponse.success(postQueryFacade.getPostList(query));
     }
 
+    @GetMapping("/authors/{authorId}")
+    public ApiResponse<HybridPageResult<PostDTO>> getPublishedPostsByAuthor(
+            @PathVariable @Min(value = 1, message = "作者ID必须为正数") Long authorId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer size) {
+        return ApiResponse.success(postQueryFacade.getPublishedPostsByAuthor(authorId, page, size));
+    }
+
     @GetMapping("/cursor")
     public ApiResponse<List<PostBriefVO>> getPublishedPostsCursor(
             @RequestParam(required = false) LocalDateTime cursor,

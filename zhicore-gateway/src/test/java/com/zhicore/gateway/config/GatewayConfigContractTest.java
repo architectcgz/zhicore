@@ -28,6 +28,7 @@ class GatewayConfigContractTest {
     );
     private static final List<String> REQUIRED_PUBLIC_PATHS = List.of(
             "GET:/api/v1/users/*",
+            "GET:/api/v1/users/*/posts",
             "GET:/api/v1/comments/*",
             "GET:/api/v1/comments/post/*/page",
             "GET:/api/v1/comments/*/like-count",

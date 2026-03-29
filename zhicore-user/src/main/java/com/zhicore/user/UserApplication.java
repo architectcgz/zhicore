@@ -1,6 +1,7 @@
 package com.zhicore.user;
 
 import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.api.client.PostServiceClient;
 import com.zhicore.user.infrastructure.feign.ZhiCoreUploadClient;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
@@ -18,6 +19,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableDiscoveryClient
 @EnableFeignClients(clients = {
         IdGeneratorFeignClient.class,
+        PostServiceClient.class,
         ZhiCoreUploadClient.class
 })
 @EnableScheduling

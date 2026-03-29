@@ -263,6 +263,27 @@ public class PostRepositoryPgImpl implements PostRepository {
     }
 
     @Override
+    public List<Post> findPublishedByAuthor(Long authorId, int offset, int limit) {
+        return mybatisMapper.selectList(
+                new LambdaQueryWrapper<PostEntity>()
+                        .eq(PostEntity::getOwnerId, authorId)
+                        .eq(PostEntity::getStatus, PostStatus.PUBLISHED.getCode())
+                        .orderByDesc(PostEntity::getPublishedAt)
+                        .orderByDesc(PostEntity::getId)
+                        .last("LIMIT " + limit + " OFFSET " + offset)
+        ).stream().map(entityMapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public long countPublishedByAuthor(Long authorId) {
+        return mybatisMapper.selectCount(
+                new LambdaQueryWrapper<PostEntity>()
+                        .eq(PostEntity::getOwnerId, authorId)
+                        .eq(PostEntity::getStatus, PostStatus.PUBLISHED.getCode())
+        );
+    }
+
+    @Override
     public Optional<Long> publishScheduledIfNeeded(Long postId, LocalDateTime publishedAt) {
         Long version = mybatisMapper.publishScheduledIfNeeded(postId, publishedAt);
         return Optional.ofNullable(version);

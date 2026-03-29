@@ -32,6 +32,11 @@ class GatewayTestStubController {
         return ResponseEntity.ok("user-detail");
     }
 
+    @GetMapping("/__test/public/user-posts")
+    ResponseEntity<String> publicUserPostsEndpoint() {
+        return ResponseEntity.ok("user-posts");
+    }
+
     @PostMapping("/__test/public/auth/login")
     ResponseEntity<String> publicAuthLoginEndpoint(@RequestBody String body) {
         return ResponseEntity.ok("login-ok:" + body);
