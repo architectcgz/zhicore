@@ -4,7 +4,7 @@
 
 **Goal:** 为文章详情页增加“多少人正在读 + 最多 3 个登录用户头像”的在线态能力，匿名用户计数但不展示头像，头像不可点击，页面隐藏后不再计入正在读。
 
-**Architecture:** 后端在 `zhicore-content` 内新增独立 presence 读写能力，使用 Redis `zset + session detail TTL` 保存短时阅读会话；前端在 `PostDetail` 页面新增 presence composable，通过 HTTP 注册、续约、查询和离开清理来驱动 UI。文章可见性沿用详情页公开访问规则，presence 不进入文章详情缓存，也不复用现有 `message/notification` WebSocket。
+**Architecture:** 后端在 `zhicore-content` 内新增独立 presence 读写能力，使用 Redis `zset + session detail TTL` 保存短时阅读会话；前端在 `PostDetail` 页面新增 presence composable，通过 HTTP 注册、`25s` 续约、`3s` 查询和离开清理来驱动 UI。文章可见性沿用详情页公开访问规则，presence 不进入文章详情缓存，也不复用现有 `message/notification` WebSocket。
 
 **Tech Stack:** Java, Spring Boot, Redis, JUnit 5, Mockito, MockMvc, Vue 3, TypeScript, Vitest, Vue Test Utils
 
