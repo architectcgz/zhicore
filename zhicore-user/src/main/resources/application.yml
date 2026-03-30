@@ -1,6 +1,11 @@
 server:
   port: 8101
 
+app:
+  scheduling:
+    pool-size: 4
+    thread-name-prefix: user-scheduler-
+
 spring:
   application:
     name: zhicore-user
@@ -174,4 +179,3 @@ knife4j:
     enable-document-manage: true
     swagger-model-name: 实体类列表
   production: false
-

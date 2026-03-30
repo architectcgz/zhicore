@@ -1,5 +1,6 @@
 package com.zhicore.migration.infrastructure.config;
 
+import com.zhicore.common.cache.DistributedLockExecutor;
 import com.zhicore.migration.infrastructure.store.RedisGrayReleaseStore;
 import com.zhicore.migration.service.gray.GrayConfig;
 import com.zhicore.migration.service.gray.GrayDataReconciliationTask;
@@ -19,8 +20,8 @@ import org.springframework.context.annotation.Configuration;
 import java.util.Set;
 
 /**
- * 灰度发布配置
- * 管理灰度发布的全局状态和配置
+ * 灰度发布配置。
+ * 管理灰度发布的全局状态和配置。
  */
 @Slf4j
 @Configuration
@@ -31,41 +32,32 @@ public class GrayReleaseConfig {
     private final GrayReleaseProperties properties;
     private final RedissonClient redissonClient;
 
-    /**
-     * 灰度状态存储
-     */
+    /** 灰度状态存储。 */
     @Bean
     public GrayReleaseStore grayReleaseStore() {
         return new RedisGrayReleaseStore(redissonClient);
     }
 
-    /**
-     * 灰度路由器
-     */
+    /** 灰度路由器。 */
     @Bean
     public GrayRouter grayRouter(GrayReleaseStore grayReleaseStore) {
         return new GrayRouter(toSettings(), grayReleaseStore);
     }
 
-    /**
-     * 灰度数据对账任务
-     */
+    /** 灰度数据对账任务。 */
     @Bean
-    public GrayDataReconciliationTask grayDataReconciliationTask(GrayReleaseStore grayReleaseStore) {
-        return new GrayDataReconciliationTask(grayReleaseStore, toSettings());
+    public GrayDataReconciliationTask grayDataReconciliationTask(GrayReleaseStore grayReleaseStore,
+                                                                 DistributedLockExecutor distributedLockExecutor) {
+        return new GrayDataReconciliationTask(grayReleaseStore, toSettings(), distributedLockExecutor);
     }
 
-    /**
-     * 灰度回滚服务
-     */
+    /** 灰度回滚服务。 */
     @Bean
     public GrayRollbackService grayRollbackService(GrayReleaseStore grayReleaseStore) {
         return new GrayRollbackService(grayReleaseStore, toSettings());
     }
 
-    /**
-     * 初始化灰度配置到 Redis
-     */
+    /** 初始化灰度配置到 Redis。 */
     @Bean
     public GrayConfigInitializer grayConfigInitializer(GrayReleaseStore grayReleaseStore) {
         return new GrayConfigInitializer(properties, grayReleaseStore);
@@ -84,11 +76,9 @@ public class GrayReleaseConfig {
         );
     }
 
-    /**
-     * 灰度配置初始化器
-     */
+    /** 灰度配置初始化器。 */
     public static class GrayConfigInitializer {
-        
+
         private final GrayReleaseProperties properties;
         private final GrayReleaseStore grayReleaseStore;
 
@@ -114,7 +104,7 @@ public class GrayReleaseConfig {
                     .build();
             grayReleaseStore.initializeStatusIfAbsent(status);
 
-            log.info("灰度发布配置初始化完成: enabled={}, trafficRatio={}%", 
+            log.info("灰度发布配置初始化完成: enabled={}, trafficRatio={}%",
                     properties.isEnabled(), properties.getTrafficRatio());
         }
     }

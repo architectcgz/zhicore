@@ -13,6 +13,9 @@ server:
 # 注意：不要直接使用 spring.profiles.active，因为它可能包含多个 profile（如 "prod,k8s"）
 app:
   env: ${APP_ENV:dev}
+  scheduling:
+    pool-size: 6
+    thread-name-prefix: content-scheduler-
 
 spring:
   application:
