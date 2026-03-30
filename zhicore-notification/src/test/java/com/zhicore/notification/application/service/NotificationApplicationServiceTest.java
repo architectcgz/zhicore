@@ -121,7 +121,7 @@ class NotificationApplicationServiceTest {
 
         assertEquals(ResultCode.RESOURCE_ACCESS_DENIED.getCode(), exception.getCode());
         assertEquals("无权访问该通知", exception.getMessage());
-        verify(notificationRepository, never()).markAsRead(anyLong(), anyString());
+        verify(notificationRepository, never()).markAsRead(anyLong(), anyLong());
         verify(notificationUnreadCountStore, never()).evict(anyLong());
         verify(notificationUnreadCountStore, never()).decrement(anyLong(), anyLong());
         verify(notificationAggregationStore, never()).evictUser(anyLong());
@@ -132,11 +132,11 @@ class NotificationApplicationServiceTest {
     void shouldMarkAsReadWhenNotificationBelongsToCurrentUser() {
         Notification notification = Notification.createFollowNotification(202L, 11L, 33L);
         when(notificationRepository.findById(202L)).thenReturn(Optional.of(notification));
-        when(notificationRepository.markAsRead(202L, "11")).thenReturn(1);
+        when(notificationRepository.markAsRead(202L, 11L)).thenReturn(1);
 
         notificationCommandService.markAsRead(202L, 11L);
 
-        verify(notificationRepository).markAsRead(202L, "11");
+        verify(notificationRepository).markAsRead(202L, 11L);
         verify(notificationGroupStateRepository).decrementUnreadCount(11L, "FOLLOW");
         verify(notificationUnreadCountStore).decrement(11L, 1);
         verify(notificationAggregationStore).evictUser(eq(11L));
@@ -147,11 +147,11 @@ class NotificationApplicationServiceTest {
     void shouldNotDecrementUnreadStateWhenConcurrentMarkAsReadAffectsNoRows() {
         Notification notification = Notification.createFollowNotification(303L, 11L, 33L);
         when(notificationRepository.findById(303L)).thenReturn(Optional.of(notification));
-        when(notificationRepository.markAsRead(303L, "11")).thenReturn(0);
+        when(notificationRepository.markAsRead(303L, 11L)).thenReturn(0);
 
         notificationCommandService.markAsRead(303L, 11L);
 
-        verify(notificationRepository).markAsRead(303L, "11");
+        verify(notificationRepository).markAsRead(303L, 11L);
         verify(notificationGroupStateRepository, never()).decrementUnreadCount(anyLong(), anyString());
         verify(notificationUnreadCountStore, never()).decrement(anyLong(), anyLong());
         verify(notificationAggregationStore, never()).evictUser(anyLong());
@@ -160,11 +160,11 @@ class NotificationApplicationServiceTest {
     @Test
     @DisplayName("全部标记已读时应该重置未读缓存并同步组状态")
     void shouldResetUnreadStateWhenMarkAllAsRead() {
-        when(notificationRepository.markAllAsRead("11")).thenReturn(2);
+        when(notificationRepository.markAllAsRead(11L)).thenReturn(2);
 
         notificationCommandService.markAllAsRead(11L);
 
-        verify(notificationRepository).markAllAsRead("11");
+        verify(notificationRepository).markAllAsRead(11L);
         verify(notificationGroupStateRepository).markAllAsRead(11L);
         verify(notificationUnreadCountStore).set(11L, 0, UNREAD_COUNT_TTL);
         verify(notificationAggregationStore).evictUser(11L);
@@ -173,11 +173,11 @@ class NotificationApplicationServiceTest {
     @Test
     @DisplayName("没有未读通知时全部标记已读不应重复重置状态")
     void shouldSkipUnreadResetWhenMarkAllAsReadAffectsNoRows() {
-        when(notificationRepository.markAllAsRead("11")).thenReturn(0);
+        when(notificationRepository.markAllAsRead(11L)).thenReturn(0);
 
         notificationCommandService.markAllAsRead(11L);
 
-        verify(notificationRepository).markAllAsRead("11");
+        verify(notificationRepository).markAllAsRead(11L);
         verify(notificationGroupStateRepository, never()).markAllAsRead(anyLong());
         verify(notificationUnreadCountStore, never()).set(anyLong(), anyInt(), any());
         verify(notificationAggregationStore, never()).evictUser(anyLong());

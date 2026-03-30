@@ -24,7 +24,7 @@ public class NotificationPushService {
      * @param userId 用户ID
      * @param notification 通知
      */
-    public void push(String userId, Notification notification) {
+    public boolean push(String userId, Notification notification) {
         try {
             // 通过WebSocket推送
             webSocketHandler.sendNotification(userId, notification);
@@ -33,7 +33,9 @@ public class NotificationPushService {
             log.warn("推送通知失败: userId={}, notificationId={}, error={}",
                     userId, notification.getId(), e.getMessage());
             // 推送失败不影响主流程，通知已经保存到数据库
+            return false;
         }
+        return true;
     }
 
     /**

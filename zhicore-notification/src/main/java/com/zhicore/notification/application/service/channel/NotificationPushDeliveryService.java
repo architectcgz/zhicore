@@ -23,7 +23,10 @@ public class NotificationPushDeliveryService implements ChannelDeliveryService {
         if (notification == null) {
             return DeliveryResult.skipped("SKIPPED_MISSING_NOTIFICATION", "MISSING_NOTIFICATION");
         }
-        notificationPushService.push(String.valueOf(delivery.getRecipientId()), notification);
-        return DeliveryResult.success("PUSH_DISPATCHED");
+        boolean delivered = notificationPushService.push(String.valueOf(delivery.getRecipientId()), notification);
+        if (!delivered) {
+            return DeliveryResult.failure("FAILED", "WEBSOCKET_DELIVERY_FAILED");
+        }
+        return DeliveryResult.success("WEBSOCKET_DISPATCHED");
     }
 }

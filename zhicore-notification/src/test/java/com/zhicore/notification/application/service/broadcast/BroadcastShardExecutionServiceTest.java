@@ -28,7 +28,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -133,6 +132,7 @@ class BroadcastShardExecutionServiceTest {
         ArgumentCaptor<NotificationDelivery> deliveryCaptor = ArgumentCaptor.forClass(NotificationDelivery.class);
         verify(notificationDeliveryRepository, org.mockito.Mockito.times(5)).saveIfAbsent(deliveryCaptor.capture());
         verify(notificationDeliveryRepository).bindNotification(5001L, 90001L, "INBOX_CREATED");
+        verify(notificationDeliveryRepository).bindNotification(5002L, 90001L, "WEBSOCKET_PENDING");
         verify(notificationDeliveryRepository).bindNotification(5003L, 90002L, "INBOX_CREATED");
         verify(notificationCampaignRepository).markShardExecuted(8001L, 104L, "COMPLETED");
 
@@ -143,6 +143,7 @@ class BroadcastShardExecutionServiceTest {
         assertEquals("PLANNED", deliveries.get(2).getDeliveryStatus());
         assertEquals("DIGEST_PENDING", deliveries.get(3).getDeliveryStatus());
         assertEquals("SKIPPED", deliveries.get(4).getDeliveryStatus());
+        assertEquals(90001L, deliveries.get(1).getNotificationId());
         assertEquals(4, summary.getProcessedCount());
         assertEquals(2, summary.getSuccessCount());
         assertEquals(2, summary.getSkippedCount());

@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -20,8 +21,33 @@ public class NotificationDeliveryRepositoryImpl implements NotificationDeliveryR
     }
 
     @Override
+    public Optional<NotificationDelivery> findById(Long deliveryId) {
+        return Optional.ofNullable(notificationDeliveryMapper.findById(deliveryId));
+    }
+
+    @Override
+    public List<NotificationDelivery> query(Long campaignId,
+                                            Long recipientId,
+                                            String channel,
+                                            String status,
+                                            int page,
+                                            int size) {
+        return notificationDeliveryMapper.query(campaignId, recipientId, channel, status, size, (long) page * size);
+    }
+
+    @Override
+    public long count(Long campaignId, Long recipientId, String channel, String status) {
+        return notificationDeliveryMapper.count(campaignId, recipientId, channel, status);
+    }
+
+    @Override
     public void bindNotification(Long deliveryId, Long notificationId, String deliveryStatus) {
         notificationDeliveryMapper.bindNotification(deliveryId, notificationId, deliveryStatus);
+    }
+
+    @Override
+    public void update(NotificationDelivery delivery) {
+        notificationDeliveryMapper.updateState(delivery);
     }
 
     @Override

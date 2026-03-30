@@ -16,8 +16,16 @@ public interface ChannelDeliveryService {
             return new DeliveryResult(status, null);
         }
 
+        public static DeliveryResult failure(String status, String reason) {
+            return new DeliveryResult(status, reason);
+        }
+
         public static DeliveryResult skipped(String status, String reason) {
             return new DeliveryResult(status, reason);
+        }
+
+        public boolean isSuccess() {
+            return reason == null;
         }
     }
 }

@@ -87,7 +87,7 @@ class NotificationAggregationServiceTest {
 
             // Then
             assertNotNull(result);
-            verify(notificationRepository, never()).findAggregatedNotifications(anyString(), anyInt(), anyInt());
+            verify(notificationRepository, never()).findAggregatedNotifications(anyLong(), anyInt(), anyInt());
             verify(notificationGroupStateRepository, never()).findPage(anyLong(), anyInt(), anyInt(), anyInt());
         }
 
@@ -97,8 +97,8 @@ class NotificationAggregationServiceTest {
             // Given
             when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
 
-            when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(1);
-            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(1);
+            when(notificationRepository.countAggregatedGroups(USER_ID)).thenReturn(1);
+            when(notificationRepository.countUnread(USER_ID)).thenReturn(1);
             when(notificationGroupStateRepository.countByRecipientId(USER_ID)).thenReturn(1);
             when(notificationGroupStateRepository.sumUnreadCount(USER_ID)).thenReturn(1);
 
@@ -134,7 +134,7 @@ class NotificationAggregationServiceTest {
             assertEquals(1, result.getRecords().size());
             assertEquals(200L, result.getRecords().get(0).getTargetId());
             assertEquals("group state row", result.getRecords().get(0).getLatestContent());
-            verify(notificationRepository, never()).findAggregatedNotifications(anyString(), anyInt(), anyInt());
+            verify(notificationRepository, never()).findAggregatedNotifications(anyLong(), anyInt(), anyInt());
             verify(notificationGroupStateRepository).countByRecipientId(USER_ID);
             verify(notificationGroupStateRepository).findPage(USER_ID, 0, 20, 3);
         }
@@ -144,8 +144,8 @@ class NotificationAggregationServiceTest {
         void getAggregatedNotifications_GroupStateCountMismatch_shouldFallbackToDatabaseAggregation() {
             // Given
             when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
-            when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(2);
-            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(1);
+            when(notificationRepository.countAggregatedGroups(USER_ID)).thenReturn(2);
+            when(notificationRepository.countUnread(USER_ID)).thenReturn(1);
             when(notificationGroupStateRepository.countByRecipientId(USER_ID)).thenReturn(1);
             when(notificationGroupStateRepository.sumUnreadCount(USER_ID)).thenReturn(1);
 
@@ -158,7 +158,7 @@ class NotificationAggregationServiceTest {
             dto.setLatestTime(LocalDateTime.now());
             dto.setLatestContent("database row");
             dto.setActorIds(List.of("456"));
-            when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
+            when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 20))
                     .thenReturn(List.of(dto));
 
             UserSimpleDTO user1 = new UserSimpleDTO();
@@ -176,7 +176,7 @@ class NotificationAggregationServiceTest {
             assertEquals(2, result.getTotal());
             assertEquals(1, result.getRecords().size());
             assertEquals("database row", result.getRecords().get(0).getLatestContent());
-            verify(notificationRepository).findAggregatedNotifications(String.valueOf(USER_ID), 0, 20);
+            verify(notificationRepository).findAggregatedNotifications(USER_ID, 0, 20);
             verify(notificationGroupStateRepository).countByRecipientId(USER_ID);
             verify(notificationGroupStateRepository, never()).findPage(anyLong(), anyInt(), anyInt(), anyInt());
         }
@@ -186,8 +186,8 @@ class NotificationAggregationServiceTest {
         void getAggregatedNotifications_IncompleteProjectionPage_shouldFallbackToDatabaseAggregation() {
             // Given
             when(notificationAggregationStore.get(USER_ID, 0, 2)).thenReturn(null);
-            when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(2);
-            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(2);
+            when(notificationRepository.countAggregatedGroups(USER_ID)).thenReturn(2);
+            when(notificationRepository.countUnread(USER_ID)).thenReturn(2);
             when(notificationGroupStateRepository.countByRecipientId(USER_ID)).thenReturn(2);
             when(notificationGroupStateRepository.sumUnreadCount(USER_ID)).thenReturn(2);
 
@@ -225,7 +225,7 @@ class NotificationAggregationServiceTest {
             dto2.setLatestContent("database row 2");
             dto2.setActorIds(List.of("789"));
 
-            when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 2))
+            when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 2))
                     .thenReturn(List.of(dto1, dto2));
 
             UserSimpleDTO user1 = new UserSimpleDTO();
@@ -246,7 +246,7 @@ class NotificationAggregationServiceTest {
             assertEquals(2, result.getRecords().size());
             assertEquals("database row 1", result.getRecords().get(0).getLatestContent());
             verify(notificationGroupStateRepository).findPage(USER_ID, 0, 2, 3);
-            verify(notificationRepository).findAggregatedNotifications(String.valueOf(USER_ID), 0, 2);
+            verify(notificationRepository).findAggregatedNotifications(USER_ID, 0, 2);
         }
 
         @Test
@@ -254,8 +254,8 @@ class NotificationAggregationServiceTest {
         void getAggregatedNotifications_ProjectionUnreadMismatch_shouldFallbackToDatabaseAggregation() {
             // Given
             when(notificationAggregationStore.get(USER_ID, 0, 20)).thenReturn(null);
-            when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(1);
-            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(2);
+            when(notificationRepository.countAggregatedGroups(USER_ID)).thenReturn(1);
+            when(notificationRepository.countUnread(USER_ID)).thenReturn(2);
             when(notificationGroupStateRepository.countByRecipientId(USER_ID)).thenReturn(1);
             when(notificationGroupStateRepository.sumUnreadCount(USER_ID)).thenReturn(1);
 
@@ -268,7 +268,7 @@ class NotificationAggregationServiceTest {
             dto.setLatestTime(LocalDateTime.now());
             dto.setLatestContent("database row");
             dto.setActorIds(List.of("456"));
-            when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
+            when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 20))
                     .thenReturn(List.of(dto));
 
             UserSimpleDTO user1 = new UserSimpleDTO();
@@ -286,7 +286,7 @@ class NotificationAggregationServiceTest {
             assertEquals(1, result.getRecords().size());
             assertEquals("database row", result.getRecords().get(0).getLatestContent());
             verify(notificationGroupStateRepository, never()).findPage(anyLong(), anyInt(), anyInt(), anyInt());
-            verify(notificationRepository).findAggregatedNotifications(String.valueOf(USER_ID), 0, 20);
+            verify(notificationRepository).findAggregatedNotifications(USER_ID, 0, 20);
         }
 
         @Test
@@ -321,10 +321,10 @@ class NotificationAggregationServiceTest {
             dto.setLatestContent("liked your post");
             dto.setActorIds(Arrays.asList("456", "789", "999"));
 
-            when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
+            when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 20))
                     .thenReturn(List.of(dto));
-            when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(1);
-            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(3);
+            when(notificationRepository.countAggregatedGroups(USER_ID)).thenReturn(1);
+            when(notificationRepository.countUnread(USER_ID)).thenReturn(3);
 
             // Mock user service
             UserSimpleDTO user1 = new UserSimpleDTO();
@@ -374,10 +374,10 @@ class NotificationAggregationServiceTest {
             dto.setLatestTime(LocalDateTime.now());
             dto.setActorIds(List.of("456"));
 
-            when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
+            when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 20))
                     .thenReturn(List.of(dto));
-            when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(1);
-            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(1);
+            when(notificationRepository.countAggregatedGroups(USER_ID)).thenReturn(1);
+            when(notificationRepository.countUnread(USER_ID)).thenReturn(1);
             when(userServiceClient.batchGetUsersSimple(anySet()))
                     .thenThrow(new RuntimeException("Service unavailable"));
 
@@ -446,10 +446,10 @@ class NotificationAggregationServiceTest {
             dto.setLatestTime(LocalDateTime.now());
             dto.setActorIds(List.of("456"));
 
-            when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
+            when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 20))
                     .thenReturn(List.of(dto));
-            when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(1);
-            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(1);
+            when(notificationRepository.countAggregatedGroups(USER_ID)).thenReturn(1);
+            when(notificationRepository.countUnread(USER_ID)).thenReturn(1);
 
             UserSimpleDTO user = new UserSimpleDTO();
             user.setId(456L);
@@ -479,10 +479,10 @@ class NotificationAggregationServiceTest {
             dto.setLatestTime(LocalDateTime.now());
             dto.setActorIds(Arrays.asList("456", "789", "999"));
 
-            when(notificationRepository.findAggregatedNotifications(String.valueOf(USER_ID), 0, 20))
+            when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 20))
                     .thenReturn(List.of(dto));
-            when(notificationRepository.countAggregatedGroups(String.valueOf(USER_ID))).thenReturn(1);
-            when(notificationRepository.countUnread(String.valueOf(USER_ID))).thenReturn(5);
+            when(notificationRepository.countAggregatedGroups(USER_ID)).thenReturn(1);
+            when(notificationRepository.countUnread(USER_ID)).thenReturn(5);
 
             UserSimpleDTO user = new UserSimpleDTO();
             user.setId(456L);

@@ -572,7 +572,12 @@ CREATE TABLE IF NOT EXISTS notification_delivery (
     notification_type VARCHAR(64) NOT NULL,
     dedupe_key VARCHAR(256) NOT NULL,
     delivery_status VARCHAR(32) NOT NULL,
+    skip_reason VARCHAR(128),
     failure_reason VARCHAR(128),
+    retry_count INT NOT NULL DEFAULT 0,
+    last_attempt_at TIMESTAMPTZ,
+    next_retry_at TIMESTAMPTZ,
+    sent_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (dedupe_key)

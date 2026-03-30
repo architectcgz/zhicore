@@ -82,11 +82,11 @@ class NotificationUnreadCountContractTest {
     void markAsRead_shouldDecrementUnreadCountWithoutFullCacheEvict() {
         Notification notification = Notification.createCommentNotification(202L, 11L, 22L, 33L, 44L, "hello");
         when(notificationRepository.findById(202L)).thenReturn(Optional.of(notification));
-        when(notificationRepository.markAsRead(202L, "11")).thenReturn(1);
+        when(notificationRepository.markAsRead(202L, 11L)).thenReturn(1);
 
         notificationCommandService.markAsRead(202L, 11L);
 
-        verify(notificationRepository).markAsRead(202L, "11");
+        verify(notificationRepository).markAsRead(202L, 11L);
         verify(notificationGroupStateRepository).decrementUnreadCount(11L, "COMMENT:post:33");
         verify(notificationUnreadCountStore).decrement(11L, 1);
         verify(notificationUnreadCountStore, never()).evict(11L);
@@ -97,13 +97,13 @@ class NotificationUnreadCountContractTest {
     @DisplayName("query unread count should reload from database and repopulate cache")
     void getUnreadCount_shouldReloadFromDatabaseAndPopulateCache() {
         when(notificationUnreadCountStore.get(11L)).thenReturn(null);
-        when(notificationRepository.countUnread("11")).thenReturn(5);
+        when(notificationRepository.countUnread(11L)).thenReturn(5);
 
         int unreadCount = notificationQueryService.getUnreadCount(11L);
 
         assertEquals(5, unreadCount);
         verify(notificationUnreadCountStore).set(11L, 5, UNREAD_COUNT_TTL);
-        verify(notificationRepository).countUnread("11");
+        verify(notificationRepository).countUnread(11L);
         verify(notificationUnreadCountStore, never()).increment(anyLong(), anyLong(), any());
     }
 }

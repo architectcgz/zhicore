@@ -85,6 +85,14 @@ public class NotificationPreferenceQueryService {
         return new ChannelDecision(states);
     }
 
+    public boolean isChannelEnabled(Long userId,
+                                    NotificationType notificationType,
+                                    Long authorId,
+                                    NotificationChannel channel,
+                                    LocalTime currentTime) {
+        return resolveChannels(userId, notificationType, authorId, currentTime).isChannelEnabled(channel);
+    }
+
     private NotificationCategory resolveCategory(NotificationType notificationType) {
         return switch (notificationType) {
             case POST_LIKED, POST_COMMENTED, COMMENT_REPLIED, POST_PUBLISHED_BY_FOLLOWING, POST_PUBLISHED_DIGEST,

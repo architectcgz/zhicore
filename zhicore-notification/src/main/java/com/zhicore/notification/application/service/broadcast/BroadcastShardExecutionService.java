@@ -55,11 +55,11 @@ public class BroadcastShardExecutionService {
 
             switch (deliveryPlan.getBucket()) {
                 case PRIORITY, NORMAL -> {
-                    boolean created = createImmediateInboxDelivery(campaign, recipientId);
-                    if (created) {
+                    Notification notification = createImmediateInboxDelivery(campaign, recipientId);
+                    if (notification != null) {
                         successCount++;
                         if (deliveryPlan.usesChannel(NotificationChannel.WEBSOCKET)) {
-                            createRealtimePushPlan(campaign, recipientId);
+                            createRealtimePushPlan(campaign, recipientId, notification.getId());
                         }
                     }
                 }
@@ -96,7 +96,7 @@ public class BroadcastShardExecutionService {
         return response.getData();
     }
 
-    private boolean createImmediateInboxDelivery(NotificationCampaign campaign, Long recipientId) {
+    private Notification createImmediateInboxDelivery(NotificationCampaign campaign, Long recipientId) {
         NotificationDelivery delivery = NotificationDelivery.planned(
                 generateId(),
                 recipientId,
@@ -107,7 +107,7 @@ public class BroadcastShardExecutionService {
         );
         if (!notificationDeliveryRepository.saveIfAbsent(delivery)) {
             log.info("站内投递计划已存在，跳过重复执行: campaignId={}, recipientId={}", campaign.getCampaignId(), recipientId);
-            return false;
+            return null;
         }
 
         Notification notification = notificationCommandService.createPostPublishedNotification(
@@ -118,19 +118,22 @@ public class BroadcastShardExecutionService {
                 buildContent(campaign)
         );
         notificationDeliveryRepository.bindNotification(delivery.getDeliveryId(), notification.getId(), "INBOX_CREATED");
-        return true;
+        return notification;
     }
 
-    private void createRealtimePushPlan(NotificationCampaign campaign, Long recipientId) {
+    private void createRealtimePushPlan(NotificationCampaign campaign, Long recipientId, Long notificationId) {
         NotificationDelivery delivery = NotificationDelivery.planned(
                 generateId(),
                 recipientId,
                 campaign.getCampaignId(),
+                notificationId,
                 NotificationChannel.WEBSOCKET,
                 NotificationType.POST_PUBLISHED_BY_FOLLOWING,
                 dedupeKey(campaign.getCampaignId(), recipientId, NotificationType.POST_PUBLISHED_BY_FOLLOWING, NotificationChannel.WEBSOCKET)
         );
-        notificationDeliveryRepository.saveIfAbsent(delivery);
+        if (notificationDeliveryRepository.saveIfAbsent(delivery)) {
+            notificationDeliveryRepository.bindNotification(delivery.getDeliveryId(), notificationId, "WEBSOCKET_PENDING");
+        }
     }
 
     private void createDigestPlan(NotificationCampaign campaign, Long recipientId, String reason) {
