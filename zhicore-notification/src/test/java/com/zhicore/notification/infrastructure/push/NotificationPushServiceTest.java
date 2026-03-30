@@ -14,6 +14,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,7 +37,7 @@ class NotificationPushServiceTest {
     private NotificationPushService notificationPushService;
 
     @Test
-    @DisplayName("推送通知时应该同步推送未读数")
+    @DisplayName("推送通知成功时应同步推送未读数并返回 true")
     void shouldPushUnreadCountAfterNotification() {
         Notification notification = Notification.createFollowNotification(1L, 202L, 303L);
         AggregatedNotificationVO aggregatedNotification = AggregatedNotificationVO.builder()
@@ -52,11 +55,52 @@ class NotificationPushServiceTest {
                 .thenReturn(aggregatedNotification);
         when(notificationRepository.countUnread(202L)).thenReturn(4);
 
-        notificationPushService.push("202", notification);
+        boolean pushed = notificationPushService.push("202", notification);
 
+        assertTrue(pushed);
         verify(notificationAggregationService).getAggregatedNotificationForPush(notification);
         verify(webSocketHandler).sendNotification("202", aggregatedNotification);
         verify(notificationRepository).countUnread(202L);
+        verify(webSocketHandler).sendUnreadCount("202", 4);
+    }
+
+    @Test
+    @DisplayName("推送通知失败时应吞掉异常并返回 false")
+    void shouldReturnFalseWhenPushFails() {
+        Notification notification = Notification.createFollowNotification(1L, 202L, 303L);
+        when(notificationAggregationService.getAggregatedNotificationForPush(notification))
+                .thenThrow(new IllegalStateException("ws down"));
+
+        boolean pushed = notificationPushService.push("202", notification);
+
+        assertFalse(pushed);
+    }
+
+    @Test
+    @DisplayName("未读数推送异常不应影响主推送结果")
+    void shouldIgnoreUnreadCountFailure() {
+        Notification notification = Notification.createFollowNotification(1L, 202L, 303L);
+        AggregatedNotificationVO aggregatedNotification = AggregatedNotificationVO.builder()
+                .type(NotificationType.FOLLOW)
+                .targetType("USER")
+                .targetId(202L)
+                .totalCount(1)
+                .unreadCount(1)
+                .latestTime(LocalDateTime.of(2026, 3, 24, 10, 0))
+                .latestContent("关注了你")
+                .aggregatedContent("alice关注了你")
+                .build();
+        when(notificationAggregationService.getAggregatedNotificationForPush(notification))
+                .thenReturn(aggregatedNotification);
+        when(notificationRepository.countUnread(202L)).thenReturn(4);
+        doThrow(new IllegalStateException("redis down"))
+                .when(webSocketHandler)
+                .sendUnreadCount("202", 4);
+
+        boolean pushed = notificationPushService.push("202", notification);
+
+        assertTrue(pushed);
+        verify(webSocketHandler).sendNotification("202", aggregatedNotification);
         verify(webSocketHandler).sendUnreadCount("202", 4);
     }
 }

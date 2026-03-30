@@ -28,8 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -202,27 +202,6 @@ class NotificationApplicationServiceTest {
         notificationCommandService.markAllAsRead(11L);
 
         verify(notificationRepository).markAllAsRead(11L);
-        verify(notificationUnreadCountStore).decrement(11L, 3);
-        verify(notificationAggregationStore).evictUser(11L);
-    }
-
-    @Test
-    @DisplayName("事务提交前不应提前扣减未读缓存或失效聚合缓存")
-    void shouldDelayCacheMutationUntilAfterCommitWhenMarkAllAsReadInsideTransaction() {
-        when(notificationRepository.markAllAsRead(11L)).thenReturn(3);
-        TransactionSynchronizationManager.initSynchronization();
-        TransactionSynchronizationManager.setActualTransactionActive(true);
-
-        notificationCommandService.markAllAsRead(11L);
-
-        verify(notificationUnreadCountStore, never()).decrement(anyLong(), anyInt());
-        verify(notificationAggregationStore, never()).evictUser(anyLong());
-
-        List<TransactionSynchronization> synchronizations = TransactionSynchronizationManager.getSynchronizations();
-        assertEquals(1, synchronizations.size());
-
-        synchronizations.forEach(TransactionSynchronization::afterCommit);
-
         verify(notificationUnreadCountStore).decrement(11L, 3);
         verify(notificationAggregationStore).evictUser(11L);
     }

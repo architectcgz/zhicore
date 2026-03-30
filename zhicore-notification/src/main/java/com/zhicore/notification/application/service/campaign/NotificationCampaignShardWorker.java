@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Slf4j
@@ -33,7 +34,11 @@ import java.util.Optional;
 public class NotificationCampaignShardWorker {
 
     private static final String CHANNEL_INBOX = "INBOX";
+    private static final String CHANNEL_PUSH = "PUSH";
     private static final String SKIP_PREFERENCE_DISABLED = "PREFERENCE_DISABLED";
+    private static final String SKIP_CHANNEL_DISABLED_OR_DND = "CHANNEL_DISABLED_OR_DND";
+    private static final String FAILURE_NOTIFICATION_MISSING = "NOTIFICATION_NOT_FOUND";
+    private static final String FAILURE_PUSH_DELIVERY = "PUSH_DELIVERY_FAILED";
 
     private final NotificationCampaignRepository campaignRepository;
     private final NotificationCampaignShardRepository shardRepository;
@@ -107,41 +112,80 @@ public class NotificationCampaignShardWorker {
     }
 
     private void processRecipient(NotificationCampaign campaign, NotificationCampaignShard shard, Long recipientId) {
-        String dedupeKey = campaign.getId() + ":" + CHANNEL_INBOX + ":" + recipientId;
-        NotificationDelivery delivery = deliveryRepository.findByDedupeKey(dedupeKey)
-                .orElseGet(() -> createPendingDelivery(campaign, shard, recipientId, dedupeKey));
+        NotificationDelivery inboxDelivery = getOrCreateDelivery(
+                campaign, shard, recipientId, CHANNEL_INBOX);
+        NotificationDelivery pushDelivery = getOrCreateDelivery(
+                campaign, shard, recipientId, CHANNEL_PUSH);
 
-        if (delivery.getStatus() == NotificationDeliveryStatus.SENT
-                || delivery.getStatus() == NotificationDeliveryStatus.SKIPPED) {
+        if (inboxDelivery.getStatus() == NotificationDeliveryStatus.SKIPPED) {
+            if (pushDelivery.getStatus() == NotificationDeliveryStatus.PENDING) {
+                pushDelivery.markSkipped(SKIP_PREFERENCE_DISABLED);
+                deliveryRepository.update(pushDelivery);
+            }
             return;
         }
 
-        if (!preferenceService.isPreferenceEnabled(recipientId, NotificationType.POST_PUBLISHED)) {
-            delivery.markSkipped(SKIP_PREFERENCE_DISABLED);
-            deliveryRepository.update(delivery);
+        if (inboxDelivery.getStatus() != NotificationDeliveryStatus.SENT) {
+            if (!preferenceService.isPreferenceEnabled(recipientId, NotificationType.POST_PUBLISHED)) {
+                inboxDelivery.markSkipped(SKIP_PREFERENCE_DISABLED);
+                deliveryRepository.update(inboxDelivery);
+                if (pushDelivery.getStatus() == NotificationDeliveryStatus.PENDING) {
+                    pushDelivery.markSkipped(SKIP_PREFERENCE_DISABLED);
+                    deliveryRepository.update(pushDelivery);
+                }
+                return;
+            }
+
+            notificationCommandService.createPostPublishedNotificationIfAbsent(
+                    inboxDelivery.getId(), recipientId, campaign.getAuthorId(), campaign.getPostId(), campaign.getId());
+            inboxDelivery.markSent(inboxDelivery.getId());
+            deliveryRepository.update(inboxDelivery);
+        }
+
+        if (pushDelivery.getStatus() == NotificationDeliveryStatus.SENT
+                || pushDelivery.getStatus() == NotificationDeliveryStatus.SKIPPED
+                || pushDelivery.getStatus() == NotificationDeliveryStatus.FAILED) {
             return;
         }
 
-        Optional<Notification> created = notificationCommandService.createPostPublishedNotificationIfAbsent(
-                delivery.getId(), recipientId, campaign.getAuthorId(), campaign.getPostId(), campaign.getId());
-        delivery.markSent(delivery.getId());
-        deliveryRepository.update(delivery);
-
-        Notification notification = created.orElseGet(() ->
-                notificationRepository.findById(delivery.getId()).orElse(null)
-        );
-
-        if (notification != null && !preferenceService.isDndActive(recipientId)) {
-            pushService.push(String.valueOf(recipientId), notification);
+        Notification notification = notificationRepository.findById(inboxDelivery.getNotificationId())
+                .orElse(null);
+        if (notification == null) {
+            pushDelivery.markFailed(FAILURE_NOTIFICATION_MISSING, null, inboxDelivery.getNotificationId());
+            deliveryRepository.update(pushDelivery);
+            return;
         }
+
+        if (preferenceService.isDndActive(recipientId)) {
+            pushDelivery.markSkipped(SKIP_CHANNEL_DISABLED_OR_DND, notification.getId(), null);
+            deliveryRepository.update(pushDelivery);
+            return;
+        }
+
+        if (pushService.push(String.valueOf(recipientId), notification)) {
+            pushDelivery.markSent(notification.getId());
+        } else {
+            pushDelivery.markFailed(FAILURE_PUSH_DELIVERY, LocalDateTime.now().plusMinutes(5), notification.getId());
+        }
+        deliveryRepository.update(pushDelivery);
+    }
+
+    private NotificationDelivery getOrCreateDelivery(NotificationCampaign campaign,
+                                                     NotificationCampaignShard shard,
+                                                     Long recipientId,
+                                                     String channel) {
+        String dedupeKey = campaign.getId() + ":" + channel + ":" + recipientId;
+        return deliveryRepository.findByDedupeKey(dedupeKey)
+                .orElseGet(() -> createPendingDelivery(campaign, shard, recipientId, channel, dedupeKey));
     }
 
     private NotificationDelivery createPendingDelivery(NotificationCampaign campaign,
                                                        NotificationCampaignShard shard,
                                                        Long recipientId,
+                                                       String channel,
                                                        String dedupeKey) {
         NotificationDelivery pending = NotificationDelivery.pending(
-                generateId(), campaign.getId(), shard.getId(), recipientId, CHANNEL_INBOX, dedupeKey);
+                generateId(), campaign.getId(), shard.getId(), recipientId, channel, dedupeKey);
         if (!deliveryRepository.saveIfAbsent(pending)) {
             return deliveryRepository.findByDedupeKey(dedupeKey)
                     .orElseThrow(() -> new BusinessException(ResultCode.OPERATION_FAILED, "delivery创建冲突"));

@@ -17,6 +17,10 @@ public class NotificationDelivery {
     private NotificationDeliveryStatus status;
     private Long notificationId;
     private String skipReason;
+    private String failureReason;
+    private Integer retryCount;
+    private LocalDateTime lastAttemptAt;
+    private LocalDateTime nextRetryAt;
     private final LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime sentAt;
@@ -30,6 +34,10 @@ public class NotificationDelivery {
                                  NotificationDeliveryStatus status,
                                  Long notificationId,
                                  String skipReason,
+                                 String failureReason,
+                                 Integer retryCount,
+                                 LocalDateTime lastAttemptAt,
+                                 LocalDateTime nextRetryAt,
                                  LocalDateTime createdAt,
                                  LocalDateTime updatedAt,
                                  LocalDateTime sentAt) {
@@ -49,6 +57,10 @@ public class NotificationDelivery {
         this.status = status;
         this.notificationId = notificationId;
         this.skipReason = skipReason;
+        this.failureReason = failureReason;
+        this.retryCount = retryCount != null ? retryCount : 0;
+        this.lastAttemptAt = lastAttemptAt;
+        this.nextRetryAt = nextRetryAt;
         this.createdAt = createdAt != null ? createdAt : LocalDateTime.now();
         this.updatedAt = updatedAt != null ? updatedAt : this.createdAt;
         this.sentAt = sentAt;
@@ -60,8 +72,25 @@ public class NotificationDelivery {
                                                Long recipientId,
                                                String channel,
                                                String dedupeKey) {
-        return new NotificationDelivery(id, campaignId, shardId, recipientId, channel, dedupeKey,
-                NotificationDeliveryStatus.PENDING, null, null, LocalDateTime.now(), LocalDateTime.now(), null);
+        LocalDateTime now = LocalDateTime.now();
+        return new NotificationDelivery(
+                id,
+                campaignId,
+                shardId,
+                recipientId,
+                channel,
+                dedupeKey,
+                NotificationDeliveryStatus.PENDING,
+                null,
+                null,
+                null,
+                0,
+                null,
+                null,
+                now,
+                now,
+                null
+        );
     }
 
     public static NotificationDelivery reconstitute(Long id,
@@ -73,24 +102,71 @@ public class NotificationDelivery {
                                                     NotificationDeliveryStatus status,
                                                     Long notificationId,
                                                     String skipReason,
+                                                    String failureReason,
+                                                    Integer retryCount,
+                                                    LocalDateTime lastAttemptAt,
+                                                    LocalDateTime nextRetryAt,
                                                     LocalDateTime createdAt,
                                                     LocalDateTime updatedAt,
                                                     LocalDateTime sentAt) {
-        return new NotificationDelivery(id, campaignId, shardId, recipientId, channel, dedupeKey,
-                status, notificationId, skipReason, createdAt, updatedAt, sentAt);
+        return new NotificationDelivery(
+                id,
+                campaignId,
+                shardId,
+                recipientId,
+                channel,
+                dedupeKey,
+                status,
+                notificationId,
+                skipReason,
+                failureReason,
+                retryCount,
+                lastAttemptAt,
+                nextRetryAt,
+                createdAt,
+                updatedAt,
+                sentAt
+        );
     }
 
     public void markSent(Long notificationId) {
+        LocalDateTime now = LocalDateTime.now();
         this.status = NotificationDeliveryStatus.SENT;
         this.notificationId = notificationId;
         this.skipReason = null;
-        this.updatedAt = LocalDateTime.now();
-        this.sentAt = this.updatedAt;
+        this.failureReason = null;
+        this.lastAttemptAt = now;
+        this.nextRetryAt = null;
+        this.updatedAt = now;
+        this.sentAt = now;
     }
 
     public void markSkipped(String skipReason) {
+        markSkipped(skipReason, this.notificationId, null);
+    }
+
+    public void markSkipped(String skipReason, Long notificationId, LocalDateTime nextRetryAt) {
+        LocalDateTime now = LocalDateTime.now();
         this.status = NotificationDeliveryStatus.SKIPPED;
+        this.notificationId = notificationId;
         this.skipReason = skipReason;
-        this.updatedAt = LocalDateTime.now();
+        this.failureReason = null;
+        this.lastAttemptAt = now;
+        this.nextRetryAt = nextRetryAt;
+        this.updatedAt = now;
+        this.sentAt = null;
+    }
+
+    public void markFailed(String failureReason, LocalDateTime nextRetryAt, Long notificationId) {
+        LocalDateTime now = LocalDateTime.now();
+        this.status = NotificationDeliveryStatus.FAILED;
+        this.notificationId = notificationId;
+        this.skipReason = null;
+        this.failureReason = failureReason;
+        this.retryCount = retryCount == null ? 1 : retryCount + 1;
+        this.lastAttemptAt = now;
+        this.nextRetryAt = nextRetryAt;
+        this.updatedAt = now;
+        this.sentAt = null;
     }
 }

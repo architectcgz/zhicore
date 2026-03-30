@@ -30,6 +30,14 @@ public class NotificationDeliveryPO {
 
     private String skipReason;
 
+    private String failureReason;
+
+    private Integer retryCount;
+
+    private OffsetDateTime lastAttemptAt;
+
+    private OffsetDateTime nextRetryAt;
+
     private OffsetDateTime createdAt;
 
     private OffsetDateTime updatedAt;

@@ -521,10 +521,20 @@ CREATE TABLE IF NOT EXISTS notification_delivery (
     status VARCHAR(32) NOT NULL,
     notification_id BIGINT,
     skip_reason VARCHAR(64),
+    failure_reason VARCHAR(128),
+    retry_count INT NOT NULL DEFAULT 0,
+    last_attempt_at TIMESTAMPTZ,
+    next_retry_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     sent_at TIMESTAMPTZ
 );
+
+ALTER TABLE notification_delivery
+    ADD COLUMN IF NOT EXISTS failure_reason VARCHAR(128),
+    ADD COLUMN IF NOT EXISTS retry_count INT NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS last_attempt_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS next_retry_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_notification_delivery_campaign_recipient
     ON notification_delivery(campaign_id, recipient_id);

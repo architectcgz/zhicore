@@ -13,10 +13,12 @@ public interface NotificationDeliveryMapper extends BaseMapper<NotificationDeliv
     @Insert("""
         INSERT INTO notification_delivery (
             id, campaign_id, shard_id, recipient_id, channel, dedupe_key, status,
-            notification_id, skip_reason, created_at, updated_at, sent_at
+            notification_id, skip_reason, failure_reason, retry_count,
+            last_attempt_at, next_retry_at, created_at, updated_at, sent_at
         ) VALUES (
             #{id}, #{campaignId}, #{shardId}, #{recipientId}, #{channel}, #{dedupeKey}, #{status},
-            #{notificationId}, #{skipReason}, #{createdAt}, #{updatedAt}, #{sentAt}
+            #{notificationId}, #{skipReason}, #{failureReason}, #{retryCount},
+            #{lastAttemptAt}, #{nextRetryAt}, #{createdAt}, #{updatedAt}, #{sentAt}
         )
         ON CONFLICT (dedupe_key) DO NOTHING
         """)
@@ -30,6 +32,10 @@ public interface NotificationDeliveryMapper extends BaseMapper<NotificationDeliv
         SET status = #{status},
             notification_id = #{notificationId},
             skip_reason = #{skipReason},
+            failure_reason = #{failureReason},
+            retry_count = #{retryCount},
+            last_attempt_at = #{lastAttemptAt},
+            next_retry_at = #{nextRetryAt},
             updated_at = #{updatedAt},
             sent_at = #{sentAt}
         WHERE id = #{id}
