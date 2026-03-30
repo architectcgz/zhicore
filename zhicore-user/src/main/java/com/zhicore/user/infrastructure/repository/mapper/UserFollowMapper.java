@@ -5,7 +5,7 @@ import com.zhicore.user.infrastructure.repository.po.UserFollowStatsPO;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -50,7 +50,7 @@ public interface UserFollowMapper extends BaseMapper<UserFollowPO> {
             </script>
             """)
     List<UserFollowPO> selectFollowersByCursor(@Param("userId") Long userId,
-                                               @Param("afterCreatedAt") LocalDateTime afterCreatedAt,
+                                               @Param("afterCreatedAt") OffsetDateTime afterCreatedAt,
                                                @Param("afterFollowerId") Long afterFollowerId,
                                                @Param("limit") int limit);
 

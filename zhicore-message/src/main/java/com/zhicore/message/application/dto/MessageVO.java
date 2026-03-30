@@ -7,7 +7,7 @@ import com.zhicore.message.domain.model.MessageType;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 消息视图对象
@@ -75,7 +75,7 @@ public class MessageVO {
     /**
      * 已读时间
      */
-    private LocalDateTime readAt;
+    private OffsetDateTime readAt;
 
     /**
      * 消息状态
@@ -85,7 +85,7 @@ public class MessageVO {
     /**
      * 创建时间
      */
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     /**
      * 是否是自己发送的

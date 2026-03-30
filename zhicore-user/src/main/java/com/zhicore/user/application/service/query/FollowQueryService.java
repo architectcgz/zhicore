@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -61,7 +61,7 @@ public class FollowQueryService {
     }
 
     public FollowerCursorPageDTO getFollowersByCursor(Long userId,
-                                                      LocalDateTime afterCreatedAt,
+                                                      OffsetDateTime afterCreatedAt,
                                                       Long afterFollowerId,
                                                       Integer limit) {
         int normalizedLimit = normalizeCursorLimit(limit);

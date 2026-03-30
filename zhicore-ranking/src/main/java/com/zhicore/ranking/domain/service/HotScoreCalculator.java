@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 
 /**
@@ -24,7 +24,7 @@ public class HotScoreCalculator {
 
     private final RankingWeightProperties weightProperties;
 
-    public double calculatePostHotScore(PostStats stats, LocalDateTime publishedAt) {
+    public double calculatePostHotScore(PostStats stats, OffsetDateTime publishedAt) {
         double baseScore = stats.getViewCount() * weightProperties.getView()
                 + stats.getLikeCount() * weightProperties.getLike()
                 + stats.getCommentCount() * weightProperties.getComment()
@@ -53,11 +53,11 @@ public class HotScoreCalculator {
      * @param publishedAt 发布时间
      * @return 衰减因子（0-1之间）
      */
-    public double calculateTimeDecay(LocalDateTime publishedAt) {
+    public double calculateTimeDecay(OffsetDateTime publishedAt) {
         if (publishedAt == null) {
             return 1.0;
         }
-        long daysSincePublish = ChronoUnit.DAYS.between(publishedAt, LocalDateTime.now());
+        long daysSincePublish = ChronoUnit.DAYS.between(publishedAt, OffsetDateTime.now());
         if (daysSincePublish < 0) {
             daysSincePublish = 0;
         }

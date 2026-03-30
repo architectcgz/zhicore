@@ -3,7 +3,7 @@ package com.zhicore.message.infrastructure.push;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 设备信息
@@ -37,5 +37,5 @@ public class Device {
     /**
      * 连接时间
      */
-    private LocalDateTime connectedAt;
+    private OffsetDateTime connectedAt;
 }

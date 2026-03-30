@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 管理侧评论视图 DTO。
@@ -26,5 +26,5 @@ public class CommentManageDTO implements Serializable {
     private String userName;
     private String content;
     private int likeCount;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

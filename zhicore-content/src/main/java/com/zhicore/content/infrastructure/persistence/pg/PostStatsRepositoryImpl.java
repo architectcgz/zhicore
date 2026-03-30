@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -83,32 +83,32 @@ public class PostStatsRepositoryImpl implements PostStatsRepository {
 
     @Override
     public void incrementLikeCount(PostId postId) {
-        postStatsMapper.incrementLikeCount(postId.getValue(), LocalDateTime.now());
+        postStatsMapper.incrementLikeCount(postId.getValue(), OffsetDateTime.now());
     }
 
     @Override
     public void decrementLikeCount(PostId postId) {
-        postStatsMapper.decrementLikeCount(postId.getValue(), LocalDateTime.now());
+        postStatsMapper.decrementLikeCount(postId.getValue(), OffsetDateTime.now());
     }
 
     @Override
     public void incrementFavoriteCount(PostId postId) {
-        postStatsMapper.incrementFavoriteCount(postId.getValue(), LocalDateTime.now());
+        postStatsMapper.incrementFavoriteCount(postId.getValue(), OffsetDateTime.now());
     }
 
     @Override
     public void decrementFavoriteCount(PostId postId) {
-        postStatsMapper.decrementFavoriteCount(postId.getValue(), LocalDateTime.now());
+        postStatsMapper.decrementFavoriteCount(postId.getValue(), OffsetDateTime.now());
     }
 
     @Override
     public void incrementCommentCount(PostId postId) {
-        postStatsMapper.incrementCommentCount(postId.getValue(), LocalDateTime.now());
+        postStatsMapper.incrementCommentCount(postId.getValue(), OffsetDateTime.now());
     }
 
     @Override
     public void decrementCommentCount(PostId postId) {
-        postStatsMapper.decrementCommentCount(postId.getValue(), LocalDateTime.now());
+        postStatsMapper.decrementCommentCount(postId.getValue(), OffsetDateTime.now());
     }
     
     @Override

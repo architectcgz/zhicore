@@ -7,7 +7,7 @@ import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.model.UserId;
 import org.springframework.data.domain.Pageable;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -107,7 +107,7 @@ public interface PostRepository {
 
     List<Post> findPublished(int offset, int limit);
 
-    default List<Post> findPublishedCursor(LocalDateTime cursor, int limit) {
+    default List<Post> findPublishedCursor(OffsetDateTime cursor, int limit) {
         return findPublishedCursor(cursor, null, limit);
     }
 
@@ -116,7 +116,7 @@ public interface PostRepository {
      *
      * 约束：ORDER BY published_at DESC, id DESC
      */
-    List<Post> findPublishedCursor(LocalDateTime cursorPublishedAt, Long cursorPostId, int limit);
+    List<Post> findPublishedCursor(OffsetDateTime cursorPublishedAt, Long cursorPostId, int limit);
 
     /**
      * 热门排序（偏移分页）
@@ -132,7 +132,7 @@ public interface PostRepository {
      *
      * @return 若成功发布，返回新的 version；否则返回 empty（幂等 no-op）
      */
-    Optional<Long> publishScheduledIfNeeded(Long postId, LocalDateTime publishedAt);
+    Optional<Long> publishScheduledIfNeeded(Long postId, OffsetDateTime publishedAt);
 
     long countPublished();
 

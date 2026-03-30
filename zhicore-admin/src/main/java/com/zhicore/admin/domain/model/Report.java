@@ -3,7 +3,7 @@ package com.zhicore.admin.domain.model;
 import lombok.Getter;
 import org.springframework.util.Assert;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 举报实体
@@ -64,12 +64,12 @@ public class Report {
     /**
      * 处理时间
      */
-    private LocalDateTime handledAt;
+    private OffsetDateTime handledAt;
     
     /**
      * 创建时间
      */
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
     
     /**
      * 私有构造函数
@@ -84,7 +84,7 @@ public class Report {
                                       String targetType, Long targetId, String reason,
                                       ReportStatus status, Long handlerId,
                                       ReportHandleAction handleAction, String handleRemark,
-                                      LocalDateTime handledAt, LocalDateTime createdAt) {
+                                      OffsetDateTime handledAt, OffsetDateTime createdAt) {
         Report report = new Report();
         report.id = id;
         report.reporterId = reporterId;
@@ -120,7 +120,7 @@ public class Report {
         this.handlerId = handlerId;
         this.handleAction = action;
         this.handleRemark = handleRemark;
-        this.handledAt = LocalDateTime.now();
+        this.handledAt = OffsetDateTime.now();
         this.status = action == ReportHandleAction.IGNORE ? ReportStatus.IGNORED : ReportStatus.PROCESSED;
     }
     

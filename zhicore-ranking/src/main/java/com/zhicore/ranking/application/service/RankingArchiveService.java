@@ -13,7 +13,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -255,7 +255,7 @@ public class RankingArchiveService {
                     .month(month)
                     .week(week)
                     .date(date)
-                    .archivedAt(LocalDateTime.now())
+                    .archivedAt(OffsetDateTime.now())
                     .build());
             if (saved) {
                 archived++;

@@ -3,7 +3,7 @@ package com.zhicore.user.domain.model;
 import lombok.Getter;
 import org.springframework.util.Assert;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Objects;
 
 /**
@@ -27,9 +27,9 @@ public class UserBlock {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
-    private UserBlock(Long blockerId, Long blockedId, LocalDateTime createdAt) {
+    private UserBlock(Long blockerId, Long blockedId, OffsetDateTime createdAt) {
         Assert.notNull(blockerId, "拉黑者ID不能为空");
         Assert.isTrue(blockerId > 0, "拉黑者ID必须为正数");
         Assert.notNull(blockedId, "被拉黑者ID不能为空");
@@ -41,20 +41,20 @@ public class UserBlock {
         
         this.blockerId = blockerId;
         this.blockedId = blockedId;
-        this.createdAt = createdAt != null ? createdAt : LocalDateTime.now();
+        this.createdAt = createdAt != null ? createdAt : OffsetDateTime.now();
     }
 
     /**
      * 创建新的拉黑关系
      */
     public static UserBlock create(Long blockerId, Long blockedId) {
-        return new UserBlock(blockerId, blockedId, LocalDateTime.now());
+        return new UserBlock(blockerId, blockedId, OffsetDateTime.now());
     }
 
     /**
      * 从持久化恢复
      */
-    public static UserBlock reconstitute(Long blockerId, Long blockedId, LocalDateTime createdAt) {
+    public static UserBlock reconstitute(Long blockerId, Long blockedId, OffsetDateTime createdAt) {
         return new UserBlock(blockerId, blockedId, createdAt);
     }
 

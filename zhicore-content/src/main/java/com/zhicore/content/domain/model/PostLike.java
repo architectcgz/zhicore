@@ -3,7 +3,7 @@ package com.zhicore.content.domain.model;
 import lombok.Getter;
 import org.springframework.util.Assert;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章点赞实体
@@ -31,7 +31,7 @@ public class PostLike {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
     public PostLike(Long id, PostId postId, UserId userId) {
         Assert.notNull(id, "点赞ID不能为空");
@@ -42,10 +42,10 @@ public class PostLike {
         this.id = id;
         this.postId = postId;
         this.userId = userId;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now();
     }
 
-    public PostLike(Long id, PostId postId, UserId userId, LocalDateTime createdAt) {
+    public PostLike(Long id, PostId postId, UserId userId, OffsetDateTime createdAt) {
         Assert.notNull(id, "点赞ID不能为空");
         Assert.isTrue(id > 0, "点赞ID必须为正数");
         Assert.notNull(postId, "文章ID不能为空");
@@ -61,7 +61,7 @@ public class PostLike {
     /**
      * 从持久化恢复
      */
-    public static PostLike reconstitute(Long id, PostId postId, UserId userId, LocalDateTime createdAt) {
+    public static PostLike reconstitute(Long id, PostId postId, UserId userId, OffsetDateTime createdAt) {
         return new PostLike(id, postId, userId, createdAt);
     }
 }

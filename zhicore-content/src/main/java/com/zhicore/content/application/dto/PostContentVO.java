@@ -2,7 +2,7 @@ package com.zhicore.content.application.dto;
 
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -23,8 +23,8 @@ public class PostContentVO {
     private Integer readingTime;
     private List<ContentBlockVO> blocks;
     private List<MediaResourceVO> media;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 
     @Data
     public static class ContentBlockVO {

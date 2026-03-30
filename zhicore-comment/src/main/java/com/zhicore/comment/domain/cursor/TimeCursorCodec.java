@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 
@@ -26,7 +26,7 @@ public class TimeCursorCodec {
     /**
      * 编码游标
      */
-    public String encode(LocalDateTime timestamp, Long commentId) {
+    public String encode(OffsetDateTime timestamp, Long commentId) {
         String raw = timestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + SEPARATOR + commentId;
         return Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
@@ -53,7 +53,7 @@ public class TimeCursorCodec {
 
             String timestampStr = raw.substring(0, lastSeparator);
             String commentIdStr = raw.substring(lastSeparator + 1);
-            LocalDateTime timestamp = LocalDateTime.parse(timestampStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            OffsetDateTime timestamp = OffsetDateTime.parse(timestampStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
             Long commentId = Long.parseLong(commentIdStr);
 
             return new TimeCursor(timestamp, commentId);
@@ -65,5 +65,5 @@ public class TimeCursorCodec {
     /**
      * 时间游标记录
      */
-    public record TimeCursor(LocalDateTime timestamp, Long commentId) {}
+    public record TimeCursor(OffsetDateTime timestamp, Long commentId) {}
 }

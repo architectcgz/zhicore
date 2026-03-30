@@ -10,7 +10,7 @@ import com.zhicore.user.infrastructure.repository.po.UserFollowStatsPO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -53,7 +53,7 @@ public class UserFollowRepositoryImpl implements UserFollowRepository {
 
     @Override
     public List<UserFollow> findFollowersByCursor(Long userId,
-                                                  LocalDateTime afterCreatedAt,
+                                                  OffsetDateTime afterCreatedAt,
                                                   Long afterFollowerId,
                                                   int limit) {
         List<UserFollowPO> poList = userFollowMapper.selectFollowersByCursor(
@@ -116,7 +116,7 @@ public class UserFollowRepositoryImpl implements UserFollowRepository {
         return UserFollow.reconstitute(
                 po.getFollowerId(),
                 po.getFollowingId(),
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt())
+                po.getCreatedAt()
         );
     }
 
@@ -124,7 +124,7 @@ public class UserFollowRepositoryImpl implements UserFollowRepository {
         UserFollowPO po = new UserFollowPO();
         po.setFollowerId(follow.getFollowerId());
         po.setFollowingId(follow.getFollowingId());
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(follow.getCreatedAt()));
+        po.setCreatedAt(follow.getCreatedAt());
         return po;
     }
 

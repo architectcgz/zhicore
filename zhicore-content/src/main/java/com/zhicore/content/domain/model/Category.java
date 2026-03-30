@@ -4,7 +4,7 @@ import com.zhicore.common.exception.DomainException;
 import lombok.Getter;
 import org.springframework.util.Assert;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.regex.Pattern;
 
 /**
@@ -51,12 +51,12 @@ public class Category {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
     /**
      * 更新时间
      */
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 
     // ==================== 构造函数 ====================
 
@@ -69,12 +69,12 @@ public class Category {
         this.name = name;
         this.slug = slug;
         this.sortOrder = 0;
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     private Category(String id, String name, String slug, String description,
-                     String parentId, int sortOrder, LocalDateTime createdAt, LocalDateTime updatedAt) {
+                     String parentId, int sortOrder, OffsetDateTime createdAt, OffsetDateTime updatedAt) {
         this.id = id;
         this.name = name;
         this.slug = slug;
@@ -108,7 +108,7 @@ public class Category {
      */
     public static Category reconstitute(String id, String name, String slug, String description,
                                         String parentId, int sortOrder,
-                                        LocalDateTime createdAt, LocalDateTime updatedAt) {
+                                        OffsetDateTime createdAt, OffsetDateTime updatedAt) {
         return new Category(id, name, slug, description, parentId, sortOrder, createdAt, updatedAt);
     }
 
@@ -127,7 +127,7 @@ public class Category {
             this.slug = slug;
         }
         this.description = description;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -138,7 +138,7 @@ public class Category {
             throw new DomainException("分类不能设置自己为父分类");
         }
         this.parentId = parentId;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -146,7 +146,7 @@ public class Category {
      */
     public void setSortOrder(int sortOrder) {
         this.sortOrder = sortOrder;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**

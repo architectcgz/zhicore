@@ -4,7 +4,7 @@ import com.zhicore.content.domain.model.PostLike;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.UserId;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,7 +38,7 @@ public interface PostLikeRepository {
     /**
      * 查询用户点赞的文章列表（游标分页）
      */
-    List<PostLike> findByUserIdCursor(UserId userId, LocalDateTime cursor, int limit);
+    List<PostLike> findByUserIdCursor(UserId userId, OffsetDateTime cursor, int limit);
 
     /**
      * 统计文章点赞数

@@ -8,7 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 通知推送 DTO
@@ -31,7 +31,7 @@ public class NotificationPushDTO implements Serializable {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long targetId;
     private String content;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     /**
      * 从领域模型转换

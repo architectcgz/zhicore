@@ -14,7 +14,7 @@ import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
 /**
@@ -110,8 +110,8 @@ public class StatsUpdatedConsumer implements RocketMQListener<String> {
             }
             
             // 4. 构造新的 PostStats 对象（使用值对象）
-            // 注意：集成事件使用 Instant，需要转换为 LocalDateTime
-            LocalDateTime timestamp = LocalDateTime.ofInstant(
+            // 注意：集成事件使用 Instant，需要转换为 OffsetDateTime
+            OffsetDateTime timestamp = OffsetDateTime.ofInstant(
                 event.getOccurredAt(), ZoneId.systemDefault());
             
             int preservedShareCount = postStatsRepository.findById(postId)

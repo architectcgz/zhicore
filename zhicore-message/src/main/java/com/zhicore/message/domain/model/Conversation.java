@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import org.springframework.util.Assert;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 会话聚合根（充血模型）
@@ -38,7 +38,7 @@ public class Conversation {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
     /**
      * 最后一条消息ID
@@ -53,7 +53,7 @@ public class Conversation {
     /**
      * 最后一条消息时间
      */
-    private LocalDateTime lastMessageAt;
+    private OffsetDateTime lastMessageAt;
 
     /**
      * 参与者1的未读消息数
@@ -86,7 +86,7 @@ public class Conversation {
         this.participant2Id = participant2Id;
         this.unreadCount1 = 0;
         this.unreadCount2 = 0;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now();
     }
 
     /**
@@ -99,10 +99,10 @@ public class Conversation {
                          @JsonProperty("participant2Id") Long participant2Id,
                          @JsonProperty("lastMessageId") Long lastMessageId,
                          @JsonProperty("lastMessageContent") String lastMessageContent,
-                         @JsonProperty("lastMessageAt") LocalDateTime lastMessageAt,
+                         @JsonProperty("lastMessageAt") OffsetDateTime lastMessageAt,
                          @JsonProperty("unreadCount1") int unreadCount1,
                          @JsonProperty("unreadCount2") int unreadCount2,
-                         @JsonProperty("createdAt") LocalDateTime createdAt) {
+                         @JsonProperty("createdAt") OffsetDateTime createdAt) {
         this.id = id;
         this.participant1Id = participant1Id;
         this.participant2Id = participant2Id;
@@ -149,9 +149,9 @@ public class Conversation {
      */
     public static Conversation reconstitute(Long id, Long participant1Id, Long participant2Id,
                                             Long lastMessageId, String lastMessageContent, 
-                                            LocalDateTime lastMessageAt,
+                                            OffsetDateTime lastMessageAt,
                                             int unreadCount1, int unreadCount2, 
-                                            LocalDateTime createdAt) {
+                                            OffsetDateTime createdAt) {
         return new Conversation(id, participant1Id, participant2Id, lastMessageId, 
                 lastMessageContent, lastMessageAt, unreadCount1, unreadCount2, createdAt);
     }

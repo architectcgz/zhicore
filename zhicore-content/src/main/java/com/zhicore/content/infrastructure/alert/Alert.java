@@ -3,7 +3,7 @@ package com.zhicore.content.infrastructure.alert;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 告警信息
@@ -45,7 +45,7 @@ public class Alert {
     /**
      * 告警时间
      */
-    private LocalDateTime timestamp;
+    private OffsetDateTime timestamp;
     
     /**
      * 是否已发送

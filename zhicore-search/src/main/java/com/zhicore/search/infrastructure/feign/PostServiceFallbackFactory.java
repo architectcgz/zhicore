@@ -3,6 +3,7 @@ import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.post.PostDetailDTO;
 import com.zhicore.common.feign.DownstreamFallbackSupport;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.common.result.HybridPageResult;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.openfeign.FallbackFactory;
@@ -77,6 +78,13 @@ public class PostServiceFallbackFactory implements FallbackFactory<PostServiceCl
             public ApiResponse<Map<Long, PostDTO>> batchGetPosts(Set<Long> postIds) {
                 log.warn("PostServiceClient.batchGetPosts fallback triggered: postIds={}, cause={}",
                         postIds, fallbackSupport.failureMessage(cause));
+                return fallbackSupport.degraded("文章服务已降级");
+            }
+
+            @Override
+            public ApiResponse<HybridPageResult<PostDTO>> getPublishedPostsByAuthor(Long authorId, Integer page, Integer size) {
+                log.warn("PostServiceClient.getPublishedPostsByAuthor fallback triggered: authorId={}, page={}, size={}, cause={}",
+                        authorId, page, size, fallbackSupport.failureMessage(cause));
                 return fallbackSupport.degraded("文章服务已降级");
             }
         };

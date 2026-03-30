@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.Version;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章数据库实体
@@ -90,22 +90,22 @@ public class PostEntity {
     /**
      * 发布时间
      */
-    private LocalDateTime publishedAt;
+    private OffsetDateTime publishedAt;
 
     /**
      * 定时发布时间
      */
-    private LocalDateTime scheduledAt;
+    private OffsetDateTime scheduledAt;
 
     /**
      * 创建时间
      */
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     /**
      * 更新时间
      */
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 
     /**
      * 是否已归档

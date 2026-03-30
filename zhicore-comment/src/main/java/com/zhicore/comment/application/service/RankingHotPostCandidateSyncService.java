@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -46,7 +46,7 @@ public class RankingHotPostCandidateSyncService {
                     .collect(LinkedHashSet::new, Set::add, Set::addAll);
             rankingHotPostCandidateStore.replaceCandidates(
                     candidates,
-                    new RankingHotPostCandidateMetadata(LocalDateTime.now(), candidates.size())
+                    new RankingHotPostCandidateMetadata(OffsetDateTime.now(), candidates.size())
             );
         } catch (Exception e) {
             log.warn("同步 ranking 热门候选集异常，保留旧值: {}", e.getMessage());

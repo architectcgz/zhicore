@@ -15,7 +15,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.temporal.WeekFields;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,7 +49,7 @@ public class RankingLedgerFlushService {
 
     @Transactional
     public int flushPendingBuckets(boolean materializeRedis) {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         List<RankingBucketRecord> buckets = repository.claimFlushableBuckets(
                 pipelineProperties.getFlushBatchSize(),
                 flushOwner,
@@ -136,7 +136,7 @@ public class RankingLedgerFlushService {
     private RankingPostStateRecord applyBucket(RankingPostStateRecord existingState,
                                                PostMetadataResolver.PostMetadata metadata,
                                                RankingBucketRecord bucket,
-                                               LocalDateTime now) {
+                                               OffsetDateTime now) {
         List<Long> topicIds = existingState != null && existingState.getTopicIds() != null
                 ? new ArrayList<>(existingState.getTopicIds())
                 : new ArrayList<>();
@@ -147,7 +147,7 @@ public class RankingLedgerFlushService {
         Long authorId = existingState != null && existingState.getAuthorId() != null
                 ? existingState.getAuthorId()
                 : metadata != null ? metadata.getAuthorId() : null;
-        LocalDateTime publishedAt = existingState != null && existingState.getPublishedAt() != null
+        OffsetDateTime publishedAt = existingState != null && existingState.getPublishedAt() != null
                 ? existingState.getPublishedAt()
                 : metadata != null ? metadata.getPublishedAt() : null;
 
@@ -188,7 +188,7 @@ public class RankingLedgerFlushService {
                 + stats.getCommentCount() * hotScoreCalculator.getCommentDelta();
     }
 
-    private double calculatePeriodScoreDelta(RankingBucketRecord bucket, LocalDateTime publishedAt) {
+    private double calculatePeriodScoreDelta(RankingBucketRecord bucket, OffsetDateTime publishedAt) {
         double rawScoreDelta = bucket.getViewDelta() * hotScoreCalculator.getViewDelta()
                 + bucket.getLikeDelta() * hotScoreCalculator.getLikeDelta()
                 + bucket.getFavoriteDelta() * hotScoreCalculator.getFavoriteDelta()
@@ -196,29 +196,29 @@ public class RankingLedgerFlushService {
         return rawScoreDelta * hotScoreCalculator.calculateTimeDecay(publishedAt);
     }
 
-    private String dayKey(LocalDateTime bucketStart) {
+    private String dayKey(OffsetDateTime bucketStart) {
         return bucketStart.toLocalDate().toString();
     }
 
-    private String weekKey(LocalDateTime bucketStart) {
+    private String weekKey(OffsetDateTime bucketStart) {
         LocalDate date = bucketStart.toLocalDate();
         WeekFields weekFields = WeekFields.ISO;
         return "%d-W%02d".formatted(date.get(weekFields.weekBasedYear()), date.get(weekFields.weekOfWeekBasedYear()));
     }
 
-    private String monthKey(LocalDateTime bucketStart) {
+    private String monthKey(OffsetDateTime bucketStart) {
         LocalDate date = bucketStart.toLocalDate();
         return "%d-%02d".formatted(date.getYear(), date.getMonthValue());
     }
 
-    private LocalDateTime floorBucketStart(LocalDateTime occurredAt) {
+    private OffsetDateTime floorBucketStart(OffsetDateTime occurredAt) {
         long bucketWindowSeconds = pipelineProperties.getBucketWindowSeconds();
-        long epochSecond = occurredAt.atZone(java.time.ZoneId.systemDefault()).toEpochSecond();
+        long epochSecond = occurredAt.toEpochSecond();
         long floored = (epochSecond / bucketWindowSeconds) * bucketWindowSeconds;
-        return LocalDateTime.ofInstant(Instant.ofEpochSecond(floored), java.time.ZoneId.systemDefault());
+        return OffsetDateTime.ofInstant(Instant.ofEpochSecond(floored), java.time.ZoneId.systemDefault());
     }
 
-    private LocalDateTime resolveFlushUpperBound(LocalDateTime now) {
+    private OffsetDateTime resolveFlushUpperBound(OffsetDateTime now) {
         return floorBucketStart(now.minusSeconds(pipelineProperties.getEffectiveFlushDelaySeconds()));
     }
 

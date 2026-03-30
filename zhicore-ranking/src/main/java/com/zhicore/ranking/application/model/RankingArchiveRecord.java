@@ -4,7 +4,7 @@ import lombok.Builder;
 import lombok.Value;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 排行榜归档记录模型。
@@ -22,5 +22,5 @@ public class RankingArchiveRecord {
     Integer month;
     Integer week;
     LocalDate date;
-    LocalDateTime archivedAt;
+    OffsetDateTime archivedAt;
 }

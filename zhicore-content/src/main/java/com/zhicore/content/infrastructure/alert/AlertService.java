@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.UUID;
@@ -27,7 +27,7 @@ public class AlertService implements ContentAlertPort {
     private final AlertProperties alertProperties;
     
     // 告警去重缓存（防止短时间内重复告警）
-    private final ConcurrentMap<String, LocalDateTime> alertCache = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, OffsetDateTime> alertCache = new ConcurrentHashMap<>();
 
     /**
      * Outbox 失败告警限流：按 eventType 每分钟最多 N 条
@@ -51,7 +51,7 @@ public class AlertService implements ContentAlertPort {
                     .title("数据不一致告警")
                     .message(String.format("文章 %s 的数据在 PostgreSQL 和 MongoDB 之间不一致", postId))
                     .details(details)
-                    .timestamp(LocalDateTime.now())
+                    .timestamp(OffsetDateTime.now())
                     .resourceId(postId)
                     .sent(false)
                     .build();
@@ -79,7 +79,7 @@ public class AlertService implements ContentAlertPort {
                     .message(String.format("%s 查询性能下降，平均查询时间 %.2fms 超过阈值 %.2fms", 
                             database, avgQueryTime, threshold))
                     .details(String.format("当前平均查询时间: %.2fms, 阈值: %.2fms", avgQueryTime, threshold))
-                    .timestamp(LocalDateTime.now())
+                    .timestamp(OffsetDateTime.now())
                     .sent(false)
                     .build();
             
@@ -107,7 +107,7 @@ public class AlertService implements ContentAlertPort {
                             database, usedPercentage, threshold))
                     .details(String.format("当前使用率: %.2f%%, 阈值: %.2f%%, 建议清理或扩容", 
                             usedPercentage, threshold))
-                    .timestamp(LocalDateTime.now())
+                    .timestamp(OffsetDateTime.now())
                     .sent(false)
                     .build();
             
@@ -134,7 +134,7 @@ public class AlertService implements ContentAlertPort {
                             failureRate * 100, threshold * 100))
                     .details(String.format("当前失败率: %.2f%%, 阈值: %.2f%%, 请检查数据库连接和性能", 
                             failureRate * 100, threshold * 100))
-                    .timestamp(LocalDateTime.now())
+                    .timestamp(OffsetDateTime.now())
                     .sent(false)
                     .build();
             
@@ -160,7 +160,7 @@ public class AlertService implements ContentAlertPort {
                     .title("慢查询告警")
                     .message(String.format("%s 慢查询: %s 耗时 %dms", database, operation, duration))
                     .details(String.format("数据库: %s, 操作: %s, 耗时: %dms", database, operation, duration))
-                    .timestamp(LocalDateTime.now())
+                    .timestamp(OffsetDateTime.now())
                     .sent(false)
                     .build();
             
@@ -197,7 +197,7 @@ public class AlertService implements ContentAlertPort {
                         retryCount,
                         errorMessage
                 ))
-                .timestamp(LocalDateTime.now())
+                .timestamp(OffsetDateTime.now())
                 .resourceId(eventId)
                 .sent(false)
                 .build();
@@ -231,7 +231,7 @@ public class AlertService implements ContentAlertPort {
                         retryCount,
                         lastError
                 ))
-                .timestamp(LocalDateTime.now())
+                .timestamp(OffsetDateTime.now())
                 .resourceId(safePostId)
                 .sent(false)
                 .build();
@@ -264,7 +264,7 @@ public class AlertService implements ContentAlertPort {
                         safeUrl,
                         errorMessage
                 ))
-                .timestamp(LocalDateTime.now())
+                .timestamp(OffsetDateTime.now())
                 .resourceId(safePostId)
                 .sent(false)
                 .build();
@@ -322,7 +322,7 @@ public class AlertService implements ContentAlertPort {
                 .title("存储空间不足")
                 .message(String.format("%s 存储空间不足：数据库大小超过阈值", database))
                 .details(details)
-                .timestamp(LocalDateTime.now())
+                .timestamp(OffsetDateTime.now())
                 .resourceId(database)
                 .sent(false)
                 .build();
@@ -337,8 +337,8 @@ public class AlertService implements ContentAlertPort {
      * @return 是否应该发送
      */
     private boolean shouldSendAlert(String alertKey) {
-        LocalDateTime lastAlertTime = alertCache.get(alertKey);
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime lastAlertTime = alertCache.get(alertKey);
+        OffsetDateTime now = OffsetDateTime.now();
         
         if (lastAlertTime == null || 
             lastAlertTime.plusMinutes(alertProperties.getDedupWindowMinutes()).isBefore(now)) {
@@ -381,7 +381,7 @@ public class AlertService implements ContentAlertPort {
      * 清理过期的告警缓存
      */
     public void cleanExpiredAlertCache() {
-        LocalDateTime expiryTime = LocalDateTime.now().minusMinutes(alertProperties.getDedupWindowMinutes());
+        OffsetDateTime expiryTime = OffsetDateTime.now().minusMinutes(alertProperties.getDedupWindowMinutes());
         alertCache.entrySet().removeIf(entry -> entry.getValue().isBefore(expiryTime));
         log.debug("Cleaned expired alert cache entries");
     }

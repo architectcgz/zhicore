@@ -21,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -246,7 +246,7 @@ public class PostRepositoryPgImpl implements PostRepository {
     }
 
     @Override
-    public List<Post> findPublishedCursor(LocalDateTime cursorPublishedAt, Long cursorPostId, int limit) {
+    public List<Post> findPublishedCursor(OffsetDateTime cursorPublishedAt, Long cursorPostId, int limit) {
         // 兼容：如果只传了时间游标但没有 id，则跳过同一时间戳的记录，避免重复
         Long safeCursorId = cursorPublishedAt == null ? null : (cursorPostId == null ? 0L : cursorPostId);
 
@@ -284,7 +284,7 @@ public class PostRepositoryPgImpl implements PostRepository {
     }
 
     @Override
-    public Optional<Long> publishScheduledIfNeeded(Long postId, LocalDateTime publishedAt) {
+    public Optional<Long> publishScheduledIfNeeded(Long postId, OffsetDateTime publishedAt) {
         Long version = mybatisMapper.publishScheduledIfNeeded(postId, publishedAt);
         return Optional.ofNullable(version);
     }
@@ -361,7 +361,7 @@ public class PostRepositoryPgImpl implements PostRepository {
                     PostTagEntity entity = new PostTagEntity();
                     entity.setPostId(postId.getValue());  // 值对象转 Long
                     entity.setTagId(tagId.getValue());    // 值对象转 Long
-                    entity.setCreatedAt(LocalDateTime.now());
+                    entity.setCreatedAt(OffsetDateTime.now());
                     return entity;
                 })
                 .collect(Collectors.toList());

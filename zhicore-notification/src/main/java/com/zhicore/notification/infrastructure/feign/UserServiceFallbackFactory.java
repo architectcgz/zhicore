@@ -38,7 +38,7 @@ public class UserServiceFallbackFactory implements FallbackFactory<UserServiceCl
 
             @Override
             public ApiResponse<FollowerCursorPageDTO> getFollowersByCursor(Long userId,
-                                                                           java.time.LocalDateTime afterCreatedAt,
+                                                                           java.time.OffsetDateTime afterCreatedAt,
                                                                            Long afterFollowerId,
                                                                            Integer limit) {
                 log.warn("按游标获取粉丝列表降级: userId={}, cause={}", userId, fallbackSupport.failureMessage(cause));

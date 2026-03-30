@@ -20,7 +20,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -330,7 +330,7 @@ public class FileUploadServiceImpl implements FileUploadService {
             .fileSize(clientResponse.getFileSize())
             .fileHash(null) // file-service-client 响应中没有 fileHash
             .instantUpload(null) // file-service-client 响应中没有 instantUpload 标志
-            .uploadTime(LocalDateTime.now())
+            .uploadTime(OffsetDateTime.now())
             .accessLevel(clientResponse.getAccessLevel())
             .originalName(clientResponse.getOriginalName())
             .contentType(clientResponse.getContentType())

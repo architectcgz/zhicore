@@ -10,7 +10,7 @@ import java.time.Instant;
  * 
  * 设计要点：
  * - 使用泛型 ID 类型支持不同的聚合根标识类型
- * - 使用 Instant 替代 LocalDateTime，确保时间为 UTC
+ * - 使用 Instant 替代 OffsetDateTime，确保时间为 UTC
  * - 区分 aggregateVersion（并发控制）和 schemaVersion（消息演进）
  * 
  * @param <ID> 聚合根ID类型

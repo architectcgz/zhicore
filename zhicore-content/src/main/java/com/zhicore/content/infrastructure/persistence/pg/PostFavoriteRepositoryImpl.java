@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,7 +36,7 @@ public class PostFavoriteRepositoryImpl implements PostFavoriteRepository {
         entity.setId(favorite.getId());
         entity.setPostId(favorite.getPostId().getValue());
         entity.setUserId(favorite.getUserId().getValue());
-        entity.setCreatedAt(favorite.getCreatedAt() != null ? favorite.getCreatedAt() : LocalDateTime.now());
+        entity.setCreatedAt(favorite.getCreatedAt() != null ? favorite.getCreatedAt() : OffsetDateTime.now());
 
         int inserted = mapper.insertIgnoreConflict(entity);
         if (inserted == 0) {
@@ -80,7 +80,7 @@ public class PostFavoriteRepositoryImpl implements PostFavoriteRepository {
     }
 
     @Override
-    public List<PostFavorite> findByUserIdCursor(UserId userId, LocalDateTime cursor, int limit) {
+    public List<PostFavorite> findByUserIdCursor(UserId userId, OffsetDateTime cursor, int limit) {
         LambdaQueryWrapper<PostFavoriteEntity> wrapper = new LambdaQueryWrapper<PostFavoriteEntity>()
                 .eq(PostFavoriteEntity::getUserId, userId.getValue())
                 .orderByDesc(PostFavoriteEntity::getCreatedAt)

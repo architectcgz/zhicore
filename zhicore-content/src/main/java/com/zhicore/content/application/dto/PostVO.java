@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章视图对象
@@ -41,13 +41,13 @@ public class PostVO {
 
     private String topicName;
 
-    private LocalDateTime publishedAt;
+    private OffsetDateTime publishedAt;
 
-    private LocalDateTime scheduledAt;
+    private OffsetDateTime scheduledAt;
 
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 
     // 统计数据
     private int likeCount;
@@ -71,6 +71,6 @@ public class PostVO {
     public void setContent(String content) { this.raw = content; }
     public void setStatus(String status) { this.status = status; }
     public void setStatus(com.zhicore.content.domain.model.PostStatus status) { this.status = status != null ? status.name() : null; }
-    public void setScheduledPublishAt(LocalDateTime scheduledPublishAt) { this.scheduledAt = scheduledPublishAt; }
+    public void setScheduledPublishAt(OffsetDateTime scheduledPublishAt) { this.scheduledAt = scheduledPublishAt; }
     public void setContentDegraded(boolean contentDegraded) { }
 }

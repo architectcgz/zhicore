@@ -41,14 +41,14 @@ public class NotificationCampaignShardRepositoryImpl implements NotificationCamp
         NotificationCampaignShardPO po = new NotificationCampaignShardPO();
         po.setId(shard.getId());
         po.setCampaignId(shard.getCampaignId());
-        po.setAfterCreatedAt(DateTimeUtils.toOffsetDateTime(shard.getAfterCreatedAt()));
+        po.setAfterCreatedAt(shard.getAfterCreatedAt());
         po.setAfterFollowerId(shard.getAfterFollowerId());
         po.setBatchSize(shard.getBatchSize());
         po.setStatus(shard.getStatus().name());
         po.setErrorMessage(shard.getErrorMessage());
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(shard.getCreatedAt()));
-        po.setUpdatedAt(DateTimeUtils.toOffsetDateTime(shard.getUpdatedAt()));
-        po.setCompletedAt(DateTimeUtils.toOffsetDateTime(shard.getCompletedAt()));
+        po.setCreatedAt(shard.getCreatedAt());
+        po.setUpdatedAt(shard.getUpdatedAt());
+        po.setCompletedAt(shard.getCompletedAt());
         return po;
     }
 
@@ -56,13 +56,13 @@ public class NotificationCampaignShardRepositoryImpl implements NotificationCamp
         return NotificationCampaignShard.reconstitute(
                 po.getId(),
                 po.getCampaignId(),
-                DateTimeUtils.toLocalDateTime(po.getAfterCreatedAt()),
+                po.getAfterCreatedAt(),
                 po.getAfterFollowerId(),
                 po.getBatchSize(),
                 NotificationCampaignShardStatus.valueOf(po.getStatus()),
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt()),
-                DateTimeUtils.toLocalDateTime(po.getUpdatedAt()),
-                DateTimeUtils.toLocalDateTime(po.getCompletedAt()),
+                po.getCreatedAt(),
+                po.getUpdatedAt(),
+                po.getCompletedAt(),
                 po.getErrorMessage()
         );
     }

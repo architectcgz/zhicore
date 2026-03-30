@@ -6,7 +6,7 @@ import com.zhicore.message.domain.model.Message;
 import com.zhicore.message.domain.model.MessageType;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 事务提交后驱动消息侧外部副作用的消息快照。
@@ -22,7 +22,7 @@ public class MessageSentPublishRequest {
     private final String content;
     private final String mediaUrl;
     private final String contentPreview;
-    private final LocalDateTime sentAt;
+    private final OffsetDateTime sentAt;
 
     @JsonCreator
     private MessageSentPublishRequest(@JsonProperty("messageId") Long messageId,
@@ -33,7 +33,7 @@ public class MessageSentPublishRequest {
                                       @JsonProperty("content") String content,
                                       @JsonProperty("mediaUrl") String mediaUrl,
                                       @JsonProperty("contentPreview") String contentPreview,
-                                      @JsonProperty("sentAt") LocalDateTime sentAt) {
+                                      @JsonProperty("sentAt") OffsetDateTime sentAt) {
         this.messageId = messageId;
         this.conversationId = conversationId;
         this.senderId = senderId;

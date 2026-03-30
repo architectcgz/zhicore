@@ -21,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -41,7 +41,7 @@ public class PublishedPostQueryService {
     private final PostFileUrlResolver postFileUrlResolver;
 
     @Transactional(readOnly = true)
-    public List<PostBriefVO> getPublishedPostsCursor(LocalDateTime cursor, int size) {
+    public List<PostBriefVO> getPublishedPostsCursor(OffsetDateTime cursor, int size) {
         return postRepository.findPublishedCursor(cursor, size).stream()
                 .map(this::toBriefVO)
                 .collect(Collectors.toList());

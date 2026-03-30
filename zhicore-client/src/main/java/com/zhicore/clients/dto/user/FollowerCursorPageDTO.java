@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -22,7 +22,7 @@ public class FollowerCursorPageDTO implements Serializable {
 
     private List<FollowerCursorItemDTO> items;
 
-    private LocalDateTime nextAfterCreatedAt;
+    private OffsetDateTime nextAfterCreatedAt;
 
     private Long nextAfterFollowerId;
 

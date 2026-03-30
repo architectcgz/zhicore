@@ -5,7 +5,7 @@ import lombok.Getter;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 通知聚合根（充血模型）
@@ -56,7 +56,7 @@ public class Notification {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
     /**
      * 触发者ID
@@ -86,7 +86,7 @@ public class Notification {
     /**
      * 已读时间
      */
-    private LocalDateTime readAt;
+    private OffsetDateTime readAt;
 
     /**
      * 内容最大长度
@@ -110,7 +110,7 @@ public class Notification {
         this.eventCode = type.getEventCode();
         this.metadata = null;
         this.isRead = false;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now();
     }
 
     /**
@@ -119,8 +119,8 @@ public class Notification {
     private Notification(Long id, Long recipientId, NotificationType type,
                          String category, String eventCode, String metadata,
                          Long actorId, String targetType, Long targetId,
-                         String content, boolean isRead, LocalDateTime readAt,
-                         LocalDateTime createdAt) {
+                         String content, boolean isRead, OffsetDateTime readAt,
+                         OffsetDateTime createdAt) {
         this.id = id;
         this.recipientId = recipientId;
         this.type = type;
@@ -286,8 +286,8 @@ public class Notification {
      */
     public static Notification reconstitute(Long id, Long recipientId, NotificationType type,
                                             Long actorId, String targetType, Long targetId,
-                                            String content, boolean isRead, LocalDateTime readAt,
-                                            LocalDateTime createdAt) {
+                                            String content, boolean isRead, OffsetDateTime readAt,
+                                            OffsetDateTime createdAt) {
         return new Notification(id, recipientId, type, null, null, null,
                 actorId, targetType, targetId,
                 content, isRead, readAt, createdAt);
@@ -299,8 +299,8 @@ public class Notification {
     public static Notification reconstitute(Long id, Long recipientId, NotificationType type,
                                             String category, String eventCode, String metadata,
                                             Long actorId, String targetType, Long targetId,
-                                            String content, boolean isRead, LocalDateTime readAt,
-                                            LocalDateTime createdAt) {
+                                            String content, boolean isRead, OffsetDateTime readAt,
+                                            OffsetDateTime createdAt) {
         return new Notification(id, recipientId, type, category, eventCode, metadata,
                 actorId, targetType, targetId,
                 content, isRead, readAt, createdAt);
@@ -314,7 +314,7 @@ public class Notification {
     public void markAsRead() {
         if (!this.isRead) {
             this.isRead = true;
-            this.readAt = LocalDateTime.now();
+            this.readAt = OffsetDateTime.now();
         }
     }
 

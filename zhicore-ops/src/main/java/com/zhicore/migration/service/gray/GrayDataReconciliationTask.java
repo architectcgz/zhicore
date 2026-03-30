@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,7 +43,7 @@ public class GrayDataReconciliationTask {
         log.info("开始执行灰度数据对账...");
 
         ReconciliationResult result = ReconciliationResult.builder()
-                .timestamp(LocalDateTime.now())
+                .timestamp(OffsetDateTime.now())
                 .build();
 
         try {
@@ -166,7 +166,7 @@ public class GrayDataReconciliationTask {
     @lombok.Data
     @lombok.Builder
     public static class ReconciliationResult {
-        private LocalDateTime timestamp;
+        private OffsetDateTime timestamp;
         private boolean success;
         private long totalDiffs;
         private String errorMessage;

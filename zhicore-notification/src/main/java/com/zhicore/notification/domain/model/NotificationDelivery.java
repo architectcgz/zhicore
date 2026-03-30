@@ -3,7 +3,7 @@ package com.zhicore.notification.domain.model;
 import lombok.Getter;
 import org.springframework.util.Assert;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Getter
 public class NotificationDelivery {
@@ -19,11 +19,11 @@ public class NotificationDelivery {
     private String skipReason;
     private String failureReason;
     private Integer retryCount;
-    private LocalDateTime lastAttemptAt;
-    private LocalDateTime nextRetryAt;
-    private final LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private LocalDateTime sentAt;
+    private OffsetDateTime lastAttemptAt;
+    private OffsetDateTime nextRetryAt;
+    private final OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
+    private OffsetDateTime sentAt;
 
     private NotificationDelivery(Long id,
                                  Long campaignId,
@@ -36,11 +36,11 @@ public class NotificationDelivery {
                                  String skipReason,
                                  String failureReason,
                                  Integer retryCount,
-                                 LocalDateTime lastAttemptAt,
-                                 LocalDateTime nextRetryAt,
-                                 LocalDateTime createdAt,
-                                 LocalDateTime updatedAt,
-                                 LocalDateTime sentAt) {
+                                 OffsetDateTime lastAttemptAt,
+                                 OffsetDateTime nextRetryAt,
+                                 OffsetDateTime createdAt,
+                                 OffsetDateTime updatedAt,
+                                 OffsetDateTime sentAt) {
         Assert.notNull(id, "deliveryId不能为空");
         Assert.notNull(campaignId, "campaignId不能为空");
         Assert.notNull(shardId, "shardId不能为空");
@@ -61,7 +61,7 @@ public class NotificationDelivery {
         this.retryCount = retryCount != null ? retryCount : 0;
         this.lastAttemptAt = lastAttemptAt;
         this.nextRetryAt = nextRetryAt;
-        this.createdAt = createdAt != null ? createdAt : LocalDateTime.now();
+        this.createdAt = createdAt != null ? createdAt : OffsetDateTime.now();
         this.updatedAt = updatedAt != null ? updatedAt : this.createdAt;
         this.sentAt = sentAt;
     }
@@ -72,7 +72,7 @@ public class NotificationDelivery {
                                                Long recipientId,
                                                String channel,
                                                String dedupeKey) {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         return new NotificationDelivery(
                 id,
                 campaignId,
@@ -104,11 +104,11 @@ public class NotificationDelivery {
                                                     String skipReason,
                                                     String failureReason,
                                                     Integer retryCount,
-                                                    LocalDateTime lastAttemptAt,
-                                                    LocalDateTime nextRetryAt,
-                                                    LocalDateTime createdAt,
-                                                    LocalDateTime updatedAt,
-                                                    LocalDateTime sentAt) {
+                                                    OffsetDateTime lastAttemptAt,
+                                                    OffsetDateTime nextRetryAt,
+                                                    OffsetDateTime createdAt,
+                                                    OffsetDateTime updatedAt,
+                                                    OffsetDateTime sentAt) {
         return new NotificationDelivery(
                 id,
                 campaignId,
@@ -130,7 +130,7 @@ public class NotificationDelivery {
     }
 
     public void markSent(Long notificationId) {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         this.status = NotificationDeliveryStatus.SENT;
         this.notificationId = notificationId;
         this.skipReason = null;
@@ -145,8 +145,8 @@ public class NotificationDelivery {
         markSkipped(skipReason, this.notificationId, null);
     }
 
-    public void markSkipped(String skipReason, Long notificationId, LocalDateTime nextRetryAt) {
-        LocalDateTime now = LocalDateTime.now();
+    public void markSkipped(String skipReason, Long notificationId, OffsetDateTime nextRetryAt) {
+        OffsetDateTime now = OffsetDateTime.now();
         this.status = NotificationDeliveryStatus.SKIPPED;
         this.notificationId = notificationId;
         this.skipReason = skipReason;
@@ -157,8 +157,8 @@ public class NotificationDelivery {
         this.sentAt = null;
     }
 
-    public void markFailed(String failureReason, LocalDateTime nextRetryAt, Long notificationId) {
-        LocalDateTime now = LocalDateTime.now();
+    public void markFailed(String failureReason, OffsetDateTime nextRetryAt, Long notificationId) {
+        OffsetDateTime now = OffsetDateTime.now();
         this.status = NotificationDeliveryStatus.FAILED;
         this.notificationId = notificationId;
         this.skipReason = null;

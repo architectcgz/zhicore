@@ -8,7 +8,7 @@ import lombok.Getter;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 评论聚合根（充血模型）
@@ -46,7 +46,7 @@ public class Comment {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
     /**
      * 父评论ID（null表示顶级评论，回复指向顶级评论）
@@ -91,7 +91,7 @@ public class Comment {
     /**
      * 更新时间
      */
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 
     /**
      * 评论统计
@@ -117,8 +117,8 @@ public class Comment {
         this.authorId = authorId;
         this.content = content;
         this.status = CommentStatus.NORMAL;
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
         this.stats = CommentStats.empty();
     }
 
@@ -139,8 +139,8 @@ public class Comment {
             @JsonProperty("rootId") Long rootId,
             @JsonProperty("replyToUserId") Long replyToUserId,
             @JsonProperty("status") CommentStatus status,
-            @JsonProperty("createdAt") LocalDateTime createdAt,
-            @JsonProperty("updatedAt") LocalDateTime updatedAt,
+            @JsonProperty("createdAt") OffsetDateTime createdAt,
+            @JsonProperty("updatedAt") OffsetDateTime updatedAt,
             @JsonProperty("stats") CommentStats stats) {
         this.id = id;
         this.postId = postId;
@@ -217,8 +217,8 @@ public class Comment {
     public static Comment reconstitute(Long id, Long postId, Long authorId, String content,
                                        String[] imageIds, String voiceId, Integer voiceDuration,
                                        Long parentId, Long rootId, Long replyToUserId,
-                                       CommentStatus status, LocalDateTime createdAt,
-                                       LocalDateTime updatedAt, CommentStats stats) {
+                                       CommentStatus status, OffsetDateTime createdAt,
+                                       OffsetDateTime updatedAt, CommentStats stats) {
         return new Comment(id, postId, authorId, content, imageIds, voiceId, voiceDuration,
                 parentId, rootId, replyToUserId, status, createdAt, updatedAt, stats);
     }
@@ -241,7 +241,7 @@ public class Comment {
         validateContent(newContent, null, null);
 
         this.content = newContent;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -259,7 +259,7 @@ public class Comment {
         }
 
         this.status = CommentStatus.DELETED;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     // ==================== 查询方法 ====================

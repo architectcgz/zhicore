@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -730,7 +730,7 @@ public class RankingController {
         int replayedEvents = rankingLedgerReplayService.rebuildFromLedger();
         return ApiResponse.success(RankingReplayResultDTO.builder()
                 .replayedEvents(replayedEvents)
-                .rebuiltAt(LocalDateTime.now())
+                .rebuiltAt(OffsetDateTime.now())
                 .build());
     }
 

@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
@@ -141,15 +141,15 @@ public class EventMapper {
     }
     
     /**
-     * 转换 LocalDateTime 为 Instant
+     * 转换 OffsetDateTime 为 Instant
      * 
-     * @param localDateTime LocalDateTime
+     * @param localDateTime OffsetDateTime
      * @return Instant（UTC）
      */
-    private Instant toInstant(LocalDateTime localDateTime) {
+    private Instant toInstant(OffsetDateTime localDateTime) {
         if (localDateTime == null) {
             return null;
         }
-        return localDateTime.atZone(ZoneId.systemDefault()).toInstant();
+        return localDateTime.toInstant();
     }
 }

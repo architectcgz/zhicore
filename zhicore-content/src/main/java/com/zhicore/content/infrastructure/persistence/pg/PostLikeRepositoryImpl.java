@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,7 +36,7 @@ public class PostLikeRepositoryImpl implements PostLikeRepository {
         entity.setId(like.getId());
         entity.setPostId(like.getPostId().getValue());
         entity.setUserId(like.getUserId().getValue());
-        entity.setCreatedAt(like.getCreatedAt() != null ? like.getCreatedAt() : LocalDateTime.now());
+        entity.setCreatedAt(like.getCreatedAt() != null ? like.getCreatedAt() : OffsetDateTime.now());
 
         int inserted = mapper.insertIgnoreConflict(entity);
         if (inserted == 0) {
@@ -80,7 +80,7 @@ public class PostLikeRepositoryImpl implements PostLikeRepository {
     }
 
     @Override
-    public List<PostLike> findByUserIdCursor(UserId userId, LocalDateTime cursor, int limit) {
+    public List<PostLike> findByUserIdCursor(UserId userId, OffsetDateTime cursor, int limit) {
         LambdaQueryWrapper<PostLikeEntity> wrapper = new LambdaQueryWrapper<PostLikeEntity>()
                 .eq(PostLikeEntity::getUserId, userId.getValue())
                 .orderByDesc(PostLikeEntity::getCreatedAt)

@@ -96,11 +96,11 @@ public class NotificationDeliveryRepositoryImpl implements NotificationDeliveryR
         po.setSkipReason(delivery.getSkipReason());
         po.setFailureReason(delivery.getFailureReason());
         po.setRetryCount(delivery.getRetryCount());
-        po.setLastAttemptAt(DateTimeUtils.toOffsetDateTime(delivery.getLastAttemptAt()));
-        po.setNextRetryAt(DateTimeUtils.toOffsetDateTime(delivery.getNextRetryAt()));
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(delivery.getCreatedAt()));
-        po.setUpdatedAt(DateTimeUtils.toOffsetDateTime(delivery.getUpdatedAt()));
-        po.setSentAt(DateTimeUtils.toOffsetDateTime(delivery.getSentAt()));
+        po.setLastAttemptAt(delivery.getLastAttemptAt());
+        po.setNextRetryAt(delivery.getNextRetryAt());
+        po.setCreatedAt(delivery.getCreatedAt());
+        po.setUpdatedAt(delivery.getUpdatedAt());
+        po.setSentAt(delivery.getSentAt());
         return po;
     }
 
@@ -117,11 +117,11 @@ public class NotificationDeliveryRepositoryImpl implements NotificationDeliveryR
                 po.getSkipReason(),
                 po.getFailureReason(),
                 po.getRetryCount(),
-                DateTimeUtils.toLocalDateTime(po.getLastAttemptAt()),
-                DateTimeUtils.toLocalDateTime(po.getNextRetryAt()),
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt()),
-                DateTimeUtils.toLocalDateTime(po.getUpdatedAt()),
-                DateTimeUtils.toLocalDateTime(po.getSentAt())
+                po.getLastAttemptAt(),
+                po.getNextRetryAt(),
+                po.getCreatedAt(),
+                po.getUpdatedAt(),
+                po.getSentAt()
         );
     }
 }

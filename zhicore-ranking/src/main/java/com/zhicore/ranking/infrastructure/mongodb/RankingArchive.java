@@ -11,7 +11,7 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 /**
@@ -93,7 +93,7 @@ public class RankingArchive {
      * 归档时间
      */
     @Indexed
-    private LocalDateTime archivedAt;
+    private OffsetDateTime archivedAt;
     
     /**
      * 数据版本（用于兼容性）

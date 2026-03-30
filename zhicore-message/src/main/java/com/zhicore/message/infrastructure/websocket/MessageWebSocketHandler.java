@@ -16,7 +16,7 @@ import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.security.Principal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -58,7 +58,7 @@ public class MessageWebSocketHandler {
                     .userId(userId)
                     .type(DeviceType.WEB)
                     .connectionId(sessionId)
-                    .connectedAt(LocalDateTime.now())
+                    .connectedAt(OffsetDateTime.now())
                     .build();
             deviceRegistry.register(device);
 

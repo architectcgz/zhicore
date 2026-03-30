@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.infrastructure.repository.po.NotificationPO;
 import com.zhicore.notification.infrastructure.repository.typehandler.NotificationTypeCodeTypeHandler;
-import com.zhicore.notification.infrastructure.repository.typehandler.OffsetDateTimeToLocalDateTimeTypeHandler;
+import com.zhicore.notification.infrastructure.repository.typehandler.OffsetDateTimeTypeHandler;
 import com.zhicore.notification.infrastructure.repository.typehandler.StringArrayTypeHandler;
 import org.apache.ibatis.annotations.*;
 
@@ -79,7 +79,7 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
         """)
     @Results({
         @Result(property = "type", column = "type", typeHandler = NotificationTypeCodeTypeHandler.class),
-        @Result(property = "latestTime", column = "latestTime", typeHandler = OffsetDateTimeToLocalDateTimeTypeHandler.class),
+        @Result(property = "latestTime", column = "latestTime", typeHandler = OffsetDateTimeTypeHandler.class),
         @Result(property = "actorIds", column = "actorIds", typeHandler = StringArrayTypeHandler.class)
     })
     List<AggregatedNotificationDTO> findAggregatedNotifications(
@@ -131,7 +131,7 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
         """)
     @Results({
         @Result(property = "type", column = "type", typeHandler = NotificationTypeCodeTypeHandler.class),
-        @Result(property = "latestTime", column = "latestTime", typeHandler = OffsetDateTimeToLocalDateTimeTypeHandler.class),
+        @Result(property = "latestTime", column = "latestTime", typeHandler = OffsetDateTimeTypeHandler.class),
         @Result(property = "actorIds", column = "actorIds", typeHandler = StringArrayTypeHandler.class)
     })
     AggregatedNotificationDTO findAggregatedNotificationByGroup(

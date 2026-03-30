@@ -7,7 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -20,7 +20,7 @@ public interface ScheduledPublishEventMapper extends BaseMapper<ScheduledPublish
     long countByStatus(@Param("status") String status);
 
     @Select("SELECT MIN(created_at) FROM scheduled_publish_event WHERE status = 'PENDING'")
-    LocalDateTime findOldestPendingCreatedAt();
+    OffsetDateTime findOldestPendingCreatedAt();
 
     @Select("""
             SELECT COUNT(*)
@@ -28,7 +28,7 @@ public interface ScheduledPublishEventMapper extends BaseMapper<ScheduledPublish
             WHERE status = 'SUCCEEDED'
               AND updated_at >= #{since}
             """)
-    long countSucceededSince(@Param("since") LocalDateTime since);
+    long countSucceededSince(@Param("since") OffsetDateTime since);
 
     @Select("""
             SELECT COUNT(*)
@@ -36,7 +36,7 @@ public interface ScheduledPublishEventMapper extends BaseMapper<ScheduledPublish
             WHERE status = 'FAILED'
               AND updated_at >= #{since}
             """)
-    long countFailedSince(@Param("since") LocalDateTime since);
+    long countFailedSince(@Param("since") OffsetDateTime since);
 
     @Select("""
             SELECT COUNT(*)
@@ -44,15 +44,15 @@ public interface ScheduledPublishEventMapper extends BaseMapper<ScheduledPublish
             WHERE status = 'DEAD'
               AND updated_at >= #{since}
             """)
-    long countDeadSince(@Param("since") LocalDateTime since);
+    long countDeadSince(@Param("since") OffsetDateTime since);
 
     /**
      * 获取数据库当前时间（用于统一时间基准）
      */
-    // PostgreSQL 的 CURRENT_TIMESTAMP 返回 TIMESTAMPTZ（带时区），与 LocalDateTime 不匹配；
+    // PostgreSQL 的 CURRENT_TIMESTAMP 返回 TIMESTAMPTZ（带时区），与 OffsetDateTime 不匹配；
     // 这里使用 LOCALTIMESTAMP 返回 timestamp（无时区），避免驱动类型转换异常。
     @Select("SELECT LOCALTIMESTAMP")
-    LocalDateTime selectDbNow();
+    OffsetDateTime selectDbNow();
 
     /**
      * claim 一批需要补偿的定时发布任务。
@@ -84,8 +84,8 @@ public interface ScheduledPublishEventMapper extends BaseMapper<ScheduledPublish
             RETURNING target.*
             """)
     List<ScheduledPublishEventEntity> claimCompensationBatch(
-            @Param("now") LocalDateTime now,
-            @Param("reclaimBefore") LocalDateTime reclaimBefore,
+            @Param("now") OffsetDateTime now,
+            @Param("reclaimBefore") OffsetDateTime reclaimBefore,
             @Param("claimedBy") String claimedBy,
             @Param("limit") int limit
     );
@@ -120,8 +120,8 @@ public interface ScheduledPublishEventMapper extends BaseMapper<ScheduledPublish
             """)
     List<ScheduledPublishEventEntity> claimForConsumption(
             @Param("eventId") String eventId,
-            @Param("now") LocalDateTime now,
-            @Param("reclaimBefore") LocalDateTime reclaimBefore,
+            @Param("now") OffsetDateTime now,
+            @Param("reclaimBefore") OffsetDateTime reclaimBefore,
             @Param("claimedBy") String claimedBy
     );
 
@@ -142,7 +142,7 @@ public interface ScheduledPublishEventMapper extends BaseMapper<ScheduledPublish
     int markTerminalByPostId(
             @Param("postId") Long postId,
             @Param("status") String status,
-            @Param("dbNow") LocalDateTime dbNow,
+            @Param("dbNow") OffsetDateTime dbNow,
             @Param("lastError") String lastError
     );
 }

@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -56,7 +56,7 @@ public class PostSearchVO {
     private Long viewCount;
 
     @Schema(description = "发布时间", example = "2024-01-15T10:30:00")
-    private LocalDateTime publishedAt;
+    private OffsetDateTime publishedAt;
 
     @Schema(description = "搜索相关性分数（越高越相关）", example = "8.5")
     private Float score;

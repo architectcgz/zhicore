@@ -7,7 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 推送消息
@@ -60,7 +60,7 @@ public class PushMessage implements Serializable {
     /**
      * 发送时间
      */
-    private LocalDateTime sentAt;
+    private OffsetDateTime sentAt;
 
     /**
      * 推送类型

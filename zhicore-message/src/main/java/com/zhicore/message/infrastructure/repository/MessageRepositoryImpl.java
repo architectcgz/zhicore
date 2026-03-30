@@ -1,6 +1,5 @@
 package com.zhicore.message.infrastructure.repository;
 
-import com.zhicore.common.util.DateTimeUtils;
 import com.zhicore.message.domain.model.Message;
 import com.zhicore.message.domain.model.MessageStatus;
 import com.zhicore.message.domain.model.MessageType;
@@ -73,9 +72,9 @@ public class MessageRepositoryImpl implements MessageRepository {
         po.setContent(message.getContent());
         po.setMediaUrl(message.getMediaUrl());
         po.setIsRead(message.isRead());
-        po.setReadAt(DateTimeUtils.toOffsetDateTime(message.getReadAt()));
+        po.setReadAt(message.getReadAt());
         po.setStatus(message.getStatus().getCode());
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(message.getCreatedAt()));
+        po.setCreatedAt(message.getCreatedAt());
         return po;
     }
 
@@ -89,9 +88,9 @@ public class MessageRepositoryImpl implements MessageRepository {
                 po.getContent(),
                 po.getMediaUrl(),
                 po.getIsRead() != null && po.getIsRead(),
-                DateTimeUtils.toLocalDateTime(po.getReadAt()),
+                po.getReadAt(),
                 MessageStatus.fromCode(po.getStatus()),
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt())
+                po.getCreatedAt()
         );
     }
 }

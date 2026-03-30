@@ -3,7 +3,7 @@ package com.zhicore.notification.application.dto;
 import lombok.Builder;
 import lombok.Value;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Value
 @Builder
@@ -17,9 +17,9 @@ public class NotificationDeliveryDTO {
     String skipReason;
     String failureReason;
     Integer retryCount;
-    LocalDateTime lastAttemptAt;
-    LocalDateTime nextRetryAt;
-    LocalDateTime sentAt;
-    LocalDateTime createdAt;
-    LocalDateTime updatedAt;
+    OffsetDateTime lastAttemptAt;
+    OffsetDateTime nextRetryAt;
+    OffsetDateTime sentAt;
+    OffsetDateTime createdAt;
+    OffsetDateTime updatedAt;
 }

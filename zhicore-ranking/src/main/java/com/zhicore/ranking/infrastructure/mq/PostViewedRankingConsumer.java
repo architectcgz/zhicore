@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.HexFormat;
 
@@ -93,9 +93,9 @@ public class PostViewedRankingConsumer extends BaseRankingConsumer
                         event.getAuthorId(),
                         RankingMetricType.VIEW,
                         (int) allowedDelta,
-                        LocalDateTime.ofInstant(event.getOccurredAt(), ZoneId.systemDefault()),
+                        OffsetDateTime.ofInstant(event.getOccurredAt(), ZoneId.systemDefault()),
                         event.getPublishedAt() != null
-                                ? LocalDateTime.ofInstant(event.getPublishedAt(), ZoneId.systemDefault())
+                                ? OffsetDateTime.ofInstant(event.getPublishedAt(), ZoneId.systemDefault())
                                 : null
                 );
                 if (!created) {

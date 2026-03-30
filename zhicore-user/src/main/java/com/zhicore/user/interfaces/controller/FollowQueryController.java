@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -46,7 +46,7 @@ public class FollowQueryController {
             @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId,
             @Parameter(description = "上一页最后一条关注时间", example = "2026-03-27T10:00:00")
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime afterCreatedAt,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime afterCreatedAt,
             @Parameter(description = "上一页最后一条粉丝ID", example = "100")
             @RequestParam(required = false) Long afterFollowerId,
             @Parameter(description = "每页大小", example = "200")

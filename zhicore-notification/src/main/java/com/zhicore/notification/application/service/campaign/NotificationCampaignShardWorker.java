@@ -25,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 @Slf4j
@@ -165,7 +165,7 @@ public class NotificationCampaignShardWorker {
         if (pushService.push(String.valueOf(recipientId), notification)) {
             pushDelivery.markSent(notification.getId());
         } else {
-            pushDelivery.markFailed(FAILURE_PUSH_DELIVERY, LocalDateTime.now().plusMinutes(5), notification.getId());
+            pushDelivery.markFailed(FAILURE_PUSH_DELIVERY, OffsetDateTime.now().plusMinutes(5), notification.getId());
         }
         deliveryRepository.update(pushDelivery);
     }

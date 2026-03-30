@@ -1,6 +1,5 @@
 package com.zhicore.message.infrastructure.repository;
 
-import com.zhicore.common.util.DateTimeUtils;
 import com.zhicore.message.domain.model.Conversation;
 import com.zhicore.message.domain.repository.ConversationRepository;
 import com.zhicore.message.infrastructure.repository.mapper.ConversationMapper;
@@ -74,10 +73,10 @@ public class ConversationRepositoryImpl implements ConversationRepository {
         po.setParticipant2Id(conversation.getParticipant2Id());
         po.setLastMessageId(conversation.getLastMessageId());
         po.setLastMessageContent(conversation.getLastMessageContent());
-        po.setLastMessageAt(DateTimeUtils.toOffsetDateTime(conversation.getLastMessageAt()));
+        po.setLastMessageAt(conversation.getLastMessageAt());
         po.setUnreadCount1(conversation.getUnreadCount1());
         po.setUnreadCount2(conversation.getUnreadCount2());
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(conversation.getCreatedAt()));
+        po.setCreatedAt(conversation.getCreatedAt());
         return po;
     }
 
@@ -88,10 +87,10 @@ public class ConversationRepositoryImpl implements ConversationRepository {
                 po.getParticipant2Id(),
                 po.getLastMessageId(),
                 po.getLastMessageContent(),
-                DateTimeUtils.toLocalDateTime(po.getLastMessageAt()),
+                po.getLastMessageAt(),
                 po.getUnreadCount1() != null ? po.getUnreadCount1() : 0,
                 po.getUnreadCount2() != null ? po.getUnreadCount2() : 0,
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt())
+                po.getCreatedAt()
         );
     }
 }

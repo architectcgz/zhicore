@@ -46,9 +46,9 @@ public class NotificationCampaignRepositoryImpl implements NotificationCampaignR
         po.setAuthorId(campaign.getAuthorId());
         po.setStatus(campaign.getStatus().name());
         po.setErrorMessage(campaign.getErrorMessage());
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(campaign.getCreatedAt()));
-        po.setUpdatedAt(DateTimeUtils.toOffsetDateTime(campaign.getUpdatedAt()));
-        po.setCompletedAt(DateTimeUtils.toOffsetDateTime(campaign.getCompletedAt()));
+        po.setCreatedAt(campaign.getCreatedAt());
+        po.setUpdatedAt(campaign.getUpdatedAt());
+        po.setCompletedAt(campaign.getCompletedAt());
         return po;
     }
 
@@ -59,9 +59,9 @@ public class NotificationCampaignRepositoryImpl implements NotificationCampaignR
                 po.getPostId(),
                 po.getAuthorId(),
                 NotificationCampaignStatus.valueOf(po.getStatus()),
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt()),
-                DateTimeUtils.toLocalDateTime(po.getUpdatedAt()),
-                DateTimeUtils.toLocalDateTime(po.getCompletedAt()),
+                po.getCreatedAt(),
+                po.getUpdatedAt(),
+                po.getCompletedAt(),
                 po.getErrorMessage()
         );
     }

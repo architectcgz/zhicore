@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章统计模型（独立实体）
@@ -50,7 +50,7 @@ public final class PostStats {
     /**
      * 最后更新时间
      */
-    private final LocalDateTime lastUpdatedAt;
+    private final OffsetDateTime lastUpdatedAt;
 
     /**
      * 构造函数
@@ -63,14 +63,14 @@ public final class PostStats {
                      @JsonProperty("commentCount") Integer commentCount,
                      @JsonProperty("favoriteCount") Integer favoriteCount,
                      @JsonProperty("shareCount") Integer shareCount,
-                     @JsonProperty("lastUpdatedAt") LocalDateTime lastUpdatedAt) {
+                     @JsonProperty("lastUpdatedAt") OffsetDateTime lastUpdatedAt) {
         this.postId = postId;
         this.viewCount = viewCount != null ? Math.max(0, viewCount) : 0;
         this.likeCount = likeCount != null ? Math.max(0, likeCount) : 0;
         this.commentCount = commentCount != null ? Math.max(0, commentCount) : 0;
         this.favoriteCount = favoriteCount != null ? Math.max(0, favoriteCount) : 0;
         this.shareCount = shareCount != null ? Math.max(0, shareCount) : 0;
-        this.lastUpdatedAt = lastUpdatedAt != null ? lastUpdatedAt : LocalDateTime.now();
+        this.lastUpdatedAt = lastUpdatedAt != null ? lastUpdatedAt : OffsetDateTime.now();
     }
 
     /**
@@ -80,7 +80,7 @@ public final class PostStats {
      * @return PostStats 实例
      */
     public static PostStats empty(PostId postId) {
-        return new PostStats(postId, 0, 0, 0, 0, 0, LocalDateTime.now());
+        return new PostStats(postId, 0, 0, 0, 0, 0, OffsetDateTime.now());
     }
 
     /**
@@ -90,7 +90,7 @@ public final class PostStats {
      */
     @Deprecated
     public static PostStats empty() {
-        return new PostStats(null, 0, 0, 0, 0, 0, LocalDateTime.now());
+        return new PostStats(null, 0, 0, 0, 0, 0, OffsetDateTime.now());
     }
 
     /**
@@ -111,7 +111,7 @@ public final class PostStats {
             commentCount,
             favoriteCount,
             shareCount,
-            LocalDateTime.now()
+            OffsetDateTime.now()
         );
     }
 
@@ -119,56 +119,56 @@ public final class PostStats {
      * 增加浏览量
      */
     public PostStats incrementViews() {
-        return new PostStats(postId, viewCount + 1, likeCount, commentCount, favoriteCount, shareCount, LocalDateTime.now());
+        return new PostStats(postId, viewCount + 1, likeCount, commentCount, favoriteCount, shareCount, OffsetDateTime.now());
     }
 
     /**
      * 增加点赞数
      */
     public PostStats incrementLikes() {
-        return new PostStats(postId, viewCount, likeCount + 1, commentCount, favoriteCount, shareCount, LocalDateTime.now());
+        return new PostStats(postId, viewCount, likeCount + 1, commentCount, favoriteCount, shareCount, OffsetDateTime.now());
     }
 
     /**
      * 减少点赞数
      */
     public PostStats decrementLikes() {
-        return new PostStats(postId, viewCount, Math.max(0, likeCount - 1), commentCount, favoriteCount, shareCount, LocalDateTime.now());
+        return new PostStats(postId, viewCount, Math.max(0, likeCount - 1), commentCount, favoriteCount, shareCount, OffsetDateTime.now());
     }
 
     /**
      * 增加评论数
      */
     public PostStats incrementComments() {
-        return new PostStats(postId, viewCount, likeCount, commentCount + 1, favoriteCount, shareCount, LocalDateTime.now());
+        return new PostStats(postId, viewCount, likeCount, commentCount + 1, favoriteCount, shareCount, OffsetDateTime.now());
     }
 
     /**
      * 减少评论数
      */
     public PostStats decrementComments() {
-        return new PostStats(postId, viewCount, likeCount, Math.max(0, commentCount - 1), favoriteCount, shareCount, LocalDateTime.now());
+        return new PostStats(postId, viewCount, likeCount, Math.max(0, commentCount - 1), favoriteCount, shareCount, OffsetDateTime.now());
     }
 
     /**
      * 增加收藏数
      */
     public PostStats incrementFavorites() {
-        return new PostStats(postId, viewCount, likeCount, commentCount, favoriteCount + 1, shareCount, LocalDateTime.now());
+        return new PostStats(postId, viewCount, likeCount, commentCount, favoriteCount + 1, shareCount, OffsetDateTime.now());
     }
 
     /**
      * 减少收藏数
      */
     public PostStats decrementFavorites() {
-        return new PostStats(postId, viewCount, likeCount, commentCount, Math.max(0, favoriteCount - 1), shareCount, LocalDateTime.now());
+        return new PostStats(postId, viewCount, likeCount, commentCount, Math.max(0, favoriteCount - 1), shareCount, OffsetDateTime.now());
     }
 
     /**
      * 增加分享数
      */
     public PostStats incrementShares() {
-        return new PostStats(postId, viewCount, likeCount, commentCount, favoriteCount, shareCount + 1, LocalDateTime.now());
+        return new PostStats(postId, viewCount, likeCount, commentCount, favoriteCount, shareCount + 1, OffsetDateTime.now());
     }
 
     @Override

@@ -3,7 +3,7 @@ package com.zhicore.comment.domain.repository;
 import com.zhicore.comment.domain.model.OutboxEvent;
 import com.zhicore.comment.domain.model.OutboxEventStatus;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,16 +24,16 @@ public interface OutboxEventRepository {
 
     long countByStatus(OutboxEventStatus status);
 
-    LocalDateTime findOldestPendingCreatedAt();
+    OffsetDateTime findOldestPendingCreatedAt();
 
-    long countSucceededSince(LocalDateTime since);
+    long countSucceededSince(OffsetDateTime since);
 
-    long countFailedSince(LocalDateTime since, int defaultMaxRetries);
+    long countFailedSince(OffsetDateTime since, int defaultMaxRetries);
 
-    long countDeadSince(LocalDateTime since, int defaultMaxRetries);
+    long countDeadSince(OffsetDateTime since, int defaultMaxRetries);
 
-    List<OutboxEvent> claimRetryableEvents(LocalDateTime now,
-                                           LocalDateTime reclaimBefore,
+    List<OutboxEvent> claimRetryableEvents(OffsetDateTime now,
+                                           OffsetDateTime reclaimBefore,
                                            String claimedBy,
                                            int limit);
 }

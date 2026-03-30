@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 用户粉丝游标查询契约。
@@ -18,7 +18,7 @@ public interface UserFollowerCursorClient {
     ApiResponse<FollowerCursorPageDTO> getFollowersByCursor(
             @PathVariable("userId") Long userId,
             @RequestParam(value = "afterCreatedAt", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime afterCreatedAt,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime afterCreatedAt,
             @RequestParam(value = "afterFollowerId", required = false) Long afterFollowerId,
             @RequestParam(value = "limit", defaultValue = "200") Integer limit
     );

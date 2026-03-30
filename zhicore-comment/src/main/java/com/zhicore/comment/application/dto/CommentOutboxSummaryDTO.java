@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 评论 outbox 摘要视图。
@@ -20,5 +20,5 @@ public class CommentOutboxSummaryDTO {
     private long failedCount;
     private long deadCount;
     private long succeededCount;
-    private LocalDateTime oldestPendingCreatedAt;
+    private OffsetDateTime oldestPendingCreatedAt;
 }

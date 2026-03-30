@@ -129,8 +129,8 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         po.setTargetId(notification.getTargetId());
         po.setContent(notification.getContent());
         po.setIsRead(notification.isRead());
-        po.setReadAt(DateTimeUtils.toOffsetDateTime(notification.getReadAt()));
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(notification.getCreatedAt()));
+        po.setReadAt(notification.getReadAt());
+        po.setCreatedAt(notification.getCreatedAt());
         return po;
     }
 
@@ -147,8 +147,8 @@ public class NotificationRepositoryImpl implements NotificationRepository {
                 po.getTargetId(),
                 po.getContent(),
                 po.getIsRead(),
-                DateTimeUtils.toLocalDateTime(po.getReadAt()),
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt())
+                po.getReadAt(),
+                po.getCreatedAt()
         );
     }
 }

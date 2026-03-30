@@ -5,7 +5,7 @@ import com.zhicore.content.domain.model.PostId;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章列表项视图
@@ -71,5 +71,5 @@ public class PostListItemView {
     /**
      * 创建时间
      */
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

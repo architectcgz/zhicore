@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 热度分数值对象
@@ -42,7 +42,7 @@ public class HotScore {
      * 最后更新时间
      */
     @Schema(description = "最后更新时间", example = "2024-01-28T10:30:00")
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 
     /**
      * 创建热度分数
@@ -51,7 +51,7 @@ public class HotScore {
         return HotScore.builder()
                 .entityId(entityId)
                 .score(score)
-                .updatedAt(LocalDateTime.now())
+                .updatedAt(OffsetDateTime.now())
                 .build();
     }
 
@@ -63,7 +63,7 @@ public class HotScore {
                 .entityId(entityId)
                 .score(score)
                 .rank(rank)
-                .updatedAt(LocalDateTime.now())
+                .updatedAt(OffsetDateTime.now())
                 .build();
     }
 }

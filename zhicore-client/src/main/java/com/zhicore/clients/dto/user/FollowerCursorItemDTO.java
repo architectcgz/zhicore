@@ -8,7 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 粉丝游标分页单项。
@@ -24,5 +24,5 @@ public class FollowerCursorItemDTO implements Serializable {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long followerId;
 
-    private LocalDateTime followedAt;
+    private OffsetDateTime followedAt;
 }

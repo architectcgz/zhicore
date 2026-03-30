@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
@@ -47,8 +47,8 @@ public class ScheduledPublishScanner {
             initialDelayString = "${scheduled.publish.compensation-initial-delay-ms:1000}"
     )
     public void scanAndEnqueue() {
-        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
-        LocalDateTime reclaimBefore = dbNow.minusSeconds(properties.getClaimTimeoutSeconds());
+        OffsetDateTime dbNow = scheduledPublishEventStore.dbNow();
+        OffsetDateTime reclaimBefore = dbNow.minusSeconds(properties.getClaimTimeoutSeconds());
 
         List<ScheduledPublishEventRecord> claimed = scheduledPublishEventStore.claimCompensationBatch(
                 dbNow,
@@ -70,15 +70,13 @@ public class ScheduledPublishScanner {
         }
     }
 
-    private void publishCompensationTrigger(ScheduledPublishEventRecord event, LocalDateTime dbNow) {
+    private void publishCompensationTrigger(ScheduledPublishEventRecord event, OffsetDateTime dbNow) {
         String triggerEventId = newEventId();
         Post post = postRepository.findById(event.getPostId()).orElse(null);
         Long aggregateVersion = post != null ? post.getVersion() : 0L;
         Long authorId = post != null ? post.getOwnerId().getValue() : null;
 
-        Instant scheduledAt = event.getScheduledAt()
-                .atZone(ZoneId.systemDefault())
-                .toInstant();
+        Instant scheduledAt = event.getScheduledAt().toInstant();
         long remainingSeconds = Duration.between(dbNow, event.getScheduledAt()).getSeconds();
         int delayLevel = ScheduledPublishDelayLevelResolver.resolve(remainingSeconds);
 
@@ -103,7 +101,7 @@ public class ScheduledPublishScanner {
         );
     }
 
-    private void releaseAfterCompensationFailure(ScheduledPublishEventRecord event, LocalDateTime dbNow, Exception ex) {
+    private void releaseAfterCompensationFailure(ScheduledPublishEventRecord event, OffsetDateTime dbNow, Exception ex) {
         scheduledPublishEventStore.update(
                 event.withStatus(ScheduledPublishEventRecord.ScheduledPublishStatus.FAILED)
                         .withNextAttemptAt(dbNow.plusSeconds(properties.getEnqueueCooldownSeconds()))
@@ -116,7 +114,7 @@ public class ScheduledPublishScanner {
                 event.getEventId(), event.getPostId(), ex.getMessage(), ex);
     }
 
-    private LocalDateTime nextCompensationAt(LocalDateTime dbNow, LocalDateTime scheduledAt) {
+    private OffsetDateTime nextCompensationAt(OffsetDateTime dbNow, OffsetDateTime scheduledAt) {
         return ScheduledPublishNextAttemptResolver.resolveCompensationAt(
                 dbNow,
                 scheduledAt,

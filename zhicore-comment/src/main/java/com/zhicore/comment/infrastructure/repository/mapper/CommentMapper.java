@@ -6,7 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -71,7 +71,7 @@ public interface CommentMapper extends BaseMapper<CommentPO> {
             """)
     List<CommentPO> findTopLevelByPostIdOrderByTimeCursor(
             @Param("postId") Long postId,
-            @Param("cursorTime") LocalDateTime cursorTime,
+            @Param("cursorTime") OffsetDateTime cursorTime,
             @Param("cursorId") Long cursorId,
             @Param("size") int size
     );
@@ -139,7 +139,7 @@ public interface CommentMapper extends BaseMapper<CommentPO> {
             """)
     List<CommentPO> findRepliesByRootIdCursor(
             @Param("rootId") Long rootId,
-            @Param("cursorTime") LocalDateTime cursorTime,
+            @Param("cursorTime") OffsetDateTime cursorTime,
             @Param("cursorId") Long cursorId,
             @Param("size") int size
     );

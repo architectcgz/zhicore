@@ -16,7 +16,7 @@ import com.zhicore.integration.messaging.post.PostScheduleExecuteIntegrationEven
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -53,7 +53,7 @@ public class PostCommandFacade {
         postLifecycleCommandService.unpublishPost(userId, postId);
     }
 
-    public void schedulePublish(Long userId, Long postId, LocalDateTime scheduledAt) {
+    public void schedulePublish(Long userId, Long postId, OffsetDateTime scheduledAt) {
         scheduledPublishCommandService.schedulePublish(userId, postId, scheduledAt);
     }
 

@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章点赞表实体（R2）
@@ -21,6 +21,6 @@ public class PostLikeEntity {
 
     private Long userId;
 
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }
 

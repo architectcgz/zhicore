@@ -4,7 +4,7 @@ import com.zhicore.content.domain.model.PostFavorite;
 import com.zhicore.content.domain.model.PostId;
 import com.zhicore.content.domain.model.UserId;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,7 +38,7 @@ public interface PostFavoriteRepository {
     /**
      * 查询用户收藏的文章列表（游标分页）
      */
-    List<PostFavorite> findByUserIdCursor(UserId userId, LocalDateTime cursor, int limit);
+    List<PostFavorite> findByUserIdCursor(UserId userId, OffsetDateTime cursor, int limit);
 
     /**
      * 统计文章收藏数

@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 草稿快照
@@ -22,7 +22,7 @@ public class DraftSnapshot {
     private String userId;
     private String content;
     private String contentType;
-    private LocalDateTime savedAt;
+    private OffsetDateTime savedAt;
     private String deviceId;
     private Boolean isAutoSave;
     private Integer wordCount;

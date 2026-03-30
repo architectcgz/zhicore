@@ -7,7 +7,7 @@ import lombok.Getter;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -42,10 +42,10 @@ public class Post {
         PostStatus status,
         TopicId topicId,
         Set<TagId> tagIds,
-        LocalDateTime publishedAt,
-        LocalDateTime scheduledAt,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt,
+        OffsetDateTime publishedAt,
+        OffsetDateTime scheduledAt,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt,
         Boolean isArchived,
         PostStats stats,
         WriteState writeState,
@@ -93,7 +93,7 @@ public class Post {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
     /**
      * 标题
@@ -128,17 +128,17 @@ public class Post {
     /**
      * 发布时间
      */
-    private LocalDateTime publishedAt;
+    private OffsetDateTime publishedAt;
 
     /**
      * 定时发布时间
      */
-    private LocalDateTime scheduledAt;
+    private OffsetDateTime scheduledAt;
 
     /**
      * 更新时间
      */
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 
     /**
      * 是否已归档
@@ -171,8 +171,8 @@ public class Post {
         this.ownerId = ownerId;
         this.title = title;
         this.status = PostStatus.DRAFT;
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
         this.isArchived = false;
         this.stats = PostStats.empty(id);
         this.writeState = WriteState.NONE;
@@ -195,10 +195,10 @@ public class Post {
                  @JsonProperty("status") PostStatus status,
                  @JsonProperty("topicId") TopicId topicId,
                  @JsonProperty("tagIds") Set<TagId> tagIds,
-                 @JsonProperty("publishedAt") LocalDateTime publishedAt,
-                 @JsonProperty("scheduledAt") LocalDateTime scheduledAt,
-                 @JsonProperty("createdAt") LocalDateTime createdAt,
-                 @JsonProperty("updatedAt") LocalDateTime updatedAt,
+                 @JsonProperty("publishedAt") OffsetDateTime publishedAt,
+                 @JsonProperty("scheduledAt") OffsetDateTime scheduledAt,
+                 @JsonProperty("createdAt") OffsetDateTime createdAt,
+                 @JsonProperty("updatedAt") OffsetDateTime updatedAt,
                  @JsonProperty("isArchived") Boolean isArchived,
                  @JsonProperty("stats") PostStats stats,
                  @JsonProperty("writeState") WriteState writeState,
@@ -274,7 +274,7 @@ public class Post {
         if (coverImageId != null) {
             this.coverImageId = coverImageId;
         }
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -285,7 +285,7 @@ public class Post {
     public void updateTags(Set<TagId> newTagIds) {
         ensureEditable();
         this.tagIds = new HashSet<>(newTagIds);
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -295,7 +295,7 @@ public class Post {
      */
     public void setTopic(TopicId topicId) {
         this.topicId = topicId;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -305,7 +305,7 @@ public class Post {
      */
     public void setCoverImage(String coverImageId) {
         this.coverImageId = coverImageId;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -322,8 +322,8 @@ public class Post {
         validateForPublish();
 
         this.status = PostStatus.PUBLISHED;
-        this.publishedAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        this.publishedAt = OffsetDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
         this.scheduledAt = null;
     }
 
@@ -332,21 +332,21 @@ public class Post {
      *
      * @param scheduledAt 定时发布时间
      */
-    public void schedulePublish(LocalDateTime scheduledAt) {
+    public void schedulePublish(OffsetDateTime scheduledAt) {
         if (this.status != PostStatus.DRAFT) {
             throw new DomainException("只有草稿状态的文章可以设置定时发布");
         }
         if (scheduledAt == null) {
             throw new DomainException("定时发布时间不能为空");
         }
-        if (scheduledAt.isBefore(LocalDateTime.now())) {
+        if (scheduledAt.isBefore(OffsetDateTime.now())) {
             throw new DomainException("定时发布时间不能早于当前时间");
         }
         validateForPublish();
 
         this.status = PostStatus.SCHEDULED;
         this.scheduledAt = scheduledAt;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -358,8 +358,8 @@ public class Post {
         }
         
         this.status = PostStatus.PUBLISHED;
-        this.publishedAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        this.publishedAt = OffsetDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
         this.scheduledAt = null;
     }
 
@@ -372,7 +372,7 @@ public class Post {
         }
         this.status = PostStatus.DRAFT;
         this.publishedAt = null;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -384,7 +384,7 @@ public class Post {
         }
         this.status = PostStatus.DRAFT;
         this.scheduledAt = null;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -395,7 +395,7 @@ public class Post {
             throw new DomainException("文章已经删除");
         }
         this.status = PostStatus.DELETED;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -407,7 +407,7 @@ public class Post {
         }
         // 恢复到草稿状态
         this.status = PostStatus.DRAFT;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     // ==================== 查询方法 ====================
@@ -463,7 +463,7 @@ public class Post {
      */
     public void markAsArchived() {
         this.isArchived = true;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -471,7 +471,7 @@ public class Post {
      */
     public void unmarkArchived() {
         this.isArchived = false;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -491,7 +491,7 @@ public class Post {
      */
     public void touch() {
         ensureEditable();
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     // ==================== 作者信息更新方法 ====================
@@ -516,7 +516,7 @@ public class Post {
         }
         
         this.ownerSnapshot = newSnapshot;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
         return true;
     }
 
@@ -538,7 +538,7 @@ public class Post {
      */
     public void setWriteState(WriteState writeState) {
         this.writeState = writeState;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -549,7 +549,7 @@ public class Post {
     public void markAsIncomplete(String reason) {
         this.writeState = WriteState.INCOMPLETE;
         this.incompleteReason = reason;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**

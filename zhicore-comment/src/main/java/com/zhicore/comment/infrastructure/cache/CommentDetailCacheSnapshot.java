@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
 
 /**
@@ -31,8 +31,8 @@ class CommentDetailCacheSnapshot {
     private Long rootId;
     private Long replyToUserId;
     private CommentStatus status;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
     private CommentStats stats;
 
     static CommentDetailCacheSnapshot from(Comment comment) {

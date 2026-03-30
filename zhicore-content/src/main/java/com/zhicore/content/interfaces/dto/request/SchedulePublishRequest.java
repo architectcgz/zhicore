@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 定时发布请求
@@ -19,5 +19,5 @@ public class SchedulePublishRequest {
     @Schema(description = "定时发布时间", example = "2024-12-31T10:00:00", required = true)
     @NotNull(message = "定时发布时间不能为空")
     @Future(message = "定时发布时间必须是未来时间")
-    private LocalDateTime scheduledAt;
+    private OffsetDateTime scheduledAt;
 }

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.api.event.DomainEvent;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章点赞事件
@@ -35,7 +35,7 @@ public class PostLikedEvent extends DomainEvent {
     /**
      * 文章发布时间（用于热度计算时间衰减）
      */
-    private final LocalDateTime publishedAt;
+    private final OffsetDateTime publishedAt;
 
     @JsonCreator
     public PostLikedEvent(@JsonProperty("eventId") String eventId,
@@ -43,7 +43,7 @@ public class PostLikedEvent extends DomainEvent {
                           @JsonProperty("postId") Long postId,
                           @JsonProperty("userId") Long userId,
                           @JsonProperty("authorId") Long authorId,
-                          @JsonProperty("publishedAt") LocalDateTime publishedAt) {
+                          @JsonProperty("publishedAt") OffsetDateTime publishedAt) {
         super(eventId, occurredAt);
         this.postId = postId;
         this.userId = userId;
@@ -55,7 +55,7 @@ public class PostLikedEvent extends DomainEvent {
         this(postId, userId, authorId, null);
     }
 
-    public PostLikedEvent(Long postId, Long userId, Long authorId, LocalDateTime publishedAt) {
+    public PostLikedEvent(Long postId, Long userId, Long authorId, OffsetDateTime publishedAt) {
         this(null, null, postId, userId, authorId, publishedAt);
     }
 

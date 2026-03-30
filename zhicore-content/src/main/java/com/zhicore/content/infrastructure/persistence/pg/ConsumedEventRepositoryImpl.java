@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 已消费事件仓储实现
@@ -41,7 +41,7 @@ public class ConsumedEventRepositoryImpl implements ConsumedEventRepository {
             entity.setEventId(eventId);
             entity.setEventType(eventType);
             entity.setConsumerName(consumerName);
-            entity.setConsumedAt(LocalDateTime.now());
+            entity.setConsumedAt(OffsetDateTime.now());
             
             int inserted = mapper.insert(entity);
             
@@ -78,7 +78,7 @@ public class ConsumedEventRepositoryImpl implements ConsumedEventRepository {
      * @return 清理的记录数量
      */
     @Override
-    public int cleanupBefore(LocalDateTime before) {
+    public int cleanupBefore(OffsetDateTime before) {
         try {
             int deleted = mapper.deleteBefore(before);
             if (deleted > 0) {

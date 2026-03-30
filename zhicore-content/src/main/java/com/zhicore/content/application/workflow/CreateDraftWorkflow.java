@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -70,8 +70,8 @@ public class CreateDraftWorkflow {
                     postId,
                     command.getContent(),
                     command.getContentTypeOrDefault(),
-                    LocalDateTime.now(),
-                    LocalDateTime.now()
+                    OffsetDateTime.now(),
+                    OffsetDateTime.now()
             );
             contentStore.saveContent(postId, body);
 

@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章列表项响应 DTO
@@ -55,5 +55,5 @@ public class PostListItemResponse {
     private int shareCount;
     
     @Schema(description = "创建时间")
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

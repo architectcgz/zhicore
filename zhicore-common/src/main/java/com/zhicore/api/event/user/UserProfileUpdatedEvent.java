@@ -5,7 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 用户资料变更事件
@@ -105,5 +105,5 @@ public class UserProfileUpdatedEvent implements Serializable {
      * 
      * <p>用户资料的更新时间，用于日志记录和问题排查。</p>
      */
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 }

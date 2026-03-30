@@ -54,7 +54,7 @@ public class UserBlockRepositoryImpl implements UserBlockRepository {
         return UserBlock.reconstitute(
                 po.getBlockerId(),
                 po.getBlockedId(),
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt())
+                po.getCreatedAt()
         );
     }
 
@@ -62,7 +62,7 @@ public class UserBlockRepositoryImpl implements UserBlockRepository {
         UserBlockPO po = new UserBlockPO();
         po.setBlockerId(block.getBlockerId());
         po.setBlockedId(block.getBlockedId());
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(block.getCreatedAt()));
+        po.setCreatedAt(block.getCreatedAt());
         return po;
     }
 }

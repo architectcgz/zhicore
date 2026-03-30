@@ -14,7 +14,7 @@ import com.zhicore.notification.infrastructure.push.NotificationPushService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -86,7 +86,7 @@ public class NotificationDeliveryService {
         if (notificationPushService.push(String.valueOf(delivery.getRecipientId()), notification)) {
             delivery.markSent(notification.getId());
         } else {
-            delivery.markFailed(FAILURE_PUSH_DELIVERY, LocalDateTime.now().plusMinutes(5), notification.getId());
+            delivery.markFailed(FAILURE_PUSH_DELIVERY, OffsetDateTime.now().plusMinutes(5), notification.getId());
         }
         notificationDeliveryRepository.update(delivery);
     }

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 举报视图对象
@@ -72,10 +72,10 @@ public class ReportVO {
     /**
      * 处理时间
      */
-    private LocalDateTime handledAt;
+    private OffsetDateTime handledAt;
     
     /**
      * 创建时间
      */
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

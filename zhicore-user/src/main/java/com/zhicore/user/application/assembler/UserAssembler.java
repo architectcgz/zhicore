@@ -1,7 +1,6 @@
 package com.zhicore.user.application.assembler;
 
 import com.zhicore.api.dto.user.UserSimpleDTO;
-import com.zhicore.common.util.DateTimeUtils;
 import com.zhicore.user.application.dto.UserVO;
 import com.zhicore.user.application.query.view.UserManageView;
 import com.zhicore.user.application.query.view.UserSimpleView;
@@ -43,7 +42,7 @@ public class UserAssembler {
         vo.setBio(user.getBio());
         vo.setStatus(user.getStatus().getCode());
         vo.setEmailConfirmed(user.isEmailConfirmed());
-        vo.setCreatedAt(DateTimeUtils.toOffsetDateTime(user.getCreatedAt()));
+        vo.setCreatedAt(user.getCreatedAt());
 
         // 转换角色
         if (user.getRoles() != null) {

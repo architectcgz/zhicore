@@ -9,7 +9,7 @@ import lombok.Getter;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -44,8 +44,8 @@ public class User {
         boolean strangerMessageAllowed,
         Set<Role> roles,
         Long profileVersion,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
     ) {
     }
 
@@ -115,12 +115,12 @@ public class User {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
     /**
      * 更新时间
      */
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 
     /**
      * 私有构造函数
@@ -140,8 +140,8 @@ public class User {
         this.emailConfirmed = false;
         this.strangerMessageAllowed = true;
         this.roles = new HashSet<>();
-        this.createdAt = DateTimeUtils.nowLocal();
-        this.updatedAt = DateTimeUtils.nowLocal();
+        this.createdAt = DateTimeUtils.nowOffset();
+        this.updatedAt = DateTimeUtils.nowOffset();
     }
 
     /**
@@ -161,8 +161,8 @@ public class User {
             @JsonProperty("strangerMessageAllowed") boolean strangerMessageAllowed,
             @JsonProperty("roles") Set<Role> roles,
             @JsonProperty("profileVersion") Long profileVersion,
-            @JsonProperty("createdAt") LocalDateTime createdAt, 
-            @JsonProperty("updatedAt") LocalDateTime updatedAt) {
+            @JsonProperty("createdAt") OffsetDateTime createdAt, 
+            @JsonProperty("updatedAt") OffsetDateTime updatedAt) {
         this.id = id;
         this.userName = userName;
         this.nickName = nickName;
@@ -235,7 +235,7 @@ public class User {
             validateBio(bio);
             this.bio = bio;
         }
-        this.updatedAt = DateTimeUtils.nowLocal();
+        this.updatedAt = DateTimeUtils.nowOffset();
     }
 
     /**
@@ -247,7 +247,7 @@ public class User {
         ensureActive();
         Assert.hasText(newPasswordHash, "新密码不能为空");
         this.passwordHash = newPasswordHash;
-        this.updatedAt = DateTimeUtils.nowLocal();
+        this.updatedAt = DateTimeUtils.nowOffset();
     }
 
     /**
@@ -258,7 +258,7 @@ public class User {
     public void updateStrangerMessageSetting(boolean strangerMessageAllowed) {
         ensureActive();
         this.strangerMessageAllowed = strangerMessageAllowed;
-        this.updatedAt = DateTimeUtils.nowLocal();
+        this.updatedAt = DateTimeUtils.nowOffset();
     }
 
     /**
@@ -269,7 +269,7 @@ public class User {
             throw new DomainException("邮箱已经验证过了");
         }
         this.emailConfirmed = true;
-        this.updatedAt = DateTimeUtils.nowLocal();
+        this.updatedAt = DateTimeUtils.nowOffset();
     }
 
     /**
@@ -280,7 +280,7 @@ public class User {
             throw new DomainException(ResultCode.USER_DISABLED, "用户已经被禁用");
         }
         this.status = UserStatus.DISABLED;
-        this.updatedAt = DateTimeUtils.nowLocal();
+        this.updatedAt = DateTimeUtils.nowOffset();
     }
 
     /**
@@ -291,7 +291,7 @@ public class User {
             throw new DomainException("用户已经是启用状态");
         }
         this.status = UserStatus.ACTIVE;
-        this.updatedAt = DateTimeUtils.nowLocal();
+        this.updatedAt = DateTimeUtils.nowOffset();
     }
 
     /**
@@ -302,7 +302,7 @@ public class User {
     public void assignRole(Role role) {
         Assert.notNull(role, "角色不能为空");
         this.roles.add(role);
-        this.updatedAt = DateTimeUtils.nowLocal();
+        this.updatedAt = DateTimeUtils.nowOffset();
     }
 
     /**
@@ -313,7 +313,7 @@ public class User {
     public void removeRole(Role role) {
         Assert.notNull(role, "角色不能为空");
         this.roles.remove(role);
-        this.updatedAt = DateTimeUtils.nowLocal();
+        this.updatedAt = DateTimeUtils.nowOffset();
     }
 
     /**

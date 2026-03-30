@@ -4,7 +4,7 @@ import com.zhicore.common.exception.ValidationException;
 import lombok.Value;
 
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 
@@ -18,7 +18,7 @@ import java.util.Base64;
 @Value
 public class CursorToken {
 
-    LocalDateTime publishedAt;
+    OffsetDateTime publishedAt;
     Long postId;
 
     public static String encode(CursorToken token) {
@@ -38,13 +38,13 @@ public class CursorToken {
             String[] parts = decoded.split("\\|");
             if (parts.length == 1) {
                 // 兼容旧格式：仅包含 publishedAt（会跳过同一时间戳的记录，但不会重复）
-                LocalDateTime publishedAt = LocalDateTime.parse(parts[0], DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+                OffsetDateTime publishedAt = OffsetDateTime.parse(parts[0], DateTimeFormatter.ISO_LOCAL_DATE_TIME);
                 return new CursorToken(publishedAt, 0L);
             }
             if (parts.length != 2) {
                 throw new IllegalArgumentException("invalid cursor parts");
             }
-            LocalDateTime publishedAt = LocalDateTime.parse(parts[0], DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            OffsetDateTime publishedAt = OffsetDateTime.parse(parts[0], DateTimeFormatter.ISO_LOCAL_DATE_TIME);
             Long postId = Long.parseLong(parts[1]);
             return new CursorToken(publishedAt, postId);
         } catch (Exception e) {

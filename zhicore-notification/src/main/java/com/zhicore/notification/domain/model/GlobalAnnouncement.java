@@ -3,7 +3,7 @@ package com.zhicore.notification.domain.model;
 import lombok.Getter;
 import org.springframework.util.Assert;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 全局公告实体
@@ -41,17 +41,17 @@ public class GlobalAnnouncement {
     /**
      * 开始时间
      */
-    private LocalDateTime startTime;
+    private OffsetDateTime startTime;
 
     /**
      * 结束时间
      */
-    private LocalDateTime endTime;
+    private OffsetDateTime endTime;
 
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
     /**
      * 私有构造函数
@@ -67,15 +67,15 @@ public class GlobalAnnouncement {
         this.content = content;
         this.type = type;
         this.isActive = true;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now();
     }
 
     /**
      * 私有构造函数（用于从持久化恢复）
      */
     private GlobalAnnouncement(String id, String title, String content, AnnouncementType type,
-                               boolean isActive, LocalDateTime startTime, LocalDateTime endTime,
-                               LocalDateTime createdAt) {
+                               boolean isActive, OffsetDateTime startTime, OffsetDateTime endTime,
+                               OffsetDateTime createdAt) {
         this.id = id;
         this.title = title;
         this.content = content;
@@ -100,7 +100,7 @@ public class GlobalAnnouncement {
      */
     public static GlobalAnnouncement createScheduled(String id, String title, String content,
                                                       AnnouncementType type,
-                                                      LocalDateTime startTime, LocalDateTime endTime) {
+                                                      OffsetDateTime startTime, OffsetDateTime endTime) {
         GlobalAnnouncement announcement = new GlobalAnnouncement(id, title, content, type);
         announcement.startTime = startTime;
         announcement.endTime = endTime;
@@ -112,8 +112,8 @@ public class GlobalAnnouncement {
      */
     public static GlobalAnnouncement reconstitute(String id, String title, String content,
                                                    AnnouncementType type, boolean isActive,
-                                                   LocalDateTime startTime, LocalDateTime endTime,
-                                                   LocalDateTime createdAt) {
+                                                   OffsetDateTime startTime, OffsetDateTime endTime,
+                                                   OffsetDateTime createdAt) {
         return new GlobalAnnouncement(id, title, content, type, isActive, startTime, endTime, createdAt);
     }
 
@@ -140,7 +140,7 @@ public class GlobalAnnouncement {
         if (!this.isActive) {
             return false;
         }
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         if (this.startTime != null && now.isBefore(this.startTime)) {
             return false;
         }

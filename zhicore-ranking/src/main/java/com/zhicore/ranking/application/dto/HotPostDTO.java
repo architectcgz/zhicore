@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 热门文章 DTO
@@ -79,7 +79,7 @@ public class HotPostDTO {
      * 发布时间
      */
     @Schema(description = "发布时间", example = "2024-01-28T10:30:00")
-    private LocalDateTime publishedAt;
+    private OffsetDateTime publishedAt;
 
     /**
      * 点赞数

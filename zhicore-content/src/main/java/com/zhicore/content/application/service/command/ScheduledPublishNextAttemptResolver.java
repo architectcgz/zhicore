@@ -1,6 +1,6 @@
 package com.zhicore.content.application.service.command;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 定时发布补偿任务的 next_attempt_at 计算器。
@@ -15,9 +15,9 @@ public final class ScheduledPublishNextAttemptResolver {
     private ScheduledPublishNextAttemptResolver() {
     }
 
-    public static LocalDateTime resolveCompensationAt(
-            LocalDateTime dbNow,
-            LocalDateTime scheduledAt,
+    public static OffsetDateTime resolveCompensationAt(
+            OffsetDateTime dbNow,
+            OffsetDateTime scheduledAt,
             int upcomingWindowSeconds,
             int enqueueCooldownSeconds
     ) {
@@ -29,12 +29,12 @@ public final class ScheduledPublishNextAttemptResolver {
             return dbNow.plusSeconds(enqueueCooldownSeconds);
         }
 
-        LocalDateTime windowStart = scheduledAt.minusSeconds(upcomingWindowSeconds);
+        OffsetDateTime windowStart = scheduledAt.minusSeconds(upcomingWindowSeconds);
         if (windowStart.isAfter(dbNow)) {
             return windowStart;
         }
 
-        LocalDateTime cooldownAt = dbNow.plusSeconds(enqueueCooldownSeconds);
+        OffsetDateTime cooldownAt = dbNow.plusSeconds(enqueueCooldownSeconds);
         return cooldownAt.isAfter(scheduledAt) ? scheduledAt : cooldownAt;
     }
 }

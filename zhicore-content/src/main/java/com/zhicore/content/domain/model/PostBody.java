@@ -2,7 +2,7 @@ package com.zhicore.content.domain.model;
 
 import lombok.Getter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章内容值对象
@@ -34,12 +34,12 @@ public final class PostBody {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
     
     /**
      * 更新时间
      */
-    private final LocalDateTime updatedAt;
+    private final OffsetDateTime updatedAt;
     
     /**
      * 构造函数（创建新内容）
@@ -52,8 +52,8 @@ public final class PostBody {
         this.postId = postId;
         this.content = content;
         this.contentType = contentType != null ? contentType : ContentType.MARKDOWN;
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
     
     /**
@@ -66,7 +66,7 @@ public final class PostBody {
      * @param updatedAt 更新时间
      */
     public PostBody(PostId postId, String content, ContentType contentType, 
-                    LocalDateTime createdAt, LocalDateTime updatedAt) {
+                    OffsetDateTime createdAt, OffsetDateTime updatedAt) {
         this.postId = postId;
         this.content = content;
         this.contentType = contentType != null ? contentType : ContentType.MARKDOWN;
@@ -94,7 +94,7 @@ public final class PostBody {
      */
     public PostBody updateContent(String newContent) {
         return new PostBody(this.postId, newContent, this.contentType, 
-                           this.createdAt, LocalDateTime.now());
+                           this.createdAt, OffsetDateTime.now());
     }
     
     /**

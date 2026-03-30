@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -71,11 +71,11 @@ public class PostDetailResponse {
     private int shareCount;
     
     @Schema(description = "创建时间")
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
     
     @Schema(description = "更新时间")
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
     
     @Schema(description = "定时发布时间（如果状态为 SCHEDULED）")
-    private LocalDateTime scheduledPublishAt;
+    private OffsetDateTime scheduledPublishAt;
 }

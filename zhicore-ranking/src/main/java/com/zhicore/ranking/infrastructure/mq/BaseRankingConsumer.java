@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhicore.ranking.application.service.RankingLedgerIngestionService;
 import com.zhicore.ranking.domain.model.RankingMetricType;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 排行榜事件消费基类。
@@ -27,8 +27,8 @@ public abstract class BaseRankingConsumer {
                                       Long authorId,
                                       RankingMetricType metricType,
                                       int countDelta,
-                                      LocalDateTime occurredAt,
-                                      LocalDateTime publishedAt) {
+                                      OffsetDateTime occurredAt,
+                                      OffsetDateTime publishedAt) {
         return rankingLedgerIngestionService.saveEvent(
                 eventId,
                 eventType,

@@ -9,7 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * Tag DTO
@@ -57,11 +57,11 @@ public class TagDTO implements Serializable {
      * 创建时间
      */
     @Schema(description = "创建时间", example = "2026-01-29T10:00:00")
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     /**
      * 更新时间
      */
     @Schema(description = "更新时间", example = "2026-01-29T10:00:00")
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 }
