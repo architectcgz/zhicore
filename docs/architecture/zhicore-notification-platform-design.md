@@ -2,7 +2,7 @@
 
 ## 文档定位
 
-本文同时描述 `ZhiCore` 通知模块的当前实现基线与通知平台的后续目标设计，重点覆盖以下主题：
+本文描述 `ZhiCore` 通知平台的目标设计，重点覆盖以下主题：
 
 1. 统一通知中心与分类模型
 2. 交互通知链路优化
@@ -11,11 +11,7 @@
 5. 站内、App Push、邮件、短信的统一扩展模型
 6. 未读数、聚合、缓存、幂等、失败补偿与可观测性
 
-阅读约定：
-
-1. 标注“当前实现”的内容，以 `zhicore-notification` 仓内代码为准。
-2. 标注“建议”或“目标设计”的内容，表示后续平台化演进方向。
-3. 除特别说明外，本文以 2026-03-27 仓内实现为基线；当前“交互通知中心 + 平台化一期扩展位 + 偏好/DND + 二期发布广播骨架”已完成，作者订阅、digest、多通道真实投递和系统公告链路整合仍未落地。
+除特别说明外，本文以 2026-03-26 仓内实现为基线，属于目标架构设计，不代表当前仓内已全部落地。
 
 ## 设计输入
 
@@ -44,61 +40,6 @@
 3. 用户偏好、免打扰、作者级订阅、通道策略尚无统一模型。
 4. 邮件和短信没有统一的通道抽象与投递记录模型。
 5. 高粉作者发布作品时，如果直接对粉丝逐条同步落库，会把数据库、缓存和推送链路一起打爆。
-
-## 当前实现基线（2026-03-27）
-
-### 已完成范围
-
-当前 `zhicore-notification` 已完成的不是“完整通知平台”，而是面向交互通知的一期通知中心实现，具体包括：
-
-1. 站内通知真相源已经落地。
-   - 使用 `notifications` 表保存接收者、类型、触发者、目标对象、内容、已读状态和创建时间。
-   - 一期已为 `notifications` 增加 `category`、`event_code`、`metadata` 扩展位；当前枚举已扩展到 `LIKE / COMMENT / FOLLOW / REPLY / SYSTEM / POST_PUBLISHED`。
-
-2. 交互通知消费链路已经落地。
-   - `PostLikedNotificationConsumer` 消费 `PostLikedEvent`，为文章作者创建点赞通知。
-   - `CommentCreatedNotificationConsumer` 消费 `CommentCreatedIntegrationEvent`，分别处理“通知文章作者”和“通知被回复者”两条分支。
-   - `UserFollowedNotificationConsumer` 消费 `UserFollowedIntegrationEvent`，为被关注者创建关注通知。
-   - 写入侧通过事件派生的通知 ID + `ON CONFLICT (id) DO NOTHING` 实现输入事件级幂等。
-
-3. 用户侧查询和已读接口已经落地。
-   - `GET /api/v1/notifications` 返回聚合通知列表。
-   - `GET /api/v1/notifications/unread/count` 和 `GET /api/v1/notifications/unread-count` 返回未读总数。
-   - `POST /api/v1/notifications/{notificationId}/read` 标记单条已读。
-   - `POST /api/v1/notifications/read-all` 和 `POST /api/v1/notifications/mark-all-read` 标记全部已读。
-   - `GET /api/v1/notifications/preferences` / `PUT /api/v1/notifications/preferences` 支持通知偏好配置。
-   - `GET /api/v1/notifications/dnd` / `PUT /api/v1/notifications/dnd` 支持免打扰配置。
-
-4. 聚合查询、缓存和推送已经落地。
-   - `NotificationAggregationService` 在 PostgreSQL 中按 `(type, target_type, target_id)` 聚合，再分页返回代表通知。
-   - 聚合列表会批量调用用户服务补齐最近触发者信息，并生成聚合文案。
-   - 未读数采用 Redis cache-aside，TTL 读取 `cache.ttl.unread-count`；聚合列表按页缓存，TTL 由 `zhicore.notification.aggregation.cache.ttl` 控制。
-   - 创建通知成功后优先原子递增未读缓存；单条已读与全部已读按真实更新行数原子递减；缓存未命中则由查询链路回源重建。
-   - 未读数变更与聚合列表缓存失效统一在事务提交后执行。
-   - `NotificationPushService` 会在写库成功后推送聚合通知和最新未读数。
-
-5. WebSocket 和保护性配置已经落地。
-   - STOMP 入口为 `/ws/notification`，用户通知目的地为 `/user/queue/notifications`，未读角标目的地为 `/user/queue/unread-count`，系统广播目的地为 `/topic/announcements`。
-   - WebSocket 入站链路接入了 JWT 解析拦截。
-   - 聚合查询与未读数查询已接入 Sentinel 资源保护。
-
-6. 二期最小发布广播骨架已经落地。
-   - `PostPublishedIntegrationEvent` 已补齐 `authorId`，通知侧不再额外反查内容服务。
-   - 用户服务新增稳定游标接口 `GET /api/v1/users/{userId}/followers/cursor`，并补充 `(following_id, created_at DESC, follower_id DESC)` 索引。
-   - 通知服务已引入 `notification_campaign`、`notification_campaign_shard`、`notification_delivery` 三张表。
-   - `PostPublishedNotificationConsumer` 会创建 campaign、按 shard 扫粉、物化 inbox `notifications` 并记录 delivery。
-   - 偏好关闭时直接记录 `SKIPPED` delivery；DND 命中时仍写 inbox，但跳过 WebSocket 主动推送。
-   - 系统公告仍保留在 `global_announcements` + `/topic/announcements`，不走本条广播链路。
-
-### 当前仍未落地范围
-
-以下内容仍属于本文后续章节中的平台化设计，不应视为当前代码现状：
-
-1. 作者级订阅模型及对应 API。
-2. 邮件、短信等独立通道抽象和投递账本。
-3. `notification_group_state`、用户级微批和广播侧物化链路。
-4. 面向高粉作者的 fan-out 分层、摘要补发和运营侧控制面。
-5. 系统公告与广播控制面的统一后台操作链路。
 
 ## 设计目标
 
@@ -785,47 +726,35 @@ Content/User/Admin Services
 
 ## API 设计建议
 
-### 当前已实现用户侧 API
+### 用户侧 API
+
+建议保留和扩展以下接口：
 
 1. `GET /api/v1/notifications`
    - 获取聚合通知列表
 
-2. `GET /api/v1/notifications/unread/count`
+2. `GET /api/v1/notifications/unread-count`
    - 获取未读统计
 
-3. `GET /api/v1/notifications/unread-count`
-   - 未读统计兼容路由
+3. `POST /api/v1/notifications/read`
+   - 批量标记已读
 
-4. `POST /api/v1/notifications/{notificationId}/read`
-   - 标记单条已读
-
-5. `POST /api/v1/notifications/read-all`
-   - 批量标记全部已读
-
-6. `POST /api/v1/notifications/mark-all-read`
-   - 批量已读兼容路由
-
-7. `WS /ws/notification`
-   - 建立 STOMP 连接，消费 `/user/queue/notifications`、`/user/queue/unread-count` 和 `/topic/announcements`
-
-### 后续扩展 API
-
-1. `GET /api/v1/notification-preferences`
+4. `GET /api/v1/notification-preferences`
    - 获取偏好
 
-2. `PUT /api/v1/notification-preferences`
+5. `PUT /api/v1/notification-preferences`
    - 修改类型与通道偏好
 
-3. `GET /api/v1/notification-authors/{authorId}/subscription`
+6. `GET /api/v1/notification-authors/{authorId}/subscription`
    - 获取作者级订阅偏好
 
-4. `PUT /api/v1/notification-authors/{authorId}/subscription`
+7. `PUT /api/v1/notification-authors/{authorId}/subscription`
    - 修改作者级订阅偏好
 
-5. `GET /api/v1/notification-dnd`
+8. `GET /api/v1/notification-dnd`
    - 获取免打扰配置
 
-6. `PUT /api/v1/notification-dnd`
+9. `PUT /api/v1/notification-dnd`
    - 修改免打扰配置
 
 ### 运营侧 API
@@ -979,15 +908,13 @@ Content/User/Admin Services
 
 ## 与现有仓内实现的对应关系
 
-### 已实现并可直接复用
+### 可直接复用
 
-1. `NotificationCommandService + NotificationRepository + notifications` 组成的站内通知写模型
-2. `NotificationAggregationService + NotificationMapper` 组成的数据库聚合查询链路
-3. `RedisNotificationUnreadCountStore + RedisNotificationAggregationStore` 组成的 cache-aside 缓存层
-4. `PostLikedNotificationConsumer / CommentCreatedNotificationConsumer / UserFollowedNotificationConsumer` 组成的 MQ 接入层
-5. `NotificationPushService + WebSocketNotificationHandler + WebSocketConfig` 组成的实时推送通道
-6. `zhicore-user` 的关注关系与粉丝统计能力
-7. `PostPublishedIntegrationEvent` 作为后续内容发布通知入口
+1. `zhicore-notification` 的基础通知写模型
+2. WebSocket 推送通道
+3. `NotificationAggregationService` 的聚合查询经验
+4. `zhicore-user` 的关注关系与粉丝统计能力
+5. `PostPublishedIntegrationEvent` 作为内容发布通知入口
 
 ### 需要重点改造
 
@@ -999,16 +926,7 @@ Content/User/Admin Services
 
 ## 结论
 
-`zhicore-notification` 当前已经完成“交互通知中心”这一层能力，但还没有完成完整通知平台的全部平台化目标。
-
-当前已落地的范围是：
-
-1. 交互事件消费入库
-2. 聚合通知列表查询
-3. 未读数查询与已读操作
-4. WebSocket 实时推送
-
-在这个基础上，`ZhiCore` 后续通知平台不应继续把所有通知都当作“到一条事件就写一条普通通知”处理。
+`ZhiCore` 通知平台不应继续把所有通知都当作“到一条事件就写一条普通通知”处理。
 
 推荐的目标架构是：
 
@@ -1020,7 +938,7 @@ Content/User/Admin Services
 6. 免打扰作用于通道打扰与摘要回补，不破坏站内通知沉淀
 7. 邮件和短信先做能力预留，不把一期落地复杂度绑定在供应商实现上
 
-本文前半部分用于描述当前已完成模块的实现基线，后半部分保留为平台化扩展设计。这样既能支持当前模块交付和联调，也能为后续更高粉丝规模、更多通知类型和更多投递通道留出清晰演进路径。
+这套设计能覆盖当前完整通知平台需求，也为后续更高粉丝规模、更多通知类型和更多投递通道留出清晰演进路径。
 
 ## 联调与观测建议
 

@@ -74,16 +74,13 @@ psql -h localhost -U postgres -d ZhiCore_notification -f init-all-databases.sql
 
 ### Notification Service (ZhiCore_notification)
 
-- `notifications` - 用户通知（含 `category`、`event_code`、`metadata` 平台化扩展字段）
-- `notification_user_preference` - 用户通知偏好
-- `notification_user_dnd` - 用户免打扰配置
+- `notifications` - 用户通知
+- `notification_group_state` - 通知聚合组状态投影
+- `notification_campaign` - 作者发文广播 campaign
+- `notification_campaign_shard` - 广播执行分片
+- `notification_delivery` - 广播与多渠道投递台账
 - `global_announcements` - 全局公告
 - `assistant_messages` - 小助手消息
-
-### Admin Service (ZhiCore_admin)
-
-- `audit_logs` - 管理员审计日志
-- `reports` - 举报记录与处理结果
 
 ## ID 类型说明
 

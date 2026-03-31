@@ -28,7 +28,7 @@ public final class NotificationConsumerGroups {
     public static final String USER_FOLLOWED_CONSUMER = "notification-user-followed-consumer";
 
     /**
-     * 作品发布广播消费者组
+     * 作者发文广播计划消费者组
      */
     public static final String POST_PUBLISHED_CONSUMER = "notification-post-published-consumer";
 }

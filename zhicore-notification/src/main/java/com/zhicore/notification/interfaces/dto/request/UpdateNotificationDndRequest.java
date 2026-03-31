@@ -2,40 +2,42 @@ package com.zhicore.notification.interfaces.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.List;
+
 /**
- * 更新通知免打扰请求。
+ * 更新免打扰请求
  */
 @Data
 @Schema(description = "更新通知免打扰请求")
 public class UpdateNotificationDndRequest {
 
-    private static final String TIME_PATTERN = "^(?:[01]\\d|2[0-3]):[0-5]\\d$";
-
     @NotNull(message = "免打扰开关不能为空")
-    @Schema(description = "是否开启免打扰", example = "true", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "是否启用免打扰", example = "true", requiredMode = Schema.RequiredMode.REQUIRED)
     private Boolean enabled;
 
-    @Schema(description = "开始时间，格式 HH:mm", example = "22:00")
+    @NotBlank(message = "免打扰开始时间不能为空")
+    @Schema(description = "开始时间", example = "22:00", requiredMode = Schema.RequiredMode.REQUIRED)
     private String startTime;
 
-    @Schema(description = "结束时间，格式 HH:mm", example = "08:00")
+    @NotBlank(message = "免打扰结束时间不能为空")
+    @Schema(description = "结束时间", example = "08:00", requiredMode = Schema.RequiredMode.REQUIRED)
     private String endTime;
 
-    @Schema(description = "时区", example = "Asia/Shanghai")
-    private String timezone;
+    @Schema(description = "命中的通知分类")
+    private List<String> categories;
 
-    @AssertTrue(message = "免打扰时间格式必须为HH:mm")
-    public boolean isTimeWindowValid() {
-        if (!Boolean.TRUE.equals(enabled)) {
+    @Schema(description = "命中的通知渠道")
+    private List<String> channels;
+
+    @AssertTrue(message = "免打扰开始时间和结束时间不能相同")
+    public boolean isWindowValid() {
+        if (startTime == null || endTime == null) {
             return true;
         }
-        return matches(startTime) && matches(endTime);
-    }
-
-    private boolean matches(String value) {
-        return value != null && value.matches(TIME_PATTERN);
+        return !startTime.equals(endTime);
     }
 }

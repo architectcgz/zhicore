@@ -1,137 +1,109 @@
 package com.zhicore.notification.application.service.query;
 
+import com.zhicore.api.client.IdGeneratorFeignClient;
+import com.zhicore.common.result.ApiResponse;
+import com.zhicore.notification.application.port.store.NotificationAggregationStore;
 import com.zhicore.notification.application.port.store.NotificationUnreadCountStore;
+import com.zhicore.notification.application.service.command.NotificationCommandService;
+import com.zhicore.notification.domain.model.Notification;
+import com.zhicore.notification.domain.repository.NotificationGroupStateRepository;
 import com.zhicore.notification.domain.repository.NotificationRepository;
-import com.zhicore.notification.domain.model.NotificationType;
-import com.zhicore.notification.infrastructure.repository.mapper.NotificationMapper;
-import org.apache.ibatis.annotations.Result;
-import org.apache.ibatis.annotations.Results;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.lang.reflect.Method;
-import java.util.Arrays;
+import java.time.Duration;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-@DisplayName("Notification unread count 合同测试")
+@ExtendWith(MockitoExtension.class)
+@DisplayName("Notification unread count contract tests")
 class NotificationUnreadCountContractTest {
 
-    @Test
-    @DisplayName("通知仓储未读数查询应使用 Long 类型接收者 ID")
-    void shouldUseLongRecipientIdInNotificationRepositoryCountUnread() throws Exception {
-        Method method = NotificationRepository.class.getMethod("countUnread", Long.class);
+    private static final Duration UNREAD_COUNT_TTL = Duration.ofMinutes(5);
 
-        assertEquals(Long.class, method.getParameterTypes()[0]);
+    @Mock
+    private NotificationRepository notificationRepository;
+
+    @Mock
+    private IdGeneratorFeignClient idGeneratorFeignClient;
+
+    @Mock
+    private NotificationUnreadCountStore notificationUnreadCountStore;
+
+    @Mock
+    private NotificationAggregationStore notificationAggregationStore;
+
+    @Mock
+    private NotificationGroupStateRepository notificationGroupStateRepository;
+
+    private NotificationCommandService notificationCommandService;
+    private NotificationQueryService notificationQueryService;
+
+    @BeforeEach
+    void setUp() {
+        notificationCommandService = new NotificationCommandService(
+                notificationRepository,
+                idGeneratorFeignClient,
+                notificationUnreadCountStore,
+                notificationAggregationStore,
+                notificationGroupStateRepository
+        );
+        notificationQueryService = new NotificationQueryService(notificationRepository, notificationUnreadCountStore);
     }
 
     @Test
-    @DisplayName("通知 Mapper 未读数查询应使用 Long 类型接收者 ID")
-    void shouldUseLongRecipientIdInNotificationMapperCountUnread() throws Exception {
-        Method method = NotificationMapper.class.getMethod("countUnread", Long.class);
+    @DisplayName("create like notification should increment unread count without full cache evict")
+    void createLikeNotification_shouldIncrementUnreadCountWithoutFullCacheEvict() {
+        when(idGeneratorFeignClient.generateSnowflakeId()).thenReturn(ApiResponse.success(101L));
 
-        assertEquals(Long.class, method.getParameterTypes()[0]);
+        Notification notification = notificationCommandService.createLikeNotification(11L, 22L, "post", 33L);
+
+        assertEquals(101L, notification.getId());
+        verify(notificationRepository).save(any(Notification.class));
+        verify(notificationGroupStateRepository).upsertOnNotificationCreated(any(Notification.class));
+        verify(notificationUnreadCountStore).increment(11L, 1, UNREAD_COUNT_TTL);
+        verify(notificationUnreadCountStore, never()).evict(11L);
+        verify(notificationAggregationStore).evictUser(11L);
     }
 
     @Test
-    @DisplayName("通知仓储聚合查询应使用 Long 类型接收者 ID")
-    void shouldUseLongRecipientIdInNotificationRepositoryAggregationMethods() throws Exception {
-        Method findAggregatedNotifications = NotificationRepository.class.getMethod(
-                "findAggregatedNotifications", Long.class, int.class, int.class);
-        Method countAggregatedGroups = NotificationRepository.class.getMethod(
-                "countAggregatedGroups", Long.class);
-        Method findByGroup = NotificationRepository.class.getMethod(
-                "findByGroup", Long.class, NotificationType.class, String.class, String.class, int.class);
-        Method markAsRead = NotificationRepository.class.getMethod(
-                "markAsRead", Long.class, Long.class);
-        Method markAllAsRead = NotificationRepository.class.getMethod(
-                "markAllAsRead", Long.class);
+    @DisplayName("mark as read should decrement unread count without full cache evict")
+    void markAsRead_shouldDecrementUnreadCountWithoutFullCacheEvict() {
+        Notification notification = Notification.createCommentNotification(202L, 11L, 22L, 33L, 44L, "hello");
+        when(notificationRepository.findById(202L)).thenReturn(Optional.of(notification));
+        when(notificationRepository.markAsRead(202L, 11L)).thenReturn(1);
 
-        assertEquals(Long.class, findAggregatedNotifications.getParameterTypes()[0]);
-        assertEquals(Long.class, countAggregatedGroups.getParameterTypes()[0]);
-        assertEquals(Long.class, findByGroup.getParameterTypes()[0]);
-        assertEquals(Long.class, markAsRead.getParameterTypes()[1]);
-        assertEquals(Long.class, markAllAsRead.getParameterTypes()[0]);
+        notificationCommandService.markAsRead(202L, 11L);
+
+        verify(notificationRepository).markAsRead(202L, 11L);
+        verify(notificationGroupStateRepository).decrementUnreadCount(11L, "COMMENT:post:33");
+        verify(notificationUnreadCountStore).decrement(11L, 1);
+        verify(notificationUnreadCountStore, never()).evict(11L);
+        verify(notificationAggregationStore).evictUser(11L);
     }
 
     @Test
-    @DisplayName("通知仓储已读更新接口应返回受影响结果以支持并发安全扣减")
-    void shouldReturnAffectedRowsForReadMutation() throws Exception {
-        Method markAsRead = NotificationRepository.class.getMethod("markAsRead", Long.class, Long.class);
-        Method markAllAsRead = NotificationRepository.class.getMethod("markAllAsRead", Long.class);
+    @DisplayName("query unread count should reload from database and repopulate cache")
+    void getUnreadCount_shouldReloadFromDatabaseAndPopulateCache() {
+        when(notificationUnreadCountStore.get(11L)).thenReturn(null);
+        when(notificationRepository.countUnread(11L)).thenReturn(5);
 
-        assertEquals(boolean.class, markAsRead.getReturnType());
-        assertEquals(int.class, markAllAsRead.getReturnType());
-    }
+        int unreadCount = notificationQueryService.getUnreadCount(11L);
 
-    @Test
-    @DisplayName("通知 Mapper 聚合查询应使用 Long 类型接收者 ID")
-    void shouldUseLongRecipientIdInNotificationMapperAggregationMethods() throws Exception {
-        Method findAggregatedNotifications = NotificationMapper.class.getMethod(
-                "findAggregatedNotifications", Long.class, int.class, int.class);
-        Method countAggregatedGroups = NotificationMapper.class.getMethod(
-                "countAggregatedGroups", Long.class);
-        Method findByGroup = NotificationMapper.class.getMethod(
-                "findByGroup", Long.class, int.class, String.class, String.class, int.class);
-        Method markAllAsRead = NotificationMapper.class.getMethod(
-                "markAllAsRead", Long.class);
-        Method markAsRead = NotificationMapper.class.getMethod(
-                "markAsRead", Long.class, Long.class);
-
-        assertEquals(Long.class, findAggregatedNotifications.getParameterTypes()[0]);
-        assertEquals(Long.class, countAggregatedGroups.getParameterTypes()[0]);
-        assertEquals(Long.class, findByGroup.getParameterTypes()[0]);
-        assertEquals(Long.class, markAllAsRead.getParameterTypes()[0]);
-        assertEquals(Long.class, markAsRead.getParameterTypes()[1]);
-    }
-
-    @Test
-    @DisplayName("聚合通知查询应显式将 type 编码映射为 NotificationType 枚举")
-    void shouldMapNotificationTypeCodeWithExplicitTypeHandler() throws Exception {
-        Method method = NotificationMapper.class.getMethod(
-                "findAggregatedNotifications", Long.class, int.class, int.class);
-        Results results = method.getAnnotation(Results.class);
-
-        assertNotNull(results);
-        Result typeResult = Arrays.stream(results.value())
-                .filter(result -> "type".equals(result.property()))
-                .findFirst()
-                .orElse(null);
-
-        assertNotNull(typeResult);
-        assertTrue(
-                typeResult.typeHandler().getName().endsWith("NotificationTypeCodeTypeHandler"),
-                "type 字段必须通过显式 TypeHandler 做编码到枚举的映射");
-    }
-
-    @Test
-    @DisplayName("聚合通知查询应显式将 latestTime 的时区时间映射为 LocalDateTime")
-    void shouldMapLatestTimeWithExplicitTypeHandler() throws Exception {
-        Method method = NotificationMapper.class.getMethod(
-                "findAggregatedNotifications", Long.class, int.class, int.class);
-        Results results = method.getAnnotation(Results.class);
-
-        assertNotNull(results);
-        Result latestTimeResult = Arrays.stream(results.value())
-                .filter(result -> "latestTime".equals(result.property()))
-                .findFirst()
-                .orElse(null);
-
-        assertNotNull(latestTimeResult);
-        assertTrue(
-                latestTimeResult.typeHandler().getName().endsWith("OffsetDateTimeToLocalDateTimeTypeHandler"),
-                "latestTime 字段必须通过显式 TypeHandler 做 TIMESTAMPTZ 到 LocalDateTime 的映射");
-    }
-
-    @Test
-    @DisplayName("未读缓存存储应提供原子增减接口")
-    void shouldExposeAtomicUnreadOperationsInStore() throws Exception {
-        Method increment = NotificationUnreadCountStore.class.getMethod("increment", Long.class);
-        Method decrement = NotificationUnreadCountStore.class.getMethod("decrement", Long.class, int.class);
-
-        assertEquals(boolean.class, increment.getReturnType());
-        assertEquals(boolean.class, decrement.getReturnType());
+        assertEquals(5, unreadCount);
+        verify(notificationUnreadCountStore).set(11L, 5, UNREAD_COUNT_TTL);
+        verify(notificationRepository).countUnread(11L);
+        verify(notificationUnreadCountStore, never()).increment(anyLong(), anyLong(), any());
     }
 }

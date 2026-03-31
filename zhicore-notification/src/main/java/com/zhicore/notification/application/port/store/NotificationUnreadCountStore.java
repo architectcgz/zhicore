@@ -14,19 +14,9 @@ public interface NotificationUnreadCountStore {
 
     void set(Long userId, int count, Duration ttl);
 
-    /**
-     * 缓存命中时原子递增未读数。
-     *
-     * @return true 表示执行了递增；false 表示缓存未命中
-     */
-    boolean increment(Long userId);
+    Long increment(Long userId, long delta, Duration ttl);
 
-    /**
-     * 缓存命中时原子递减未读数。
-     *
-     * @return true 表示执行了递减；false 表示缓存未命中
-     */
-    boolean decrement(Long userId, int delta);
+    Long decrement(Long userId, long delta);
 
     void evict(Long userId);
 }

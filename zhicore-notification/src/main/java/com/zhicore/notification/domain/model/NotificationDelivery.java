@@ -1,172 +1,164 @@
 package com.zhicore.notification.domain.model;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
-import org.springframework.util.Assert;
+import lombok.NoArgsConstructor;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 @Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class NotificationDelivery {
 
-    private final Long id;
-    private final Long campaignId;
-    private final Long shardId;
-    private final Long recipientId;
-    private final String channel;
-    private final String dedupeKey;
-    private NotificationDeliveryStatus status;
+    private Long deliveryId;
+    private Long recipientId;
+    private Long campaignId;
     private Long notificationId;
+    private NotificationChannel channel;
+    private NotificationType notificationType;
+    private String dedupeKey;
+    private String deliveryStatus;
     private String skipReason;
     private String failureReason;
     private Integer retryCount;
-    private OffsetDateTime lastAttemptAt;
-    private OffsetDateTime nextRetryAt;
-    private final OffsetDateTime createdAt;
-    private OffsetDateTime updatedAt;
-    private OffsetDateTime sentAt;
+    private Instant lastAttemptAt;
+    private Instant nextRetryAt;
+    private Instant sentAt;
+    private Instant createdAt;
+    private Instant updatedAt;
 
-    private NotificationDelivery(Long id,
-                                 Long campaignId,
-                                 Long shardId,
-                                 Long recipientId,
-                                 String channel,
-                                 String dedupeKey,
-                                 NotificationDeliveryStatus status,
-                                 Long notificationId,
-                                 String skipReason,
-                                 String failureReason,
-                                 Integer retryCount,
-                                 OffsetDateTime lastAttemptAt,
-                                 OffsetDateTime nextRetryAt,
-                                 OffsetDateTime createdAt,
-                                 OffsetDateTime updatedAt,
-                                 OffsetDateTime sentAt) {
-        Assert.notNull(id, "deliveryId不能为空");
-        Assert.notNull(campaignId, "campaignId不能为空");
-        Assert.notNull(shardId, "shardId不能为空");
-        Assert.notNull(recipientId, "recipientId不能为空");
-        Assert.hasText(channel, "channel不能为空");
-        Assert.hasText(dedupeKey, "dedupeKey不能为空");
-        Assert.notNull(status, "status不能为空");
-        this.id = id;
-        this.campaignId = campaignId;
-        this.shardId = shardId;
-        this.recipientId = recipientId;
-        this.channel = channel;
-        this.dedupeKey = dedupeKey;
-        this.status = status;
-        this.notificationId = notificationId;
-        this.skipReason = skipReason;
-        this.failureReason = failureReason;
-        this.retryCount = retryCount != null ? retryCount : 0;
-        this.lastAttemptAt = lastAttemptAt;
-        this.nextRetryAt = nextRetryAt;
-        this.createdAt = createdAt != null ? createdAt : OffsetDateTime.now();
-        this.updatedAt = updatedAt != null ? updatedAt : this.createdAt;
-        this.sentAt = sentAt;
-    }
-
-    public static NotificationDelivery pending(Long id,
-                                               Long campaignId,
-                                               Long shardId,
+    public static NotificationDelivery planned(Long deliveryId,
                                                Long recipientId,
-                                               String channel,
+                                               Long campaignId,
+                                               NotificationChannel channel,
+                                               NotificationType notificationType,
                                                String dedupeKey) {
-        OffsetDateTime now = OffsetDateTime.now();
-        return new NotificationDelivery(
-                id,
-                campaignId,
-                shardId,
-                recipientId,
-                channel,
-                dedupeKey,
-                NotificationDeliveryStatus.PENDING,
-                null,
-                null,
-                null,
-                0,
-                null,
-                null,
-                now,
-                now,
-                null
-        );
+        return planned(deliveryId, recipientId, campaignId, null, channel, notificationType, dedupeKey);
     }
 
-    public static NotificationDelivery reconstitute(Long id,
-                                                    Long campaignId,
-                                                    Long shardId,
-                                                    Long recipientId,
-                                                    String channel,
-                                                    String dedupeKey,
-                                                    NotificationDeliveryStatus status,
-                                                    Long notificationId,
-                                                    String skipReason,
-                                                    String failureReason,
-                                                    Integer retryCount,
-                                                    OffsetDateTime lastAttemptAt,
-                                                    OffsetDateTime nextRetryAt,
-                                                    OffsetDateTime createdAt,
-                                                    OffsetDateTime updatedAt,
-                                                    OffsetDateTime sentAt) {
-        return new NotificationDelivery(
-                id,
-                campaignId,
-                shardId,
-                recipientId,
-                channel,
-                dedupeKey,
-                status,
-                notificationId,
-                skipReason,
-                failureReason,
-                retryCount,
-                lastAttemptAt,
-                nextRetryAt,
-                createdAt,
-                updatedAt,
-                sentAt
-        );
+    public static NotificationDelivery planned(Long deliveryId,
+                                               Long recipientId,
+                                               Long campaignId,
+                                               Long notificationId,
+                                               NotificationChannel channel,
+                                               NotificationType notificationType,
+                                               String dedupeKey) {
+        Instant now = Instant.now();
+        return NotificationDelivery.builder()
+                .deliveryId(deliveryId)
+                .recipientId(recipientId)
+                .campaignId(campaignId)
+                .notificationId(notificationId)
+                .channel(channel)
+                .notificationType(notificationType)
+                .dedupeKey(dedupeKey)
+                .deliveryStatus("PLANNED")
+                .retryCount(0)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+    }
+
+    public static NotificationDelivery digestPending(Long deliveryId,
+                                                     Long recipientId,
+                                                     Long campaignId,
+                                                     String dedupeKey,
+                                                     String reason) {
+        Instant now = Instant.now();
+        return NotificationDelivery.builder()
+                .deliveryId(deliveryId)
+                .recipientId(recipientId)
+                .campaignId(campaignId)
+                .channel(NotificationChannel.IN_APP)
+                .notificationType(NotificationType.POST_PUBLISHED_DIGEST)
+                .dedupeKey(dedupeKey)
+                .deliveryStatus("DIGEST_PENDING")
+                .skipReason(reason)
+                .failureReason(reason)
+                .retryCount(0)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+    }
+
+    public static NotificationDelivery skipped(Long deliveryId,
+                                               Long recipientId,
+                                               Long campaignId,
+                                               NotificationChannel channel,
+                                               NotificationType notificationType,
+                                               String dedupeKey,
+                                               String reason) {
+        Instant now = Instant.now();
+        return NotificationDelivery.builder()
+                .deliveryId(deliveryId)
+                .recipientId(recipientId)
+                .campaignId(campaignId)
+                .channel(channel)
+                .notificationType(notificationType)
+                .dedupeKey(dedupeKey)
+                .deliveryStatus("SKIPPED")
+                .skipReason(reason)
+                .failureReason(reason)
+                .retryCount(0)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+    }
+
+    public void bindNotification(Long notificationId, String deliveryStatus) {
+        this.notificationId = notificationId;
+        this.deliveryStatus = deliveryStatus;
+        this.updatedAt = Instant.now();
     }
 
     public void markSent(Long notificationId) {
-        OffsetDateTime now = OffsetDateTime.now();
-        this.status = NotificationDeliveryStatus.SENT;
+        Instant now = Instant.now();
         this.notificationId = notificationId;
+        this.deliveryStatus = "SENT";
         this.skipReason = null;
         this.failureReason = null;
         this.lastAttemptAt = now;
         this.nextRetryAt = null;
-        this.updatedAt = now;
         this.sentAt = now;
+        this.updatedAt = now;
     }
 
-    public void markSkipped(String skipReason) {
-        markSkipped(skipReason, this.notificationId, null);
+    public void markSkipped(String reason) {
+        markSkipped("SKIPPED", reason, this.notificationId, null);
     }
 
-    public void markSkipped(String skipReason, Long notificationId, OffsetDateTime nextRetryAt) {
-        OffsetDateTime now = OffsetDateTime.now();
-        this.status = NotificationDeliveryStatus.SKIPPED;
+    public void markSkipped(String deliveryStatus, String reason) {
+        markSkipped(deliveryStatus, reason, this.notificationId, null);
+    }
+
+    public void markSkipped(String deliveryStatus, String reason, Long notificationId, Instant nextRetryAt) {
+        Instant now = Instant.now();
         this.notificationId = notificationId;
-        this.skipReason = skipReason;
-        this.failureReason = null;
+        this.deliveryStatus = deliveryStatus;
+        this.skipReason = reason;
+        this.failureReason = reason;
         this.lastAttemptAt = now;
         this.nextRetryAt = nextRetryAt;
-        this.updatedAt = now;
         this.sentAt = null;
+        this.updatedAt = now;
     }
 
-    public void markFailed(String failureReason, OffsetDateTime nextRetryAt, Long notificationId) {
-        OffsetDateTime now = OffsetDateTime.now();
-        this.status = NotificationDeliveryStatus.FAILED;
-        this.notificationId = notificationId;
+    public void markFailed(String reason, Instant nextRetryAt) {
+        markFailed("FAILED", reason, nextRetryAt);
+    }
+
+    public void markFailed(String deliveryStatus, String reason, Instant nextRetryAt) {
+        Instant now = Instant.now();
+        this.deliveryStatus = deliveryStatus;
         this.skipReason = null;
-        this.failureReason = failureReason;
+        this.failureReason = reason;
         this.retryCount = retryCount == null ? 1 : retryCount + 1;
         this.lastAttemptAt = now;
         this.nextRetryAt = nextRetryAt;
-        this.updatedAt = now;
         this.sentAt = null;
+        this.updatedAt = now;
     }
 }

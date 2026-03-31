@@ -1,82 +1,53 @@
 package com.zhicore.notification.domain.model;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
-import org.springframework.util.Assert;
+import lombok.NoArgsConstructor;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 @Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class NotificationCampaign {
 
-    private final Long id;
-    private final String triggerEventId;
-    private final Long postId;
-    private final Long authorId;
-    private NotificationCampaignStatus status;
-    private final OffsetDateTime createdAt;
-    private OffsetDateTime updatedAt;
-    private OffsetDateTime completedAt;
-    private String errorMessage;
+    private Long campaignId;
+    private String campaignType;
+    private String sourceEventId;
+    private Long authorId;
+    private Long postId;
+    private int audienceEstimate;
+    private String status;
+    private String title;
+    private String excerpt;
+    private Instant publishedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
 
-    private NotificationCampaign(Long id,
-                                 String triggerEventId,
-                                 Long postId,
-                                 Long authorId,
-                                 NotificationCampaignStatus status,
-                                 OffsetDateTime createdAt,
-                                 OffsetDateTime updatedAt,
-                                 OffsetDateTime completedAt,
-                                 String errorMessage) {
-        Assert.notNull(id, "campaignId不能为空");
-        Assert.hasText(triggerEventId, "triggerEventId不能为空");
-        Assert.notNull(postId, "postId不能为空");
-        Assert.notNull(authorId, "authorId不能为空");
-        Assert.notNull(status, "status不能为空");
-        this.id = id;
-        this.triggerEventId = triggerEventId;
-        this.postId = postId;
-        this.authorId = authorId;
-        this.status = status;
-        this.createdAt = createdAt != null ? createdAt : OffsetDateTime.now();
-        this.updatedAt = updatedAt != null ? updatedAt : this.createdAt;
-        this.completedAt = completedAt;
-        this.errorMessage = errorMessage;
-    }
-
-    public static NotificationCampaign create(Long id, String triggerEventId, Long postId, Long authorId) {
-        return new NotificationCampaign(id, triggerEventId, postId, authorId,
-                NotificationCampaignStatus.CREATED, OffsetDateTime.now(), OffsetDateTime.now(), null, null);
-    }
-
-    public static NotificationCampaign reconstitute(Long id,
-                                                    String triggerEventId,
-                                                    Long postId,
-                                                    Long authorId,
-                                                    NotificationCampaignStatus status,
-                                                    OffsetDateTime createdAt,
-                                                    OffsetDateTime updatedAt,
-                                                    OffsetDateTime completedAt,
-                                                    String errorMessage) {
-        return new NotificationCampaign(id, triggerEventId, postId, authorId,
-                status, createdAt, updatedAt, completedAt, errorMessage);
-    }
-
-    public void markProcessing() {
-        this.status = NotificationCampaignStatus.PROCESSING;
-        this.updatedAt = OffsetDateTime.now();
-        this.errorMessage = null;
-    }
-
-    public void markCompleted() {
-        this.status = NotificationCampaignStatus.COMPLETED;
-        this.updatedAt = OffsetDateTime.now();
-        this.completedAt = this.updatedAt;
-        this.errorMessage = null;
-    }
-
-    public void markFailed(String errorMessage) {
-        this.status = NotificationCampaignStatus.FAILED;
-        this.updatedAt = OffsetDateTime.now();
-        this.errorMessage = errorMessage;
+    public static NotificationCampaign planPostPublished(Long campaignId,
+                                                         String sourceEventId,
+                                                         Long authorId,
+                                                         Long postId,
+                                                         int audienceEstimate,
+                                                         String title,
+                                                         String excerpt,
+                                                         Instant publishedAt) {
+        Instant now = Instant.now();
+        return NotificationCampaign.builder()
+                .campaignId(campaignId)
+                .campaignType("POST_PUBLISHED")
+                .sourceEventId(sourceEventId)
+                .authorId(authorId)
+                .postId(postId)
+                .audienceEstimate(Math.max(audienceEstimate, 0))
+                .status("PLANNED")
+                .title(title)
+                .excerpt(excerpt)
+                .publishedAt(publishedAt)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
     }
 }

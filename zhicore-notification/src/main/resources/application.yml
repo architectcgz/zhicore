@@ -25,6 +25,13 @@ spring:
       max-lifetime: 1800000
       connection-timeout: 30000
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redis123456}
+      database: 0
+
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
   type-aliases-package: com.zhicore.notification.infrastructure.repository.po
@@ -67,6 +74,11 @@ notification:
 # 通知聚合配置（新配置结构）
 zhicore:
   notification:
+    broadcast:
+      shard-size: 2000
+      priority-push-threshold: 100000
+    digest:
+      default-delay-minutes: 30
     aggregation:
       cache:
         # 缓存TTL（秒）

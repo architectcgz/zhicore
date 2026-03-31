@@ -61,7 +61,12 @@ public class PostPublishCommandService {
                 continue;
             }
 
-            PostPublishedIntegrationEvent integrationEvent = eventMapper.toIntegrationEvent(publishedEvent);
+            PostPublishedIntegrationEvent integrationEvent = eventMapper.toIntegrationEvent(
+                    publishedEvent,
+                    publishedEvent.getAuthorId(),
+                    publishedEvent.getTitle(),
+                    publishedEvent.getExcerpt()
+            );
             integrationEventPublisher.publish(integrationEvent);
             log.info("Published integration event to Outbox: eventId={}, postId={}",
                     integrationEvent.getEventId(), postId);

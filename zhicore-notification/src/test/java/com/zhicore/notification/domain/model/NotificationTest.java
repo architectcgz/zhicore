@@ -148,19 +148,14 @@ class NotificationTest {
         }
 
         @Test
-        @DisplayName("创建发布通知 - 成功")
-        void createPostPublishedNotification_Success() {
+        @DisplayName("创建关注作者发文通知 - 应设置分类和分组键")
+        void createPostPublishedNotification_shouldSetCategoryAndGroupKey() {
             Notification notification = Notification.createPostPublishedNotification(
-                    1L, 123L, 456L, 789L, 1000L);
+                    1L, 200L, 100L, 300L, "post_publish:100:300", "author published");
 
-            assertEquals(NotificationType.POST_PUBLISHED, notification.getType());
-            assertEquals(NotificationCategory.CONTENT.name(), notification.getCategory());
-            assertEquals("content.post-published", notification.getEventCode());
-            assertEquals(456L, notification.getActorId());
-            assertEquals("post", notification.getTargetType());
-            assertEquals(789L, notification.getTargetId());
-            assertEquals("你关注的作者发布了新作品", notification.getContent());
-            assertNotNull(notification.getMetadata());
+            assertEquals(NotificationType.POST_PUBLISHED_BY_FOLLOWING, notification.getType());
+            assertEquals(NotificationCategory.CONTENT, notification.getCategory());
+            assertEquals("post_publish:100:300", notification.getGroupKey());
         }
     }
 

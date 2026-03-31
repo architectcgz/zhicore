@@ -8,12 +8,15 @@ import com.zhicore.common.tx.TransactionCommitSignal;
 import com.zhicore.notification.application.port.store.NotificationAggregationStore;
 import com.zhicore.notification.application.port.store.NotificationUnreadCountStore;
 import com.zhicore.notification.domain.model.Notification;
+import com.zhicore.notification.domain.model.NotificationGroupState;
+import com.zhicore.notification.domain.repository.NotificationGroupStateRepository;
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.Optional;
 
 /**
@@ -26,11 +29,13 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class NotificationCommandService {
 
+    private static final Duration UNREAD_COUNT_TTL = Duration.ofMinutes(5);
+
     private final NotificationRepository notificationRepository;
     private final IdGeneratorFeignClient idGeneratorFeignClient;
     private final NotificationUnreadCountStore notificationUnreadCountStore;
     private final NotificationAggregationStore notificationAggregationStore;
-    private final TransactionCommitSignal transactionCommitSignal;
+    private final NotificationGroupStateRepository notificationGroupStateRepository;
 
     @Transactional
     public Notification createLikeNotification(Long recipientId, Long actorId, String targetType, Long targetId) {
@@ -38,8 +43,7 @@ public class NotificationCommandService {
         Notification notification = Notification.createLikeNotification(
                 id, recipientId, actorId, targetType, targetId);
 
-        notificationRepository.save(notification);
-        onNotificationCreated(recipientId);
+        persistNotification(notification);
 
         log.info("创建点赞通知: id={}, recipient={}, actor={}, target={}:{}",
                 id, recipientId, actorId, targetType, targetId);
@@ -66,8 +70,7 @@ public class NotificationCommandService {
         Notification notification = Notification.createCommentNotification(
                 id, recipientId, actorId, postId, commentId, commentContent);
 
-        notificationRepository.save(notification);
-        onNotificationCreated(recipientId);
+        persistNotification(notification);
 
         log.info("创建评论通知: id={}, recipient={}, actor={}, postId={}, commentId={}",
                 id, recipientId, actorId, postId, commentId);
@@ -94,8 +97,7 @@ public class NotificationCommandService {
         Notification notification = Notification.createReplyNotification(
                 id, recipientId, actorId, commentId, replyContent);
 
-        notificationRepository.save(notification);
-        onNotificationCreated(recipientId);
+        persistNotification(notification);
 
         log.info("创建回复通知: id={}, recipient={}, actor={}, commentId={}",
                 id, recipientId, actorId, commentId);
@@ -119,8 +121,7 @@ public class NotificationCommandService {
         Long id = generateId();
         Notification notification = Notification.createFollowNotification(id, recipientId, actorId);
 
-        notificationRepository.save(notification);
-        onNotificationCreated(recipientId);
+        persistNotification(notification);
 
         log.info("创建关注通知: id={}, recipient={}, actor={}", id, recipientId, actorId);
 
@@ -136,14 +137,40 @@ public class NotificationCommandService {
     }
 
     @Transactional
-    public Optional<Notification> createPostPublishedNotificationIfAbsent(Long notificationId,
-                                                                          Long recipientId,
-                                                                          Long authorId,
-                                                                          Long postId,
-                                                                          Long campaignId) {
+    public Notification createPostPublishedNotification(Long recipientId,
+                                                        Long authorId,
+                                                        Long postId,
+                                                        String groupKey,
+                                                        String content) {
+        Long id = generateId();
         Notification notification = Notification.createPostPublishedNotification(
-                notificationId, recipientId, authorId, postId, campaignId);
-        return saveIfAbsent(notification);
+                id, recipientId, authorId, postId, groupKey, content);
+
+        persistNotification(notification);
+
+        log.info("创建关注作者发文通知: id={}, recipient={}, authorId={}, postId={}",
+                id, recipientId, authorId, postId);
+
+        return notification;
+    }
+
+    @Transactional
+    public Notification createPostPublishedDigestNotification(Long recipientId,
+                                                              String groupKey,
+                                                              String content) {
+        Long id = generateId();
+        Notification notification = Notification.createPostPublishedDigestNotification(
+                id,
+                recipientId,
+                groupKey,
+                content
+        );
+
+        persistNotification(notification);
+
+        log.info("创建关注作者发文摘要通知: id={}, recipient={}", id, recipientId);
+
+        return notification;
     }
 
     @Transactional
@@ -158,23 +185,35 @@ public class NotificationCommandService {
             return;
         }
 
-        if (!notificationRepository.markAsRead(notificationId, userId)) {
-            log.debug("通知已在并发请求中更新，跳过重复扣减: notificationId={}, userId={}", notificationId, userId);
+        int affectedRows = notificationRepository.markAsRead(notificationId, userId);
+        if (affectedRows <= 0) {
+            log.debug("通知已被其他请求更新，跳过未读递减: notificationId={}, userId={}", notificationId, userId);
             return;
         }
-        onNotificationRead(userId, 1);
+        int projectionAffectedRows = notificationGroupStateRepository.decrementUnreadCount(
+                userId, NotificationGroupState.resolveGroupKey(notification));
+        if (projectionAffectedRows <= 0) {
+            log.warn("聚合投影未命中单条已读更新，后续读取将回退数据库聚合: notificationId={}, userId={}", notificationId, userId);
+        }
+        decrementUnreadCount(userId);
+        evictAggregationCache(userId);
 
         log.debug("标记通知已读: notificationId={}, userId={}", notificationId, userId);
     }
 
     @Transactional
     public void markAllAsRead(Long userId) {
-        int updatedRows = notificationRepository.markAllAsRead(userId);
-        if (updatedRows > 0) {
-            onNotificationRead(userId, updatedRows);
-        } else {
-            scheduleAfterCommit(() -> evictAggregatedListCache(userId));
+        int affectedRows = notificationRepository.markAllAsRead(userId);
+        if (affectedRows <= 0) {
+            log.debug("没有未读通知需要批量更新: userId={}", userId);
+            return;
         }
+        int projectionAffectedRows = notificationGroupStateRepository.markAllAsRead(userId);
+        if (projectionAffectedRows <= 0) {
+            log.warn("聚合投影未命中批量已读更新，后续读取将回退数据库聚合: userId={}", userId);
+        }
+        resetUnreadCount(userId);
+        evictAggregationCache(userId);
 
         log.info("批量标记所有通知已读: userId={}, updatedRows={}", userId, updatedRows);
     }
@@ -188,37 +227,18 @@ public class NotificationCommandService {
         return response.getData();
     }
 
-    private void onNotificationCreated(Long userId) {
-        scheduleAfterCommit(() -> {
-            try {
-                notificationUnreadCountStore.increment(userId);
-            } catch (Exception e) {
-                log.warn("原子递增未读数缓存失败: userId={}, error={}", userId, e.getMessage());
-            }
-            evictAggregatedListCache(userId);
-        });
+    private void persistNotification(Notification notification) {
+        notificationRepository.save(notification);
+        notificationGroupStateRepository.upsertOnNotificationCreated(notification);
+        incrementUnreadCount(notification.getRecipientId());
+        evictAggregationCache(notification.getRecipientId());
     }
 
-    private void onNotificationRead(Long userId, int delta) {
-        scheduleAfterCommit(() -> {
-            try {
-                notificationUnreadCountStore.decrement(userId, delta);
-            } catch (Exception e) {
-                log.warn("原子扣减未读数缓存失败: userId={}, delta={}, error={}", userId, delta, e.getMessage());
-            }
-            evictAggregatedListCache(userId);
-        });
-    }
-
-    private void scheduleAfterCommit(Runnable action) {
-        transactionCommitSignal.afterCommit(action);
-    }
-
-    private void evictAggregatedListCache(Long userId) {
+    private void incrementUnreadCount(Long userId) {
         try {
-            notificationAggregationStore.evictUser(userId);
+            notificationUnreadCountStore.increment(userId, 1, UNREAD_COUNT_TTL);
         } catch (Exception e) {
-            log.warn("清除聚合通知缓存失败: userId={}, error={}", userId, e.getMessage());
+            log.warn("递增通知未读缓存失败: userId={}, error={}", userId, e.getMessage());
         }
     }
 
@@ -229,7 +249,33 @@ public class NotificationCommandService {
             return Optional.empty();
         }
 
-        onNotificationCreated(notification.getRecipientId());
+        notificationGroupStateRepository.upsertOnNotificationCreated(notification);
+        incrementUnreadCount(notification.getRecipientId());
+        evictAggregationCache(notification.getRecipientId());
         return Optional.of(notification);
+    }
+
+    private void decrementUnreadCount(Long userId) {
+        try {
+            notificationUnreadCountStore.decrement(userId, 1);
+        } catch (Exception e) {
+            log.warn("递减通知未读缓存失败: userId={}, error={}", userId, e.getMessage());
+        }
+    }
+
+    private void resetUnreadCount(Long userId) {
+        try {
+            notificationUnreadCountStore.set(userId, 0, UNREAD_COUNT_TTL);
+        } catch (Exception e) {
+            log.warn("重置通知未读缓存失败: userId={}, error={}", userId, e.getMessage());
+        }
+    }
+
+    private void evictAggregationCache(Long userId) {
+        try {
+            notificationAggregationStore.evictUser(userId);
+        } catch (Exception e) {
+            log.warn("清除通知聚合缓存失败: userId={}, error={}", userId, e.getMessage());
+        }
     }
 }

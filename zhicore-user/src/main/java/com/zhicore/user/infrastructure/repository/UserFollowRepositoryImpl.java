@@ -73,6 +73,14 @@ public class UserFollowRepositoryImpl implements UserFollowRepository {
     }
 
     @Override
+    public List<UserFollow> findFollowerShard(Long userId, Long cursorFollowerId, int size) {
+        List<UserFollowPO> poList = userFollowMapper.selectFollowerShard(userId, cursorFollowerId, size);
+        return poList.stream()
+                .map(po -> toDomain(po, userId))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public Optional<UserFollowStats> findStatsByUserId(Long userId) {
         UserFollowStatsPO po = userFollowMapper.selectStatsByUserId(userId);
         return Optional.ofNullable(toStatsDomain(po));
@@ -116,7 +124,18 @@ public class UserFollowRepositoryImpl implements UserFollowRepository {
         return UserFollow.reconstitute(
                 po.getFollowerId(),
                 po.getFollowingId(),
-                po.getCreatedAt()
+                DateTimeUtils.toLocalDateTime(po.getCreatedAt())
+        );
+    }
+
+    private UserFollow toDomain(UserFollowPO po, Long followingId) {
+        if (po == null) {
+            return null;
+        }
+        return UserFollow.reconstitute(
+                po.getFollowerId(),
+                followingId,
+                DateTimeUtils.toLocalDateTime(po.getCreatedAt())
         );
     }
 

@@ -14,7 +14,7 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.Mockito.verify;
@@ -41,13 +41,13 @@ class NotificationDeliveryControllerTest extends ControllerTestSupport {
                 .campaignId(201L)
                 .recipientId(301L)
                 .notificationId(401L)
-                .channel("PUSH")
+                .channel("WEBSOCKET")
                 .status("FAILED")
-                .failureReason("PUSH_DELIVERY_FAILED")
+                .failureReason("SOCKET_DOWN")
                 .retryCount(2)
-                .createdAt(OffsetDateTime.parse("2026-03-27T18:00:00+08:00"))
+                .createdAt(Instant.parse("2026-03-27T10:00:00Z"))
                 .build();
-        when(notificationDeliveryService.queryDeliveries(201L, 11L, "PUSH", "FAILED", 0, 20))
+        when(notificationDeliveryService.queryDeliveries(201L, 11L, "WEBSOCKET", "FAILED", 0, 20))
                 .thenReturn(PageResult.of(0, 20, 1, List.of(delivery)));
 
         try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
@@ -56,12 +56,12 @@ class NotificationDeliveryControllerTest extends ControllerTestSupport {
 
             mockMvc.perform(get("/api/v1/notifications/deliveries")
                             .param("campaignId", "201")
-                            .param("channel", "PUSH")
+                            .param("channel", "WEBSOCKET")
                             .param("status", "FAILED"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(ResultCode.SUCCESS.getCode()))
-                    .andExpect(jsonPath("$.data.records[0].channel").value("PUSH"))
-                    .andExpect(jsonPath("$.data.records[0].failureReason").value("PUSH_DELIVERY_FAILED"));
+                    .andExpect(jsonPath("$.data.records[0].channel").value("WEBSOCKET"))
+                    .andExpect(jsonPath("$.data.records[0].failureReason").value("SOCKET_DOWN"));
         }
     }
 

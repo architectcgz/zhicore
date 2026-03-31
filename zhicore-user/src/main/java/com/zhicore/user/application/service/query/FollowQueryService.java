@@ -4,6 +4,8 @@ import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.api.dto.user.FollowerCursorItemDTO;
 import com.zhicore.api.dto.user.FollowerCursorPageDTO;
 import com.zhicore.user.application.assembler.UserAssembler;
+import com.zhicore.user.application.dto.FollowerShardItemVO;
+import com.zhicore.user.application.dto.FollowerShardPageVO;
 import com.zhicore.user.application.dto.FollowStatsVO;
 import com.zhicore.user.application.dto.UserVO;
 import com.zhicore.user.application.port.store.FollowStatsStore;
@@ -36,8 +38,8 @@ public class FollowQueryService {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 100;
-    private static final int DEFAULT_CURSOR_LIMIT = 200;
-    private static final int MAX_CURSOR_LIMIT = 500;
+    private static final int DEFAULT_FOLLOWER_SHARD_SIZE = 2000;
+    private static final int MAX_FOLLOWER_SHARD_SIZE = 2000;
     private static final Duration FOLLOW_STATS_CACHE_TTL = Duration.ofHours(1);
 
     private final UserRepository userRepository;
@@ -105,6 +107,29 @@ public class FollowQueryService {
                 followings.stream().map(UserFollow::getFollowingId).collect(Collectors.toCollection(LinkedHashSet::new)),
                 followings.stream().map(UserFollow::getFollowingId).toList()
         );
+    }
+
+    /**
+     * 获取粉丝分片页，按 followerId 稳定递增返回，供下游广播任务顺序扫描使用。
+     *
+     * @param userId 用户ID
+     * @param cursorFollowerId 游标 followerId，返回大于该值的数据
+     * @param size 分片大小
+     * @return 粉丝分片页
+     */
+    public FollowerShardPageVO getFollowerShard(Long userId, Long cursorFollowerId, int size) {
+        long normalizedCursorFollowerId = normalizeCursorFollowerId(cursorFollowerId);
+        int normalizedSize = normalizeFollowerShardSize(size);
+
+        List<FollowerShardItemVO> items = userFollowRepository.findFollowerShard(userId, normalizedCursorFollowerId, normalizedSize)
+                .stream()
+                .map(this::toFollowerShardItem)
+                .toList();
+
+        FollowerShardPageVO page = new FollowerShardPageVO();
+        page.setItems(items);
+        page.setNextCursorFollowerId(items.isEmpty() ? null : items.get(items.size() - 1).getFollowerId());
+        return page;
     }
 
     @SentinelResource(
@@ -193,11 +218,18 @@ public class FollowQueryService {
         return Math.min(size, MAX_PAGE_SIZE);
     }
 
-    private int normalizeCursorLimit(Integer limit) {
-        if (limit == null || limit < 1) {
-            return DEFAULT_CURSOR_LIMIT;
+    private long normalizeCursorFollowerId(Long cursorFollowerId) {
+        if (cursorFollowerId == null || cursorFollowerId < 0) {
+            return 0L;
         }
-        return Math.min(limit, MAX_CURSOR_LIMIT);
+        return cursorFollowerId;
+    }
+
+    private int normalizeFollowerShardSize(int size) {
+        if (size < 1) {
+            return DEFAULT_FOLLOWER_SHARD_SIZE;
+        }
+        return Math.min(size, MAX_FOLLOWER_SHARD_SIZE);
     }
 
     private List<UserVO> mapUsersInOrder(Set<Long> userIds, List<Long> orderedUserIds) {
@@ -212,5 +244,12 @@ public class FollowQueryService {
                 .filter(user -> user != null)
                 .map(UserAssembler::toVO)
                 .collect(Collectors.toList());
+    }
+
+    private FollowerShardItemVO toFollowerShardItem(UserFollow follow) {
+        FollowerShardItemVO item = new FollowerShardItemVO();
+        item.setFollowerId(follow.getFollowerId());
+        item.setCreatedAt(follow.getCreatedAt());
+        return item;
     }
 }

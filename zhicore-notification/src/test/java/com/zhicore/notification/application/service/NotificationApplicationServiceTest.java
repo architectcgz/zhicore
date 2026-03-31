@@ -9,7 +9,7 @@ import com.zhicore.notification.application.port.store.NotificationAggregationSt
 import com.zhicore.notification.application.port.store.NotificationUnreadCountStore;
 import com.zhicore.notification.application.service.command.NotificationCommandService;
 import com.zhicore.notification.domain.model.Notification;
-import com.zhicore.notification.domain.model.NotificationType;
+import com.zhicore.notification.domain.repository.NotificationGroupStateRepository;
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +23,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.util.List;
 import java.util.Optional;
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -30,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -38,6 +40,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Notification query/command service 测试")
 class NotificationApplicationServiceTest {
+
+    private static final Duration UNREAD_COUNT_TTL = Duration.ofMinutes(5);
 
     @Mock
     private NotificationRepository notificationRepository;
@@ -50,6 +54,9 @@ class NotificationApplicationServiceTest {
 
     @Mock
     private NotificationAggregationStore notificationAggregationStore;
+
+    @Mock
+    private NotificationGroupStateRepository notificationGroupStateRepository;
 
     private NotificationCommandService notificationCommandService;
 
@@ -68,12 +75,12 @@ class NotificationApplicationServiceTest {
                 idGeneratorFeignClient,
                 notificationUnreadCountStore,
                 notificationAggregationStore,
-                new TransactionCommitSignal()
+                notificationGroupStateRepository
         );
     }
 
     @Test
-    @DisplayName("首次幂等创建成功时应该落库并失效缓存")
+    @DisplayName("首次幂等创建成功时应该落库并增量更新未读状态")
     void shouldCreateNotificationWhenAbsent() {
         when(notificationRepository.saveIfAbsent(any(Notification.class))).thenReturn(true);
 
@@ -82,49 +89,13 @@ class NotificationApplicationServiceTest {
         assertTrue(result.isPresent());
         assertEquals(101L, result.get().getId());
         verify(notificationRepository).saveIfAbsent(any(Notification.class));
-        verify(notificationUnreadCountStore).increment(11L);
+        verify(notificationGroupStateRepository).upsertOnNotificationCreated(any(Notification.class));
+        verify(notificationUnreadCountStore).increment(11L, 1, UNREAD_COUNT_TTL);
         verify(notificationAggregationStore).evictUser(11L);
     }
 
     @Test
-    @DisplayName("首次幂等创建发布通知成功时应该落库并失效缓存")
-    void shouldCreatePostPublishedNotificationWhenAbsent() {
-        when(notificationRepository.saveIfAbsent(any(Notification.class))).thenReturn(true);
-
-        Optional<Notification> result = notificationCommandService.createPostPublishedNotificationIfAbsent(
-                501L, 11L, 22L, 33L, 44L);
-
-        assertTrue(result.isPresent());
-        assertEquals(NotificationType.POST_PUBLISHED, result.get().getType());
-        verify(notificationRepository).saveIfAbsent(any(Notification.class));
-        verify(notificationUnreadCountStore).increment(11L);
-        verify(notificationAggregationStore).evictUser(11L);
-    }
-
-    @Test
-    @DisplayName("事务提交前不应提前递增未读缓存或失效聚合缓存")
-    void shouldDelayCacheMutationUntilAfterCommitWhenCreateSucceedsInsideTransaction() {
-        when(notificationRepository.saveIfAbsent(any(Notification.class))).thenReturn(true);
-        TransactionSynchronizationManager.initSynchronization();
-        TransactionSynchronizationManager.setActualTransactionActive(true);
-
-        Optional<Notification> result = notificationCommandService.createFollowNotificationIfAbsent(101L, 11L, 22L);
-
-        assertTrue(result.isPresent());
-        verify(notificationUnreadCountStore, never()).increment(anyLong());
-        verify(notificationAggregationStore, never()).evictUser(anyLong());
-
-        List<TransactionSynchronization> synchronizations = TransactionSynchronizationManager.getSynchronizations();
-        assertEquals(1, synchronizations.size());
-
-        synchronizations.forEach(TransactionSynchronization::afterCommit);
-
-        verify(notificationUnreadCountStore).increment(11L);
-        verify(notificationAggregationStore).evictUser(11L);
-    }
-
-    @Test
-    @DisplayName("重复幂等创建时不应重复失效缓存")
+    @DisplayName("重复幂等创建时不应重复更新未读状态")
     void shouldSkipCacheInvalidationWhenDuplicate() {
         when(notificationRepository.saveIfAbsent(any(Notification.class))).thenReturn(false);
 
@@ -133,8 +104,10 @@ class NotificationApplicationServiceTest {
 
         assertTrue(result.isEmpty());
         verify(notificationRepository).saveIfAbsent(any(Notification.class));
-        verify(notificationUnreadCountStore, never()).increment(anyLong());
-        verify(notificationAggregationStore, never()).evictUser(any());
+        verify(notificationUnreadCountStore, never()).evict(anyLong());
+        verify(notificationUnreadCountStore, never()).increment(anyLong(), anyLong(), any());
+        verify(notificationGroupStateRepository, never()).upsertOnNotificationCreated(any(Notification.class));
+        verify(notificationAggregationStore, never()).evictUser(anyLong());
     }
 
     @Test
@@ -161,48 +134,65 @@ class NotificationApplicationServiceTest {
 
         assertEquals(ResultCode.RESOURCE_ACCESS_DENIED.getCode(), exception.getCode());
         assertEquals("无权访问该通知", exception.getMessage());
-        verify(notificationRepository, never()).markAsRead(any(), anyLong());
-        verify(notificationUnreadCountStore, never()).evict(any());
-        verify(notificationAggregationStore, never()).evictUser(any());
+        verify(notificationRepository, never()).markAsRead(anyLong(), anyLong());
+        verify(notificationUnreadCountStore, never()).evict(anyLong());
+        verify(notificationUnreadCountStore, never()).decrement(anyLong(), anyLong());
+        verify(notificationAggregationStore, never()).evictUser(anyLong());
     }
 
     @Test
-    @DisplayName("标记本人通知已读时应该更新仓储并失效缓存")
+    @DisplayName("标记本人通知已读时应该更新仓储并递减未读状态")
     void shouldMarkAsReadWhenNotificationBelongsToCurrentUser() {
         Notification notification = Notification.createFollowNotification(202L, 11L, 33L);
         when(notificationRepository.findById(202L)).thenReturn(Optional.of(notification));
-        when(notificationRepository.markAsRead(202L, 11L)).thenReturn(true);
+        when(notificationRepository.markAsRead(202L, 11L)).thenReturn(1);
 
         notificationCommandService.markAsRead(202L, 11L);
 
         verify(notificationRepository).markAsRead(202L, 11L);
+        verify(notificationGroupStateRepository).decrementUnreadCount(11L, "FOLLOW");
         verify(notificationUnreadCountStore).decrement(11L, 1);
         verify(notificationAggregationStore).evictUser(eq(11L));
     }
 
     @Test
-    @DisplayName("并发场景下标记已读未命中行时不应重复扣减未读数")
-    void shouldSkipUnreadDecrementWhenMarkAsReadAffectsNoRows() {
-        Notification notification = Notification.createFollowNotification(303L, 11L, 44L);
+    @DisplayName("并发重复标记已读时不应重复递减未读状态")
+    void shouldNotDecrementUnreadStateWhenConcurrentMarkAsReadAffectsNoRows() {
+        Notification notification = Notification.createFollowNotification(303L, 11L, 33L);
         when(notificationRepository.findById(303L)).thenReturn(Optional.of(notification));
-        when(notificationRepository.markAsRead(303L, 11L)).thenReturn(false);
+        when(notificationRepository.markAsRead(303L, 11L)).thenReturn(0);
 
         notificationCommandService.markAsRead(303L, 11L);
 
         verify(notificationRepository).markAsRead(303L, 11L);
-        verify(notificationUnreadCountStore, never()).decrement(anyLong(), anyInt());
+        verify(notificationGroupStateRepository, never()).decrementUnreadCount(anyLong(), anyString());
+        verify(notificationUnreadCountStore, never()).decrement(anyLong(), anyLong());
         verify(notificationAggregationStore, never()).evictUser(anyLong());
     }
 
     @Test
-    @DisplayName("全部已读时应该按实际更新条数原子扣减未读数")
-    void shouldDecrementUnreadCountByUpdatedRowsWhenMarkAllAsRead() {
-        when(notificationRepository.markAllAsRead(11L)).thenReturn(3);
+    @DisplayName("全部标记已读时应该重置未读缓存并同步组状态")
+    void shouldResetUnreadStateWhenMarkAllAsRead() {
+        when(notificationRepository.markAllAsRead(11L)).thenReturn(2);
 
         notificationCommandService.markAllAsRead(11L);
 
         verify(notificationRepository).markAllAsRead(11L);
-        verify(notificationUnreadCountStore).decrement(11L, 3);
+        verify(notificationGroupStateRepository).markAllAsRead(11L);
+        verify(notificationUnreadCountStore).set(11L, 0, UNREAD_COUNT_TTL);
         verify(notificationAggregationStore).evictUser(11L);
+    }
+
+    @Test
+    @DisplayName("没有未读通知时全部标记已读不应重复重置状态")
+    void shouldSkipUnreadResetWhenMarkAllAsReadAffectsNoRows() {
+        when(notificationRepository.markAllAsRead(11L)).thenReturn(0);
+
+        notificationCommandService.markAllAsRead(11L);
+
+        verify(notificationRepository).markAllAsRead(11L);
+        verify(notificationGroupStateRepository, never()).markAllAsRead(anyLong());
+        verify(notificationUnreadCountStore, never()).set(anyLong(), anyInt(), any());
+        verify(notificationAggregationStore, never()).evictUser(anyLong());
     }
 }

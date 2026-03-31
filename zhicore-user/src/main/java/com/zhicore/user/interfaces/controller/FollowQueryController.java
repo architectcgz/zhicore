@@ -1,7 +1,7 @@
 package com.zhicore.user.interfaces.controller;
 
 import com.zhicore.common.result.ApiResponse;
-import com.zhicore.api.dto.user.FollowerCursorPageDTO;
+import com.zhicore.user.application.dto.FollowerShardPageVO;
 import com.zhicore.user.application.dto.FollowStatsVO;
 import com.zhicore.user.application.dto.UserVO;
 import com.zhicore.user.application.service.query.FollowQueryService;
@@ -39,21 +39,16 @@ public class FollowQueryController {
         return ApiResponse.success(followQueryService.getFollowers(userId, page, size));
     }
 
-    @Operation(summary = "按游标获取粉丝列表", description = "供广播场景按稳定游标分页拉取粉丝")
-    @GetMapping("/{userId}/followers/cursor")
-    public ApiResponse<FollowerCursorPageDTO> getFollowersByCursor(
+    @Operation(summary = "获取粉丝分片", description = "按 followerId 游标稳定查询指定用户的粉丝分片")
+    @GetMapping("/{userId}/followers/shard")
+    public ApiResponse<FollowerShardPageVO> getFollowerShard(
             @Parameter(description = "用户ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId,
-            @Parameter(description = "上一页最后一条关注时间", example = "2026-03-27T10:00:00")
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime afterCreatedAt,
-            @Parameter(description = "上一页最后一条粉丝ID", example = "100")
-            @RequestParam(required = false) Long afterFollowerId,
-            @Parameter(description = "每页大小", example = "200")
-            @RequestParam(defaultValue = "200") int limit) {
-        return ApiResponse.success(
-                followQueryService.getFollowersByCursor(userId, afterCreatedAt, afterFollowerId, limit)
-        );
+            @Parameter(description = "游标 followerId，返回大于该值的粉丝", example = "0")
+            @RequestParam(defaultValue = "0") @Min(value = 0, message = "游标必须大于等于0") Long cursorFollowerId,
+            @Parameter(description = "分片大小，最大 2000", example = "2000")
+            @RequestParam(defaultValue = "2000") int size) {
+        return ApiResponse.success(followQueryService.getFollowerShard(userId, cursorFollowerId, size));
     }
 
     @Operation(summary = "获取关注列表", description = "分页查询指定用户的关注列表")

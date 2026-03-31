@@ -41,14 +41,14 @@ spring.sql.init:
 spring.data.redis:
   host: ${REDIS_HOST:localhost}
   port: ${REDIS_PORT:6379}
-  p​assword: ${REDIS_P​ASSWORD:redis123456}
+  password: ${REDIS_PASSWORD:redis123456}
   database: 0
 
 spring.cloud.nacos:
   discovery:
     group: ZHICORE-SERVICE
     username: ${NACOS_USERNAME:nacos}
-    p​assword: ${NACOS_P​ASSWORD:nacos}
+    password: ${NACOS_PASSWORD:nacos}
 
 # MyBatis-Plus 配置
 mybatis-plus:

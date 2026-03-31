@@ -54,4 +54,12 @@ public class NotificationQueryController {
         int count = notificationQueryService.getUnreadCount(userId);
         return ApiResponse.success(count);
     }
+
+    @Operation(summary = "获取未读分类统计", description = "获取当前用户未读总数和分类维度统计")
+    @GetMapping("/unread-breakdown")
+    public ApiResponse<NotificationQueryService.UnreadBreakdown> getUnreadBreakdown() {
+        Long userId = UserContext.requireUserId();
+        NotificationQueryService.UnreadBreakdown breakdown = notificationQueryService.getUnreadBreakdown(userId);
+        return ApiResponse.success(breakdown);
+    }
 }

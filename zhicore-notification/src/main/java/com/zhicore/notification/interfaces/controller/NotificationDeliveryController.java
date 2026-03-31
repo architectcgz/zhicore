@@ -52,7 +52,7 @@ public class NotificationDeliveryController {
         ));
     }
 
-    @Operation(summary = "重试 PUSH delivery")
+    @Operation(summary = "重试 websocket delivery")
     @PostMapping("/deliveries/{deliveryId}/retry")
     public ApiResponse<Void> retryDelivery(@PathVariable @Min(1) Long deliveryId) {
         Long userId = UserContext.requireUserId();

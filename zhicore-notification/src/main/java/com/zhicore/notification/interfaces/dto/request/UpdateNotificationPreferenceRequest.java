@@ -1,36 +1,26 @@
 package com.zhicore.notification.interfaces.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 /**
- * 更新通知偏好请求。
+ * 更新通知偏好请求
  */
 @Data
 @Schema(description = "更新通知偏好请求")
 public class UpdateNotificationPreferenceRequest {
 
-    @NotNull(message = "点赞通知开关不能为空")
-    @Schema(description = "点赞通知是否启用", example = "true", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Boolean likeEnabled;
+    @NotBlank(message = "通知类型不能为空")
+    @Schema(description = "通知类型", example = "POST_COMMENTED", requiredMode = Schema.RequiredMode.REQUIRED)
+    private String notificationType;
 
-    @NotNull(message = "评论通知开关不能为空")
-    @Schema(description = "评论通知是否启用", example = "true", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Boolean commentEnabled;
+    @NotBlank(message = "通知渠道不能为空")
+    @Schema(description = "通知渠道", example = "EMAIL", requiredMode = Schema.RequiredMode.REQUIRED)
+    private String channel;
 
-    @NotNull(message = "关注通知开关不能为空")
-    @Schema(description = "关注通知是否启用", example = "true", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Boolean followEnabled;
-
-    @NotNull(message = "回复通知开关不能为空")
-    @Schema(description = "回复通知是否启用", example = "true", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Boolean replyEnabled;
-
-    @NotNull(message = "系统通知开关不能为空")
-    @Schema(description = "系统通知是否启用", example = "true", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Boolean systemEnabled;
-
-    @Schema(description = "关注作者发布通知是否启用；旧客户端可不传，服务端将沿用当前值", example = "true")
-    private Boolean publishEnabled;
+    @NotNull(message = "开关状态不能为空")
+    @Schema(description = "是否启用", example = "true", requiredMode = Schema.RequiredMode.REQUIRED)
+    private Boolean enabled;
 }

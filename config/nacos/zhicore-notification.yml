@@ -15,6 +15,14 @@ notification:
   preference:
     default-timezone: Asia/Shanghai
 
+zhicore:
+  notification:
+    broadcast:
+      shard-size: 2000
+      priority-push-threshold: 100000
+    digest:
+      default-delay-minutes: 30
+
 cache:
   ttl:
     entity-detail: 300

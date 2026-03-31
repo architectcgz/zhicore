@@ -11,56 +11,110 @@ import lombok.Getter;
 public enum NotificationType {
 
     /**
+     * 文章点赞通知
+     */
+    POST_LIKED(0, "文章点赞"),
+
+    /**
+     * 文章评论通知
+     */
+    POST_COMMENTED(1, "文章评论"),
+
+    /**
+     * 用户关注通知
+     */
+    USER_FOLLOWED(2, "用户关注"),
+
+    /**
+     * 评论回复通知
+     */
+    COMMENT_REPLIED(3, "评论回复"),
+
+    /**
+     * 关注作者发文通知
+     */
+    POST_PUBLISHED_BY_FOLLOWING(5, "关注作者发文"),
+
+    /**
+     * 关注作者发文摘要通知
+     */
+    POST_PUBLISHED_DIGEST(6, "关注作者发文摘要"),
+
+    /**
+     * 系统公告通知
+     */
+    SYSTEM_ANNOUNCEMENT(4, "系统公告"),
+
+    /**
+     * 安全提醒通知
+     */
+    SECURITY_ALERT(7, "安全提醒"),
+
+    /**
      * 点赞通知
      */
-    LIKE(0, "点赞", NotificationCategory.INTERACTION, "interaction.like"),
+    @Deprecated
+    LIKE(0, "点赞"),
 
     /**
      * 评论通知
      */
-    COMMENT(1, "评论", NotificationCategory.INTERACTION, "interaction.comment"),
+    @Deprecated
+    COMMENT(1, "评论"),
 
     /**
      * 关注通知
      */
-    FOLLOW(2, "关注", NotificationCategory.INTERACTION, "interaction.follow"),
+    @Deprecated
+    FOLLOW(2, "关注"),
 
     /**
      * 回复通知
      */
-    REPLY(3, "回复", NotificationCategory.INTERACTION, "interaction.reply"),
+    @Deprecated
+    REPLY(3, "回复"),
 
     /**
      * 系统通知
      */
-    SYSTEM(4, "系统", NotificationCategory.SYSTEM, "system.notice"),
-
-    /**
-     * 关注作者发布作品通知
-     */
-    POST_PUBLISHED(5, "发布", NotificationCategory.CONTENT, "content.post-published");
+    @Deprecated
+    SYSTEM(4, "系统");
 
     private final int code;
     private final String description;
-    private final NotificationCategory category;
-    private final String eventCode;
 
-    NotificationType(int code, String description, NotificationCategory category, String eventCode) {
+    NotificationType(int code, String description) {
         this.code = code;
         this.description = description;
-        this.category = category;
-        this.eventCode = eventCode;
+    }
+
+    /**
+     * 优先使用字符串通知类型恢复，兼容旧的整型 type 列。
+     */
+    public static NotificationType fromValue(String notificationType, Integer code) {
+        if (notificationType != null && !notificationType.isBlank()) {
+            return NotificationType.valueOf(notificationType);
+        }
+        if (code == null) {
+            throw new IllegalArgumentException("Notification type value is required");
+        }
+        return fromCode(code);
     }
 
     /**
      * 根据code获取枚举
      */
     public static NotificationType fromCode(int code) {
-        for (NotificationType type : values()) {
-            if (type.code == code) {
-                return type;
-            }
-        }
-        throw new IllegalArgumentException("Unknown notification type code: " + code);
+        return switch (code) {
+            case 0 -> LIKE;
+            case 1 -> COMMENT;
+            case 2 -> FOLLOW;
+            case 3 -> REPLY;
+            case 4 -> SYSTEM;
+            case 5 -> POST_PUBLISHED_BY_FOLLOWING;
+            case 6 -> POST_PUBLISHED_DIGEST;
+            case 7 -> SECURITY_ALERT;
+            default -> throw new IllegalArgumentException("Unknown notification type code: " + code);
+        };
     }
 }

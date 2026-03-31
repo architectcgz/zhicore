@@ -5,6 +5,7 @@ import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.model.NotificationType;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -45,7 +46,7 @@ public interface NotificationRepository {
      * @param size 每页大小
      * @return 通知列表
      */
-    List<Notification> findByRecipientId(String recipientId, int page, int size);
+    List<Notification> findByRecipientId(Long recipientId, int page, int size);
 
     /**
      * 聚合查询通知
@@ -67,20 +68,6 @@ public interface NotificationRepository {
     int countAggregatedGroups(Long recipientId);
 
     /**
-     * 查询单个聚合组的聚合结果。
-     *
-     * @param recipientId 接收者ID
-     * @param type 通知类型
-     * @param targetType 目标类型
-     * @param targetId 目标ID
-     * @return 聚合结果
-     */
-    Optional<AggregatedNotificationDTO> findAggregatedNotificationByGroup(Long recipientId,
-                                                                          NotificationType type,
-                                                                          String targetType,
-                                                                          Long targetId);
-
-    /**
      * 查询某个聚合组的详细通知列表
      *
      * @param recipientId 接收者ID
@@ -91,7 +78,7 @@ public interface NotificationRepository {
      * @return 通知列表
      */
     List<Notification> findByGroup(Long recipientId, NotificationType type,
-                                   String targetType, Long targetId, int limit);
+                                   String targetType, String targetId, int limit);
 
     /**
      * 统计未读通知数量
@@ -102,19 +89,25 @@ public interface NotificationRepository {
     int countUnread(Long recipientId);
 
     /**
+     * 按通知分类统计未读数。
+     *
+     * @param recipientId 接收者ID
+     * @return key=category code, value=unread count
+     */
+    Map<Integer, Integer> countUnreadByCategory(Long recipientId);
+
+    /**
      * 标记单条通知为已读
      *
      * @param id 通知ID
      * @param recipientId 接收者ID
-     * @return true 表示状态发生变更，false 表示未命中或已是已读
      */
-    boolean markAsRead(Long id, Long recipientId);
+    int markAsRead(Long id, Long recipientId);
 
     /**
      * 批量标记所有通知为已读
      *
      * @param recipientId 接收者ID
-     * @return 实际更新的未读数量
      */
     int markAllAsRead(Long recipientId);
 

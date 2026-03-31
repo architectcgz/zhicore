@@ -1,10 +1,9 @@
 package com.zhicore.notification.infrastructure.mq;
 
 import com.zhicore.common.mq.StatefulIdempotentHandler;
+import com.zhicore.common.util.JsonUtils;
 import com.zhicore.integration.messaging.post.PostPublishedIntegrationEvent;
-import com.zhicore.notification.application.service.campaign.NotificationCampaignCommandService;
-import com.zhicore.notification.application.service.campaign.NotificationCampaignShardWorker;
-import com.zhicore.notification.domain.model.NotificationCampaign;
+import com.zhicore.notification.application.service.broadcast.PostPublishedCampaignService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,10 +13,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PostPublishedNotificationConsumer 测试")
@@ -27,31 +25,41 @@ class PostPublishedNotificationConsumerTest {
     private StatefulIdempotentHandler idempotentHandler;
 
     @Mock
-    private NotificationCampaignCommandService campaignCommandService;
-
-    @Mock
-    private NotificationCampaignShardWorker shardWorker;
+    private PostPublishedCampaignService campaignService;
 
     @Test
-    @DisplayName("首次消费时应该创建 campaign 并驱动 shard worker")
-    void shouldCreateCampaignAndDrainShards() {
-        PostPublishedNotificationConsumer consumer = new PostPublishedNotificationConsumer(
-                idempotentHandler, campaignCommandService, shardWorker);
+    @DisplayName("首次消费时应该规划 campaign")
+    void shouldPlanCampaignWhenMessageConsumed() {
         PostPublishedIntegrationEvent event = new PostPublishedIntegrationEvent(
-                "evt-1", Instant.parse("2026-03-27T10:00:00Z"), 101L, 202L,
-                Instant.parse("2026-03-27T10:00:00Z"), 1L);
-        NotificationCampaign campaign = NotificationCampaign.create(501L, event.getEventId(), 101L, 202L);
+                "evt-post-published-1",
+                Instant.parse("2026-03-26T08:00:00Z"),
+                1001L,
+                2002L,
+                "标题",
+                "摘要",
+                Instant.parse("2026-03-26T08:00:01Z"),
+                5L
+        );
+        PostPublishedNotificationConsumer consumer = new PostPublishedNotificationConsumer(
+                idempotentHandler,
+                campaignService
+        );
 
         doAnswer(invocation -> {
             Runnable runnable = invocation.getArgument(1);
             runnable.run();
             return true;
-        }).when(idempotentHandler).handleIdempotent(eq(event.getEventId()), any(Runnable.class));
-        when(campaignCommandService.createOrLoad(any(PostPublishedIntegrationEvent.class))).thenReturn(campaign);
+        }).when(idempotentHandler).handleIdempotent(
+                argThat(key ->
+                        key != null
+                                && key.contains(":notification-post-published-consumer:")
+                                && key.contains(":ZhiCore-post-events:")
+                                && key.endsWith(":" + event.getEventId())),
+                any(Runnable.class)
+        );
 
-        consumer.onMessage(com.zhicore.common.util.JsonUtils.toJson(event));
+        consumer.onMessage(JsonUtils.toJson(event));
 
-        verify(campaignCommandService).createOrLoad(any(PostPublishedIntegrationEvent.class));
-        verify(shardWorker).drain(campaign);
+        verify(campaignService).planCampaign(any(PostPublishedIntegrationEvent.class));
     }
 }

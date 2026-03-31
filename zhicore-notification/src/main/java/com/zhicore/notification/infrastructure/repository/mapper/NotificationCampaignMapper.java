@@ -1,37 +1,56 @@
 package com.zhicore.notification.infrastructure.repository.mapper;
 
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.zhicore.notification.infrastructure.repository.po.NotificationCampaignPO;
+import com.zhicore.notification.domain.model.NotificationCampaign;
+import com.zhicore.notification.domain.model.NotificationCampaignShard;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 @Mapper
-public interface NotificationCampaignMapper extends BaseMapper<NotificationCampaignPO> {
+public interface NotificationCampaignMapper {
 
     @Insert("""
         INSERT INTO notification_campaign (
-            id, trigger_event_id, campaign_type, post_id, author_id, status, error_message,
-            created_at, updated_at, completed_at
+            campaign_id, campaign_type, source_event_id, author_id, post_id, audience_estimate,
+            status, title, excerpt, published_at, created_at, updated_at
         ) VALUES (
-            #{id}, #{triggerEventId}, #{campaignType}, #{postId}, #{authorId}, #{status}, #{errorMessage},
-            #{createdAt}, #{updatedAt}, #{completedAt}
+            #{campaign.campaignId}, #{campaign.campaignType}, #{campaign.sourceEventId}, #{campaign.authorId},
+            #{campaign.postId}, #{campaign.audienceEstimate}, #{campaign.status}, #{campaign.title},
+            #{campaign.excerpt}, #{campaign.publishedAt}, #{campaign.createdAt}, #{campaign.updatedAt}
         )
-        ON CONFLICT (trigger_event_id) DO NOTHING
+        ON CONFLICT (source_event_id) DO NOTHING
         """)
-    int insertIgnore(NotificationCampaignPO po);
+    int insertCampaign(@Param("campaign") NotificationCampaign campaign);
 
-    @Select("SELECT * FROM notification_campaign WHERE trigger_event_id = #{triggerEventId}")
-    NotificationCampaignPO selectByTriggerEventId(String triggerEventId);
+    @Insert("""
+        INSERT INTO notification_campaign_shard (
+            shard_id, campaign_id, start_cursor, end_cursor, shard_size, status, created_at, updated_at
+        ) VALUES (
+            #{shard.shardId}, #{shard.campaignId}, #{shard.startCursor}, #{shard.endCursor},
+            #{shard.shardSize}, #{shard.status}, #{shard.createdAt}, #{shard.updatedAt}
+        )
+        """)
+    int insertShard(@Param("shard") NotificationCampaignShard shard);
 
     @Update("""
-        UPDATE notification_campaign
-        SET status = #{status},
-            error_message = #{errorMessage},
-            updated_at = #{updatedAt},
-            completed_at = #{completedAt}
-        WHERE id = #{id}
+        UPDATE notification_campaign_shard
+        SET end_cursor = #{endCursor},
+            status = #{status},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE shard_id = #{shardId}
         """)
-    int updateState(NotificationCampaignPO po);
+    int updateShardExecution(@Param("shardId") Long shardId,
+                             @Param("endCursor") Long endCursor,
+                             @Param("status") String status);
+
+    @Select("""
+        SELECT EXISTS (
+            SELECT 1
+            FROM notification_campaign
+            WHERE source_event_id = #{sourceEventId}
+        )
+        """)
+    boolean existsBySourceEventId(@Param("sourceEventId") String sourceEventId);
 }

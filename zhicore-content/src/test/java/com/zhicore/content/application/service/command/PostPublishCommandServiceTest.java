@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,6 +49,8 @@ class PostPublishCommandServiceTest {
                 Instant.now(),
                 PostId.of(postId),
                 userId,
+                "title",
+                "excerpt",
                 Instant.now(),
                 5L
         );
@@ -56,16 +59,19 @@ class PostPublishCommandServiceTest {
                 Instant.now(),
                 postId,
                 userId,
+                "title",
+                "excerpt",
                 Instant.now(),
                 5L
         );
 
         when(publishPostWorkflow.execute(PostId.of(postId), UserId.of(userId))).thenReturn(List.of(domainEvent));
-        when(eventMapper.toIntegrationEvent(domainEvent)).thenReturn(integrationEvent);
+        when(eventMapper.toIntegrationEvent(domainEvent, userId, "title", "excerpt")).thenReturn(integrationEvent);
 
         postPublishCommandService.publishPost(userId, postId);
 
         verify(domainEventPublisher).publishBatch(any());
+        verify(eventMapper).toIntegrationEvent(domainEvent, userId, "title", "excerpt");
         verify(integrationEventPublisher).publish(integrationEvent);
     }
 }

@@ -4,6 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhicore.common.util.DateTimeUtils;
 import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.domain.model.Notification;
+import com.zhicore.notification.domain.model.NotificationCategory;
+import com.zhicore.notification.domain.model.NotificationGroupState;
+import com.zhicore.notification.domain.model.NotificationImportance;
 import com.zhicore.notification.domain.model.NotificationType;
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import com.zhicore.notification.infrastructure.repository.mapper.NotificationMapper;
@@ -12,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -29,7 +33,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     @Override
     public void save(Notification notification) {
         NotificationPO po = toPO(notification);
-        notificationMapper.insert(po);
+        notificationMapper.insertOne(po);
     }
 
     @Override
@@ -45,7 +49,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public List<Notification> findByRecipientId(String recipientId, int page, int size) {
+    public List<Notification> findByRecipientId(Long recipientId, int page, int size) {
         LambdaQueryWrapper<NotificationPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(NotificationPO::getRecipientId, recipientId)
                 .orderByDesc(NotificationPO::getCreatedAt)
@@ -76,17 +80,8 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public Optional<AggregatedNotificationDTO> findAggregatedNotificationByGroup(Long recipientId,
-                                                                                  NotificationType type,
-                                                                                  String targetType,
-                                                                                  Long targetId) {
-        return Optional.ofNullable(notificationMapper.findAggregatedNotificationByGroup(
-                recipientId, type.getCode(), targetType, targetId));
-    }
-
-    @Override
     public List<Notification> findByGroup(Long recipientId, NotificationType type,
-                                          String targetType, Long targetId, int limit) {
+                                          String targetType, String targetId, int limit) {
         List<NotificationPO> poList = notificationMapper.findByGroup(
                 recipientId, type.getCode(), targetType, targetId, limit);
         return poList.stream()
@@ -100,8 +95,17 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public boolean markAsRead(Long id, Long recipientId) {
-        return notificationMapper.markAsRead(id, recipientId) > 0;
+    public Map<Integer, Integer> countUnreadByCategory(Long recipientId) {
+        return notificationMapper.countUnreadByCategory(recipientId).stream()
+                .collect(Collectors.toMap(
+                        item -> item.getCategory() == null ? -1 : item.getCategory(),
+                        item -> item.getUnreadCount() == null ? 0 : item.getUnreadCount()
+                ));
+    }
+
+    @Override
+    public int markAsRead(Long id, Long recipientId) {
+        return notificationMapper.markAsRead(id, recipientId);
     }
 
     @Override
@@ -121,16 +125,19 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         po.setId(notification.getId());
         po.setRecipientId(notification.getRecipientId());
         po.setType(notification.getType().getCode());
-        po.setCategory(notification.getCategory());
-        po.setEventCode(notification.getEventCode());
-        po.setMetadata(notification.getMetadata());
+        po.setCategory(notification.getCategory().getCode());
+        po.setNotificationType(notification.getType().name());
         po.setActorId(notification.getActorId());
         po.setTargetType(notification.getTargetType());
         po.setTargetId(notification.getTargetId());
+        po.setSourceEventId(notification.getSourceEventId());
+        po.setGroupKey(NotificationGroupState.resolveGroupKey(notification));
+        po.setPayloadJson(notification.getPayloadJson());
         po.setContent(notification.getContent());
+        po.setImportance(notification.getImportance().getCode());
         po.setIsRead(notification.isRead());
-        po.setReadAt(notification.getReadAt());
-        po.setCreatedAt(notification.getCreatedAt());
+        po.setReadAt(DateTimeUtils.toOffsetDateTime(notification.getReadAt()));
+        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(notification.getCreatedAt()));
         return po;
     }
 
@@ -138,17 +145,19 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         return Notification.reconstitute(
                 po.getId(),
                 po.getRecipientId(),
-                NotificationType.fromCode(po.getType()),
-                po.getCategory(),
-                po.getEventCode(),
-                po.getMetadata(),
+                NotificationType.fromValue(po.getNotificationType(), po.getType()),
+                po.getCategory() != null ? NotificationCategory.fromCode(po.getCategory()) : null,
                 po.getActorId(),
                 po.getTargetType(),
                 po.getTargetId(),
+                po.getSourceEventId(),
+                po.getGroupKey(),
+                po.getPayloadJson(),
+                po.getImportance() != null ? NotificationImportance.fromCode(po.getImportance()) : null,
                 po.getContent(),
                 po.getIsRead(),
-                po.getReadAt(),
-                po.getCreatedAt()
+                DateTimeUtils.toLocalDateTime(po.getReadAt()),
+                DateTimeUtils.toLocalDateTime(po.getCreatedAt())
         );
     }
 }

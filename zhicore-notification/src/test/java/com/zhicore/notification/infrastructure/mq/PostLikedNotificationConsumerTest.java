@@ -15,6 +15,7 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
@@ -46,7 +47,14 @@ class PostLikedNotificationConsumerTest {
             Runnable runnable = invocation.getArgument(1);
             runnable.run();
             return true;
-        }).when(idempotentHandler).handleIdempotent(eq(event.getEventId()), any(Runnable.class));
+        }).when(idempotentHandler).handleIdempotent(
+                argThat(key ->
+                        key != null
+                                && key.contains(":notification-post-liked-consumer:")
+                                && key.contains(":ZhiCore-post-events:")
+                                && key.endsWith(":" + event.getEventId())),
+                any(Runnable.class)
+        );
         when(notificationService.createLikeNotificationIfAbsent(anyLong(), eq(303L), eq(202L), eq("post"), eq(101L)))
                 .thenReturn(Optional.of(notification));
 
@@ -67,7 +75,14 @@ class PostLikedNotificationConsumerTest {
             Runnable runnable = invocation.getArgument(1);
             runnable.run();
             return true;
-        }).when(idempotentHandler).handleIdempotent(eq(event.getEventId()), any(Runnable.class));
+        }).when(idempotentHandler).handleIdempotent(
+                argThat(key ->
+                        key != null
+                                && key.contains(":notification-post-liked-consumer:")
+                                && key.contains(":ZhiCore-post-events:")
+                                && key.endsWith(":" + event.getEventId())),
+                any(Runnable.class)
+        );
         when(notificationService.createLikeNotificationIfAbsent(anyLong(), eq(303L), eq(202L), eq("post"), eq(101L)))
                 .thenReturn(Optional.empty());
 

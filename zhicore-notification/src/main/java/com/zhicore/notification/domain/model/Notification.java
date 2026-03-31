@@ -56,7 +56,12 @@ public class Notification {
     /**
      * 创建时间
      */
-    private final OffsetDateTime createdAt;
+    private final LocalDateTime createdAt;
+
+    /**
+     * 通知分类
+     */
+    private final NotificationCategory category;
 
     /**
      * 触发者ID
@@ -86,7 +91,27 @@ public class Notification {
     /**
      * 已读时间
      */
-    private OffsetDateTime readAt;
+    private LocalDateTime readAt;
+
+    /**
+     * 事件源ID
+     */
+    private String sourceEventId;
+
+    /**
+     * 聚合分组键
+     */
+    private String groupKey;
+
+    /**
+     * 扩展载荷
+     */
+    private String payloadJson;
+
+    /**
+     * 重要程度
+     */
+    private NotificationImportance importance;
 
     /**
      * 内容最大长度
@@ -106,30 +131,33 @@ public class Notification {
         this.id = id;
         this.recipientId = recipientId;
         this.type = type;
-        this.category = type.getCategory().name();
-        this.eventCode = type.getEventCode();
-        this.metadata = null;
         this.isRead = false;
-        this.createdAt = OffsetDateTime.now();
+        this.createdAt = LocalDateTime.now();
+        this.category = defaultCategoryFor(type);
+        this.importance = NotificationImportance.NORMAL;
     }
 
     /**
      * 私有构造函数（用于从持久化恢复）
      */
     private Notification(Long id, Long recipientId, NotificationType type,
-                         String category, String eventCode, String metadata,
+                         NotificationCategory category,
                          Long actorId, String targetType, Long targetId,
-                         String content, boolean isRead, OffsetDateTime readAt,
-                         OffsetDateTime createdAt) {
+                         String sourceEventId, String groupKey, String payloadJson,
+                         NotificationImportance importance,
+                         String content, boolean isRead, LocalDateTime readAt,
+                         LocalDateTime createdAt) {
         this.id = id;
         this.recipientId = recipientId;
         this.type = type;
-        this.category = resolveCategory(type, category, eventCode);
-        this.eventCode = resolveEventCode(type, eventCode);
-        this.metadata = metadata;
+        this.category = category != null ? category : defaultCategoryFor(type);
         this.actorId = actorId;
         this.targetType = targetType;
         this.targetId = targetId;
+        this.sourceEventId = sourceEventId;
+        this.groupKey = groupKey;
+        this.payloadJson = payloadJson;
+        this.importance = importance != null ? importance : NotificationImportance.NORMAL;
         this.content = content;
         this.isRead = isRead;
         this.readAt = readAt;
@@ -255,27 +283,39 @@ public class Notification {
     }
 
     /**
-     * 创建关注作者发布作品通知。
+     * 创建关注作者发文通知
      */
-    public static Notification createPostPublishedNotification(Long id,
-                                                               Long recipientId,
-                                                               Long authorId,
-                                                               Long postId,
-                                                               Long campaignId) {
+    public static Notification createPostPublishedNotification(Long id, Long recipientId,
+                                                               Long authorId, Long postId,
+                                                               String groupKey, String content) {
         Assert.notNull(authorId, "作者ID不能为空");
         Assert.isTrue(authorId > 0, "作者ID必须为正数");
         Assert.notNull(postId, "文章ID不能为空");
         Assert.isTrue(postId > 0, "文章ID必须为正数");
+        Assert.hasText(groupKey, "分组键不能为空");
+        Assert.hasText(content, "通知内容不能为空");
 
-        Notification notification = new Notification(id, recipientId, NotificationType.POST_PUBLISHED);
+        Notification notification = new Notification(id, recipientId, NotificationType.POST_PUBLISHED_BY_FOLLOWING);
         notification.actorId = authorId;
         notification.targetType = "post";
         notification.targetId = postId;
-        notification.content = "你关注的作者发布了新作品";
-        notification.metadata = JsonUtils.toJson(java.util.Map.of(
-                "campaignId", campaignId,
-                "postId", postId
-        ));
+        notification.groupKey = groupKey;
+        notification.content = truncate(content, MAX_CONTENT_LENGTH);
+        return notification;
+    }
+
+    /**
+     * 创建关注作者发文摘要通知
+     */
+    public static Notification createPostPublishedDigestNotification(Long id, Long recipientId,
+                                                                     String groupKey, String content) {
+        Assert.hasText(groupKey, "分组键不能为空");
+        Assert.hasText(content, "通知内容不能为空");
+
+        Notification notification = new Notification(id, recipientId, NotificationType.POST_PUBLISHED_DIGEST);
+        notification.targetType = "digest";
+        notification.groupKey = groupKey;
+        notification.content = truncate(content, MAX_CONTENT_LENGTH);
         return notification;
     }
 
@@ -286,24 +326,24 @@ public class Notification {
      */
     public static Notification reconstitute(Long id, Long recipientId, NotificationType type,
                                             Long actorId, String targetType, Long targetId,
-                                            String content, boolean isRead, OffsetDateTime readAt,
-                                            OffsetDateTime createdAt) {
-        return new Notification(id, recipientId, type, null, null, null,
-                actorId, targetType, targetId,
-                content, isRead, readAt, createdAt);
+                                            String content, boolean isRead, LocalDateTime readAt,
+                                            LocalDateTime createdAt) {
+        return new Notification(id, recipientId, type, null, actorId, targetType, targetId,
+                null, null, null, null, content, isRead, readAt, createdAt);
     }
 
     /**
-     * 从持久化恢复通知（扩展元数据版本）。
+     * 从持久化恢复通知（含扩展元数据）
      */
     public static Notification reconstitute(Long id, Long recipientId, NotificationType type,
-                                            String category, String eventCode, String metadata,
+                                            NotificationCategory category,
                                             Long actorId, String targetType, Long targetId,
-                                            String content, boolean isRead, OffsetDateTime readAt,
-                                            OffsetDateTime createdAt) {
-        return new Notification(id, recipientId, type, category, eventCode, metadata,
-                actorId, targetType, targetId,
-                content, isRead, readAt, createdAt);
+                                            String sourceEventId, String groupKey, String payloadJson,
+                                            NotificationImportance importance,
+                                            String content, boolean isRead, LocalDateTime readAt,
+                                            LocalDateTime createdAt) {
+        return new Notification(id, recipientId, type, category, actorId, targetType, targetId,
+                sourceEventId, groupKey, payloadJson, importance, content, isRead, readAt, createdAt);
     }
 
     // ==================== 领域行为 ====================
@@ -332,6 +372,9 @@ public class Notification {
         if (this.type != other.type) {
             return false;
         }
+        if (this.groupKey != null || other.groupKey != null) {
+            return java.util.Objects.equals(this.groupKey, other.groupKey);
+        }
         // 关注通知不按目标聚合
         if (this.type == NotificationType.FOLLOW) {
             return true;
@@ -353,26 +396,16 @@ public class Notification {
         return content.substring(0, maxLength) + "...";
     }
 
-    private static String resolveCategory(NotificationType type, String category, String eventCode) {
-        if (!StringUtils.hasText(category) || isLegacyMetadata(eventCode)) {
-            return type.getCategory().name();
+    private static NotificationCategory defaultCategoryFor(NotificationType type) {
+        if (type == null) {
+            return NotificationCategory.SYSTEM;
         }
-        return category;
-    }
-
-    private static String resolveEventCode(NotificationType type, String eventCode) {
-        if (isLegacyMetadata(eventCode)) {
-            return type.getEventCode();
-        }
-        return eventCode;
-    }
-
-    private static boolean isLegacyMetadata(String eventCode) {
-        if (!StringUtils.hasText(eventCode)) {
-            return true;
-        }
-        String normalized = eventCode.trim().toLowerCase();
-        return LEGACY_EVENT_CODE_SENTINEL.equals(normalized)
-                || LEGACY_EVENT_CODE_SENTINEL_V1.equals(normalized);
+        return switch (type) {
+            case POST_LIKED, POST_COMMENTED, COMMENT_REPLIED, POST_PUBLISHED_BY_FOLLOWING,
+                    POST_PUBLISHED_DIGEST, LIKE, COMMENT, REPLY -> NotificationCategory.CONTENT;
+            case USER_FOLLOWED, FOLLOW -> NotificationCategory.SOCIAL;
+            case SECURITY_ALERT -> NotificationCategory.SECURITY;
+            case SYSTEM_ANNOUNCEMENT, SYSTEM -> NotificationCategory.SYSTEM;
+        };
     }
 }

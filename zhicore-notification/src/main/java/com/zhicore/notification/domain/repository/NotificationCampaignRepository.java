@@ -1,16 +1,13 @@
 package com.zhicore.notification.domain.repository;
 
 import com.zhicore.notification.domain.model.NotificationCampaign;
-
-import java.util.Optional;
+import com.zhicore.notification.domain.model.NotificationCampaignShard;
 
 public interface NotificationCampaignRepository {
 
-    boolean saveIfAbsent(NotificationCampaign campaign);
+    boolean savePlanned(NotificationCampaign campaign, NotificationCampaignShard firstShard);
 
-    Optional<NotificationCampaign> findByTriggerEventId(String triggerEventId);
+    void markShardExecuted(Long shardId, Long endCursor, String status);
 
-    Optional<NotificationCampaign> findById(Long campaignId);
-
-    void update(NotificationCampaign campaign);
+    boolean existsBySourceEventId(String sourceEventId);
 }

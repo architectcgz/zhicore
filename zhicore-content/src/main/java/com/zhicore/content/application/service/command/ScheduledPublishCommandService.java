@@ -268,8 +268,11 @@ public class ScheduledPublishCommandService {
 
     private void handleDue(ScheduledPublishEventRecord record, OffsetDateTime dbNow, OffsetDateTime scheduledAt) {
         try {
-            Optional<Long> newVersion = postRepository.publishScheduledIfNeeded(record.getPostId(), dbNow);
+            Long postId = record.getPostId();
+            Optional<Long> newVersion = postRepository.publishScheduledIfNeeded(postId, dbNow);
             if (newVersion.isPresent()) {
+                Post publishedPost = postRepository.findById(postId)
+                        .orElseThrow(() -> new IllegalStateException("定时发布成功后文章不存在: " + postId));
                 record = record.withStatus(ScheduledPublishEventRecord.ScheduledPublishStatus.SUCCEEDED)
                         .withNextAttemptAt(dbNow)
                         .withClaimedAt(null)
@@ -286,7 +289,9 @@ public class ScheduledPublishCommandService {
                         Instant.now(),
                         postId,
                         publishedPost.getOwnerId().getValue(),
-                        dbNow.toInstant(),
+                        publishedPost.getTitle(),
+                        publishedPost.getExcerpt(),
+                        dbNow.atZone(ZoneId.systemDefault()).toInstant(),
                         newVersion.get()
                 ));
                 return;

@@ -77,6 +77,31 @@ class NotificationControllerTest extends ControllerTestSupport {
     }
 
     @Test
+    @DisplayName("获取未读分类统计时应该返回总数和分类计数")
+    void shouldReturnUnreadBreakdown() throws Exception {
+        NotificationQueryController controller = new NotificationQueryController(
+                notificationQueryService,
+                notificationAggregationService
+        );
+        MockMvc mockMvc = buildMockMvc(controller);
+        when(notificationQueryService.getUnreadBreakdown(11L))
+                .thenReturn(new NotificationQueryService.UnreadBreakdown(10, 4, 3, 2, 1));
+
+        try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {
+            userContext.when(UserContext::requireUserId).thenReturn(11L);
+
+            mockMvc.perform(get("/api/v1/notifications/unread-breakdown"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(ResultCode.SUCCESS.getCode()))
+                    .andExpect(jsonPath("$.data.totalCount").value(10))
+                    .andExpect(jsonPath("$.data.interactionCount").value(4))
+                    .andExpect(jsonPath("$.data.contentCount").value(3))
+                    .andExpect(jsonPath("$.data.systemCount").value(2))
+                    .andExpect(jsonPath("$.data.securityCount").value(1));
+        }
+    }
+
+    @Test
     @DisplayName("未登录查询聚合通知时应该返回未授权")
     void shouldReturnUnauthorizedWhenGetNotificationsWithoutLogin() throws Exception {
         NotificationQueryController controller = new NotificationQueryController(

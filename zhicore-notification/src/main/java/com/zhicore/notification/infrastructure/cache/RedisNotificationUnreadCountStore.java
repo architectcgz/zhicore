@@ -41,13 +41,37 @@ public class RedisNotificationUnreadCountStore implements NotificationUnreadCoun
 
     @Override
     public Integer get(Long userId) {
-        Object cached = redisTemplate.opsForValue().get(NotificationRedisKeys.unreadCount(String.valueOf(userId)));
-        return cached instanceof Number number ? number.intValue() : null;
+        Object cached = redisTemplate.opsForValue().get(NotificationRedisKeys.unreadCount(userId));
+        return cached instanceof Number value ? value.intValue() : null;
     }
 
     @Override
     public void set(Long userId, int count, Duration ttl) {
-        redisTemplate.opsForValue().set(NotificationRedisKeys.unreadCount(String.valueOf(userId)), count, ttl);
+        redisTemplate.opsForValue().set(NotificationRedisKeys.unreadCount(userId), count, ttl);
+    }
+
+    @Override
+    public Long increment(Long userId, long delta, Duration ttl) {
+        String key = NotificationRedisKeys.unreadCount(userId);
+        Long value = redisTemplate.opsForValue().increment(key, delta);
+        if (ttl != null) {
+            redisTemplate.expire(key, ttl);
+        }
+        return value;
+    }
+
+    @Override
+    public Long decrement(Long userId, long delta) {
+        String key = NotificationRedisKeys.unreadCount(userId);
+        if (!Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
+            return null;
+        }
+        Long value = redisTemplate.opsForValue().increment(key, -delta);
+        if (value != null && value < 0) {
+            redisTemplate.opsForValue().set(key, 0);
+            return 0L;
+        }
+        return value;
     }
 
     @Override
@@ -69,6 +93,6 @@ public class RedisNotificationUnreadCountStore implements NotificationUnreadCoun
 
     @Override
     public void evict(Long userId) {
-        redisTemplate.delete(NotificationRedisKeys.unreadCount(String.valueOf(userId)));
+        redisTemplate.delete(NotificationRedisKeys.unreadCount(userId));
     }
 }

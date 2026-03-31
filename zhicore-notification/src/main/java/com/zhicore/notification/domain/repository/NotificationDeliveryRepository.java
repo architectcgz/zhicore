@@ -11,8 +11,6 @@ public interface NotificationDeliveryRepository {
 
     Optional<NotificationDelivery> findById(Long deliveryId);
 
-    Optional<NotificationDelivery> findByDedupeKey(String dedupeKey);
-
     List<NotificationDelivery> query(Long campaignId,
                                      Long recipientId,
                                      String channel,
@@ -22,5 +20,9 @@ public interface NotificationDeliveryRepository {
 
     long count(Long campaignId, Long recipientId, String channel, String status);
 
+    void bindNotification(Long deliveryId, Long notificationId, String deliveryStatus);
+
     void update(NotificationDelivery delivery);
+
+    List<NotificationDelivery> findPendingDigestDeliveries(Long recipientId);
 }
