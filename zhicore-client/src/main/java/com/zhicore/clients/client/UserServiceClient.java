@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
  * 用户服务 Feign 客户端
  * 注意：fallbackFactory 应在各服务中通过 @FeignClient 配置指定
  */
-@FeignClient(name = "zhicore-user")
+@FeignClient(name = "zhicore-user", contextId = "apiUserServiceClient")
 public interface UserServiceClient extends UserSimpleBatchClient {
 
     /**

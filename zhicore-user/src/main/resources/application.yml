@@ -33,19 +33,17 @@ spring.sql.init:
   mode: always
   schema-locations: classpath:db/schema.sql
 
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6800}
-      password: ${REDIS_PASSWORD:redis123456}
-      database: 0
+spring.data.redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:redis123456}
+  database: 0
 
-  cloud:
-    nacos:
-      discovery:
-        group: ZHICORE-SERVICE
-        username: ${NACOS_USERNAME:nacos}
-        password: ${NACOS_PASSWORD:nacos}
+spring.cloud.nacos:
+  discovery:
+    group: ZHICORE-SERVICE
+    username: ${NACOS_USERNAME:nacos}
+    password: ${NACOS_PASSWORD:nacos}
 
 # MyBatis-Plus 配置
 mybatis-plus:

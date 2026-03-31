@@ -40,7 +40,7 @@ class NotificationAggregationFallbackQueryRegressionTest {
 
     private String loadQuerySql() {
         return loadQuerySql(NotificationMapper.class, "findAggregatedNotifications",
-                String.class, int.class, int.class);
+                Long.class, int.class, int.class);
     }
 
     private String loadQuerySql(Class<?> mapperType, String methodName, Class<?>... parameterTypes) {

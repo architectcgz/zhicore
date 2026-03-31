@@ -2,7 +2,12 @@ package com.zhicore.common.mq;
 
 import com.zhicore.common.util.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.springframework.util.ClassUtils;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 事件消费者基类
@@ -14,6 +19,11 @@ import org.apache.rocketmq.spring.core.RocketMQListener;
  */
 @Slf4j
 public abstract class AbstractEventConsumer<T> implements RocketMQListener<String> {
+
+    private static final String DEFAULT_ENV = "default";
+    private static final String DEFAULT_CONSUMER_GROUP = "unknown-group";
+    private static final String DEFAULT_TOPIC = "unknown-topic";
+    private static final Map<Class<?>, ListenerScope> LISTENER_SCOPE_CACHE = new ConcurrentHashMap<>();
 
     private final StatefulIdempotentHandler idempotentHandler;
     private final Class<T> eventType;
@@ -30,16 +40,19 @@ public abstract class AbstractEventConsumer<T> implements RocketMQListener<Strin
             event = JsonUtils.fromJson(message, eventType);
             final T finalEvent = event;
             String eventId = extractEventId(event);
+            String idempotentKey = buildIdempotentKey(eventId);
             
-            log.debug("Received event: type={}, eventId={}", eventType.getSimpleName(), eventId);
+            log.debug("Received event: type={}, eventId={}, idempotentKey={}",
+                    eventType.getSimpleName(), eventId, idempotentKey);
             
             // 幂等性处理
-            boolean processed = idempotentHandler.handleIdempotent(eventId, () -> {
+            boolean processed = idempotentHandler.handleIdempotent(idempotentKey, () -> {
                 doHandle(finalEvent);
             });
             
             if (!processed) {
-                log.debug("Event already processed or being processed: eventId={}", eventId);
+                log.debug("Event already processed or being processed: eventId={}, idempotentKey={}",
+                        eventId, idempotentKey);
             }
         } catch (Exception e) {
             log.error("Failed to process event: type={}, message={}", 
@@ -80,6 +93,83 @@ public abstract class AbstractEventConsumer<T> implements RocketMQListener<Strin
 
         // 如果没有 eventId 字段，使用对象的 hashCode
         return String.valueOf(event.hashCode());
+    }
+
+    /**
+     * 构建幂等键，格式：{env}:{consumerGroup}:{topic}:{eventId}
+     *
+     * <p>避免多个服务共享 Redis 时，仅用 eventId 导致跨服务误判“已消费”。
+     *
+     * @param eventId 事件ID
+     * @return 幂等键
+     */
+    protected String buildIdempotentKey(String eventId) {
+        Class<?> userClass = ClassUtils.getUserClass(getClass());
+        ListenerScope scope = LISTENER_SCOPE_CACHE.computeIfAbsent(userClass, AbstractEventConsumer::resolveListenerScope);
+        return resolveEnv() + ":" + scope.consumerGroup() + ":" + scope.topic() + ":" + eventId;
+    }
+
+    private static ListenerScope resolveListenerScope(Class<?> consumerClass) {
+        RocketMQMessageListener listener = consumerClass.getAnnotation(RocketMQMessageListener.class);
+        if (listener == null) {
+            log.warn("RocketMQMessageListener annotation missing, fallback idempotent scope: consumer={}",
+                    consumerClass.getName());
+            return new ListenerScope(DEFAULT_CONSUMER_GROUP, DEFAULT_TOPIC);
+        }
+
+        String consumerGroup = normalizeSegment(listener.consumerGroup(), DEFAULT_CONSUMER_GROUP);
+        String topic = normalizeSegment(listener.topic(), DEFAULT_TOPIC);
+        return new ListenerScope(consumerGroup, topic);
+    }
+
+    private String resolveEnv() {
+        String env = normalizeSegment(System.getProperty("APP_ENV"), null);
+        if (env != null) {
+            return env;
+        }
+
+        env = normalizeSegment(System.getenv("APP_ENV"), null);
+        if (env != null) {
+            return env;
+        }
+
+        env = primaryProfile(System.getProperty("spring.profiles.active"));
+        if (env != null) {
+            return env;
+        }
+
+        env = primaryProfile(System.getenv("SPRING_PROFILES_ACTIVE"));
+        if (env != null) {
+            return env;
+        }
+
+        return DEFAULT_ENV;
+    }
+
+    private static String primaryProfile(String profiles) {
+        String normalized = normalizeSegment(profiles, null);
+        if (normalized == null) {
+            return null;
+        }
+        int commaIndex = normalized.indexOf(',');
+        if (commaIndex <= 0) {
+            return normalized;
+        }
+        return normalizeSegment(normalized.substring(0, commaIndex), null);
+    }
+
+    private static String normalizeSegment(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String normalized = value.trim();
+        if (normalized.isEmpty()) {
+            return defaultValue;
+        }
+        return normalized.replace(':', '_');
+    }
+
+    private record ListenerScope(String consumerGroup, String topic) {
     }
 
     /**

@@ -72,7 +72,7 @@ public class NotificationAggregationService {
             return cached;
         }
 
-        int totalGroups = notificationRepository.countAggregatedGroups(String.valueOf(userId));
+        int totalGroups = notificationRepository.countAggregatedGroups(userId);
         if (totalGroups == 0) {
             PageResult<AggregatedNotificationVO> emptyResult = PageResult.of(
                     page, size, 0, Collections.emptyList());
@@ -80,7 +80,7 @@ public class NotificationAggregationService {
             return emptyResult;
         }
 
-        int unreadCount = notificationRepository.countUnread(String.valueOf(userId));
+        int unreadCount = notificationRepository.countUnread(userId);
         List<AggregatedNotificationDTO> projectedList = getProjectedAggregatedNotifications(
                 userId, page, size, totalGroups, unreadCount);
         if (projectedList != null) {
@@ -89,7 +89,7 @@ public class NotificationAggregationService {
 
         // 2. 投影不可用时回退到数据库聚合查询
         List<AggregatedNotificationDTO> aggregatedList = notificationRepository
-                .findAggregatedNotifications(String.valueOf(userId), page, size);
+                .findAggregatedNotifications(userId, page, size);
         if (aggregatedList.isEmpty()) {
             PageResult<AggregatedNotificationVO> emptyResult = PageResult.of(
                     page, size, totalGroups, Collections.emptyList());

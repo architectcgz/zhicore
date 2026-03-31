@@ -49,7 +49,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public List<Notification> findByRecipientId(String recipientId, int page, int size) {
+    public List<Notification> findByRecipientId(Long recipientId, int page, int size) {
         LambdaQueryWrapper<NotificationPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(NotificationPO::getRecipientId, recipientId)
                 .orderByDesc(NotificationPO::getCreatedAt)
@@ -61,7 +61,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public List<AggregatedNotificationDTO> findAggregatedNotifications(String recipientId, int page, int size) {
+    public List<AggregatedNotificationDTO> findAggregatedNotifications(Long recipientId, int page, int size) {
         int offset = page * size;
         List<AggregatedNotificationDTO> results = notificationMapper.findAggregatedNotifications(recipientId, offset, size);
         
@@ -75,12 +75,12 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public int countAggregatedGroups(String recipientId) {
+    public int countAggregatedGroups(Long recipientId) {
         return notificationMapper.countAggregatedGroups(recipientId);
     }
 
     @Override
-    public List<Notification> findByGroup(String recipientId, NotificationType type,
+    public List<Notification> findByGroup(Long recipientId, NotificationType type,
                                           String targetType, String targetId, int limit) {
         List<NotificationPO> poList = notificationMapper.findByGroup(
                 recipientId, type.getCode(), targetType, targetId, limit);
@@ -90,12 +90,12 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public int countUnread(String recipientId) {
+    public int countUnread(Long recipientId) {
         return notificationMapper.countUnread(recipientId);
     }
 
     @Override
-    public Map<Integer, Integer> countUnreadByCategory(String recipientId) {
+    public Map<Integer, Integer> countUnreadByCategory(Long recipientId) {
         return notificationMapper.countUnreadByCategory(recipientId).stream()
                 .collect(Collectors.toMap(
                         item -> item.getCategory() == null ? -1 : item.getCategory(),
@@ -104,12 +104,12 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public int markAsRead(Long id, String recipientId) {
+    public int markAsRead(Long id, Long recipientId) {
         return notificationMapper.markAsRead(id, recipientId);
     }
 
     @Override
-    public int markAllAsRead(String recipientId) {
+    public int markAllAsRead(Long recipientId) {
         return notificationMapper.markAllAsRead(recipientId);
     }
 

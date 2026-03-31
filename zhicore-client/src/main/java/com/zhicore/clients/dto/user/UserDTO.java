@@ -3,7 +3,7 @@ package com.zhicore.api.dto.user;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 用户 DTO
@@ -20,7 +20,7 @@ public class UserDTO implements Serializable {
     private String avatarUrl;
     private String bio;
     private Integer status;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     // 统计信息
     private Integer followingCount;

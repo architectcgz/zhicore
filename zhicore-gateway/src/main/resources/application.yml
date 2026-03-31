@@ -43,7 +43,7 @@ spring:
         - id: zhicore-notification
           uri: lb://zhicore-notification
           predicates:
-            - Path=/api/v1/notifications/**
+            - Path=/api/v1/notifications/**,/api/v1/notification-preferences/**,/api/v1/notification-dnd/**,/api/v1/notification-authors/**
 
         # 搜索服务
         - id: zhicore-search

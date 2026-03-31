@@ -10,6 +10,7 @@ import org.springframework.cloud.openfeign.FeignClient;
  */
 @FeignClient(
         name = "zhicore-user",
+        contextId = "notificationUserBatchSimpleClient",
         fallbackFactory = UserServiceFallbackFactory.class
 )
 public interface UserServiceClient extends UserBatchSimpleClient {

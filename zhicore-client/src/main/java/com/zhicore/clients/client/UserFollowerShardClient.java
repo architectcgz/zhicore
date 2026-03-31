@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 /**
  * 用户粉丝分片查询 Feign 客户端。
  */
-@FeignClient(name = "zhicore-user")
+@FeignClient(name = "zhicore-user", contextId = "apiUserFollowerShardClient")
 public interface UserFollowerShardClient {
 
     @GetMapping("/api/v1/users/{userId}/followers/shard")

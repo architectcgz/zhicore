@@ -44,7 +44,7 @@ public class NotificationQueryService {
             log.warn("获取未读计数缓存失败: {}", e.getMessage());
         }
 
-        int count = notificationRepository.countUnread(String.valueOf(userId));
+        int count = notificationRepository.countUnread(userId);
 
         repairUnreadCountCache(userId, count);
         return count;
@@ -52,7 +52,7 @@ public class NotificationQueryService {
 
     public UnreadBreakdown getUnreadBreakdown(Long userId) {
         int totalCount = getUnreadCount(userId);
-        Map<Integer, Integer> byCategory = notificationRepository.countUnreadByCategory(String.valueOf(userId));
+        Map<Integer, Integer> byCategory = notificationRepository.countUnreadByCategory(userId);
         return new UnreadBreakdown(
                 totalCount,
                 byCategory.getOrDefault(NotificationCategory.SOCIAL.getCode(), 0),

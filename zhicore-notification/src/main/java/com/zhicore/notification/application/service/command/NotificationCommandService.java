@@ -184,7 +184,7 @@ public class NotificationCommandService {
             return;
         }
 
-        int affectedRows = notificationRepository.markAsRead(notificationId, String.valueOf(userId));
+        int affectedRows = notificationRepository.markAsRead(notificationId, userId);
         if (affectedRows <= 0) {
             log.debug("通知已被其他请求更新，跳过未读递减: notificationId={}, userId={}", notificationId, userId);
             return;
@@ -202,7 +202,7 @@ public class NotificationCommandService {
 
     @Transactional
     public void markAllAsRead(Long userId) {
-        int affectedRows = notificationRepository.markAllAsRead(String.valueOf(userId));
+        int affectedRows = notificationRepository.markAllAsRead(userId);
         if (affectedRows <= 0) {
             log.debug("没有未读通知需要批量更新: userId={}", userId);
             return;

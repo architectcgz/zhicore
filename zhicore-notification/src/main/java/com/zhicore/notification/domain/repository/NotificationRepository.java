@@ -46,7 +46,7 @@ public interface NotificationRepository {
      * @param size 每页大小
      * @return 通知列表
      */
-    List<Notification> findByRecipientId(String recipientId, int page, int size);
+    List<Notification> findByRecipientId(Long recipientId, int page, int size);
 
     /**
      * 聚合查询通知
@@ -57,7 +57,7 @@ public interface NotificationRepository {
      * @param size 每页大小
      * @return 聚合后的通知列表
      */
-    List<AggregatedNotificationDTO> findAggregatedNotifications(String recipientId, int page, int size);
+    List<AggregatedNotificationDTO> findAggregatedNotifications(Long recipientId, int page, int size);
 
     /**
      * 获取聚合组总数（用于分页）
@@ -65,7 +65,7 @@ public interface NotificationRepository {
      * @param recipientId 接收者ID
      * @return 聚合组总数
      */
-    int countAggregatedGroups(String recipientId);
+    int countAggregatedGroups(Long recipientId);
 
     /**
      * 查询某个聚合组的详细通知列表
@@ -77,7 +77,7 @@ public interface NotificationRepository {
      * @param limit 限制数量
      * @return 通知列表
      */
-    List<Notification> findByGroup(String recipientId, NotificationType type,
+    List<Notification> findByGroup(Long recipientId, NotificationType type,
                                    String targetType, String targetId, int limit);
 
     /**
@@ -86,7 +86,7 @@ public interface NotificationRepository {
      * @param recipientId 接收者ID
      * @return 未读数量
      */
-    int countUnread(String recipientId);
+    int countUnread(Long recipientId);
 
     /**
      * 按通知分类统计未读数。
@@ -94,7 +94,7 @@ public interface NotificationRepository {
      * @param recipientId 接收者ID
      * @return key=category code, value=unread count
      */
-    Map<Integer, Integer> countUnreadByCategory(String recipientId);
+    Map<Integer, Integer> countUnreadByCategory(Long recipientId);
 
     /**
      * 标记单条通知为已读
@@ -102,14 +102,14 @@ public interface NotificationRepository {
      * @param id 通知ID
      * @param recipientId 接收者ID
      */
-    int markAsRead(Long id, String recipientId);
+    int markAsRead(Long id, Long recipientId);
 
     /**
      * 批量标记所有通知为已读
      *
      * @param recipientId 接收者ID
      */
-    int markAllAsRead(String recipientId);
+    int markAllAsRead(Long recipientId);
 
     /**
      * 删除通知

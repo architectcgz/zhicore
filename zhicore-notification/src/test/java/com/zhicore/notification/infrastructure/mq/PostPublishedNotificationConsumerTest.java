@@ -13,7 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 
@@ -49,7 +49,14 @@ class PostPublishedNotificationConsumerTest {
             Runnable runnable = invocation.getArgument(1);
             runnable.run();
             return true;
-        }).when(idempotentHandler).handleIdempotent(eq(event.getEventId()), any(Runnable.class));
+        }).when(idempotentHandler).handleIdempotent(
+                argThat(key ->
+                        key != null
+                                && key.contains(":notification-post-published-consumer:")
+                                && key.contains(":ZhiCore-post-events:")
+                                && key.endsWith(":" + event.getEventId())),
+                any(Runnable.class)
+        );
 
         consumer.onMessage(JsonUtils.toJson(event));
 

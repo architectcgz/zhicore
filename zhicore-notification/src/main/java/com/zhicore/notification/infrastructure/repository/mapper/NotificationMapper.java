@@ -110,7 +110,7 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
         @Result(property = "actorIds", column = "actorIds", typeHandler = StringArrayTypeHandler.class)
     })
     List<AggregatedNotificationDTO> findAggregatedNotifications(
-            @Param("recipientId") String recipientId,
+            @Param("recipientId") Long recipientId,
             @Param("offset") int offset,
             @Param("size") int size
     );
@@ -123,7 +123,7 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
         FROM notifications
         WHERE recipient_id = #{recipientId}
         """)
-    int countAggregatedGroups(@Param("recipientId") String recipientId);
+    int countAggregatedGroups(@Param("recipientId") Long recipientId);
 
     /**
      * 查询某个聚合组的详细通知列表
@@ -138,7 +138,7 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
         LIMIT #{limit}
         """)
     List<NotificationPO> findByGroup(
-            @Param("recipientId") String recipientId,
+            @Param("recipientId") Long recipientId,
             @Param("type") int type,
             @Param("targetType") String targetType,
             @Param("targetId") String targetId,
@@ -149,7 +149,7 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
      * 统计未读通知数量
      */
     @Select("SELECT COUNT(*) FROM notifications WHERE recipient_id = #{recipientId} AND is_read = false")
-    int countUnread(@Param("recipientId") String recipientId);
+    int countUnread(@Param("recipientId") Long recipientId);
 
     @Select("""
         SELECT category, COUNT(*) AS unreadCount
@@ -157,13 +157,13 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
         WHERE recipient_id = #{recipientId} AND is_read = false
         GROUP BY category
         """)
-    List<UnreadCategoryCountPO> countUnreadByCategory(@Param("recipientId") String recipientId);
+    List<UnreadCategoryCountPO> countUnreadByCategory(@Param("recipientId") Long recipientId);
 
     /**
      * 批量标记所有通知为已读
      */
     @Update("UPDATE notifications SET is_read = true, read_at = NOW() WHERE recipient_id = #{recipientId} AND is_read = false")
-    int markAllAsRead(@Param("recipientId") String recipientId);
+    int markAllAsRead(@Param("recipientId") Long recipientId);
 
     /**
      * 标记单条通知为已读
@@ -175,5 +175,5 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
           AND recipient_id = #{recipientId}
           AND is_read = false
         """)
-    int markAsRead(@Param("id") Long id, @Param("recipientId") String recipientId);
+    int markAsRead(@Param("id") Long id, @Param("recipientId") Long recipientId);
 }
