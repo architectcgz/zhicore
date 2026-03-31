@@ -7,7 +7,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -26,7 +26,7 @@ class UserOutboxMetricsTest {
         UserOutboxMetrics metrics = new UserOutboxMetrics(outboxEventRepository, properties, meterRegistry);
 
         when(outboxEventRepository.countByStatus(OutboxEventStatus.PENDING)).thenReturn(4L);
-        when(outboxEventRepository.findOldestPendingCreatedAt()).thenReturn(LocalDateTime.now().minusSeconds(150));
+        when(outboxEventRepository.findOldestPendingCreatedAt()).thenReturn(OffsetDateTime.now().minusSeconds(150));
         when(outboxEventRepository.countSucceededSince(org.mockito.ArgumentMatchers.any())).thenReturn(6L);
         when(outboxEventRepository.countFailedSince(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(properties.getMaxRetry()))).thenReturn(2L);
         when(outboxEventRepository.countDeadSince(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(properties.getMaxRetry()))).thenReturn(1L);

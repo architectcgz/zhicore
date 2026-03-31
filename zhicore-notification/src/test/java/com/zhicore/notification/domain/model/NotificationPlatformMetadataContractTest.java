@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -48,7 +48,7 @@ class NotificationPlatformMetadataContractTest {
                 1L, 2L, NotificationType.SYSTEM,
                 "INTERACTION", "", null,
                 null, null, null, "系统通知",
-                false, null, LocalDateTime.of(2026, 3, 27, 10, 0)
+                false, null, OffsetDateTime.parse("2026-03-27T10:00:00+08:00")
         );
 
         assertEquals("SYSTEM", notification.getCategory());

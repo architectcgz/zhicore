@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -183,7 +183,7 @@ class PostLikeCommandServiceConcurrencyIntegrationTest extends IntegrationTestBa
     }
 
     private void insertPublishedPost() {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         jdbcTemplate.update(
                 """
                 INSERT INTO posts (
@@ -199,9 +199,9 @@ class PostLikeCommandServiceConcurrencyIntegrationTest extends IntegrationTestBa
                 "test-excerpt",
                 1,
                 "PUBLISHED",
-                Timestamp.valueOf(now.minusMinutes(5)),
-                Timestamp.valueOf(now.minusHours(1)),
-                Timestamp.valueOf(now),
+                Timestamp.valueOf(now.minusMinutes(5).toLocalDateTime()),
+                Timestamp.valueOf(now.minusHours(1).toLocalDateTime()),
+                Timestamp.valueOf(now.toLocalDateTime()),
                 false,
                 7L
         );

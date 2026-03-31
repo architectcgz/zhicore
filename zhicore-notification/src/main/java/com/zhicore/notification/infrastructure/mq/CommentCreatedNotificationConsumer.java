@@ -10,6 +10,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * 评论创建通知消费者
  * 
@@ -78,5 +81,19 @@ public class CommentCreatedNotificationConsumer extends AbstractEventConsumer<Co
             log.info("处理回复通知: commentId={}, author={}, replyTo={}",
                     commentId, commentAuthorId, replyToUserId);
         }
+
+        pushService.broadcastPostCommentStreamHint(postId, buildCommentStreamHint(event));
+    }
+
+    private Map<String, Object> buildCommentStreamHint(CommentCreatedIntegrationEvent event) {
+        Map<String, Object> hint = new LinkedHashMap<>();
+        hint.put("eventId", event.getEventId());
+        hint.put("eventType", TopicConstants.TAG_COMMENT_CREATED);
+        hint.put("occurredAt", event.getOccurredAt());
+        hint.put("postId", event.getPostId());
+        hint.put("commentId", event.getCommentId());
+        hint.put("parentId", event.getParentId());
+        hint.put("rootId", event.getRootId());
+        return hint;
     }
 }

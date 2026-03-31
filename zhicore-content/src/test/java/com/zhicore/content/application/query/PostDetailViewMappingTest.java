@@ -6,7 +6,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,14 +27,14 @@ class PostDetailViewMappingTest {
         @Test
         @DisplayName("已发布文章 publishedAt 为实际发布时间")
         void publishedPostShouldHaveActualPublishedAt() {
-            LocalDateTime publishedTime = LocalDateTime.of(2026, 2, 20, 10, 30);
+            OffsetDateTime publishedTime = java.time.LocalDateTime.of(2026, 2, 20, 10, 30).atOffset(ZoneOffset.UTC);
 
             PostDetailView view = PostDetailView.builder()
                     .id(PostId.of(1L))
                     .title("测试文章")
                     .status(PostStatus.PUBLISHED)
                     .publishedAt(publishedTime)
-                    .createdAt(LocalDateTime.of(2026, 2, 18, 8, 0))
+                    .createdAt(java.time.LocalDateTime.of(2026, 2, 18, 8, 0).atOffset(ZoneOffset.UTC))
                     .build();
 
             assertThat(view.getPublishedAt()).isEqualTo(publishedTime);
@@ -48,7 +49,7 @@ class PostDetailViewMappingTest {
                     .id(PostId.of(2L))
                     .title("草稿文章")
                     .status(PostStatus.DRAFT)
-                    .createdAt(LocalDateTime.now())
+                    .createdAt(OffsetDateTime.now())
                     .build();
 
             assertThat(view.getPublishedAt()).isNull();

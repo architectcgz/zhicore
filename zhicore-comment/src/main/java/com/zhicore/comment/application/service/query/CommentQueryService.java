@@ -21,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -161,6 +162,20 @@ public class CommentQueryService {
         return CursorPage.of(voList, nextCursor, hasMore);
     }
 
+    @Transactional(readOnly = true)
+    public List<CommentVO> getTopLevelCommentsIncremental(Long postId, OffsetDateTime afterCreatedAt, Long afterId, int size) {
+        validateIncrementalCursor(afterCreatedAt, afterId);
+        List<Comment> comments = commentRepository.findTopLevelByPostIdIncremental(postId, afterCreatedAt, afterId, size);
+        return commentViewAssembler.assembleCommentVOList(comments);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CommentVO> getRepliesIncremental(Long rootId, OffsetDateTime afterCreatedAt, Long afterId, int size) {
+        validateIncrementalCursor(afterCreatedAt, afterId);
+        List<Comment> replies = commentRepository.findRepliesByRootIdIncremental(rootId, afterCreatedAt, afterId, size);
+        return commentViewAssembler.assembleReplyVOList(replies);
+    }
+
     private void validateTraditionalPaginationWindow(int page, int size) {
         long offset = (long) page * size;
         if (offset >= CommonConstants.MAX_OFFSET_WINDOW) {
@@ -169,6 +184,13 @@ public class CommentQueryService {
                     "传统分页仅支持前" + CommonConstants.MAX_OFFSET_WINDOW + "条数据，请改用游标分页"
             );
         }
+    }
+
+    private void validateIncrementalCursor(OffsetDateTime afterCreatedAt, Long afterId) {
+        if ((afterCreatedAt == null) == (afterId == null)) {
+            return;
+        }
+        throw new BusinessException(ResultCode.PARAM_ERROR, "afterCreatedAt 和 afterId 必须同时传入或同时不传");
     }
 
     private PageResult<CommentVO> queryTopLevelCommentsByPage(Long postId, int page, int size, CommentSortType sortType) {

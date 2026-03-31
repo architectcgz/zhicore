@@ -18,7 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -62,7 +62,7 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
     @Test
     @DisplayName("scanAndEnqueue：claim 后补偿重发一次，并回到 PENDING")
     void scanAndEnqueueShouldClaimAndRepublishOnce() {
-        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
+        OffsetDateTime dbNow = scheduledPublishEventStore.dbNow();
 
         ScheduledPublishEventRecord record = ScheduledPublishEventRecord.builder()
                 .eventId("task-1")
@@ -100,8 +100,8 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
     @Test
     @DisplayName("scanAndEnqueue：nextAttemptAt 未到的远期任务不应补偿重发")
     void scanShouldSkipFutureTasksBeforeNextAttemptAt() {
-        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
-        LocalDateTime scheduledAt = dbNow.plusMinutes(30);
+        OffsetDateTime dbNow = scheduledPublishEventStore.dbNow();
+        OffsetDateTime scheduledAt = dbNow.plusMinutes(30);
 
         ScheduledPublishEventRecord record = ScheduledPublishEventRecord.builder()
                 .eventId("task-future")
@@ -129,7 +129,7 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
     @Test
     @DisplayName("scanAndEnqueue：窗口内未来任务应补偿重发带 delayLevel 的消息")
     void scanShouldRepublishUpcomingTaskWithDelayLevel() {
-        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
+        OffsetDateTime dbNow = scheduledPublishEventStore.dbNow();
 
         ScheduledPublishEventRecord record = ScheduledPublishEventRecord.builder()
                 .eventId("task-upcoming")
@@ -164,7 +164,7 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
     @Test
     @DisplayName("scanAndEnqueue：超时的 PROCESSING claim 可被自动回收并重发")
     void scanShouldRecoverStaleProcessingTask() {
-        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
+        OffsetDateTime dbNow = scheduledPublishEventStore.dbNow();
 
         ScheduledPublishEventRecord record = ScheduledPublishEventRecord.builder()
                 .eventId("task-stale")
@@ -195,7 +195,7 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
     @Test
     @DisplayName("claim：并发补偿扫描时只有一个线程能 claim 同一条任务")
     void claimShouldAllowOnlyOneThread() throws InterruptedException {
-        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
+        OffsetDateTime dbNow = scheduledPublishEventStore.dbNow();
 
         ScheduledPublishEventRecord record = ScheduledPublishEventRecord.builder()
                 .eventId("task-claim")
@@ -251,15 +251,15 @@ class ScheduledPublishScannerIntegrationTest extends IntegrationTestBase {
                 postIdValue
         );
 
-        var result = postRepository.publishScheduledIfNeeded(postIdValue, LocalDateTime.now());
+        var result = postRepository.publishScheduledIfNeeded(postIdValue, OffsetDateTime.now());
         assertThat(result).isEmpty();
     }
 
     @Test
     @DisplayName("dbNow：数据库时间与应用时间差异在合理范围内")
     void dbNowShouldBeCloseToAppNow() {
-        LocalDateTime appNow = LocalDateTime.now();
-        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
+        OffsetDateTime appNow = OffsetDateTime.now();
+        OffsetDateTime dbNow = scheduledPublishEventStore.dbNow();
 
         long diffSeconds = Math.abs(java.time.Duration.between(appNow, dbNow).getSeconds());
         assertThat(diffSeconds).isLessThan(5L);

@@ -20,7 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.Set;
 
@@ -128,8 +128,8 @@ class AuthCommandServiceTest {
                 true,
                 Set.of(new Role(1, "USER", "普通用户")),
                 0L,
-                LocalDateTime.now(),
-                LocalDateTime.now()
+                OffsetDateTime.now(),
+                OffsetDateTime.now()
         ));
     }
 }

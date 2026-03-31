@@ -144,6 +144,48 @@ public interface CommentMapper extends BaseMapper<CommentPO> {
             @Param("size") int size
     );
 
+    @Select("""
+            <script>
+            SELECT c.*, COALESCE(cs.like_count, 0) as like_count, COALESCE(cs.reply_count, 0) as reply_count
+            FROM comments c
+            LEFT JOIN comment_stats cs ON c.id = cs.comment_id
+            WHERE c.post_id = #{postId} AND c.parent_id IS NULL AND c.status = 0
+            <if test="afterCreatedAt != null">
+                AND (c.created_at &gt; #{afterCreatedAt}
+                     OR (c.created_at = #{afterCreatedAt} AND c.id &gt; #{afterId}))
+            </if>
+            ORDER BY c.created_at ASC, c.id ASC
+            LIMIT #{size}
+            </script>
+            """)
+    List<CommentPO> findTopLevelByPostIdIncremental(
+            @Param("postId") Long postId,
+            @Param("afterCreatedAt") OffsetDateTime afterCreatedAt,
+            @Param("afterId") Long afterId,
+            @Param("size") int size
+    );
+
+    @Select("""
+            <script>
+            SELECT c.*, COALESCE(cs.like_count, 0) as like_count
+            FROM comments c
+            LEFT JOIN comment_stats cs ON c.id = cs.comment_id
+            WHERE c.root_id = #{rootId} AND c.parent_id IS NOT NULL AND c.status = 0
+            <if test="afterCreatedAt != null">
+                AND (c.created_at &gt; #{afterCreatedAt}
+                     OR (c.created_at = #{afterCreatedAt} AND c.id &gt; #{afterId}))
+            </if>
+            ORDER BY c.created_at ASC, c.id ASC
+            LIMIT #{size}
+            </script>
+            """)
+    List<CommentPO> findRepliesByRootIdIncremental(
+            @Param("rootId") Long rootId,
+            @Param("afterCreatedAt") OffsetDateTime afterCreatedAt,
+            @Param("afterId") Long afterId,
+            @Param("size") int size
+    );
+
     // ==================== 热门回复（预加载）====================
 
     @Select("""

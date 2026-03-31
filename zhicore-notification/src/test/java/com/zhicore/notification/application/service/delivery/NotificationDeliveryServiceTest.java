@@ -18,7 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -64,10 +64,10 @@ class NotificationDeliveryServiceTest {
                 null,
                 "PUSH_DELIVERY_FAILED",
                 2,
-                LocalDateTime.of(2026, 3, 27, 18, 5),
-                LocalDateTime.of(2026, 3, 27, 18, 10),
-                LocalDateTime.of(2026, 3, 27, 18, 0),
-                LocalDateTime.of(2026, 3, 27, 18, 5),
+                OffsetDateTime.parse("2026-03-27T18:05:00+08:00"),
+                OffsetDateTime.parse("2026-03-27T18:10:00+08:00"),
+                OffsetDateTime.parse("2026-03-27T18:00:00+08:00"),
+                OffsetDateTime.parse("2026-03-27T18:05:00+08:00"),
                 null
         );
 
@@ -105,10 +105,10 @@ class NotificationDeliveryServiceTest {
                 null,
                 "PUSH_DELIVERY_FAILED",
                 1,
-                LocalDateTime.of(2026, 3, 27, 18, 5),
-                LocalDateTime.of(2026, 3, 27, 18, 10),
-                LocalDateTime.of(2026, 3, 27, 18, 0),
-                LocalDateTime.of(2026, 3, 27, 18, 5),
+                OffsetDateTime.parse("2026-03-27T18:05:00+08:00"),
+                OffsetDateTime.parse("2026-03-27T18:10:00+08:00"),
+                OffsetDateTime.parse("2026-03-27T18:00:00+08:00"),
+                OffsetDateTime.parse("2026-03-27T18:05:00+08:00"),
                 null
         );
         Notification notification = Notification.createPostPublishedNotification(
@@ -154,10 +154,10 @@ class NotificationDeliveryServiceTest {
                 null,
                 "PUSH_DELIVERY_FAILED",
                 1,
-                LocalDateTime.of(2026, 3, 27, 18, 5),
-                LocalDateTime.of(2026, 3, 27, 18, 10),
-                LocalDateTime.of(2026, 3, 27, 18, 0),
-                LocalDateTime.of(2026, 3, 27, 18, 5),
+                OffsetDateTime.parse("2026-03-27T18:05:00+08:00"),
+                OffsetDateTime.parse("2026-03-27T18:10:00+08:00"),
+                OffsetDateTime.parse("2026-03-27T18:00:00+08:00"),
+                OffsetDateTime.parse("2026-03-27T18:05:00+08:00"),
                 null
         );
         Notification notification = Notification.createPostPublishedNotification(

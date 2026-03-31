@@ -15,7 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Set;
 
@@ -59,7 +59,7 @@ class PostBatchQueryServiceTest {
     private Post post(Long postId, String title, PostStatus status) {
         PostId id = PostId.of(postId);
         UserId ownerId = UserId.of(2001L);
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         return Post.reconstitute(new Post.Snapshot(
                 id,
                 ownerId,

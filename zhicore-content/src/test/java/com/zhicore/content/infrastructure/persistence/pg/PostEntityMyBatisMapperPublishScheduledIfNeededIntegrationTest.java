@@ -6,7 +6,7 @@ import com.zhicore.content.infrastructure.persistence.pg.mapper.PostEntityMyBati
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,11 +26,11 @@ class PostEntityMyBatisMapperPublishScheduledIfNeededIntegrationTest extends Int
         post.setWriteState("NONE");
         post.setIsArchived(false);
         post.setVersion(0L);
-        post.setScheduledAt(LocalDateTime.now().plusMinutes(10));
+        post.setScheduledAt(OffsetDateTime.now().plusMinutes(10));
 
         postEntityMyBatisMapper.insert(post);
 
-        LocalDateTime publishedAt = LocalDateTime.now();
+        OffsetDateTime publishedAt = OffsetDateTime.now();
         Long newVersion = postEntityMyBatisMapper.publishScheduledIfNeeded(20001L, publishedAt);
         assertThat(newVersion).isEqualTo(1L);
 
@@ -40,7 +40,7 @@ class PostEntityMyBatisMapperPublishScheduledIfNeededIntegrationTest extends Int
         assertThat(updated.getScheduledAt()).isNull();
         assertThat(updated.getVersion()).isEqualTo(1L);
 
-        Long second = postEntityMyBatisMapper.publishScheduledIfNeeded(20001L, LocalDateTime.now());
+        Long second = postEntityMyBatisMapper.publishScheduledIfNeeded(20001L, OffsetDateTime.now());
         assertThat(second).isNull();
     }
 }

@@ -16,7 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -66,7 +66,7 @@ class MyPostQueryServiceTest {
     private Post post(Long postId, String title, String coverImageId) {
         PostId id = PostId.of(postId);
         UserId ownerId = UserId.of(2001L);
-        LocalDateTime publishedAt = LocalDateTime.now();
+        OffsetDateTime publishedAt = OffsetDateTime.now();
         return Post.reconstitute(new Post.Snapshot(
                 id,
                 ownerId,

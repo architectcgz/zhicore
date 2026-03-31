@@ -16,7 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,10 +44,10 @@ class AdminPostListQueryServiceTest {
                 PostStatus.PUBLISHED,
                 null,
                 Set.of(),
-                LocalDateTime.now().minusHours(1),
+                OffsetDateTime.now().minusHours(1),
                 null,
-                LocalDateTime.now().minusDays(1),
-                LocalDateTime.now(),
+                OffsetDateTime.now().minusDays(1),
+                OffsetDateTime.now(),
                 false,
                 PostStats.empty(PostId.of(1001L)).incrementViews().incrementLikes(),
                 WriteState.NONE,

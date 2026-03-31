@@ -14,7 +14,7 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.mockito.Mockito.verify;
@@ -45,7 +45,7 @@ class NotificationDeliveryControllerTest extends ControllerTestSupport {
                 .status("FAILED")
                 .failureReason("PUSH_DELIVERY_FAILED")
                 .retryCount(2)
-                .createdAt(LocalDateTime.of(2026, 3, 27, 18, 0))
+                .createdAt(OffsetDateTime.parse("2026-03-27T18:00:00+08:00"))
                 .build();
         when(notificationDeliveryService.queryDeliveries(201L, 11L, "PUSH", "FAILED", 0, 20))
                 .thenReturn(PageResult.of(0, 20, 1, List.of(delivery)));

@@ -16,12 +16,16 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.OffsetDateTime;
+import java.util.List;
 
 /**
  * 评论读控制器。
@@ -121,5 +125,27 @@ public class CommentQueryController {
             @Min(value = 1, message = "每页大小必须为正数")
             @Max(value = CommonConstants.MAX_PAGE_SIZE, message = "每页大小不能大于100") int size) {
         return ApiResponse.success(commentQueryService.getRepliesByCursor(commentId, cursor, size));
+    }
+
+    @GetMapping("/post/{postId}/incremental")
+    public ApiResponse<List<CommentVO>> getCommentsIncremental(
+            @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime afterCreatedAt,
+            @RequestParam(required = false) @Min(value = 1, message = "afterId 必须为正数") Long afterId,
+            @RequestParam(defaultValue = "20")
+            @Min(value = 1, message = "每页大小必须为正数")
+            @Max(value = CommonConstants.MAX_PAGE_SIZE, message = "每页大小不能大于100") int size) {
+        return ApiResponse.success(commentQueryService.getTopLevelCommentsIncremental(postId, afterCreatedAt, afterId, size));
+    }
+
+    @GetMapping("/{rootId}/replies/incremental")
+    public ApiResponse<List<CommentVO>> getRepliesIncremental(
+            @PathVariable @Min(value = 1, message = "评论ID必须为正数") Long rootId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime afterCreatedAt,
+            @RequestParam(required = false) @Min(value = 1, message = "afterId 必须为正数") Long afterId,
+            @RequestParam(defaultValue = "20")
+            @Min(value = 1, message = "每页大小必须为正数")
+            @Max(value = CommonConstants.MAX_PAGE_SIZE, message = "每页大小不能大于100") int size) {
+        return ApiResponse.success(commentQueryService.getRepliesIncremental(rootId, afterCreatedAt, afterId, size));
     }
 }

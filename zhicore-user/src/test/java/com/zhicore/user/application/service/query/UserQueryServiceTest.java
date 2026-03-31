@@ -19,7 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -69,8 +69,8 @@ class UserQueryServiceTest {
                 true,
                 roles,
                 0L,
-                LocalDateTime.now(),
-                LocalDateTime.now()
+                OffsetDateTime.now(),
+                OffsetDateTime.now()
         ));
     }
 

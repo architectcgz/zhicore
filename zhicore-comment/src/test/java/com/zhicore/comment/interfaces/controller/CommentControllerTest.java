@@ -23,6 +23,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.OffsetDateTime;
+import java.util.List;
+
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -270,5 +273,41 @@ class CommentControllerTest extends ControllerTestSupport {
                 .andExpect(jsonPath("$.code").value(ResultCode.PARAM_ERROR.getCode()))
                 .andExpect(jsonPath("$.message").value(
                         "传统分页仅支持前" + CommonConstants.MAX_OFFSET_WINDOW + "条数据，请改用游标分页"));
+    }
+
+    @Test
+    @DisplayName("文章评论 incremental 接口应返回列表")
+    void shouldGetPostIncrementalComments() throws Exception {
+        CommentQueryController controller = new CommentQueryController(commentQueryService);
+        MockMvc mockMvc = buildMockMvc(controller);
+        OffsetDateTime afterCreatedAt = OffsetDateTime.parse("2026-03-31T08:00:00Z");
+        CommentVO vo = CommentVO.builder().id(2234567890123456789L).build();
+        when(commentQueryService.getTopLevelCommentsIncremental(1001L, afterCreatedAt, 2001L, 20))
+                .thenReturn(List.of(vo));
+
+        mockMvc.perform(get("/api/v1/comments/post/{postId}/incremental", 1001L)
+                        .param("afterCreatedAt", "2026-03-31T08:00:00Z")
+                        .param("afterId", "2001")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value("2234567890123456789"));
+    }
+
+    @Test
+    @DisplayName("回复 incremental 接口应返回列表")
+    void shouldGetRepliesIncremental() throws Exception {
+        CommentQueryController controller = new CommentQueryController(commentQueryService);
+        MockMvc mockMvc = buildMockMvc(controller);
+        OffsetDateTime afterCreatedAt = OffsetDateTime.parse("2026-03-31T08:00:00Z");
+        CommentVO vo = CommentVO.builder().id(3234567890123456789L).build();
+        when(commentQueryService.getRepliesIncremental(1001L, afterCreatedAt, 3001L, 20))
+                .thenReturn(List.of(vo));
+
+        mockMvc.perform(get("/api/v1/comments/{rootId}/replies/incremental", 1001L)
+                        .param("afterCreatedAt", "2026-03-31T08:00:00Z")
+                        .param("afterId", "3001")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value("3234567890123456789"));
     }
 }

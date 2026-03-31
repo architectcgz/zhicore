@@ -40,7 +40,8 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -129,7 +130,7 @@ class CommentApplicationServiceTest {
                 COMMENT_ID, POST_ID, USER_ID, "顶级评论",
                 null, null, null,
                 null, COMMENT_ID, null,
-                CommentStatus.NORMAL, LocalDateTime.now(), LocalDateTime.now(),
+                CommentStatus.NORMAL, OffsetDateTime.now(), OffsetDateTime.now(),
                 CommentStats.empty()
         );
     }
@@ -139,7 +140,7 @@ class CommentApplicationServiceTest {
                 COMMENT_ID + 1, POST_ID, USER_ID, "回复评论",
                 null, null, null,
                 rootId, rootId, POST_OWNER_ID,
-                CommentStatus.NORMAL, LocalDateTime.now(), LocalDateTime.now(),
+                CommentStatus.NORMAL, OffsetDateTime.now(), OffsetDateTime.now(),
                 CommentStats.empty()
         );
     }
@@ -149,7 +150,7 @@ class CommentApplicationServiceTest {
                 COMMENT_ID, POST_ID, USER_ID, "已删除评论",
                 null, null, null,
                 null, COMMENT_ID, null,
-                CommentStatus.DELETED, LocalDateTime.now(), LocalDateTime.now(),
+                CommentStatus.DELETED, OffsetDateTime.now(), OffsetDateTime.now(),
                 CommentStats.empty()
         );
     }
@@ -207,6 +208,10 @@ class CommentApplicationServiceTest {
             assertEquals(replyId, result);
             verify(commentStatsRepository).incrementReplyCount(COMMENT_ID);
             verify(commentRepository).save(any(Comment.class));
+            verify(eventPublisher).publish(argThat(event ->
+                    event instanceof CommentCreatedIntegrationEvent created
+                            && COMMENT_ID.equals(created.getRootId())
+            ));
         }
 
         @Test
@@ -281,6 +286,56 @@ class CommentApplicationServiceTest {
             verify(commentRepository, never()).findTopLevelByPostIdOrderByLikesPage(anyLong(), anyInt(), anyInt());
         }
 
+    }
+
+    @Nested
+    @DisplayName("incremental 查询")
+    class IncrementalQueryTest {
+
+        @Test
+        @DisplayName("文章评论 incremental 查询应按条件命中仓储并组装结果")
+        void shouldQueryTopLevelIncremental() {
+            OffsetDateTime afterCreatedAt = OffsetDateTime.parse("2026-03-31T08:00:00Z");
+            Comment comment = createTopLevelComment();
+            com.zhicore.comment.application.dto.CommentVO vo =
+                    com.zhicore.comment.application.dto.CommentVO.builder().id(comment.getId()).build();
+            when(commentRepository.findTopLevelByPostIdIncremental(POST_ID, afterCreatedAt, COMMENT_ID, 20))
+                    .thenReturn(List.of(comment));
+            when(commentViewAssembler.assembleCommentVOList(List.of(comment))).thenReturn(List.of(vo));
+
+            List<com.zhicore.comment.application.dto.CommentVO> result =
+                    queryService.getTopLevelCommentsIncremental(POST_ID, afterCreatedAt, COMMENT_ID, 20);
+
+            assertEquals(1, result.size());
+            assertEquals(COMMENT_ID, result.get(0).getId());
+        }
+
+        @Test
+        @DisplayName("回复 incremental 查询应按条件命中仓储并组装结果")
+        void shouldQueryRepliesIncremental() {
+            OffsetDateTime afterCreatedAt = OffsetDateTime.parse("2026-03-31T08:00:00Z");
+            Comment reply = createReplyComment(COMMENT_ID);
+            com.zhicore.comment.application.dto.CommentVO vo =
+                    com.zhicore.comment.application.dto.CommentVO.builder().id(reply.getId()).build();
+            when(commentRepository.findRepliesByRootIdIncremental(COMMENT_ID, afterCreatedAt, reply.getId(), 10))
+                    .thenReturn(List.of(reply));
+            when(commentViewAssembler.assembleReplyVOList(List.of(reply))).thenReturn(List.of(vo));
+
+            List<com.zhicore.comment.application.dto.CommentVO> result =
+                    queryService.getRepliesIncremental(COMMENT_ID, afterCreatedAt, reply.getId(), 10);
+
+            assertEquals(1, result.size());
+            assertEquals(reply.getId(), result.get(0).getId());
+        }
+
+        @Test
+        @DisplayName("afterCreatedAt 和 afterId 只传其一时应返回参数错误")
+        void shouldRejectIncompleteIncrementalCursor() {
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> queryService.getTopLevelCommentsIncremental(POST_ID, OffsetDateTime.now(), null, 20));
+            assertEquals(ResultCode.PARAM_ERROR.getCode(), ex.getCode());
+            assertEquals("afterCreatedAt 和 afterId 必须同时传入或同时不传", ex.getMessage());
+        }
     }
 
     @Nested

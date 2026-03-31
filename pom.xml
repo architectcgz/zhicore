@@ -69,7 +69,7 @@
 
         <!-- Test -->
         <junit-jupiter.version>5.10.1</junit-jupiter.version>
-        <testcontainers.version>1.19.3</testcontainers.version>
+        <testcontainers.version>2.0.2</testcontainers.version>
 
         <!-- ID Generator -->
         <id-generator.version>1.0.0</id-generator.version>

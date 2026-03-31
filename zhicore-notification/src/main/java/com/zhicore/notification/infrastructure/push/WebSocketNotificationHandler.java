@@ -31,6 +31,7 @@ public class WebSocketNotificationHandler {
     private static final String NOTIFICATION_DESTINATION = "/queue/notifications";
     private static final String UNREAD_COUNT_DESTINATION = "/queue/unread-count";
     private static final String ANNOUNCEMENT_DESTINATION = "/topic/announcements";
+    private static final String POST_COMMENT_STREAM_DESTINATION_TEMPLATE = "/topic/posts/%d/comment-stream";
 
     // 在线用户 session 映射
     private final Map<String, Set<String>> userSessions = new ConcurrentHashMap<>();
@@ -81,6 +82,18 @@ public class WebSocketNotificationHandler {
         );
         messagingTemplate.convertAndSend(ANNOUNCEMENT_DESTINATION, payload);
         log.info("WebSocket广播系统公告: title={}", title);
+    }
+
+    /**
+     * 广播文章评论流轻量提示。
+     *
+     * @param postId 文章ID
+     * @param payload 轻量提示载荷
+     */
+    public void broadcastPostCommentStream(Long postId, Map<String, Object> payload) {
+        String destination = String.format(POST_COMMENT_STREAM_DESTINATION_TEMPLATE, postId);
+        messagingTemplate.convertAndSend(destination, payload);
+        log.debug("WebSocket广播评论流提示: postId={}, destination={}", postId, destination);
     }
 
     /**

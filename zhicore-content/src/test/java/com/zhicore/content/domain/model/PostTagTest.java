@@ -4,7 +4,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -39,7 +40,7 @@ class PostTagTest {
             assertEquals(PostId.of(postId), postTag.getPostId());
             assertEquals(TagId.of(tagId), postTag.getTagId());
             assertNotNull(postTag.getCreatedAt());
-            assertTrue(postTag.getCreatedAt().isBefore(LocalDateTime.now().plusSeconds(1)));
+            assertTrue(postTag.getCreatedAt().isBefore(OffsetDateTime.now().plusSeconds(1)));
         }
 
         @Test
@@ -100,13 +101,13 @@ class PostTagTest {
         @DisplayName("创建时间应该自动设置为当前时间")
         void shouldSetCreatedAtToCurrentTime() {
             // Given
-            LocalDateTime before = LocalDateTime.now();
+            OffsetDateTime before = OffsetDateTime.now();
 
             // When
             PostTag postTag = PostTag.create(PostId.of(1L), TagId.of(1001L));
 
             // Then
-            LocalDateTime after = LocalDateTime.now();
+            OffsetDateTime after = OffsetDateTime.now();
             assertNotNull(postTag.getCreatedAt());
             assertTrue(postTag.getCreatedAt().isAfter(before.minusSeconds(1)));
             assertTrue(postTag.getCreatedAt().isBefore(after.plusSeconds(1)));
@@ -123,7 +124,7 @@ class PostTagTest {
             // Given
             Long postId = 1L;
             Long tagId = 1001L;
-            LocalDateTime createdAt = LocalDateTime.now().minusDays(1);
+            OffsetDateTime createdAt = OffsetDateTime.now().minusDays(1);
 
             // When
             PostTag postTag = PostTag.reconstitute(PostId.of(postId), TagId.of(tagId), createdAt);
@@ -141,7 +142,7 @@ class PostTagTest {
             // Given
             Long postId = 1L;
             Long tagId = 1001L;
-            LocalDateTime originalCreatedAt = LocalDateTime.of(2024, 1, 1, 10, 0, 0);
+            OffsetDateTime originalCreatedAt = java.time.LocalDateTime.of(2024, 1, 1, 10, 0, 0).atOffset(ZoneOffset.UTC);
 
             // When
             PostTag postTag = PostTag.reconstitute(PostId.of(postId), TagId.of(tagId), originalCreatedAt);
@@ -235,8 +236,8 @@ class PostTagTest {
         @DisplayName("相同复合主键但不同创建时间的关联应该相等")
         void shouldBeEqualEvenWithDifferentCreatedAt() {
             // Given
-            LocalDateTime time1 = LocalDateTime.now().minusDays(1);
-            LocalDateTime time2 = LocalDateTime.now();
+            OffsetDateTime time1 = OffsetDateTime.now().minusDays(1);
+            OffsetDateTime time2 = OffsetDateTime.now();
             PostTag postTag1 = PostTag.reconstitute(PostId.of(1L), TagId.of(1001L), time1);
             PostTag postTag2 = PostTag.reconstitute(PostId.of(1L), TagId.of(1001L), time2);
 
@@ -312,7 +313,7 @@ class PostTagTest {
         void shouldHaveImmutableCreatedAt() {
             // Given
             PostTag postTag = PostTag.create(PostId.of(1L), TagId.of(1001L));
-            LocalDateTime originalCreatedAt = postTag.getCreatedAt();
+            OffsetDateTime originalCreatedAt = postTag.getCreatedAt();
 
             // Then
             assertEquals(originalCreatedAt, postTag.getCreatedAt());
@@ -327,7 +328,7 @@ class PostTagTest {
             // Then - 验证对象创建后字段值不变
             PostId postId = postTag.getPostId();
             TagId tagId = postTag.getTagId();
-            LocalDateTime createdAt = postTag.getCreatedAt();
+            OffsetDateTime createdAt = postTag.getCreatedAt();
 
             // 多次获取应该返回相同的值
             assertEquals(postId, postTag.getPostId());

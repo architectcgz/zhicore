@@ -23,7 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -97,7 +97,7 @@ class TagPostQueryServiceTest {
     private Post post(Long postId, String title) {
         PostId id = PostId.of(postId);
         UserId ownerId = UserId.of(2001L);
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         return Post.reconstitute(new Post.Snapshot(
                 id,
                 ownerId,

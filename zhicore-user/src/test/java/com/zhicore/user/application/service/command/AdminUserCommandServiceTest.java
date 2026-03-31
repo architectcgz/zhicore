@@ -18,7 +18,7 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -68,8 +68,8 @@ class AdminUserCommandServiceTest {
                 true,
                 roles,
                 0L,
-                LocalDateTime.now(),
-                LocalDateTime.now()
+                OffsetDateTime.now(),
+                OffsetDateTime.now()
         ));
     }
 

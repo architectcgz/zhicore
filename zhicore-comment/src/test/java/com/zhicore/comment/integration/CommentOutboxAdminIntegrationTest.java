@@ -46,7 +46,7 @@ class CommentOutboxAdminIntegrationTest extends IntegrationTestBase {
                 .andExpect(jsonPath("$.data.failedCount").value(1))
                 .andExpect(jsonPath("$.data.deadCount").value(1))
                 .andExpect(jsonPath("$.data.succeededCount").value(1))
-                .andExpect(jsonPath("$.data.oldestPendingCreatedAt").value("2026-03-16T10:00:00"));
+                .andExpect(jsonPath("$.data.oldestPendingCreatedAt").value("2026-03-16T10:00:00+08:00"));
     }
 
     @Test

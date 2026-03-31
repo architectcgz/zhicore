@@ -21,7 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,7 +44,7 @@ class PublishedPostQueryServiceTest {
 
     @Test
     void shouldQueryPopularListForPopularSort() {
-        Post post = published("Popular Post", 1001L, LocalDateTime.now());
+        Post post = published("Popular Post", 1001L, OffsetDateTime.now());
         when(postRepository.findPublishedPopular(0, 20)).thenReturn(List.of(post));
         when(postRepository.countPublished()).thenReturn(1L);
 
@@ -62,7 +62,7 @@ class PublishedPostQueryServiceTest {
 
     @Test
     void shouldReturnCursorPageForLatestSort() {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         Post first = published("Post A", 1001L, now);
         Post second = published("Post B", 1002L, now.minusMinutes(1));
         when(postRepository.findPublishedCursor(now, 1001L, 3)).thenReturn(List.of(first, second));
@@ -81,7 +81,7 @@ class PublishedPostQueryServiceTest {
 
     @Test
     void shouldDelegateHybridCursorMode() {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         Post first = published("Cursor Post", 1001L, now);
         when(postRepository.findPublishedCursor(now, 1001L, 3)).thenReturn(List.of(first));
 
@@ -93,10 +93,10 @@ class PublishedPostQueryServiceTest {
         verify(postRepository).findPublishedCursor(now, 1001L, 3);
     }
 
-    private Post published(String title, Long postId, LocalDateTime publishedAt) {
+    private Post published(String title, Long postId, OffsetDateTime publishedAt) {
         PostId id = PostId.of(postId);
         UserId ownerId = UserId.of(2001L);
-        LocalDateTime createdAt = publishedAt.minusHours(1);
+        OffsetDateTime createdAt = publishedAt.minusHours(1);
         return Post.reconstitute(new Post.Snapshot(
                 id,
                 ownerId,

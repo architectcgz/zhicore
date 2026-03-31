@@ -12,7 +12,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -46,7 +46,7 @@ class NotificationPushServiceTest {
                 .targetId(202L)
                 .totalCount(2)
                 .unreadCount(1)
-                .latestTime(LocalDateTime.of(2026, 3, 24, 10, 0))
+                .latestTime(OffsetDateTime.parse("2026-03-24T10:00:00+08:00"))
                 .latestContent("关注了你")
                 .aggregatedContent("alice等2人关注了你")
                 .build();
@@ -86,7 +86,7 @@ class NotificationPushServiceTest {
                 .targetId(202L)
                 .totalCount(1)
                 .unreadCount(1)
-                .latestTime(LocalDateTime.of(2026, 3, 24, 10, 0))
+                .latestTime(OffsetDateTime.parse("2026-03-24T10:00:00+08:00"))
                 .latestContent("关注了你")
                 .aggregatedContent("alice关注了你")
                 .build();

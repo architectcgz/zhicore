@@ -20,7 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -116,10 +116,10 @@ class PostReaderPresenceAppServiceTest {
                 PostStatus.PUBLISHED,
                 null,
                 java.util.Set.of(),
-                LocalDateTime.now(),
+                OffsetDateTime.now(),
                 null,
-                LocalDateTime.now(),
-                LocalDateTime.now(),
+                OffsetDateTime.now(),
+                OffsetDateTime.now(),
                 false,
                 com.zhicore.content.domain.model.PostStats.empty(com.zhicore.content.domain.model.PostId.of(postId)),
                 com.zhicore.content.domain.model.WriteState.NONE,
@@ -141,8 +141,8 @@ class PostReaderPresenceAppServiceTest {
                 java.util.Set.of(),
                 null,
                 null,
-                LocalDateTime.now(),
-                LocalDateTime.now(),
+                OffsetDateTime.now(),
+                OffsetDateTime.now(),
                 false,
                 com.zhicore.content.domain.model.PostStats.empty(com.zhicore.content.domain.model.PostId.of(postId)),
                 com.zhicore.content.domain.model.WriteState.NONE,

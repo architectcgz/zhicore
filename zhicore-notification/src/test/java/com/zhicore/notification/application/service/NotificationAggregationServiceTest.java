@@ -22,7 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -115,7 +115,7 @@ class NotificationAggregationServiceTest {
             dto.setTargetId("100");
             dto.setTotalCount(5);
             dto.setUnreadCount(3);
-            dto.setLatestTime(LocalDateTime.now());
+            dto.setLatestTime(OffsetDateTime.now());
             dto.setLatestContent("liked your post");
             dto.setActorIds(Arrays.asList("456", "789", "999"));
 
@@ -168,7 +168,7 @@ class NotificationAggregationServiceTest {
             dto.setType(NotificationType.FOLLOW);
             dto.setTotalCount(1);
             dto.setUnreadCount(1);
-            dto.setLatestTime(LocalDateTime.now());
+            dto.setLatestTime(OffsetDateTime.now());
             dto.setActorIds(List.of("456"));
 
             when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 20))
@@ -238,7 +238,7 @@ class NotificationAggregationServiceTest {
             dto.setTargetId("100");
             dto.setTotalCount(1);
             dto.setUnreadCount(1);
-            dto.setLatestTime(LocalDateTime.now());
+            dto.setLatestTime(OffsetDateTime.now());
             dto.setActorIds(List.of("456"));
 
             when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 20))
@@ -270,7 +270,7 @@ class NotificationAggregationServiceTest {
             dto.setType(NotificationType.FOLLOW);
             dto.setTotalCount(10);
             dto.setUnreadCount(5);
-            dto.setLatestTime(LocalDateTime.now());
+            dto.setLatestTime(OffsetDateTime.now());
             dto.setActorIds(Arrays.asList("456", "789", "999"));
 
             when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 20))

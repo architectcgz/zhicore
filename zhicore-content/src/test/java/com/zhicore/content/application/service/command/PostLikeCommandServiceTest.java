@@ -27,7 +27,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.Set;
 
@@ -179,7 +179,7 @@ class PostLikeCommandServiceTest {
     }
 
     private Post createPublishedPost() {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         return Post.reconstitute(new Post.Snapshot(
                 PostId.of(POST_ID),
                 UserId.of(AUTHOR_ID),
@@ -203,7 +203,7 @@ class PostLikeCommandServiceTest {
     }
 
     private Post createDraftPost() {
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         return Post.reconstitute(new Post.Snapshot(
                 PostId.of(POST_ID),
                 UserId.of(AUTHOR_ID),

@@ -13,7 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -39,8 +39,8 @@ class BlockQueryServiceTest {
     @DisplayName("获取拉黑列表应批量查询用户并保持拉黑顺序")
     void getBlockedUsers_shouldBatchLoadUsersAndKeepOrder() {
         when(userBlockRepository.findByBlockerId(10L, 1, 20)).thenReturn(List.of(
-                UserBlock.reconstitute(10L, 4L, LocalDateTime.now()),
-                UserBlock.reconstitute(10L, 5L, LocalDateTime.now())
+                UserBlock.reconstitute(10L, 4L, OffsetDateTime.now()),
+                UserBlock.reconstitute(10L, 5L, OffsetDateTime.now())
         ));
         when(userRepository.findByIds(Set.of(4L, 5L))).thenReturn(List.of(
                 buildUser(5L, "u5"),
@@ -69,8 +69,8 @@ class BlockQueryServiceTest {
                 true,
                 Set.of(new Role(1, "USER", "普通用户")),
                 0L,
-                LocalDateTime.now(),
-                LocalDateTime.now()
+                OffsetDateTime.now(),
+                OffsetDateTime.now()
         ));
     }
 }

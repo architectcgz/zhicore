@@ -17,7 +17,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -70,8 +70,8 @@ class UserManageQueryServiceTest {
                 true,
                 testRoles,
                 0L,
-                LocalDateTime.now(),
-                LocalDateTime.now()
+                OffsetDateTime.now(),
+                OffsetDateTime.now()
         ));
     }
 
@@ -240,8 +240,8 @@ class UserManageQueryServiceTest {
                     true,
                     testRoles,
                     0L,
-                    LocalDateTime.now(),
-                    LocalDateTime.now()
+                    OffsetDateTime.now(),
+                    OffsetDateTime.now()
             ));
 
             when(userRepository.findByConditions(isNull(), isNull(), eq(0), eq(20)))

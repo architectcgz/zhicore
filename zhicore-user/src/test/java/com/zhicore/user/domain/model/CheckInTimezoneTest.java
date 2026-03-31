@@ -228,7 +228,7 @@ class CheckInTimezoneTest {
         @DisplayName("null 时间应该返回 null 日期")
         void shouldReturnNullForNullInput() {
             assertNull(DateTimeUtils.toBusinessDate(null));
-            assertNull(DateTimeUtils.toBusinessDateTime(null));
+            assertNull(DateTimeUtils.toBusinessOffsetDateTime(null));
         }
 
         @Test

@@ -14,7 +14,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -45,8 +45,8 @@ class FollowQueryServiceTest {
     @DisplayName("获取粉丝列表应批量查询用户并保持关注顺序")
     void getFollowers_shouldBatchLoadUsersAndKeepOrder() {
         when(userFollowRepository.findFollowers(10L, 1, 20)).thenReturn(List.of(
-                UserFollow.reconstitute(2L, 10L, LocalDateTime.now()),
-                UserFollow.reconstitute(3L, 10L, LocalDateTime.now())
+                UserFollow.reconstitute(2L, 10L, OffsetDateTime.now()),
+                UserFollow.reconstitute(3L, 10L, OffsetDateTime.now())
         ));
         when(userRepository.findByIds(Set.of(2L, 3L))).thenReturn(List.of(
                 buildUser(3L, "u3"),
@@ -86,8 +86,8 @@ class FollowQueryServiceTest {
                 true,
                 Set.of(new Role(1, "USER", "普通用户")),
                 0L,
-                LocalDateTime.now(),
-                LocalDateTime.now()
+                OffsetDateTime.now(),
+                OffsetDateTime.now()
         ));
     }
 }

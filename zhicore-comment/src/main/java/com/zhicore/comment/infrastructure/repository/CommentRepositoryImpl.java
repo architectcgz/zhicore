@@ -145,6 +145,18 @@ public class CommentRepositoryImpl implements CommentRepository {
     }
 
     @Override
+    public List<Comment> findTopLevelByPostIdIncremental(Long postId, OffsetDateTime afterCreatedAt, Long afterId, int size) {
+        List<CommentPO> poList = commentMapper.findTopLevelByPostIdIncremental(postId, afterCreatedAt, afterId, size);
+        return poList.stream().map(this::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Comment> findRepliesByRootIdIncremental(Long rootId, OffsetDateTime afterCreatedAt, Long afterId, int size) {
+        List<CommentPO> poList = commentMapper.findRepliesByRootIdIncremental(rootId, afterCreatedAt, afterId, size);
+        return poList.stream().map(this::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
     public List<Comment> findHotRepliesByRootId(Long rootId, int limit) {
         List<CommentPO> poList = commentMapper.findHotRepliesByRootId(rootId, limit);
         return poList.stream().map(this::toDomain).collect(Collectors.toList());

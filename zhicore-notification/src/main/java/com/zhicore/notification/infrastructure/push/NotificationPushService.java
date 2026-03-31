@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -39,6 +41,14 @@ public class NotificationPushService {
             log.debug("推送未读计数成功: userId={}, count={}", userId, unreadCount);
         } catch (Exception e) {
             log.warn("推送未读计数失败: userId={}, error={}", userId, e.getMessage());
+        }
+    }
+
+    public void broadcastPostCommentStreamHint(Long postId, Map<String, Object> payload) {
+        try {
+            webSocketHandler.broadcastPostCommentStream(postId, payload);
+        } catch (Exception e) {
+            log.warn("广播评论流提示失败: postId={}, error={}", postId, e.getMessage());
         }
     }
 }
