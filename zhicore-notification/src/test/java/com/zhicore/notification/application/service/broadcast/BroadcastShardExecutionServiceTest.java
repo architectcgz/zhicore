@@ -22,7 +22,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -153,7 +154,7 @@ class BroadcastShardExecutionServiceTest {
     private FollowerShardItemDTO item(Long followerId) {
         FollowerShardItemDTO item = new FollowerShardItemDTO();
         item.setFollowerId(followerId);
-        item.setCreatedAt(LocalDateTime.parse("2026-03-26T12:00:00"));
+        item.setCreatedAt(OffsetDateTime.of(2026, 3, 26, 12, 0, 0, 0, ZoneOffset.ofHours(8)));
         return item;
     }
 }

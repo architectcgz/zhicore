@@ -13,7 +13,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.mockito.Mockito.verify;
@@ -43,7 +44,7 @@ class FollowQueryControllerFollowerShardTest {
     void shouldGetFollowerShard() throws Exception {
         FollowerShardItemVO item = new FollowerShardItemVO();
         item.setFollowerId(6L);
-        item.setCreatedAt(LocalDateTime.of(2026, 3, 1, 10, 0));
+        item.setCreatedAt(OffsetDateTime.of(2026, 3, 1, 10, 0, 0, 0, ZoneOffset.ofHours(8)));
 
         FollowerShardPageVO page = new FollowerShardPageVO();
         page.setItems(List.of(item));

@@ -11,6 +11,7 @@ import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
 import com.zhicore.notification.application.port.policy.NotificationAggregationPolicy;
 import com.zhicore.notification.application.port.store.NotificationAggregationStore;
+import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.model.NotificationGroupState;
 import com.zhicore.notification.domain.model.NotificationType;
 import com.zhicore.notification.domain.repository.NotificationGroupStateRepository;

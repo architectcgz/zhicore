@@ -10,6 +10,7 @@ import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
 import com.zhicore.notification.application.port.policy.NotificationAggregationPolicy;
 import com.zhicore.notification.application.port.store.NotificationAggregationStore;
+import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.model.NotificationGroupState;
 import com.zhicore.notification.domain.model.NotificationType;
 import com.zhicore.notification.domain.repository.NotificationGroupStateRepository;
@@ -113,7 +114,7 @@ class NotificationAggregationServiceTest {
                     .targetType("post")
                     .targetId("200")
                     .latestContent("group state row")
-                    .latestTime(LocalDateTime.now())
+                    .latestTime(OffsetDateTime.now())
                     .actorIds(List.of("456"))
                     .build();
             when(notificationGroupStateRepository.findPage(USER_ID, 0, 20, 3))
@@ -156,7 +157,7 @@ class NotificationAggregationServiceTest {
             dto.setTargetId("200");
             dto.setTotalCount(2);
             dto.setUnreadCount(1);
-            dto.setLatestTime(LocalDateTime.now());
+            dto.setLatestTime(OffsetDateTime.now());
             dto.setLatestContent("database row");
             dto.setActorIds(List.of("456"));
             when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 20))
@@ -202,7 +203,7 @@ class NotificationAggregationServiceTest {
                     .targetType("post")
                     .targetId("200")
                     .latestContent("partial projection")
-                    .latestTime(LocalDateTime.now())
+                    .latestTime(OffsetDateTime.now())
                     .actorIds(List.of("456"))
                     .build();
             when(notificationGroupStateRepository.findPage(USER_ID, 0, 2, 3))
@@ -214,7 +215,7 @@ class NotificationAggregationServiceTest {
             dto1.setTargetId("200");
             dto1.setTotalCount(2);
             dto1.setUnreadCount(1);
-            dto1.setLatestTime(LocalDateTime.now());
+            dto1.setLatestTime(OffsetDateTime.now());
             dto1.setLatestContent("database row 1");
             dto1.setActorIds(List.of("456"));
 
@@ -222,7 +223,7 @@ class NotificationAggregationServiceTest {
             dto2.setType(NotificationType.FOLLOW);
             dto2.setTotalCount(1);
             dto2.setUnreadCount(1);
-            dto2.setLatestTime(LocalDateTime.now().minusMinutes(1));
+            dto2.setLatestTime(OffsetDateTime.now().minusMinutes(1));
             dto2.setLatestContent("database row 2");
             dto2.setActorIds(List.of("789"));
 
@@ -266,7 +267,7 @@ class NotificationAggregationServiceTest {
             dto.setTargetId("200");
             dto.setTotalCount(2);
             dto.setUnreadCount(2);
-            dto.setLatestTime(LocalDateTime.now());
+            dto.setLatestTime(OffsetDateTime.now());
             dto.setLatestContent("database row");
             dto.setActorIds(List.of("456"));
             when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 20))

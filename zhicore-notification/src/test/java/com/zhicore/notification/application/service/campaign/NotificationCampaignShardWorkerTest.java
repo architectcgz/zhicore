@@ -81,7 +81,7 @@ class NotificationCampaignShardWorkerTest {
 
         when(campaignRepository.findById(101L)).thenReturn(Optional.of(campaign));
         when(shardRepository.claimNextPending(101L)).thenReturn(Optional.of(shard), Optional.empty());
-        when(userServiceClient.getFollowersByCursor(eq(303L), any(), any(), eq(50)))
+        when(userServiceClient.getFollowersByCursor(eq(202L), any(), any(), eq(50)))
                 .thenReturn(ApiResponse.success(FollowerCursorPageDTO.builder()
                         .items(List.of())
                         .nextAfterCreatedAt(null)
@@ -94,7 +94,7 @@ class NotificationCampaignShardWorkerTest {
         verify(shardRepository, times(2)).claimNextPending(101L);
         ArgumentCaptor<NotificationCampaignShard> shardCaptor = ArgumentCaptor.forClass(NotificationCampaignShard.class);
         verify(shardRepository, times(1)).update(shardCaptor.capture());
-        assertEquals(NotificationCampaignShardStatus.COMPLETED, shardCaptor.getValue().getStatus());
-        verify(shardRepository, never()).update(argThat(arg -> arg.getStatus() == NotificationCampaignShardStatus.RUNNING));
+        assertEquals(NotificationCampaignShardStatus.COMPLETED, shardCaptor.getValue().getStatusEnum());
+        verify(shardRepository, never()).update(argThat(arg -> arg.getStatusEnum() == NotificationCampaignShardStatus.RUNNING));
     }
 }

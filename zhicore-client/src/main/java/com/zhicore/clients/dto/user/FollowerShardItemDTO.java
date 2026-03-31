@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 粉丝分片条目 DTO。
@@ -17,5 +17,5 @@ public class FollowerShardItemDTO implements Serializable {
 
     @JsonSerialize(using = ToStringSerializer.class)
     private Long followerId;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

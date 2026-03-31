@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -83,7 +82,7 @@ public class PublishPostWorkflow {
                 post.getOwnerId().getValue(),
                 post.getTitle(),
                 post.getExcerpt(),
-                post.getPublishedAt().atZone(ZoneId.systemDefault()).toInstant(),
+                post.getPublishedAt().toInstant(),
                 aggregateVersion != null ? aggregateVersion : 0L
         );
     }

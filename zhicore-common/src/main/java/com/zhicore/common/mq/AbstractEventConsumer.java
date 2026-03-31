@@ -1,9 +1,10 @@
 package com.zhicore.common.mq;
 
 import com.zhicore.common.util.JsonUtils;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.ClassUtils;
 
 import java.util.Map;
@@ -17,13 +18,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * @param <T> 事件类型
  * @author ZhiCore Team
  */
-@Slf4j
 public abstract class AbstractEventConsumer<T> implements RocketMQListener<String> {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractEventConsumer.class);
     private static final String DEFAULT_ENV = "default";
     private static final String DEFAULT_CONSUMER_GROUP = "unknown-group";
     private static final String DEFAULT_TOPIC = "unknown-topic";
     private static final Map<Class<?>, ListenerScope> LISTENER_SCOPE_CACHE = new ConcurrentHashMap<>();
+    protected final Logger log = LoggerFactory.getLogger(getClass());
 
     private final StatefulIdempotentHandler idempotentHandler;
     private final Class<T> eventType;
@@ -112,7 +114,7 @@ public abstract class AbstractEventConsumer<T> implements RocketMQListener<Strin
     private static ListenerScope resolveListenerScope(Class<?> consumerClass) {
         RocketMQMessageListener listener = consumerClass.getAnnotation(RocketMQMessageListener.class);
         if (listener == null) {
-            log.warn("RocketMQMessageListener annotation missing, fallback idempotent scope: consumer={}",
+            LOGGER.warn("RocketMQMessageListener annotation missing, fallback idempotent scope: consumer={}",
                     consumerClass.getName());
             return new ListenerScope(DEFAULT_CONSUMER_GROUP, DEFAULT_TOPIC);
         }

@@ -15,7 +15,7 @@ public interface NotificationCampaignShardMapper extends BaseMapper<Notification
             SELECT id
             FROM notification_campaign_shard
             WHERE campaign_id = #{campaignId}
-              AND status IN ('PENDING', 'FAILED')
+              AND status IN ('PENDING', 'FAILED', 'PLANNED')
             ORDER BY id ASC
             LIMIT 1
             FOR UPDATE SKIP LOCKED
@@ -31,7 +31,12 @@ public interface NotificationCampaignShardMapper extends BaseMapper<Notification
         """)
     NotificationCampaignShardPO claimNextPending(@Param("campaignId") Long campaignId);
 
-    @Select("SELECT COUNT(*) FROM notification_campaign_shard WHERE campaign_id = #{campaignId} AND status IN ('PENDING', 'FAILED')")
+    @Select("""
+        SELECT COUNT(*)
+        FROM notification_campaign_shard
+        WHERE campaign_id = #{campaignId}
+          AND status IN ('PENDING', 'FAILED', 'PLANNED')
+        """)
     int countPending(@Param("campaignId") Long campaignId);
 
     @Update("""

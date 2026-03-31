@@ -1,91 +1,64 @@
 package com.zhicore.notification.domain.model;
 
-import lombok.Getter;
-
 /**
- * 通知类型枚举
- *
- * @author ZhiCore Team
+ * 通知类型枚举。
  */
-@Getter
 public enum NotificationType {
 
-    /**
-     * 文章点赞通知
-     */
-    POST_LIKED(0, "文章点赞"),
+    POST_LIKED(0, "文章点赞", NotificationCategory.INTERACTION, "interaction.like"),
+    POST_COMMENTED(1, "文章评论", NotificationCategory.INTERACTION, "interaction.comment"),
+    USER_FOLLOWED(2, "用户关注", NotificationCategory.SOCIAL, "social.follow"),
+    COMMENT_REPLIED(3, "评论回复", NotificationCategory.INTERACTION, "interaction.reply"),
+    SYSTEM_ANNOUNCEMENT(4, "系统公告", NotificationCategory.SYSTEM, "system.notice"),
+    POST_PUBLISHED_BY_FOLLOWING(5, "关注作者发文", NotificationCategory.CONTENT, "content.post-published"),
+    POST_PUBLISHED_DIGEST(6, "关注作者发文摘要", NotificationCategory.CONTENT, "content.post-published-digest"),
+    SECURITY_ALERT(7, "安全提醒", NotificationCategory.SECURITY, "security.alert"),
 
     /**
-     * 文章评论通知
-     */
-    POST_COMMENTED(1, "文章评论"),
-
-    /**
-     * 用户关注通知
-     */
-    USER_FOLLOWED(2, "用户关注"),
-
-    /**
-     * 评论回复通知
-     */
-    COMMENT_REPLIED(3, "评论回复"),
-
-    /**
-     * 关注作者发文通知
-     */
-    POST_PUBLISHED_BY_FOLLOWING(5, "关注作者发文"),
-
-    /**
-     * 关注作者发文摘要通知
-     */
-    POST_PUBLISHED_DIGEST(6, "关注作者发文摘要"),
-
-    /**
-     * 系统公告通知
-     */
-    SYSTEM_ANNOUNCEMENT(4, "系统公告"),
-
-    /**
-     * 安全提醒通知
-     */
-    SECURITY_ALERT(7, "安全提醒"),
-
-    /**
-     * 点赞通知
+     * 旧通知类型别名，保留给历史数据和兼容逻辑。
      */
     @Deprecated
-    LIKE(0, "点赞"),
-
-    /**
-     * 评论通知
-     */
+    LIKE(0, "点赞", NotificationCategory.INTERACTION, "interaction.like"),
     @Deprecated
-    COMMENT(1, "评论"),
-
-    /**
-     * 关注通知
-     */
+    COMMENT(1, "评论", NotificationCategory.INTERACTION, "interaction.comment"),
     @Deprecated
-    FOLLOW(2, "关注"),
-
-    /**
-     * 回复通知
-     */
+    FOLLOW(2, "关注", NotificationCategory.SOCIAL, "social.follow"),
     @Deprecated
-    REPLY(3, "回复"),
-
-    /**
-     * 系统通知
-     */
+    REPLY(3, "回复", NotificationCategory.INTERACTION, "interaction.reply"),
     @Deprecated
-    SYSTEM(4, "系统");
+    SYSTEM(4, "系统", NotificationCategory.SYSTEM, "system.notice"),
+    @Deprecated
+    POST_PUBLISHED(5, "发布", NotificationCategory.CONTENT, "content.post-published");
 
     private final int code;
     private final String description;
+    private final NotificationCategory category;
+    private final String eventCode;
 
-    NotificationType(int code, String description) {
+    NotificationType(int code,
+                     String description,
+                     NotificationCategory category,
+                     String eventCode) {
         this.code = code;
         this.description = description;
+        this.category = category;
+        this.eventCode = eventCode;
+    }
+
+    public int getCode() {
+        return code;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public NotificationCategory getCategory() {
+        return category;
+    }
+
+    public String getEventCode() {
+        return eventCode;
     }
 
     /**
@@ -101,9 +74,6 @@ public enum NotificationType {
         return fromCode(code);
     }
 
-    /**
-     * 根据code获取枚举
-     */
     public static NotificationType fromCode(int code) {
         return switch (code) {
             case 0 -> LIKE;

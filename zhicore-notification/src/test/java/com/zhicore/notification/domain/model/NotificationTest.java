@@ -154,7 +154,7 @@ class NotificationTest {
                     1L, 200L, 100L, 300L, "post_publish:100:300", "author published");
 
             assertEquals(NotificationType.POST_PUBLISHED_BY_FOLLOWING, notification.getType());
-            assertEquals(NotificationCategory.CONTENT, notification.getCategory());
+            assertEquals(NotificationCategory.CONTENT, notification.getCategoryEnum());
             assertEquals("post_publish:100:300", notification.getGroupKey());
         }
     }

@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Repository
 @RequiredArgsConstructor
 public class NotificationCampaignRepositoryImpl implements NotificationCampaignRepository {
@@ -35,5 +37,15 @@ public class NotificationCampaignRepositoryImpl implements NotificationCampaignR
     @Override
     public boolean existsBySourceEventId(String sourceEventId) {
         return notificationCampaignMapper.existsBySourceEventId(sourceEventId);
+    }
+
+    @Override
+    public Optional<NotificationCampaign> findById(Long campaignId) {
+        return Optional.ofNullable(notificationCampaignMapper.findById(campaignId));
+    }
+
+    @Override
+    public void update(NotificationCampaign campaign) {
+        notificationCampaignMapper.updateCampaign(campaign);
     }
 }

@@ -1,11 +1,8 @@
 package com.zhicore.notification.domain.model;
 
-import lombok.Getter;
-
 /**
  * 通知重要程度
  */
-@Getter
 public enum NotificationImportance {
 
     NORMAL(0, "普通"),
@@ -18,6 +15,14 @@ public enum NotificationImportance {
     NotificationImportance(int code, String description) {
         this.code = code;
         this.description = description;
+    }
+
+    public int getCode() {
+        return code;
+    }
+
+    public String getDescription() {
+        return description;
     }
 
     public static NotificationImportance fromCode(int code) {

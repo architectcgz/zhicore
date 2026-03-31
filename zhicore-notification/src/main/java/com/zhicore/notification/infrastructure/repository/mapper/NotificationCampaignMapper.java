@@ -53,4 +53,30 @@ public interface NotificationCampaignMapper {
         )
         """)
     boolean existsBySourceEventId(@Param("sourceEventId") String sourceEventId);
+
+    @Select("""
+        SELECT campaign_id,
+               campaign_type,
+               source_event_id,
+               author_id,
+               post_id,
+               audience_estimate,
+               status,
+               title,
+               excerpt,
+               published_at,
+               created_at,
+               updated_at
+        FROM notification_campaign
+        WHERE campaign_id = #{campaignId}
+        """)
+    NotificationCampaign findById(@Param("campaignId") Long campaignId);
+
+    @Update("""
+        UPDATE notification_campaign
+        SET status = #{campaign.status},
+            updated_at = #{campaign.updatedAt}
+        WHERE campaign_id = #{campaign.campaignId}
+        """)
+    int updateCampaign(@Param("campaign") NotificationCampaign campaign);
 }

@@ -95,8 +95,8 @@ public class NotificationPreferenceQueryService {
 
     private NotificationCategory resolveCategory(NotificationType notificationType) {
         return switch (notificationType) {
-            case POST_LIKED, POST_COMMENTED, COMMENT_REPLIED, POST_PUBLISHED_BY_FOLLOWING, POST_PUBLISHED_DIGEST,
-                    LIKE, COMMENT, REPLY -> NotificationCategory.CONTENT;
+            case POST_LIKED, POST_COMMENTED, COMMENT_REPLIED, LIKE, COMMENT, REPLY -> NotificationCategory.INTERACTION;
+            case POST_PUBLISHED_BY_FOLLOWING, POST_PUBLISHED_DIGEST, POST_PUBLISHED -> NotificationCategory.CONTENT;
             case USER_FOLLOWED, FOLLOW -> NotificationCategory.SOCIAL;
             case SYSTEM_ANNOUNCEMENT, SYSTEM -> NotificationCategory.SYSTEM;
             case SECURITY_ALERT -> NotificationCategory.SECURITY;

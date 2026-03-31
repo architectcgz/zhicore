@@ -1,6 +1,5 @@
 package com.zhicore.notification.infrastructure.repository;
 
-import com.zhicore.common.util.DateTimeUtils;
 import com.zhicore.notification.domain.model.NotificationCampaignShard;
 import com.zhicore.notification.domain.model.NotificationCampaignShardStatus;
 import com.zhicore.notification.domain.repository.NotificationCampaignShardRepository;
@@ -44,7 +43,7 @@ public class NotificationCampaignShardRepositoryImpl implements NotificationCamp
         po.setAfterCreatedAt(shard.getAfterCreatedAt());
         po.setAfterFollowerId(shard.getAfterFollowerId());
         po.setBatchSize(shard.getBatchSize());
-        po.setStatus(shard.getStatus().name());
+        po.setStatus(shard.getStatus());
         po.setErrorMessage(shard.getErrorMessage());
         po.setCreatedAt(shard.getCreatedAt());
         po.setUpdatedAt(shard.getUpdatedAt());
@@ -59,7 +58,7 @@ public class NotificationCampaignShardRepositoryImpl implements NotificationCamp
                 po.getAfterCreatedAt(),
                 po.getAfterFollowerId(),
                 po.getBatchSize(),
-                NotificationCampaignShardStatus.valueOf(po.getStatus()),
+                po.getStatus() != null ? NotificationCampaignShardStatus.valueOf(po.getStatus()) : null,
                 po.getCreatedAt(),
                 po.getUpdatedAt(),
                 po.getCompletedAt(),

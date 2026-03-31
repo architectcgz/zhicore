@@ -428,6 +428,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_recipient ON notifications(recipien
 CREATE INDEX IF NOT EXISTS idx_notifications_recipient_read ON notifications(recipient_id, is_read);
 CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notifications_recipient_type ON notifications(recipient_id, type);
+CREATE INDEX IF NOT EXISTS idx_notifications_event_code ON notifications(event_code);
 
 ALTER TABLE notifications
     ADD COLUMN IF NOT EXISTS category SMALLINT,
@@ -436,6 +437,37 @@ ALTER TABLE notifications
     ADD COLUMN IF NOT EXISTS group_key VARCHAR(256),
     ADD COLUMN IF NOT EXISTS payload_json JSONB,
     ADD COLUMN IF NOT EXISTS importance SMALLINT DEFAULT 0;
+
+UPDATE notifications
+SET notification_type = CASE type
+        WHEN 0 THEN COALESCE(NULLIF(notification_type, ''), 'LIKE')
+        WHEN 1 THEN COALESCE(NULLIF(notification_type, ''), 'COMMENT')
+        WHEN 2 THEN COALESCE(NULLIF(notification_type, ''), 'FOLLOW')
+        WHEN 3 THEN COALESCE(NULLIF(notification_type, ''), 'REPLY')
+        WHEN 4 THEN COALESCE(NULLIF(notification_type, ''), 'SYSTEM')
+        WHEN 5 THEN COALESCE(NULLIF(notification_type, ''), 'POST_PUBLISHED')
+        ELSE COALESCE(NULLIF(notification_type, ''), 'SYSTEM')
+    END,
+    category = CASE type
+        WHEN 0 THEN 'INTERACTION'
+        WHEN 1 THEN 'INTERACTION'
+        WHEN 2 THEN 'SOCIAL'
+        WHEN 3 THEN 'INTERACTION'
+        WHEN 4 THEN 'SYSTEM'
+        WHEN 5 THEN 'CONTENT'
+        ELSE 'SYSTEM'
+    END,
+    event_code = CASE type
+        WHEN 0 THEN 'interaction.like'
+        WHEN 1 THEN 'interaction.comment'
+        WHEN 2 THEN 'social.follow'
+        WHEN 3 THEN 'interaction.reply'
+        WHEN 4 THEN 'system.notice'
+        WHEN 5 THEN 'content.post-published'
+        ELSE 'system.notice'
+    END
+WHERE COALESCE(notification_type, '') = ''
+   OR COALESCE(event_code, '') = '';
 
 CREATE TABLE IF NOT EXISTS notification_group_state (
     recipient_id BIGINT NOT NULL,
@@ -471,6 +503,7 @@ CREATE TABLE IF NOT EXISTS notification_campaign (
 CREATE TABLE IF NOT EXISTS notification_campaign_shard (
     shard_id BIGINT PRIMARY KEY,
     campaign_id BIGINT NOT NULL,
+    trigger_event_id VARCHAR(128),
     start_cursor BIGINT NOT NULL,
     end_cursor BIGINT,
     shard_size INT NOT NULL,
@@ -484,6 +517,8 @@ CREATE INDEX IF NOT EXISTS idx_notification_campaign_author_status
 
 CREATE INDEX IF NOT EXISTS idx_notification_campaign_shard_campaign
     ON notification_campaign_shard(campaign_id, start_cursor);
+CREATE INDEX IF NOT EXISTS idx_notification_campaign_shard_pending
+    ON notification_campaign_shard(status, campaign_id, start_cursor);
 
 CREATE TABLE IF NOT EXISTS notification_delivery (
     delivery_id BIGINT PRIMARY KEY,
@@ -507,6 +542,55 @@ CREATE TABLE IF NOT EXISTS notification_delivery (
 
 CREATE INDEX IF NOT EXISTS idx_notification_delivery_campaign_recipient
     ON notification_delivery(campaign_id, recipient_id);
+
+-- 用户通知默认偏好表
+CREATE TABLE IF NOT EXISTS notification_user_preference (
+    user_id BIGINT NOT NULL,
+    notification_type VARCHAR(64) NOT NULL,
+    channel VARCHAR(32) NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, notification_type, channel)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_user_preference_user
+    ON notification_user_preference(user_id);
+
+ALTER TABLE notification_user_preference
+    ADD COLUMN IF NOT EXISTS publish_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- 用户免打扰配置表
+CREATE TABLE IF NOT EXISTS notification_user_dnd (
+    user_id BIGINT PRIMARY KEY,
+    enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    start_time TIME NOT NULL DEFAULT TIME '22:00:00',
+    end_time TIME NOT NULL DEFAULT TIME '08:00:00',
+    categories VARCHAR(32)[] NOT NULL DEFAULT ARRAY[]::VARCHAR(32)[],
+    channels VARCHAR(32)[] NOT NULL DEFAULT ARRAY[]::VARCHAR(32)[],
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ck_notification_user_dnd_window CHECK (start_time <> end_time)
+);
+
+-- 作者订阅偏好表
+CREATE TABLE IF NOT EXISTS notification_author_subscription (
+    user_id BIGINT NOT NULL,
+    author_id BIGINT NOT NULL,
+    subscription_level VARCHAR(32) NOT NULL,
+    in_app_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    websocket_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    email_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    digest_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, author_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_author_subscription_user
+    ON notification_author_subscription(user_id);
+CREATE INDEX IF NOT EXISTS idx_notification_author_subscription_author
+    ON notification_author_subscription(author_id);
 
 -- 全局公告表
 CREATE TABLE IF NOT EXISTS global_announcements (

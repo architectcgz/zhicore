@@ -23,7 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -208,14 +209,25 @@ public class CommentQueryService {
             return OffsetDateTime.parse(afterCreatedAt);
         } catch (Exception ignore) {
             try {
-                LocalDateTime legacyUtcCursorTime = LocalDateTime.parse(afterCreatedAt);
-                return legacyUtcCursorTime.atOffset(ZoneOffset.UTC)
+                return parseLegacyIncrementalCursor(afterCreatedAt)
                         .atZoneSameInstant(DateTimeUtils.BUSINESS_ZONE)
                         .toOffsetDateTime();
             } catch (Exception exception) {
                 throw new BusinessException(ResultCode.PARAM_ERROR, "无效的时间游标参数");
             }
         }
+    }
+
+    private OffsetDateTime parseLegacyIncrementalCursor(String afterCreatedAt) {
+        String[] parts = afterCreatedAt.split("T", 2);
+        if (parts.length != 2) {
+            throw new IllegalArgumentException("invalid legacy cursor");
+        }
+        return OffsetDateTime.of(
+                LocalDate.parse(parts[0]),
+                LocalTime.parse(parts[1]),
+                ZoneOffset.UTC
+        );
     }
 
     private PageResult<CommentVO> buildIncrementalPage(List<Comment> comments,

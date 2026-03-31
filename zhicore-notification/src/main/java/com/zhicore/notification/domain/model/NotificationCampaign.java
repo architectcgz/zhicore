@@ -1,30 +1,57 @@
 package com.zhicore.notification.domain.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-
 import java.time.Instant;
+import java.time.OffsetDateTime;
 
-@Getter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+/**
+ * 发布广播 campaign。
+ */
 public class NotificationCampaign {
 
-    private Long campaignId;
-    private String campaignType;
-    private String sourceEventId;
-    private Long authorId;
-    private Long postId;
-    private int audienceEstimate;
+    private final Long campaignId;
+    private final String campaignType;
+    private final String sourceEventId;
+    private final Long authorId;
+    private final Long postId;
+    private final int audienceEstimate;
     private String status;
-    private String title;
-    private String excerpt;
-    private Instant publishedAt;
-    private Instant createdAt;
-    private Instant updatedAt;
+    private final String title;
+    private final String excerpt;
+    private final Instant publishedAt;
+    private final OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
+    private OffsetDateTime completedAt;
+    private String errorMessage;
+
+    private NotificationCampaign(Long campaignId,
+                                 String campaignType,
+                                 String sourceEventId,
+                                 Long authorId,
+                                 Long postId,
+                                 int audienceEstimate,
+                                 String status,
+                                 String title,
+                                 String excerpt,
+                                 Instant publishedAt,
+                                 OffsetDateTime createdAt,
+                                 OffsetDateTime updatedAt,
+                                 OffsetDateTime completedAt,
+                                 String errorMessage) {
+        this.campaignId = campaignId;
+        this.campaignType = campaignType;
+        this.sourceEventId = sourceEventId;
+        this.authorId = authorId;
+        this.postId = postId;
+        this.audienceEstimate = audienceEstimate;
+        this.status = status;
+        this.title = title;
+        this.excerpt = excerpt;
+        this.publishedAt = publishedAt;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+        this.completedAt = completedAt;
+        this.errorMessage = errorMessage;
+    }
 
     public static NotificationCampaign planPostPublished(Long campaignId,
                                                          String sourceEventId,
@@ -34,20 +61,134 @@ public class NotificationCampaign {
                                                          String title,
                                                          String excerpt,
                                                          Instant publishedAt) {
-        Instant now = Instant.now();
-        return NotificationCampaign.builder()
-                .campaignId(campaignId)
-                .campaignType("POST_PUBLISHED")
-                .sourceEventId(sourceEventId)
-                .authorId(authorId)
-                .postId(postId)
-                .audienceEstimate(Math.max(audienceEstimate, 0))
-                .status("PLANNED")
-                .title(title)
-                .excerpt(excerpt)
-                .publishedAt(publishedAt)
-                .createdAt(now)
-                .updatedAt(now)
-                .build();
+        OffsetDateTime now = OffsetDateTime.now();
+        return new NotificationCampaign(
+                campaignId,
+                "POST_PUBLISHED",
+                sourceEventId,
+                authorId,
+                postId,
+                Math.max(audienceEstimate, 0),
+                "PLANNED",
+                title,
+                excerpt,
+                publishedAt,
+                now,
+                now,
+                null,
+                null
+        );
+    }
+
+    public static NotificationCampaign reconstitute(Long campaignId,
+                                                    String sourceEventId,
+                                                    Long authorId,
+                                                    Long postId,
+                                                    NotificationCampaignStatus status,
+                                                    OffsetDateTime createdAt,
+                                                    OffsetDateTime updatedAt,
+                                                    OffsetDateTime completedAt,
+                                                    String errorMessage) {
+        return new NotificationCampaign(
+                campaignId,
+                "POST_PUBLISHED",
+                sourceEventId,
+                authorId,
+                postId,
+                0,
+                status != null ? status.name() : NotificationCampaignStatus.CREATED.name(),
+                null,
+                null,
+                null,
+                createdAt,
+                updatedAt,
+                completedAt,
+                errorMessage
+        );
+    }
+
+    public void markProcessing() {
+        this.status = NotificationCampaignStatus.PROCESSING.name();
+        this.updatedAt = OffsetDateTime.now();
+        this.completedAt = null;
+        this.errorMessage = null;
+    }
+
+    public void markCompleted() {
+        OffsetDateTime now = OffsetDateTime.now();
+        this.status = NotificationCampaignStatus.COMPLETED.name();
+        this.updatedAt = now;
+        this.completedAt = now;
+        this.errorMessage = null;
+    }
+
+    public void markFailed(String errorMessage) {
+        this.status = NotificationCampaignStatus.FAILED.name();
+        this.updatedAt = OffsetDateTime.now();
+        this.errorMessage = errorMessage;
+    }
+
+    public Long getId() {
+        return campaignId;
+    }
+
+    public Long getCampaignId() {
+        return campaignId;
+    }
+
+    public String getCampaignType() {
+        return campaignType;
+    }
+
+    public String getSourceEventId() {
+        return sourceEventId;
+    }
+
+    public Long getAuthorId() {
+        return authorId;
+    }
+
+    public Long getPostId() {
+        return postId;
+    }
+
+    public int getAudienceEstimate() {
+        return audienceEstimate;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public NotificationCampaignStatus getStatusEnum() {
+        return NotificationCampaignStatus.valueOf(status);
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getExcerpt() {
+        return excerpt;
+    }
+
+    public Instant getPublishedAt() {
+        return publishedAt;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public OffsetDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
     }
 }

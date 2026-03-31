@@ -1,6 +1,5 @@
 package com.zhicore.user.infrastructure.repository;
 
-import com.zhicore.common.util.DateTimeUtils;
 import com.zhicore.user.domain.model.UserFollow;
 import com.zhicore.user.domain.model.UserFollowStats;
 import com.zhicore.user.domain.repository.UserFollowRepository;
@@ -124,7 +123,7 @@ public class UserFollowRepositoryImpl implements UserFollowRepository {
         return UserFollow.reconstitute(
                 po.getFollowerId(),
                 po.getFollowingId(),
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt())
+                po.getCreatedAt()
         );
     }
 
@@ -135,7 +134,7 @@ public class UserFollowRepositoryImpl implements UserFollowRepository {
         return UserFollow.reconstitute(
                 po.getFollowerId(),
                 followingId,
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt())
+                po.getCreatedAt()
         );
     }
 

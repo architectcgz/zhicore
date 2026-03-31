@@ -25,4 +25,20 @@ public class NotificationSentinelProperties {
 
     @Min(0)
     private int warmUpPeriodSec = 10;
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public int getAggregatedQps() {
+        return aggregatedQps;
+    }
+
+    public int getUnreadCountQps() {
+        return unreadCountQps;
+    }
+
+    public int getWarmUpPeriodSec() {
+        return warmUpPeriodSec;
+    }
 }

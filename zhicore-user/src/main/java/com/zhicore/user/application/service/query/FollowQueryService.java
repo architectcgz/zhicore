@@ -38,6 +38,8 @@ public class FollowQueryService {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 100;
+    private static final int DEFAULT_CURSOR_LIMIT = 200;
+    private static final int MAX_CURSOR_LIMIT = 500;
     private static final int DEFAULT_FOLLOWER_SHARD_SIZE = 2000;
     private static final int MAX_FOLLOWER_SHARD_SIZE = 2000;
     private static final Duration FOLLOW_STATS_CACHE_TTL = Duration.ofHours(1);
@@ -216,6 +218,13 @@ public class FollowQueryService {
             return DEFAULT_PAGE_SIZE;
         }
         return Math.min(size, MAX_PAGE_SIZE);
+    }
+
+    private int normalizeCursorLimit(Integer limit) {
+        if (limit == null || limit < 1) {
+            return DEFAULT_CURSOR_LIMIT;
+        }
+        return Math.min(limit, MAX_CURSOR_LIMIT);
     }
 
     private long normalizeCursorFollowerId(Long cursorFollowerId) {

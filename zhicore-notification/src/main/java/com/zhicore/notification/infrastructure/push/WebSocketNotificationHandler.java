@@ -3,7 +3,8 @@ package com.zhicore.notification.infrastructure.push;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
 import com.zhicore.notification.application.dto.CommentStreamHintPayload;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
@@ -21,10 +22,11 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author ZhiCore Team
  */
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class WebSocketNotificationHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(WebSocketNotificationHandler.class);
 
     private final SimpMessagingTemplate messagingTemplate;
 

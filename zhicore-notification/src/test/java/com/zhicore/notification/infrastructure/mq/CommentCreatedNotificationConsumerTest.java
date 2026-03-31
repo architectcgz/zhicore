@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.Optional;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -62,7 +63,7 @@ class CommentCreatedNotificationConsumerTest {
             Runnable runnable = invocation.getArgument(1);
             runnable.run();
             return true;
-        }).when(idempotentHandler).handleIdempotent(eq(event.getEventId()), any(Runnable.class));
+        }).when(idempotentHandler).handleIdempotent(anyString(), any(Runnable.class));
         when(notificationService.createCommentNotificationIfAbsent(anyLong(), eq(3003L), eq(4004L), eq(2002L), eq(1001L), eq("reply content")))
                 .thenReturn(Optional.of(ownerNotification));
         when(notificationService.createReplyNotificationIfAbsent(anyLong(), eq(6006L), eq(4004L), eq(1001L), eq("reply content")))
@@ -106,7 +107,7 @@ class CommentCreatedNotificationConsumerTest {
             Runnable runnable = invocation.getArgument(1);
             runnable.run();
             return true;
-        }).when(idempotentHandler).handleIdempotent(eq(event.getEventId()), any(Runnable.class));
+        }).when(idempotentHandler).handleIdempotent(anyString(), any(Runnable.class));
 
         consumer.onMessage(JsonUtils.toJson(event));
 

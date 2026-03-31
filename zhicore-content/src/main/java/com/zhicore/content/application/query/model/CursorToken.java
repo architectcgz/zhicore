@@ -4,9 +4,11 @@ import com.zhicore.common.exception.ValidationException;
 import lombok.Value;
 
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Base64;
@@ -58,8 +60,15 @@ public class CursorToken {
         try {
             return OffsetDateTime.parse(publishedAt, DateTimeFormatter.ISO_OFFSET_DATE_TIME);
         } catch (DateTimeParseException ignore) {
-            LocalDateTime legacyPublishedAt = LocalDateTime.parse(publishedAt, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-            return legacyPublishedAt.atZone(ZoneId.systemDefault()).toOffsetDateTime();
+            String[] parts = publishedAt.split("T", 2);
+            if (parts.length != 2) {
+                throw ignore;
+            }
+            return ZonedDateTime.of(
+                    LocalDate.parse(parts[0], DateTimeFormatter.ISO_LOCAL_DATE),
+                    LocalTime.parse(parts[1], DateTimeFormatter.ISO_LOCAL_TIME),
+                    ZoneId.systemDefault()
+            ).toOffsetDateTime();
         }
     }
 }

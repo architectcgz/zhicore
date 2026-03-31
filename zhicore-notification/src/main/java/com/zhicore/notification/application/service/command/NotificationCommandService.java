@@ -12,7 +12,8 @@ import com.zhicore.notification.domain.model.NotificationGroupState;
 import com.zhicore.notification.domain.repository.NotificationGroupStateRepository;
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,10 +25,11 @@ import java.util.Optional;
  *
  * 负责通知创建、已读变更与缓存失效，不承载查询职责。
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationCommandService {
+
+    private static final Logger log = LoggerFactory.getLogger(NotificationCommandService.class);
 
     private static final Duration UNREAD_COUNT_TTL = Duration.ofMinutes(5);
 
@@ -155,6 +157,19 @@ public class NotificationCommandService {
     }
 
     @Transactional
+    public Optional<Notification> createPostPublishedNotificationIfAbsent(Long notificationId,
+                                                                          Long recipientId,
+                                                                          Long authorId,
+                                                                          Long postId,
+                                                                          Long campaignId) {
+        String groupKey = "campaign:%d:post:%d".formatted(campaignId, postId);
+        String content = "你关注的作者发布了新作品";
+        Notification notification = Notification.createPostPublishedNotification(
+                notificationId, recipientId, authorId, postId, groupKey, content);
+        return saveIfAbsent(notification);
+    }
+
+    @Transactional
     public Notification createPostPublishedDigestNotification(Long recipientId,
                                                               String groupKey,
                                                               String content) {
@@ -215,7 +230,7 @@ public class NotificationCommandService {
         resetUnreadCount(userId);
         evictAggregationCache(userId);
 
-        log.info("批量标记所有通知已读: userId={}, updatedRows={}", userId, updatedRows);
+        log.info("批量标记所有通知已读: userId={}, updatedRows={}", userId, affectedRows);
     }
 
     private Long generateId() {

@@ -1,7 +1,6 @@
 package com.zhicore.notification.infrastructure.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.zhicore.common.util.DateTimeUtils;
 import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.domain.model.Notification;
 import com.zhicore.notification.domain.model.NotificationCategory;
@@ -20,9 +19,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * 通知仓储实现
- *
- * @author ZhiCore Team
+ * 通知仓储实现。
  */
 @Repository
 @RequiredArgsConstructor
@@ -32,20 +29,17 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 
     @Override
     public void save(Notification notification) {
-        NotificationPO po = toPO(notification);
-        notificationMapper.insertOne(po);
+        notificationMapper.insertOne(toPO(notification));
     }
 
     @Override
     public boolean saveIfAbsent(Notification notification) {
-        NotificationPO po = toPO(notification);
-        return notificationMapper.insertIgnore(po) > 0;
+        return notificationMapper.insertIgnore(toPO(notification)) > 0;
     }
 
     @Override
     public Optional<Notification> findById(Long id) {
-        NotificationPO po = notificationMapper.selectById(id);
-        return Optional.ofNullable(po).map(this::toDomain);
+        return Optional.ofNullable(notificationMapper.selectById(id)).map(this::toDomain);
     }
 
     @Override
@@ -54,7 +48,6 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         wrapper.eq(NotificationPO::getRecipientId, recipientId)
                 .orderByDesc(NotificationPO::getCreatedAt)
                 .last("LIMIT " + size + " OFFSET " + (page * size));
-        
         return notificationMapper.selectList(wrapper).stream()
                 .map(this::toDomain)
                 .collect(Collectors.toList());
@@ -62,16 +55,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
 
     @Override
     public List<AggregatedNotificationDTO> findAggregatedNotifications(Long recipientId, int page, int size) {
-        int offset = page * size;
-        List<AggregatedNotificationDTO> results = notificationMapper.findAggregatedNotifications(recipientId, offset, size);
-        
-        // 转换类型码为枚举
-        for (AggregatedNotificationDTO dto : results) {
-            // 类型已经在SQL中作为整数返回，需要转换
-            // 由于MyBatis返回的是Integer，这里需要处理
-        }
-        
-        return results;
+        return notificationMapper.findAggregatedNotifications(recipientId, page * size, size);
     }
 
     @Override
@@ -80,11 +64,22 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public List<Notification> findByGroup(Long recipientId, NotificationType type,
-                                          String targetType, String targetId, int limit) {
-        List<NotificationPO> poList = notificationMapper.findByGroup(
-                recipientId, type.getCode(), targetType, targetId, limit);
-        return poList.stream()
+    public Optional<AggregatedNotificationDTO> findAggregatedNotificationByGroup(Long recipientId,
+                                                                                 NotificationType type,
+                                                                                 String targetType,
+                                                                                 Long targetId) {
+        return Optional.ofNullable(notificationMapper.findAggregatedNotificationByGroup(
+                recipientId, type.getCode(), targetType, targetId
+        ));
+    }
+
+    @Override
+    public List<Notification> findByGroup(Long recipientId,
+                                          NotificationType type,
+                                          String targetType,
+                                          Long targetId,
+                                          int limit) {
+        return notificationMapper.findByGroup(recipientId, type.getCode(), targetType, targetId, limit).stream()
                 .map(this::toDomain)
                 .collect(Collectors.toList());
     }
@@ -118,14 +113,14 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         notificationMapper.deleteById(id);
     }
 
-    // ==================== 转换方法 ====================
-
     private NotificationPO toPO(Notification notification) {
         NotificationPO po = new NotificationPO();
         po.setId(notification.getId());
         po.setRecipientId(notification.getRecipientId());
         po.setType(notification.getType().getCode());
-        po.setCategory(notification.getCategory().getCode());
+        po.setCategory(notification.getCategoryEnum().getCode());
+        po.setEventCode(notification.getEventCode());
+        po.setMetadata(notification.getMetadata());
         po.setNotificationType(notification.getType().name());
         po.setActorId(notification.getActorId());
         po.setTargetType(notification.getTargetType());
@@ -136,8 +131,8 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         po.setContent(notification.getContent());
         po.setImportance(notification.getImportance().getCode());
         po.setIsRead(notification.isRead());
-        po.setReadAt(DateTimeUtils.toOffsetDateTime(notification.getReadAt()));
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(notification.getCreatedAt()));
+        po.setReadAt(notification.getReadAt());
+        po.setCreatedAt(notification.getCreatedAt());
         return po;
     }
 
@@ -146,7 +141,9 @@ public class NotificationRepositoryImpl implements NotificationRepository {
                 po.getId(),
                 po.getRecipientId(),
                 NotificationType.fromValue(po.getNotificationType(), po.getType()),
-                po.getCategory() != null ? NotificationCategory.fromCode(po.getCategory()) : null,
+                po.getCategory() != null ? NotificationCategory.fromCode(po.getCategory()).name() : null,
+                po.getEventCode(),
+                po.getMetadata(),
                 po.getActorId(),
                 po.getTargetType(),
                 po.getTargetId(),
@@ -155,9 +152,9 @@ public class NotificationRepositoryImpl implements NotificationRepository {
                 po.getPayloadJson(),
                 po.getImportance() != null ? NotificationImportance.fromCode(po.getImportance()) : null,
                 po.getContent(),
-                po.getIsRead(),
-                DateTimeUtils.toLocalDateTime(po.getReadAt()),
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt())
+                Boolean.TRUE.equals(po.getIsRead()),
+                po.getReadAt(),
+                po.getCreatedAt()
         );
     }
 }

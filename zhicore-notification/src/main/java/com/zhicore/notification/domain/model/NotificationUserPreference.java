@@ -52,12 +52,13 @@ public class NotificationUserPreference {
 
     public boolean supports(NotificationType type) {
         return switch (type) {
-            case LIKE -> likeEnabled;
-            case COMMENT -> commentEnabled;
-            case FOLLOW -> followEnabled;
-            case REPLY -> replyEnabled;
-            case SYSTEM -> systemEnabled;
-            case POST_PUBLISHED -> publishEnabled;
+            case POST_LIKED, LIKE -> likeEnabled;
+            case POST_COMMENTED, COMMENT -> commentEnabled;
+            case USER_FOLLOWED, FOLLOW -> followEnabled;
+            case COMMENT_REPLIED, REPLY -> replyEnabled;
+            case SYSTEM_ANNOUNCEMENT, SYSTEM -> systemEnabled;
+            case POST_PUBLISHED_BY_FOLLOWING, POST_PUBLISHED_DIGEST, POST_PUBLISHED -> publishEnabled;
+            case SECURITY_ALERT -> systemEnabled;
         };
     }
 }

@@ -74,14 +74,12 @@ public class RedisNotificationUnreadCountStore implements NotificationUnreadCoun
         return value;
     }
 
-    @Override
     public boolean increment(Long userId) {
         String key = NotificationRedisKeys.unreadCount(String.valueOf(userId));
         Long result = redisTemplate.execute(INCREMENT_IF_PRESENT_SCRIPT, List.of(key));
         return APPLIED_RESULT.equals(result);
     }
 
-    @Override
     public boolean decrement(Long userId, int delta) {
         if (delta <= 0) {
             return false;

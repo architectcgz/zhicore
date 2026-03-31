@@ -7,7 +7,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -25,7 +26,6 @@ public class TimeCursorCodec {
 
     private static final String SEPARATOR = "_";
     private static final DateTimeFormatter OFFSET_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
-    private static final DateTimeFormatter LEGACY_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     /**
      * 编码游标
@@ -70,9 +70,20 @@ public class TimeCursorCodec {
         try {
             return OffsetDateTime.parse(timestampStr, OFFSET_FORMATTER);
         } catch (Exception ignore) {
-            LocalDateTime legacy = LocalDateTime.parse(timestampStr, LEGACY_FORMATTER);
-            return legacy.atOffset(ZoneOffset.ofHours(8));
+            return parseLegacyTimestamp(timestampStr);
         }
+    }
+
+    private OffsetDateTime parseLegacyTimestamp(String timestampStr) {
+        String[] parts = timestampStr.split("T", 2);
+        if (parts.length != 2) {
+            throw new IllegalArgumentException("invalid legacy timestamp");
+        }
+        return OffsetDateTime.of(
+                LocalDate.parse(parts[0], DateTimeFormatter.ISO_LOCAL_DATE),
+                LocalTime.parse(parts[1], DateTimeFormatter.ISO_LOCAL_TIME),
+                ZoneOffset.ofHours(8)
+        );
     }
 
     /**

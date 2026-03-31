@@ -6,7 +6,8 @@ import com.zhicore.common.sentinel.FlowRuleSupport;
 import com.zhicore.notification.application.sentinel.NotificationSentinelResources;
 import com.zhicore.notification.infrastructure.sentinel.NotificationRoutes;
 import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.ArrayList;
@@ -15,9 +16,10 @@ import java.util.List;
 /**
  * 通知服务 Sentinel 规则配置。
  */
-@Slf4j
 @Configuration
 public class NotificationSentinelConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(NotificationSentinelConfig.class);
 
     private final NotificationSentinelProperties properties;
 

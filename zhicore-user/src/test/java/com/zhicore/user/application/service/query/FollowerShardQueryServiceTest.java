@@ -12,7 +12,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,8 +41,8 @@ class FollowerShardQueryServiceTest {
     @DisplayName("获取粉丝分片应按 followerId 稳定返回游标页")
     void getFollowerShard_shouldReturnStableCursorPage() {
         when(userFollowRepository.findFollowerShard(200L, 5L, 2)).thenReturn(List.of(
-                UserFollow.reconstitute(6L, 200L, LocalDateTime.of(2026, 3, 1, 10, 0)),
-                UserFollow.reconstitute(8L, 200L, LocalDateTime.of(2026, 3, 1, 10, 1))
+                UserFollow.reconstitute(6L, 200L, OffsetDateTime.of(2026, 3, 1, 10, 0, 0, 0, ZoneOffset.ofHours(8))),
+                UserFollow.reconstitute(8L, 200L, OffsetDateTime.of(2026, 3, 1, 10, 1, 0, 0, ZoneOffset.ofHours(8)))
         ));
 
         FollowerShardPageVO result = followQueryService.getFollowerShard(200L, 5L, 2);

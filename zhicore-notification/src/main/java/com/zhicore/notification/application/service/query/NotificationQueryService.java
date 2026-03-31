@@ -8,7 +8,8 @@ import com.zhicore.notification.application.sentinel.NotificationSentinelResourc
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -20,15 +21,16 @@ import java.util.Map;
  *
  * 负责未读数等轻量查询，不承载写操作。
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationQueryService {
 
+    private static final Logger log = LoggerFactory.getLogger(NotificationQueryService.class);
+
     private final NotificationRepository notificationRepository;
     private final NotificationUnreadCountStore notificationUnreadCountStore;
     @Value("${cache.ttl.unread-count:300}")
-    private long unreadCountTtlSeconds;
+    private long unreadCountTtlSeconds = 300;
 
     @SentinelResource(
             value = NotificationSentinelResources.GET_UNREAD_COUNT,
@@ -56,7 +58,7 @@ public class NotificationQueryService {
         Map<Integer, Integer> byCategory = notificationRepository.countUnreadByCategory(userId);
         return new UnreadBreakdown(
                 totalCount,
-                byCategory.getOrDefault(NotificationCategory.SOCIAL.getCode(), 0),
+                byCategory.getOrDefault(NotificationCategory.INTERACTION.getCode(), 0),
                 byCategory.getOrDefault(NotificationCategory.CONTENT.getCode(), 0),
                 byCategory.getOrDefault(NotificationCategory.SYSTEM.getCode(), 0),
                 byCategory.getOrDefault(NotificationCategory.SECURITY.getCode(), 0)
