@@ -19,7 +19,7 @@ import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionOperations;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -105,7 +105,7 @@ class CommentOutboxDispatcherTest {
         event.setId(id);
         event.setStatus(status);
         event.setClaimedBy("worker-1");
-        event.setClaimedAt(LocalDateTime.now().minusMinutes(5));
+        event.setClaimedAt(OffsetDateTime.now().minusMinutes(5));
         return event;
     }
 

@@ -6,7 +6,7 @@ import lombok.Getter;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 标签聚合根（充血模型）
@@ -46,12 +46,12 @@ public class Tag {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
     /**
      * 更新时间
      */
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 
     // ==================== 构造函数 ====================
 
@@ -71,8 +71,8 @@ public class Tag {
         this.id = id;
         this.name = name.trim();
         this.slug = slug;
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -84,8 +84,8 @@ public class Tag {
                 @JsonProperty("name") String name,
                 @JsonProperty("slug") String slug,
                 @JsonProperty("description") String description,
-                @JsonProperty("createdAt") LocalDateTime createdAt,
-                @JsonProperty("updatedAt") LocalDateTime updatedAt) {
+                @JsonProperty("createdAt") OffsetDateTime createdAt,
+                @JsonProperty("updatedAt") OffsetDateTime updatedAt) {
         this.id = id;
         this.name = name;
         this.slug = slug;
@@ -120,8 +120,8 @@ public class Tag {
      * @return 标签实例
      */
     public static Tag reconstitute(Long id, String name, String slug,
-                                   String description, LocalDateTime createdAt,
-                                   LocalDateTime updatedAt) {
+                                   String description, OffsetDateTime createdAt,
+                                   OffsetDateTime updatedAt) {
         return new Tag(id, name, slug, description, createdAt, updatedAt);
     }
 
@@ -141,7 +141,7 @@ public class Tag {
             throw new IllegalArgumentException("标签名称不能超过50字符");
         }
         this.name = name.trim();
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     /**
@@ -154,7 +154,7 @@ public class Tag {
             throw new IllegalArgumentException("标签描述不能超过200字符");
         }
         this.description = description;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
     }
 
     // ==================== 查询方法 ====================

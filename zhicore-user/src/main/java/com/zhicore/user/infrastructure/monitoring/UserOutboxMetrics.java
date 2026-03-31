@@ -10,7 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 用户服务 outbox 观测指标。
@@ -36,11 +36,11 @@ public class UserOutboxMetrics {
     @Scheduled(fixedRate = 60000, initialDelay = 30000)
     public void collectMetrics() {
         try {
-            LocalDateTime now = LocalDateTime.now();
+            OffsetDateTime now = OffsetDateTime.now();
             long pendingCount = outboxEventRepository.countByStatus(OutboxEventStatus.PENDING);
-            LocalDateTime oldestCreatedAt = outboxEventRepository.findOldestPendingCreatedAt();
+            OffsetDateTime oldestCreatedAt = outboxEventRepository.findOldestPendingCreatedAt();
             long oldestAgeSeconds = oldestCreatedAt != null ? Duration.between(oldestCreatedAt, now).getSeconds() : 0L;
-            LocalDateTime since = now.minusMinutes(1);
+            OffsetDateTime since = now.minusMinutes(1);
             long dispatchedLastMinute = outboxEventRepository.countSucceededSince(since);
             long failedLastMinute = outboxEventRepository.countFailedSince(since, properties.getMaxRetry());
             long deadLastMinute = outboxEventRepository.countDeadSince(since, properties.getMaxRetry());

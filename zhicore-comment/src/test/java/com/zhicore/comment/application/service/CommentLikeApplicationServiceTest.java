@@ -24,7 +24,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -89,7 +89,7 @@ class CommentLikeApplicationServiceTest {
                 COMMENT_ID, POST_ID, AUTHOR_ID, "测试评论内容",
                 null, null, null,
                 null, COMMENT_ID, null,
-                CommentStatus.NORMAL, LocalDateTime.now(), LocalDateTime.now(),
+                CommentStatus.NORMAL, OffsetDateTime.now(), OffsetDateTime.now(),
                 CommentStats.empty()
         );
     }
@@ -99,7 +99,7 @@ class CommentLikeApplicationServiceTest {
                 COMMENT_ID, POST_ID, AUTHOR_ID, "已删除评论",
                 null, null, null,
                 null, COMMENT_ID, null,
-                CommentStatus.DELETED, LocalDateTime.now(), LocalDateTime.now(),
+                CommentStatus.DELETED, OffsetDateTime.now(), OffsetDateTime.now(),
                 CommentStats.empty()
         );
     }

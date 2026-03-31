@@ -3,7 +3,7 @@ package com.zhicore.ranking.application.model;
 import lombok.Builder;
 import lombok.Value;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -16,7 +16,7 @@ public class SnapshotPostHotState {
     Long postId;
     Long authorId;
     List<Long> topicIds;
-    LocalDateTime publishedAt;
+    OffsetDateTime publishedAt;
     long viewCount;
     int likeCount;
     int favoriteCount;

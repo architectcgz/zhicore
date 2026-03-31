@@ -23,7 +23,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -117,7 +117,7 @@ class NotificationAggregationServiceTest {
             dto.setTargetId("100");
             dto.setTotalCount(5);
             dto.setUnreadCount(3);
-            dto.setLatestTime(LocalDateTime.now());
+            dto.setLatestTime(OffsetDateTime.now());
             dto.setLatestContent("liked your post");
             dto.setActorIds(Arrays.asList("456", "789", "999"));
 
@@ -170,7 +170,7 @@ class NotificationAggregationServiceTest {
             dto.setType(NotificationType.FOLLOW);
             dto.setTotalCount(1);
             dto.setUnreadCount(1);
-            dto.setLatestTime(LocalDateTime.now());
+            dto.setLatestTime(OffsetDateTime.now());
             dto.setActorIds(List.of("456"));
 
             when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 20))
@@ -240,7 +240,7 @@ class NotificationAggregationServiceTest {
             dto.setTargetId("100");
             dto.setTotalCount(1);
             dto.setUnreadCount(1);
-            dto.setLatestTime(LocalDateTime.now());
+            dto.setLatestTime(OffsetDateTime.now());
             dto.setActorIds(List.of("456"));
 
             when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 20))
@@ -272,7 +272,7 @@ class NotificationAggregationServiceTest {
             dto.setType(NotificationType.FOLLOW);
             dto.setTotalCount(10);
             dto.setUnreadCount(5);
-            dto.setLatestTime(LocalDateTime.now());
+            dto.setLatestTime(OffsetDateTime.now());
             dto.setActorIds(Arrays.asList("456", "789", "999"));
 
             when(notificationRepository.findAggregatedNotifications(USER_ID, 0, 20))
@@ -311,7 +311,7 @@ class NotificationAggregationServiceTest {
                     .targetId("1001")
                     .totalCount(2)
                     .unreadCount(2)
-                    .latestTime(LocalDateTime.of(2026, 3, 27, 13, 0))
+                    .latestTime(OffsetDateTime.parse("2026-03-27T13:00:00+08:00"))
                     .latestNotificationId("9001")
                     .latestContent("新的评论")
                     .actorIds(List.of("456"))

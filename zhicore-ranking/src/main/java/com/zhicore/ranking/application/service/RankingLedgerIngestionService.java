@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
 /**
@@ -34,8 +34,8 @@ public class RankingLedgerIngestionService {
                              Long authorId,
                              RankingMetricType metricType,
                              int countDelta,
-                             LocalDateTime occurredAt,
-                             LocalDateTime publishedAt) {
+                             OffsetDateTime occurredAt,
+                             OffsetDateTime publishedAt) {
         if (eventId == null || eventId.isBlank()) {
             throw new IllegalArgumentException("eventId 不能为空");
         }
@@ -54,8 +54,8 @@ public class RankingLedgerIngestionService {
             throw new ServiceUnavailableException("排行榜正在执行 ledger 补算，请稍后重试");
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime actualOccurredAt = occurredAt != null ? occurredAt : now;
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime actualOccurredAt = occurredAt != null ? occurredAt : now;
         RankingLedgerEventRecord eventRecord = RankingLedgerEventRecord.builder()
                 .eventId(eventId)
                 .eventType(eventType)
@@ -85,10 +85,10 @@ public class RankingLedgerIngestionService {
         return idx > 0 ? eventType.substring(0, idx) : eventType;
     }
 
-    private LocalDateTime floorBucketStart(LocalDateTime occurredAt) {
+    private OffsetDateTime floorBucketStart(OffsetDateTime occurredAt) {
         long bucketWindowSeconds = pipelineProperties.getBucketWindowSeconds();
-        long epochSecond = occurredAt.atZone(ZoneId.systemDefault()).toEpochSecond();
+        long epochSecond = occurredAt.toEpochSecond();
         long floored = (epochSecond / bucketWindowSeconds) * bucketWindowSeconds;
-        return LocalDateTime.ofInstant(Instant.ofEpochSecond(floored), ZoneId.systemDefault());
+        return OffsetDateTime.ofInstant(Instant.ofEpochSecond(floored), ZoneId.systemDefault());
     }
 }

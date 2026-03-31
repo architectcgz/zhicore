@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
@@ -95,21 +95,21 @@ public class OutboxEvent {
     /**
      * 下次允许被处理的时间（指数退避计算）。
      */
-    private LocalDateTime nextAttemptAt;
+    private OffsetDateTime nextAttemptAt;
 
     /**
      * 创建时间
      * 
      * 事件写入 outbox_events 表的时间
      */
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
     
     /**
      * 发送时间
      * 
      * 事件成功发送到 RocketMQ 的时间，PENDING 状态时为 null
      */
-    private LocalDateTime sentAt;
+    private OffsetDateTime sentAt;
     
     /**
      * 错误信息
@@ -126,7 +126,7 @@ public class OutboxEvent {
     /**
      * 当前 claim 时间。
      */
-    private LocalDateTime claimedAt;
+    private OffsetDateTime claimedAt;
     
     /**
      * 创建 Outbox 事件的工厂方法
@@ -143,7 +143,7 @@ public class OutboxEvent {
         return new OutboxEvent(
             UUID.randomUUID().toString(),
             topic, tag, shardingKey, payload,
-            OutboxEventStatus.PENDING, LocalDateTime.now()
+            OutboxEventStatus.PENDING, OffsetDateTime.now()
         );
     }
 
@@ -159,7 +159,7 @@ public class OutboxEvent {
      * @param createdAt 创建时间
      */
     public OutboxEvent(String id, String topic, String tag, String shardingKey, 
-                       String payload, OutboxEventStatus status, LocalDateTime createdAt) {
+                       String payload, OutboxEventStatus status, OffsetDateTime createdAt) {
         this.id = id;
         this.topic = topic;
         this.tag = tag;
@@ -180,7 +180,7 @@ public class OutboxEvent {
     public void scheduleNextRetry() {
         this.retryCount++;
         long delaySeconds = Math.min((long) Math.pow(2, this.retryCount - 1), 300);
-        this.nextAttemptAt = LocalDateTime.now().plusSeconds(delaySeconds);
+        this.nextAttemptAt = OffsetDateTime.now().plusSeconds(delaySeconds);
     }
 
     /**

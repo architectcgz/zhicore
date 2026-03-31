@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * 数据迁移服务启动类
  * 负责数据库迁移、CDC配置、灰度发布管理
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"com.zhicore.migration", "com.zhicore.common"})
 @EnableDiscoveryClient
 @EnableScheduling
 public class MigrationApplication {

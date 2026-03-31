@@ -8,7 +8,7 @@ import com.zhicore.content.infrastructure.persistence.pg.mapper.ScheduledPublish
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,7 +22,7 @@ public class ScheduledPublishEventStoreImpl implements ScheduledPublishEventStor
     private final ScheduledPublishEventMapper mapper;
 
     @Override
-    public LocalDateTime dbNow() {
+    public OffsetDateTime dbNow() {
         return mapper.selectDbNow();
     }
 
@@ -65,8 +65,8 @@ public class ScheduledPublishEventStoreImpl implements ScheduledPublishEventStor
     }
 
     @Override
-    public List<ScheduledPublishEventRecord> claimCompensationBatch(LocalDateTime dbNow,
-                                                                    LocalDateTime reclaimBefore,
+    public List<ScheduledPublishEventRecord> claimCompensationBatch(OffsetDateTime dbNow,
+                                                                    OffsetDateTime reclaimBefore,
                                                                     String claimedBy,
                                                                     int limit) {
         return mapper.claimCompensationBatch(dbNow, reclaimBefore, claimedBy, limit).stream()
@@ -76,8 +76,8 @@ public class ScheduledPublishEventStoreImpl implements ScheduledPublishEventStor
 
     @Override
     public Optional<ScheduledPublishEventRecord> claimForConsumption(String eventId,
-                                                                     LocalDateTime dbNow,
-                                                                     LocalDateTime reclaimBefore,
+                                                                     OffsetDateTime dbNow,
+                                                                     OffsetDateTime reclaimBefore,
                                                                      String claimedBy) {
         return mapper.claimForConsumption(eventId, dbNow, reclaimBefore, claimedBy).stream()
                 .findFirst()
@@ -108,7 +108,7 @@ public class ScheduledPublishEventStoreImpl implements ScheduledPublishEventStor
     @Override
     public int markTerminalByPostId(Long postId,
                                     ScheduledPublishEventRecord.ScheduledPublishStatus status,
-                                    LocalDateTime dbNow,
+                                    OffsetDateTime dbNow,
                                     String lastError) {
         return mapper.markTerminalByPostId(
                 postId,

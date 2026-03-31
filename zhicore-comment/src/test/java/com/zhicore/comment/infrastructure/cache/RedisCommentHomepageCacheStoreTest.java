@@ -16,7 +16,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -99,7 +99,7 @@ class RedisCommentHomepageCacheStoreTest {
                 .postId(1001L)
                 .rootId(1L)
                 .content("reply")
-                .createdAt(LocalDateTime.of(2026, 3, 21, 23, 0))
+                .createdAt(OffsetDateTime.parse("2026-03-21T23:00:00+08:00"))
                 .liked(false)
                 .build();
 
@@ -107,7 +107,7 @@ class RedisCommentHomepageCacheStoreTest {
                 .id(1L)
                 .postId(1001L)
                 .content("root")
-                .createdAt(LocalDateTime.of(2026, 3, 21, 22, 0))
+                .createdAt(OffsetDateTime.parse("2026-03-21T22:00:00+08:00"))
                 .liked(false)
                 .hotReplies(List.of(reply))
                 .build();

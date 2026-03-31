@@ -1,6 +1,7 @@
 package com.zhicore.notification.infrastructure.feign;
 
 import com.zhicore.api.client.UserBatchSimpleClient;
+import com.zhicore.api.client.UserFollowerCursorClient;
 import org.springframework.cloud.openfeign.FeignClient;
 
 /**
@@ -12,5 +13,5 @@ import org.springframework.cloud.openfeign.FeignClient;
         name = "zhicore-user",
         fallbackFactory = UserServiceFallbackFactory.class
 )
-public interface UserServiceClient extends UserBatchSimpleClient {
+public interface UserServiceClient extends UserBatchSimpleClient, UserFollowerCursorClient {
 }

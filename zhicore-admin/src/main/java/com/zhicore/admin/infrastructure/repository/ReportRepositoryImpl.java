@@ -41,7 +41,7 @@ public class ReportRepositoryImpl implements ReportRepository {
                 .set(ReportPO::getHandlerId, report.getHandlerId())
                 .set(ReportPO::getHandleAction, report.getHandleAction() != null ? report.getHandleAction().name() : null)
                 .set(ReportPO::getHandleRemark, report.getHandleRemark())
-                .set(ReportPO::getHandledAt, DateTimeUtils.toOffsetDateTime(report.getHandledAt()));
+                .set(ReportPO::getHandledAt, report.getHandledAt());
         
         reportMapper.update(null, wrapper);
     }
@@ -79,8 +79,8 @@ public class ReportRepositoryImpl implements ReportRepository {
                 po.getHandlerId(),
                 po.getHandleAction() != null ? ReportHandleAction.valueOf(po.getHandleAction()) : null,
                 po.getHandleRemark(),
-                DateTimeUtils.toLocalDateTime(po.getHandledAt()),
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt())
+                po.getHandledAt(),
+                po.getCreatedAt()
         );
     }
 }

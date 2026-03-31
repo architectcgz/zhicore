@@ -6,7 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * PostStats MyBatis Mapper
@@ -26,7 +26,7 @@ public interface PostStatsMyBatisMapper extends BaseMapper<PostStatsEntity> {
             SET like_count = post_stats.like_count + 1,
                 last_updated_at = #{updatedAt}
             """)
-    int incrementLikeCount(@Param("postId") Long postId, @Param("updatedAt") LocalDateTime updatedAt);
+    int incrementLikeCount(@Param("postId") Long postId, @Param("updatedAt") OffsetDateTime updatedAt);
 
     @Insert("""
             INSERT INTO post_stats (post_id, view_count, like_count, comment_count, favorite_count, share_count, last_updated_at)
@@ -35,7 +35,7 @@ public interface PostStatsMyBatisMapper extends BaseMapper<PostStatsEntity> {
             SET like_count = GREATEST(0, post_stats.like_count - 1),
                 last_updated_at = #{updatedAt}
             """)
-    int decrementLikeCount(@Param("postId") Long postId, @Param("updatedAt") LocalDateTime updatedAt);
+    int decrementLikeCount(@Param("postId") Long postId, @Param("updatedAt") OffsetDateTime updatedAt);
 
     @Insert("""
             INSERT INTO post_stats (post_id, view_count, like_count, comment_count, favorite_count, share_count, last_updated_at)
@@ -44,7 +44,7 @@ public interface PostStatsMyBatisMapper extends BaseMapper<PostStatsEntity> {
             SET favorite_count = post_stats.favorite_count + 1,
                 last_updated_at = #{updatedAt}
             """)
-    int incrementFavoriteCount(@Param("postId") Long postId, @Param("updatedAt") LocalDateTime updatedAt);
+    int incrementFavoriteCount(@Param("postId") Long postId, @Param("updatedAt") OffsetDateTime updatedAt);
 
     @Insert("""
             INSERT INTO post_stats (post_id, view_count, like_count, comment_count, favorite_count, share_count, last_updated_at)
@@ -53,7 +53,7 @@ public interface PostStatsMyBatisMapper extends BaseMapper<PostStatsEntity> {
             SET favorite_count = GREATEST(0, post_stats.favorite_count - 1),
                 last_updated_at = #{updatedAt}
             """)
-    int decrementFavoriteCount(@Param("postId") Long postId, @Param("updatedAt") LocalDateTime updatedAt);
+    int decrementFavoriteCount(@Param("postId") Long postId, @Param("updatedAt") OffsetDateTime updatedAt);
 
     @Insert("""
             INSERT INTO post_stats (post_id, view_count, like_count, comment_count, favorite_count, share_count, last_updated_at)
@@ -62,7 +62,7 @@ public interface PostStatsMyBatisMapper extends BaseMapper<PostStatsEntity> {
             SET comment_count = post_stats.comment_count + 1,
                 last_updated_at = #{updatedAt}
             """)
-    int incrementCommentCount(@Param("postId") Long postId, @Param("updatedAt") LocalDateTime updatedAt);
+    int incrementCommentCount(@Param("postId") Long postId, @Param("updatedAt") OffsetDateTime updatedAt);
 
     @Insert("""
             INSERT INTO post_stats (post_id, view_count, like_count, comment_count, favorite_count, share_count, last_updated_at)
@@ -71,5 +71,5 @@ public interface PostStatsMyBatisMapper extends BaseMapper<PostStatsEntity> {
             SET comment_count = GREATEST(0, post_stats.comment_count - 1),
                 last_updated_at = #{updatedAt}
             """)
-    int decrementCommentCount(@Param("postId") Long postId, @Param("updatedAt") LocalDateTime updatedAt);
+    int decrementCommentCount(@Param("postId") Long postId, @Param("updatedAt") OffsetDateTime updatedAt);
 }

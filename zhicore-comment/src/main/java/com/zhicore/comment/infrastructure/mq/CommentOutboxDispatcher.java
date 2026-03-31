@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -74,8 +74,8 @@ public class CommentOutboxDispatcher extends ClaimBasedDispatcher<OutboxEvent> {
 
     @Override
     protected List<OutboxEvent> claimBatch(String workerId, int limit, Duration claimTimeout) {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime reclaimBefore = now.minusSeconds(claimTimeout.toSeconds());
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime reclaimBefore = now.minusSeconds(claimTimeout.toSeconds());
         return outboxEventRepository.claimRetryableEvents(now, reclaimBefore, workerId, limit);
     }
 
@@ -90,7 +90,7 @@ public class CommentOutboxDispatcher extends ClaimBasedDispatcher<OutboxEvent> {
         SendResult result = rocketMQTemplate.syncSend(destination, message);
 
         event.setStatus(OutboxEventStatus.SUCCEEDED);
-        event.setSentAt(LocalDateTime.now());
+        event.setSentAt(OffsetDateTime.now());
         event.setErrorMessage(null);
         event.clearClaim();
         outboxEventRepository.update(event);
@@ -104,7 +104,7 @@ public class CommentOutboxDispatcher extends ClaimBasedDispatcher<OutboxEvent> {
         int retryCount = event.getRetryCount() == null ? 0 : event.getRetryCount();
         retryCount++;
 
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         event.setRetryCount(retryCount);
         event.setErrorMessage(exception.getMessage());
         event.clearClaim();
@@ -130,7 +130,7 @@ public class CommentOutboxDispatcher extends ClaimBasedDispatcher<OutboxEvent> {
             return 0;
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         for (OutboxEvent event : deadEvents) {
             event.setStatus(OutboxEventStatus.PENDING);
             event.setRetryCount(0);

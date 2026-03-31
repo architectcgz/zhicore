@@ -8,11 +8,11 @@ import com.zhicore.comment.application.service.query.CommentQueryService;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.comment.interfaces.dto.request.CreateCommentRequest;
 import com.zhicore.comment.interfaces.dto.request.UpdateCommentRequest;
-import com.zhicore.common.result.PageResult;
 import com.zhicore.common.constant.CommonConstants;
 import com.zhicore.common.context.UserContext;
 import com.zhicore.common.exception.BusinessException;
 import com.zhicore.common.exception.UnauthorizedException;
+import com.zhicore.common.result.PageResult;
 import com.zhicore.common.result.ResultCode;
 import com.zhicore.common.test.web.ControllerTestSupport;
 import org.junit.jupiter.api.DisplayName;
@@ -23,6 +23,9 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.OffsetDateTime;
+import java.util.List;
 
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
@@ -200,56 +203,6 @@ class CommentControllerTest extends ControllerTestSupport {
     }
 
     @Test
-    @DisplayName("增量获取顶级评论时应该透传 after 游标参数")
-    void shouldGetTopLevelCommentsIncremental() throws Exception {
-        CommentQueryController controller = new CommentQueryController(commentQueryService);
-        MockMvc mockMvc = buildMockMvc(controller);
-        PageResult<CommentVO> result = PageResult.cursor(java.util.List.of(
-                CommentVO.builder()
-                        .id(2234567890123456789L)
-                        .postId(1234567890123456789L)
-                        .content("增量评论")
-                        .build()
-        ), "cursor-1", false);
-        when(commentQueryService.getTopLevelCommentsIncremental(1001L, "2026-03-27T11:00:00", 2002L, 20))
-                .thenReturn(result);
-
-        mockMvc.perform(get("/api/v1/comments/post/{postId}/incremental", 1001L)
-                        .param("afterCreatedAt", "2026-03-27T11:00:00")
-                        .param("afterId", "2002")
-                        .param("size", "20"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.records[0].id").value("2234567890123456789"))
-                .andExpect(jsonPath("$.data.cursor").value("cursor-1"));
-    }
-
-    @Test
-    @DisplayName("增量获取回复时应该透传 after 游标参数")
-    void shouldGetRepliesIncremental() throws Exception {
-        CommentQueryController controller = new CommentQueryController(commentQueryService);
-        MockMvc mockMvc = buildMockMvc(controller);
-        PageResult<CommentVO> result = PageResult.cursor(java.util.List.of(
-                CommentVO.builder()
-                        .id(3234567890123456789L)
-                        .postId(1234567890123456789L)
-                        .rootId(1134567890123456789L)
-                        .content("增量回复")
-                        .build()
-        ), "cursor-2", true);
-        when(commentQueryService.getRepliesIncremental(1001L, "2026-03-27T11:00:00", 3003L, 20))
-                .thenReturn(result);
-
-        mockMvc.perform(get("/api/v1/comments/{commentId}/replies/incremental", 1001L)
-                        .param("afterCreatedAt", "2026-03-27T11:00:00")
-                        .param("afterId", "3003")
-                        .param("size", "20"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.records[0].id").value("3234567890123456789"))
-                .andExpect(jsonPath("$.data.hasNext").value(true))
-                .andExpect(jsonPath("$.data.cursor").value("cursor-2"));
-    }
-
-    @Test
     @DisplayName("分页大小非法时应该命中方法参数校验")
     void shouldRejectInvalidPageSize() throws Exception {
         CommentQueryController controller = new CommentQueryController(commentQueryService);
@@ -321,5 +274,51 @@ class CommentControllerTest extends ControllerTestSupport {
                 .andExpect(jsonPath("$.code").value(ResultCode.PARAM_ERROR.getCode()))
                 .andExpect(jsonPath("$.message").value(
                         "传统分页仅支持前" + CommonConstants.MAX_OFFSET_WINDOW + "条数据，请改用游标分页"));
+    }
+
+    @Test
+    @DisplayName("文章评论 incremental 接口应返回游标分页结果")
+    void shouldGetPostIncrementalComments() throws Exception {
+        CommentQueryController controller = new CommentQueryController(commentQueryService);
+        MockMvc mockMvc = buildMockMvc(controller);
+        PageResult<CommentVO> result = PageResult.cursor(
+                List.of(CommentVO.builder().id(2234567890123456789L).build()),
+                "cursor-1",
+                true
+        );
+        when(commentQueryService.getTopLevelCommentsIncremental(1001L, "2026-03-31T08:00:00Z", 2001L, 20))
+                .thenReturn(result);
+
+        mockMvc.perform(get("/api/v1/comments/post/{postId}/incremental", 1001L)
+                        .param("afterCreatedAt", "2026-03-31T08:00:00Z")
+                        .param("afterId", "2001")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records[0].id").value("2234567890123456789"))
+                .andExpect(jsonPath("$.data.hasNext").value(true))
+                .andExpect(jsonPath("$.data.cursor").value("cursor-1"));
+    }
+
+    @Test
+    @DisplayName("回复 incremental 接口应返回游标分页结果")
+    void shouldGetRepliesIncremental() throws Exception {
+        CommentQueryController controller = new CommentQueryController(commentQueryService);
+        MockMvc mockMvc = buildMockMvc(controller);
+        PageResult<CommentVO> result = PageResult.cursor(
+                List.of(CommentVO.builder().id(3234567890123456789L).build()),
+                "cursor-2",
+                true
+        );
+        when(commentQueryService.getRepliesIncremental(1001L, "2026-03-31T08:00:00Z", 3001L, 20))
+                .thenReturn(result);
+
+        mockMvc.perform(get("/api/v1/comments/{rootId}/replies/incremental", 1001L)
+                        .param("afterCreatedAt", "2026-03-31T08:00:00Z")
+                        .param("afterId", "3001")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records[0].id").value("3234567890123456789"))
+                .andExpect(jsonPath("$.data.hasNext").value(true))
+                .andExpect(jsonPath("$.data.cursor").value("cursor-2"));
     }
 }

@@ -3,7 +3,7 @@ package com.zhicore.ranking.application.model;
 import lombok.Builder;
 import lombok.Value;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -15,7 +15,7 @@ public class RankingPostStateRecord {
 
     Long postId;
     Long authorId;
-    LocalDateTime publishedAt;
+    OffsetDateTime publishedAt;
     List<Long> topicIds;
     long viewCount;
     int likeCount;
@@ -24,6 +24,6 @@ public class RankingPostStateRecord {
     double rawScore;
     double hotScore;
     long version;
-    LocalDateTime lastBucketStart;
-    LocalDateTime updatedAt;
+    OffsetDateTime lastBucketStart;
+    OffsetDateTime updatedAt;
 }

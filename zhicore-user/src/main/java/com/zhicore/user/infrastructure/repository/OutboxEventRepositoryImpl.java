@@ -1,5 +1,6 @@
 package com.zhicore.user.infrastructure.repository;
 
+import com.zhicore.common.util.DateTimeUtils;
 import com.zhicore.user.domain.model.OutboxEvent;
 import com.zhicore.user.domain.model.OutboxEventStatus;
 import com.zhicore.user.domain.repository.OutboxEventRepository;
@@ -59,23 +60,23 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
             // 时间字段处理
             Timestamp createdAt = rs.getTimestamp("created_at");
             if (createdAt != null) {
-                event.setCreatedAt(createdAt.toLocalDateTime());
+                event.setCreatedAt(DateTimeUtils.toOffsetDateTime(createdAt));
             }
             
             Timestamp sentAt = rs.getTimestamp("sent_at");
             if (sentAt != null) {
-                event.setSentAt(sentAt.toLocalDateTime());
+                event.setSentAt(DateTimeUtils.toOffsetDateTime(sentAt));
             }
             
             Timestamp nextAttemptAt = rs.getTimestamp("next_attempt_at");
             if (nextAttemptAt != null) {
-                event.setNextAttemptAt(nextAttemptAt.toLocalDateTime());
+                event.setNextAttemptAt(DateTimeUtils.toOffsetDateTime(nextAttemptAt));
             }
 
             event.setErrorMessage(rs.getString("error_message"));
             Timestamp claimedAt = rs.getTimestamp("claimed_at");
             if (claimedAt != null) {
-                event.setClaimedAt(claimedAt.toLocalDateTime());
+                event.setClaimedAt(DateTimeUtils.toOffsetDateTime(claimedAt));
             }
             event.setClaimedBy(rs.getString("claimed_by"));
 
@@ -111,13 +112,13 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
             .addValue("retryCount", event.getRetryCount())
             .addValue("maxRetries", event.getMaxRetries())
             .addValue("nextAttemptAt", event.getNextAttemptAt() != null ?
-                Timestamp.valueOf(event.getNextAttemptAt()) : null)
-            .addValue("createdAt", Timestamp.valueOf(event.getCreatedAt()))
+                com.zhicore.common.util.DateTimeUtils.toTimestamp(event.getNextAttemptAt()) : null)
+            .addValue("createdAt", com.zhicore.common.util.DateTimeUtils.toTimestamp(event.getCreatedAt()))
             .addValue("sentAt", event.getSentAt() != null ? 
-                Timestamp.valueOf(event.getSentAt()) : null)
+                com.zhicore.common.util.DateTimeUtils.toTimestamp(event.getSentAt()) : null)
             .addValue("errorMessage", event.getErrorMessage())
             .addValue("claimedBy", event.getClaimedBy())
-            .addValue("claimedAt", event.getClaimedAt() != null ? Timestamp.valueOf(event.getClaimedAt()) : null);
+            .addValue("claimedAt", event.getClaimedAt() != null ? com.zhicore.common.util.DateTimeUtils.toTimestamp(event.getClaimedAt()) : null);
         
         int rows = namedParameterJdbcTemplate.update(sql, params);
         
@@ -158,12 +159,12 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
             .addValue("retryCount", event.getRetryCount())
             .addValue("maxRetries", event.getMaxRetries())
             .addValue("nextAttemptAt", event.getNextAttemptAt() != null ?
-                Timestamp.valueOf(event.getNextAttemptAt()) : null)
+                com.zhicore.common.util.DateTimeUtils.toTimestamp(event.getNextAttemptAt()) : null)
             .addValue("sentAt", event.getSentAt() != null ?
-                Timestamp.valueOf(event.getSentAt()) : null)
+                com.zhicore.common.util.DateTimeUtils.toTimestamp(event.getSentAt()) : null)
             .addValue("errorMessage", event.getErrorMessage())
             .addValue("claimedBy", event.getClaimedBy())
-            .addValue("claimedAt", event.getClaimedAt() != null ? Timestamp.valueOf(event.getClaimedAt()) : null);
+            .addValue("claimedAt", event.getClaimedAt() != null ? com.zhicore.common.util.DateTimeUtils.toTimestamp(event.getClaimedAt()) : null);
         
         int rows = namedParameterJdbcTemplate.update(sql, params);
         
@@ -233,8 +234,8 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
     }
     
     @Override
-    public List<OutboxEvent> claimRetryableEvents(java.time.LocalDateTime now,
-                                                  java.time.LocalDateTime reclaimBefore,
+    public List<OutboxEvent> claimRetryableEvents(java.time.OffsetDateTime now,
+                                                  java.time.OffsetDateTime reclaimBefore,
                                                   String claimedBy,
                                                   int limit) {
         String sql = """
@@ -272,8 +273,8 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
             """;
 
         MapSqlParameterSource params = new MapSqlParameterSource()
-            .addValue("now", Timestamp.valueOf(now))
-            .addValue("reclaimBefore", Timestamp.valueOf(reclaimBefore))
+            .addValue("now", com.zhicore.common.util.DateTimeUtils.toTimestamp(now))
+            .addValue("reclaimBefore", com.zhicore.common.util.DateTimeUtils.toTimestamp(reclaimBefore))
             .addValue("claimedBy", claimedBy)
             .addValue("limit", limit);
 
@@ -303,7 +304,7 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
     }
 
     @Override
-    public java.time.LocalDateTime findOldestPendingCreatedAt() {
+    public java.time.OffsetDateTime findOldestPendingCreatedAt() {
         String sql = """
             SELECT MIN(created_at)
             FROM outbox_events
@@ -311,11 +312,11 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
             """;
 
         Timestamp timestamp = namedParameterJdbcTemplate.queryForObject(sql, new MapSqlParameterSource(), Timestamp.class);
-        return timestamp != null ? timestamp.toLocalDateTime() : null;
+        return DateTimeUtils.toOffsetDateTime(timestamp);
     }
 
     @Override
-    public long countSucceededSince(java.time.LocalDateTime since) {
+    public long countSucceededSince(java.time.OffsetDateTime since) {
         String sql = """
             SELECT COUNT(*)
             FROM outbox_events
@@ -325,14 +326,14 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
 
         Long count = namedParameterJdbcTemplate.queryForObject(
                 sql,
-                new MapSqlParameterSource().addValue("since", Timestamp.valueOf(since)),
+                new MapSqlParameterSource().addValue("since", com.zhicore.common.util.DateTimeUtils.toTimestamp(since)),
                 Long.class
         );
         return count != null ? count : 0L;
     }
 
     @Override
-    public long countFailedSince(java.time.LocalDateTime since, int defaultMaxRetries) {
+    public long countFailedSince(java.time.OffsetDateTime since, int defaultMaxRetries) {
         String sql = """
             SELECT COUNT(*)
             FROM outbox_events
@@ -344,7 +345,7 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
         Long count = namedParameterJdbcTemplate.queryForObject(
                 sql,
                 new MapSqlParameterSource()
-                        .addValue("since", Timestamp.valueOf(since))
+                        .addValue("since", com.zhicore.common.util.DateTimeUtils.toTimestamp(since))
                         .addValue("defaultMaxRetries", defaultMaxRetries),
                 Long.class
         );
@@ -352,7 +353,7 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
     }
 
     @Override
-    public long countDeadSince(java.time.LocalDateTime since, int defaultMaxRetries) {
+    public long countDeadSince(java.time.OffsetDateTime since, int defaultMaxRetries) {
         String sql = """
             SELECT COUNT(*)
             FROM outbox_events
@@ -369,7 +370,7 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
         Long count = namedParameterJdbcTemplate.queryForObject(
                 sql,
                 new MapSqlParameterSource()
-                        .addValue("since", Timestamp.valueOf(since))
+                        .addValue("since", com.zhicore.common.util.DateTimeUtils.toTimestamp(since))
                         .addValue("defaultMaxRetries", defaultMaxRetries),
                 Long.class
         );

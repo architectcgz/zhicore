@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章排行榜写服务。
@@ -20,7 +20,7 @@ public class PostRankingCommandService {
     private final PostRankingStore postRankingStore;
     private final HotScoreCalculator scoreCalculator;
 
-    public void updatePostScore(String postId, PostStats stats, LocalDateTime publishedAt) {
+    public void updatePostScore(String postId, PostStats stats, OffsetDateTime publishedAt) {
         double score = scoreCalculator.calculatePostHotScore(stats, publishedAt);
         postRankingStore.updatePostScore(postId, score);
         log.debug("Updated post score: postId={}, score={}", postId, score);

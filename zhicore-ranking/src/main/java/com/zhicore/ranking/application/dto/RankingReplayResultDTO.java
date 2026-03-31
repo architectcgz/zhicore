@@ -3,7 +3,7 @@ package com.zhicore.ranking.application.dto;
 import lombok.Builder;
 import lombok.Value;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * Ranking ledger 全量补算结果。
@@ -13,5 +13,5 @@ import java.time.LocalDateTime;
 public class RankingReplayResultDTO {
 
     int replayedEvents;
-    LocalDateTime rebuiltAt;
+    OffsetDateTime rebuiltAt;
 }

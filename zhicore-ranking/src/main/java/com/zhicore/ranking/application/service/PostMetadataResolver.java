@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -96,7 +96,7 @@ public class PostMetadataResolver {
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
-        LocalDateTime publishedAt = post.getPublishedAt() != null ? post.getPublishedAt() : post.getCreatedAt();
+        OffsetDateTime publishedAt = post.getPublishedAt() != null ? post.getPublishedAt() : post.getCreatedAt();
         return PostMetadata.builder()
                 .postId(post.getId())
                 .authorId(post.getOwnerId())
@@ -111,7 +111,7 @@ public class PostMetadataResolver {
 
         private Long postId;
         private Long authorId;
-        private LocalDateTime publishedAt;
+        private OffsetDateTime publishedAt;
         @Builder.Default
         private List<Long> topicIds = Collections.emptyList();
     }

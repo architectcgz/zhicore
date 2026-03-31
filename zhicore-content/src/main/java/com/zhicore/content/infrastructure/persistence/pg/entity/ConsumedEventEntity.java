@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 已消费事件实体
@@ -43,5 +43,5 @@ public class ConsumedEventEntity {
      * 
      * 记录事件被消费的时间，用于定期清理
      */
-    private LocalDateTime consumedAt;
+    private OffsetDateTime consumedAt;
 }

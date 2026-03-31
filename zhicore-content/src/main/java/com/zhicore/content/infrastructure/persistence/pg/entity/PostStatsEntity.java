@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章统计信息数据库实体
@@ -52,5 +52,5 @@ public class PostStatsEntity {
     /**
      * 最后更新时间
      */
-    private LocalDateTime lastUpdatedAt;
+    private OffsetDateTime lastUpdatedAt;
 }

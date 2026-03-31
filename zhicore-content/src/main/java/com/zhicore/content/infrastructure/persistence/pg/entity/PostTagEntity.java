@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * Post-Tag 关联实体
@@ -36,7 +36,7 @@ public class PostTagEntity implements Serializable {
     /**
      * 关联创建时间
      */
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     /**
      * 构造函数（用于创建新关联）
@@ -44,6 +44,6 @@ public class PostTagEntity implements Serializable {
     public PostTagEntity(Long postId, Long tagId) {
         this.postId = postId;
         this.tagId = tagId;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now();
     }
 }

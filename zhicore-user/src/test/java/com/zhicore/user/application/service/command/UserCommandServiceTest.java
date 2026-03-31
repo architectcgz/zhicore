@@ -28,7 +28,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -110,8 +110,8 @@ class UserCommandServiceTest {
                 true,
                 roles,
                 0L,
-                LocalDateTime.now(),
-                LocalDateTime.now()
+                OffsetDateTime.now(),
+                OffsetDateTime.now()
         ));
     }
 

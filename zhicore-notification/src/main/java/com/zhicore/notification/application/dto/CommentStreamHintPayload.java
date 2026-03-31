@@ -31,5 +31,8 @@ public class CommentStreamHintPayload {
     @JsonSerialize(using = ToStringSerializer.class)
     Long parentId;
 
+    @JsonSerialize(using = ToStringSerializer.class)
+    Long rootId;
+
     Instant occurredAt;
 }

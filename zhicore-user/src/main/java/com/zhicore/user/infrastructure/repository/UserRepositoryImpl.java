@@ -230,8 +230,8 @@ public class UserRepositoryImpl implements UserRepository {
                 po.getAllowStrangerMessage() == null || po.getAllowStrangerMessage(),
                 roles,
                 po.getProfileVersion(),
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt()),
-                DateTimeUtils.toLocalDateTime(po.getUpdatedAt())
+                po.getCreatedAt(),
+                po.getUpdatedAt()
         ));
     }
 
@@ -251,8 +251,8 @@ public class UserRepositoryImpl implements UserRepository {
         po.setIsActive(user.getStatus() == UserStatus.ACTIVE);
         po.setEmailConfirmed(user.isEmailConfirmed());
         po.setAllowStrangerMessage(user.isStrangerMessageAllowed());
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(user.getCreatedAt()));
-        po.setUpdatedAt(DateTimeUtils.toOffsetDateTime(user.getUpdatedAt()));
+        po.setCreatedAt(user.getCreatedAt());
+        po.setUpdatedAt(user.getUpdatedAt());
         po.setDeleted(false);
         return po;
     }

@@ -13,7 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -43,8 +43,8 @@ class TagListQueryServiceTest {
                 .id(1000L)
                 .name("Java")
                 .slug("java")
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .createdAt(OffsetDateTime.now())
+                .updatedAt(OffsetDateTime.now())
                 .build();
         when(tagRepository.findAll(any())).thenReturn(new PageImpl<>(List.of(tag), PageRequest.of(0, 20), 1));
         when(tagAssembler.toDTO(tag)).thenReturn(tagDTO);

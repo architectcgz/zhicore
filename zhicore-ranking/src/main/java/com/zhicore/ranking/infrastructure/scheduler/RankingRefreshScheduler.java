@@ -15,7 +15,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 排行榜定时刷新任务
@@ -110,7 +110,7 @@ public class RankingRefreshScheduler {
     /**
      * 手动触发文章热度刷新（用于管理接口）
      */
-    public void manualRefreshPostScore(String postId, PostStats stats, LocalDateTime publishedAt) {
+    public void manualRefreshPostScore(String postId, PostStats stats, OffsetDateTime publishedAt) {
         postRankingService.updatePostScore(postId, stats, publishedAt);
         log.info("手动刷新文章热度: postId={}", postId);
     }

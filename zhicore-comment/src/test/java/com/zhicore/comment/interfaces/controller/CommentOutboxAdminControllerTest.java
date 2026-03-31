@@ -15,7 +15,7 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -56,7 +56,7 @@ class CommentOutboxAdminControllerTest extends ControllerTestSupport {
                 .failedCount(1)
                 .deadCount(2)
                 .succeededCount(24)
-                .oldestPendingCreatedAt(LocalDateTime.of(2026, 3, 16, 11, 0))
+                .oldestPendingCreatedAt(OffsetDateTime.parse("2026-03-16T11:00:00+08:00"))
                 .build());
 
         try (MockedStatic<UserContext> userContext = org.mockito.Mockito.mockStatic(UserContext.class)) {

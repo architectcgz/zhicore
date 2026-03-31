@@ -6,11 +6,14 @@ import com.zhicore.content.domain.model.TagId;
 import com.zhicore.content.domain.model.TopicId;
 import com.zhicore.content.domain.model.UserId;
 import com.zhicore.content.infrastructure.persistence.pg.typehandler.PostIdTypeHandler;
+import com.zhicore.content.infrastructure.persistence.pg.typehandler.OffsetDateTimeTypeHandler;
 import com.zhicore.content.infrastructure.persistence.pg.typehandler.TagIdTypeHandler;
 import com.zhicore.content.infrastructure.persistence.pg.typehandler.TopicIdTypeHandler;
 import com.zhicore.content.infrastructure.persistence.pg.typehandler.UserIdTypeHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.time.OffsetDateTime;
 
 /**
  * MyBatis 配置
@@ -43,6 +46,7 @@ public class MyBatisConfig {
             configuration.getTypeHandlerRegistry().register(UserId.class, UserIdTypeHandler.class);
             configuration.getTypeHandlerRegistry().register(TagId.class, TagIdTypeHandler.class);
             configuration.getTypeHandlerRegistry().register(TopicId.class, TopicIdTypeHandler.class);
+            configuration.getTypeHandlerRegistry().register(OffsetDateTime.class, OffsetDateTimeTypeHandler.class);
         };
     }
 }

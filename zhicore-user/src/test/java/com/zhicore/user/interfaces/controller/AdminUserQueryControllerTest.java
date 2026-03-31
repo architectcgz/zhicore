@@ -13,7 +13,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.mockito.Mockito.when;
@@ -47,7 +48,7 @@ class AdminUserQueryControllerTest {
                 .nickname("测试用户")
                 .avatar("avatar-1")
                 .status("ACTIVE")
-                .createdAt(LocalDateTime.of(2026, 3, 11, 10, 0))
+                .createdAt(OffsetDateTime.of(2026, 3, 11, 10, 0, 0, 0, ZoneOffset.ofHours(8)))
                 .roles(List.of("USER"))
                 .build();
         when(userManageQueryService.queryUsers("test", "ACTIVE", 1, 20))

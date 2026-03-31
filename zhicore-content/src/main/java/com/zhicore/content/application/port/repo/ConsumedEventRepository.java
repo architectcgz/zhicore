@@ -1,6 +1,6 @@
 package com.zhicore.content.application.port.repo;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 已消费事件仓储
@@ -29,5 +29,5 @@ public interface ConsumedEventRepository {
      * @param before 清理此时间之前的记录
      * @return 清理的记录数量
      */
-    int cleanupBefore(LocalDateTime before);
+    int cleanupBefore(OffsetDateTime before);
 }

@@ -13,7 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,7 +44,7 @@ class CommentViewAssemblerTest {
                 2001L, 3001L, 1001L, "顶级评论",
                 null, null, null,
                 null, 2001L, null,
-                CommentStatus.NORMAL, LocalDateTime.now(), LocalDateTime.now(),
+                CommentStatus.NORMAL, OffsetDateTime.now(), OffsetDateTime.now(),
                 CommentStats.empty()
         );
         UserSimpleDTO user = new UserSimpleDTO();

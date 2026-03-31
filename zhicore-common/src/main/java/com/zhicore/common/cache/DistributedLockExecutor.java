@@ -37,6 +37,38 @@ public class DistributedLockExecutor {
     }
 
     /**
+     * 非阻塞方式执行带看门狗续期的分布式锁任务：拿不到锁立即跳过。
+     *
+     * <p>适用于执行时长不可预估的任务，避免固定 TTL 锁在执行中途过期。</p>
+     *
+     * @param lockKey 完整的锁 key
+     * @param task 要执行的任务
+     */
+    public void executeWithWatchdogLock(String lockKey, Runnable task) {
+        executeWithWatchdogLock(lockKey, Duration.ZERO, task);
+    }
+
+    /**
+     * 使用看门狗分布式锁执行任务。
+     *
+     * @param lockKey 完整的锁 key
+     * @param waitTime 等待时间（Duration.ZERO 表示非阻塞）
+     * @param task 要执行的任务
+     */
+    public void executeWithWatchdogLock(String lockKey, Duration waitTime, Runnable task) {
+        if (lockManager.tryLockWithWatchdog(lockKey, waitTime)) {
+            try {
+                log.info("获取看门狗分布式锁成功，开始执行任务: {}", lockKey);
+                task.run();
+            } finally {
+                lockManager.unlock(lockKey);
+            }
+        } else {
+            log.debug("任务已被其他实例执行（看门狗锁），跳过: {}", lockKey);
+        }
+    }
+
+    /**
      * 使用分布式锁执行任务
      *
      * @param lockKey   完整的锁 key

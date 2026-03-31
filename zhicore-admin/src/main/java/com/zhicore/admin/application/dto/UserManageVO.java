@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -49,7 +49,7 @@ public class UserManageVO {
     /**
      * 创建时间
      */
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
     
     /**
      * 角色列表

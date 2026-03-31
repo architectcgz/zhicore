@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,7 +59,7 @@ public class RankingLedgerReplayService {
 
     private int replayLedgerIntoBuckets() {
         int batchSize = Math.max(pipelineProperties.getFlushBatchSize(), 200);
-        LocalDateTime cursorOccurredAt = null;
+        OffsetDateTime cursorOccurredAt = null;
         String cursorEventId = null;
         int replayed = 0;
 
@@ -94,11 +94,11 @@ public class RankingLedgerReplayService {
         }
     }
 
-    private LocalDateTime floorBucketStart(LocalDateTime occurredAt) {
+    private OffsetDateTime floorBucketStart(OffsetDateTime occurredAt) {
         long bucketWindowSeconds = pipelineProperties.getBucketWindowSeconds();
-        long epochSecond = occurredAt.atZone(ZoneId.systemDefault()).toEpochSecond();
+        long epochSecond = occurredAt.toEpochSecond();
         long floored = (epochSecond / bucketWindowSeconds) * bucketWindowSeconds;
-        return LocalDateTime.ofInstant(Instant.ofEpochSecond(floored), ZoneId.systemDefault());
+        return OffsetDateTime.ofInstant(Instant.ofEpochSecond(floored), ZoneId.systemDefault());
     }
 
     private List<String> acquireReplayLocks() {

@@ -54,6 +54,11 @@ public class CommentCreatedIntegrationEvent extends IntegrationEvent {
     private final Long parentId;
 
     /**
+     * 根评论ID（顶级评论时等于 commentId）。
+     */
+    private final Long rootId;
+
+    /**
      * 被回复用户ID。
      */
     private final Long replyToUserId;
@@ -73,6 +78,7 @@ public class CommentCreatedIntegrationEvent extends IntegrationEvent {
      * @param postOwnerId 文章作者 ID
      * @param commentAuthorId 评论作者 ID
      * @param parentId 父评论ID
+     * @param rootId 根评论ID
      * @param replyToUserId 被回复用户 ID
      * @param commentContent 评论内容
      * @param aggregateVersion 聚合根版本号（用于并发控制）
@@ -85,6 +91,7 @@ public class CommentCreatedIntegrationEvent extends IntegrationEvent {
                                           @JsonProperty("postOwnerId") Long postOwnerId,
                                           @JsonProperty("commentAuthorId") Long commentAuthorId,
                                           @JsonProperty("parentId") Long parentId,
+                                          @JsonProperty("rootId") Long rootId,
                                           @JsonProperty("replyToUserId") Long replyToUserId,
                                           @JsonProperty("commentContent") String commentContent,
                                           @JsonProperty("aggregateVersion") Long aggregateVersion) {
@@ -94,6 +101,7 @@ public class CommentCreatedIntegrationEvent extends IntegrationEvent {
         this.postOwnerId = postOwnerId;
         this.commentAuthorId = commentAuthorId;
         this.parentId = parentId;
+        this.rootId = rootId;
         this.replyToUserId = replyToUserId;
         this.commentContent = commentContent;
     }

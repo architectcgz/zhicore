@@ -1,6 +1,11 @@
 server:
   port: 8090
 
+app:
+  scheduling:
+    pool-size: 2
+    thread-name-prefix: migration-scheduler-
+
 spring:
   application:
     name: ZhiCore-migration

@@ -1,28 +1,34 @@
 package com.zhicore.migration.service.gray;
 
+import com.zhicore.common.cache.DistributedLockExecutor;
 import com.zhicore.migration.service.gray.store.GrayReleaseStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 灰度期间数据对账任务
- * 定期检查新旧系统数据一致性
+ * 灰度期间数据对账任务。
+ *
+ * <p>定期检查新旧系统数据一致性，并通过看门狗分布式锁确保多实例部署时只有一个实例执行。</p>
  */
 @Slf4j
 @RequiredArgsConstructor
 public class GrayDataReconciliationTask {
 
+    /** 灰度数据对账分布式锁 key。 */
+    public static final String RECONCILIATION_LOCK_KEY = "gray:migration:reconciliation:task:lock";
+
     private final GrayReleaseStore store;
     private final GrayReleaseSettings settings;
+    private final DistributedLockExecutor distributedLockExecutor;
 
     /**
-     * 定时执行数据对账
-     * 默认每5分钟执行一次
+     * 定时执行数据对账。
+     * 默认每 5 分钟执行一次。
      */
     @Scheduled(fixedDelayString = "${gray.reconciliation-interval:300}000")
     public void reconcile() {
@@ -30,34 +36,32 @@ public class GrayDataReconciliationTask {
             return;
         }
 
+        distributedLockExecutor.executeWithWatchdogLock(RECONCILIATION_LOCK_KEY, this::doReconcile);
+    }
+
+    private void doReconcile() {
         log.info("开始执行灰度数据对账...");
-        
+
         ReconciliationResult result = ReconciliationResult.builder()
-                .timestamp(LocalDateTime.now())
+                .timestamp(OffsetDateTime.now())
                 .build();
 
         try {
-            // 对账用户数据
             ReconciliationDetail userResult = reconcileUsers();
             result.getDetails().add(userResult);
 
-            // 对账文章数据
             ReconciliationDetail postResult = reconcilePosts();
             result.getDetails().add(postResult);
 
-            // 对账评论数据
             ReconciliationDetail commentResult = reconcileComments();
             result.getDetails().add(commentResult);
 
-            // 对账统计数据
             ReconciliationDetail statsResult = reconcileStats();
             result.getDetails().add(statsResult);
 
-            // 计算总体结果
             result.setSuccess(result.getDetails().stream().allMatch(ReconciliationDetail::isConsistent));
             result.setTotalDiffs(result.getDetails().stream().mapToLong(ReconciliationDetail::getDiffCount).sum());
 
-            // 保存结果
             saveResult(result);
 
             if (result.isSuccess()) {
@@ -74,9 +78,7 @@ public class GrayDataReconciliationTask {
         }
     }
 
-    /**
-     * 对账用户数据
-     */
+    /** 对账用户数据。 */
     private ReconciliationDetail reconcileUsers() {
         ReconciliationDetail detail = ReconciliationDetail.builder()
                 .tableName("users")
@@ -95,9 +97,7 @@ public class GrayDataReconciliationTask {
         return detail;
     }
 
-    /**
-     * 对账文章数据
-     */
+    /** 对账文章数据。 */
     private ReconciliationDetail reconcilePosts() {
         ReconciliationDetail detail = ReconciliationDetail.builder()
                 .tableName("posts")
@@ -115,9 +115,7 @@ public class GrayDataReconciliationTask {
         return detail;
     }
 
-    /**
-     * 对账评论数据
-     */
+    /** 对账评论数据。 */
     private ReconciliationDetail reconcileComments() {
         ReconciliationDetail detail = ReconciliationDetail.builder()
                 .tableName("comments")
@@ -135,9 +133,7 @@ public class GrayDataReconciliationTask {
         return detail;
     }
 
-    /**
-     * 对账统计数据
-     */
+    /** 对账统计数据。 */
     private ReconciliationDetail reconcileStats() {
         ReconciliationDetail detail = ReconciliationDetail.builder()
                 .tableName("stats")
@@ -156,27 +152,21 @@ public class GrayDataReconciliationTask {
         return detail;
     }
 
-    /**
-     * 保存对账结果
-     */
+    /** 保存对账结果。 */
     private void saveResult(ReconciliationResult result) {
         store.saveReconciliationResult(result);
     }
 
-    /**
-     * 获取最新对账结果
-     */
+    /** 获取最新对账结果。 */
     public ReconciliationResult getLatestResult() {
         return store.getLatestReconciliationResult();
     }
 
-    /**
-     * 对账结果
-     */
+    /** 对账结果。 */
     @lombok.Data
     @lombok.Builder
     public static class ReconciliationResult {
-        private LocalDateTime timestamp;
+        private OffsetDateTime timestamp;
         private boolean success;
         private long totalDiffs;
         private String errorMessage;
@@ -184,9 +174,7 @@ public class GrayDataReconciliationTask {
         private List<ReconciliationDetail> details = new ArrayList<>();
     }
 
-    /**
-     * 对账详情
-     */
+    /** 对账详情。 */
     @lombok.Data
     @lombok.Builder
     public static class ReconciliationDetail {

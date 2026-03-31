@@ -7,6 +7,7 @@ import com.zhicore.notification.application.sentinel.NotificationSentinelResourc
 import com.zhicore.notification.domain.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -21,10 +22,10 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class NotificationQueryService {
 
-    private static final Duration UNREAD_COUNT_TTL = Duration.ofMinutes(5);
-
     private final NotificationRepository notificationRepository;
     private final NotificationUnreadCountStore notificationUnreadCountStore;
+    @Value("${cache.ttl.unread-count:300}")
+    private long unreadCountTtlSeconds;
 
     @SentinelResource(
             value = NotificationSentinelResources.GET_UNREAD_COUNT,
@@ -44,7 +45,7 @@ public class NotificationQueryService {
         int count = notificationRepository.countUnread(userId);
 
         try {
-            notificationUnreadCountStore.set(userId, count, UNREAD_COUNT_TTL);
+            notificationUnreadCountStore.set(userId, count, Duration.ofSeconds(unreadCountTtlSeconds));
         } catch (Exception e) {
             log.warn("缓存未读计数失败: {}", e.getMessage());
         }

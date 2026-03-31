@@ -6,6 +6,7 @@ import com.zhicore.comment.domain.cursor.HotCursorCodec.HotCursor;
 import com.zhicore.comment.domain.cursor.TimeCursorCodec.TimeCursor;
 import com.zhicore.common.result.PageResult;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -66,11 +67,6 @@ public interface CommentRepository {
     List<Comment> findTopLevelByPostIdOrderByTimeCursor(Long postId, TimeCursor cursor, int size);
 
     /**
-     * 按时间游标增量查询顶级评论（查询比游标更新的数据）。
-     */
-    List<Comment> findTopLevelByPostIdIncremental(Long postId, TimeCursor cursor, int size);
-
-    /**
      * 按热度排序查询顶级评论（游标分页）
      */
     List<Comment> findTopLevelByPostIdOrderByLikesCursor(Long postId, HotCursor cursor, int size);
@@ -86,6 +82,16 @@ public interface CommentRepository {
      * 查询回复列表（游标分页）
      */
     List<Comment> findRepliesByRootIdCursor(Long rootId, TimeCursor cursor, int size);
+
+    /**
+     * 按时间正序增量查询顶级评论。
+     */
+    List<Comment> findTopLevelByPostIdIncremental(Long postId, OffsetDateTime afterCreatedAt, Long afterId, int size);
+
+    /**
+     * 按时间正序增量查询回复。
+     */
+    List<Comment> findRepliesByRootIdIncremental(Long rootId, OffsetDateTime afterCreatedAt, Long afterId, int size);
 
     /**
      * 查询热门回复（预加载）

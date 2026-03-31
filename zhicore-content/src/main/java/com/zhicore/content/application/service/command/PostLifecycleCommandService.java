@@ -3,6 +3,7 @@ package com.zhicore.content.application.service.command;
 import com.zhicore.content.application.command.commands.DeletePostCommand;
 import com.zhicore.content.application.command.handlers.DeletePostHandler;
 import com.zhicore.content.application.port.repo.PostRepository;
+import com.zhicore.content.application.service.PostReaderPresenceAppService;
 import com.zhicore.content.application.service.OwnedPostLoadService;
 import com.zhicore.content.application.service.PostContentImageCleanupService;
 import com.zhicore.content.domain.model.Post;
@@ -28,12 +29,14 @@ public class PostLifecycleCommandService {
     private final PostCoverImageCommandService postCoverImageCommandService;
     private final DeletePostHandler deletePostHandler;
     private final PostContentImageCleanupService postContentImageCleanupService;
+    private final PostReaderPresenceAppService postReaderPresenceAppService;
 
     @Transactional
     public void unpublishPost(Long userId, Long postId) {
         Post post = ownedPostLoadService.load(postId, userId);
         post.unpublish();
         postRepository.update(post);
+        postReaderPresenceAppService.evictPost(postId);
         log.info("Post unpublished: postId={}, userId={}", postId, userId);
     }
 

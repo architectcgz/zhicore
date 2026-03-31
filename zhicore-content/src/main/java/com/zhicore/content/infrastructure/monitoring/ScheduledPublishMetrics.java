@@ -10,7 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 定时发布 durable queue 监控。
@@ -36,13 +36,13 @@ public class ScheduledPublishMetrics {
     @Scheduled(fixedRate = 60000, initialDelay = 30000)
     public void collectMetrics() {
         try {
-            LocalDateTime now = LocalDateTime.now();
+            OffsetDateTime now = OffsetDateTime.now();
             long pendingCount = scheduledPublishEventMapper.countByStatus(ScheduledPublishEventEntity.ScheduledPublishStatus.PENDING.name());
-            LocalDateTime oldestCreatedAt = scheduledPublishEventMapper.findOldestPendingCreatedAt();
+            OffsetDateTime oldestCreatedAt = scheduledPublishEventMapper.findOldestPendingCreatedAt();
             long oldestAgeSeconds = oldestCreatedAt != null
                     ? Duration.between(oldestCreatedAt, now).getSeconds()
                     : 0L;
-            LocalDateTime since = now.minusMinutes(1);
+            OffsetDateTime since = now.minusMinutes(1);
             long dispatchedLastMinute = scheduledPublishEventMapper.countSucceededSince(since);
             long failedLastMinute = scheduledPublishEventMapper.countFailedSince(since);
             long deadLastMinute = scheduledPublishEventMapper.countDeadSince(since);

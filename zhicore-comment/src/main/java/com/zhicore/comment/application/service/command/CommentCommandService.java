@@ -121,6 +121,7 @@ public class CommentCommandService {
                     post.getOwnerId(),
                     comment.getAuthorId(),
                     comment.getParentId(),
+                    comment.getRootId(),
                     comment.getReplyToUserId(),
                     truncateContent(comment.getContent(), 100),
                     null

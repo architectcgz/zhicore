@@ -1,5 +1,6 @@
 package com.zhicore.content.infrastructure.monitoring;
 
+import com.zhicore.common.cache.DistributedLockExecutor;
 import com.zhicore.content.infrastructure.alert.AlertService;
 import com.zhicore.content.infrastructure.config.MonitoringProperties;
 import lombok.RequiredArgsConstructor;
@@ -11,33 +12,36 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 存储空间监控器
- * 定期检查数据库存储空间使用情况
- * 
- * 使用 @ConfigurationProperties 支持配置动态刷新
+ * 存储空间监控器。
+ * 定期检查数据库存储空间使用情况。
+ *
+ * <p>使用看门狗分布式锁避免多实例重复检查和重复告警。</p>
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class StorageMonitor {
 
+    public static final String STORAGE_CHECK_LOCK_KEY = "content:monitoring:storage-check:lock";
+
     private final AlertService alertService;
     private final MonitoringProperties monitoringProperties;
     private final JdbcTemplate jdbcTemplate;
     private final MongoTemplate mongoTemplate;
+    private final DistributedLockExecutor distributedLockExecutor;
 
-    /**
-     * 每小时检查一次存储空间
-     * 注意：实际的存储空间检查需要根据具体的数据库实现
-     * 这里提供一个框架，实际实现需要查询数据库的存储信息
-     */
-    @Scheduled(fixedRate = 3600000) // 1小时
+    /** 每小时检查一次存储空间。 */
+    @Scheduled(fixedRate = 3600000)
     public void checkStorageSpace() {
         if (monitoringProperties.getStorage() != null && !monitoringProperties.getStorage().isEnabled()) {
             log.debug("Storage space check disabled by config");
             return;
         }
 
+        distributedLockExecutor.executeWithWatchdogLock(STORAGE_CHECK_LOCK_KEY, this::doCheckStorageSpace);
+    }
+
+    private void doCheckStorageSpace() {
         log.debug("Checking storage space...");
 
         try {
@@ -55,9 +59,6 @@ public class StorageMonitor {
         log.debug("Storage space check completed");
     }
 
-    /**
-     * 检查 PostgreSQL 存储空间
-     */
     private void checkPostgresStorage() {
         Long dbSize = jdbcTemplate.queryForObject(
                 "SELECT pg_database_size(current_database()) AS db_size",
@@ -80,9 +81,6 @@ public class StorageMonitor {
         }
     }
 
-    /**
-     * 检查 MongoDB 存储空间
-     */
     private void checkMongoStorage() {
         Document stats = mongoTemplate.getDb().runCommand(new Document("dbStats", 1));
 

@@ -12,7 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -31,7 +31,7 @@ class CommentOutboxAdminServiceTest {
     @Test
     @DisplayName("应返回 outbox 摘要统计")
     void shouldReturnSummary() {
-        LocalDateTime oldestPending = LocalDateTime.of(2026, 3, 16, 10, 0);
+        OffsetDateTime oldestPending = OffsetDateTime.parse("2026-03-16T10:00:00+08:00");
         when(outboxEventRepository.countByStatus(OutboxEventStatus.PENDING)).thenReturn(3L);
         when(outboxEventRepository.countByStatus(OutboxEventStatus.FAILED)).thenReturn(2L);
         when(outboxEventRepository.countByStatus(OutboxEventStatus.DEAD)).thenReturn(1L);

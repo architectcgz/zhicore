@@ -10,7 +10,7 @@ import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章草稿文档（MongoDB）
@@ -59,7 +59,7 @@ public class PostDraft {
      * 保存时间
      */
     @Indexed(expireAfterSeconds = 2592000) // 30天自动过期
-    private LocalDateTime savedAt;
+    private OffsetDateTime savedAt;
 
     /**
      * 设备ID

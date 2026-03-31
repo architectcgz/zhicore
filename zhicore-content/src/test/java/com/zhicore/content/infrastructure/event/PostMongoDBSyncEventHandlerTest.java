@@ -27,7 +27,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -133,7 +134,7 @@ class PostMongoDBSyncEventHandlerTest {
     }
 
     private Post buildPost() {
-        LocalDateTime now = LocalDateTime.of(2026, 3, 10, 10, 0);
+        OffsetDateTime now = java.time.LocalDateTime.of(2026, 3, 10, 10, 0).atOffset(ZoneOffset.UTC);
         return Post.reconstitute(new Post.Snapshot(
                 PostId.of(1L),
                 UserId.of(100L),

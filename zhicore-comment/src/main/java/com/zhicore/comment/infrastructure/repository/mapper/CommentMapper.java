@@ -6,7 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -71,28 +71,7 @@ public interface CommentMapper extends BaseMapper<CommentPO> {
             """)
     List<CommentPO> findTopLevelByPostIdOrderByTimeCursor(
             @Param("postId") Long postId,
-            @Param("cursorTime") LocalDateTime cursorTime,
-            @Param("cursorId") Long cursorId,
-            @Param("size") int size
-    );
-
-    @Select("""
-            <script>
-            SELECT c.*, COALESCE(cs.like_count, 0) as like_count, COALESCE(cs.reply_count, 0) as reply_count
-            FROM comments c
-            LEFT JOIN comment_stats cs ON c.id = cs.comment_id
-            WHERE c.post_id = #{postId} AND c.parent_id IS NULL AND c.status = 0
-            <if test="cursorTime != null">
-                AND (c.created_at &gt; #{cursorTime}
-                     OR (c.created_at = #{cursorTime} AND c.id &gt; #{cursorId}))
-            </if>
-            ORDER BY c.created_at ASC, c.id ASC
-            LIMIT #{size}
-            </script>
-            """)
-    List<CommentPO> findTopLevelByPostIdIncremental(
-            @Param("postId") Long postId,
-            @Param("cursorTime") LocalDateTime cursorTime,
+            @Param("cursorTime") OffsetDateTime cursorTime,
             @Param("cursorId") Long cursorId,
             @Param("size") int size
     );
@@ -160,8 +139,50 @@ public interface CommentMapper extends BaseMapper<CommentPO> {
             """)
     List<CommentPO> findRepliesByRootIdCursor(
             @Param("rootId") Long rootId,
-            @Param("cursorTime") LocalDateTime cursorTime,
+            @Param("cursorTime") OffsetDateTime cursorTime,
             @Param("cursorId") Long cursorId,
+            @Param("size") int size
+    );
+
+    @Select("""
+            <script>
+            SELECT c.*, COALESCE(cs.like_count, 0) as like_count, COALESCE(cs.reply_count, 0) as reply_count
+            FROM comments c
+            LEFT JOIN comment_stats cs ON c.id = cs.comment_id
+            WHERE c.post_id = #{postId} AND c.parent_id IS NULL AND c.status = 0
+            <if test="afterCreatedAt != null">
+                AND (c.created_at &gt; #{afterCreatedAt}
+                     OR (c.created_at = #{afterCreatedAt} AND c.id &gt; #{afterId}))
+            </if>
+            ORDER BY c.created_at ASC, c.id ASC
+            LIMIT #{size}
+            </script>
+            """)
+    List<CommentPO> findTopLevelByPostIdIncremental(
+            @Param("postId") Long postId,
+            @Param("afterCreatedAt") OffsetDateTime afterCreatedAt,
+            @Param("afterId") Long afterId,
+            @Param("size") int size
+    );
+
+    @Select("""
+            <script>
+            SELECT c.*, COALESCE(cs.like_count, 0) as like_count
+            FROM comments c
+            LEFT JOIN comment_stats cs ON c.id = cs.comment_id
+            WHERE c.root_id = #{rootId} AND c.parent_id IS NOT NULL AND c.status = 0
+            <if test="afterCreatedAt != null">
+                AND (c.created_at &gt; #{afterCreatedAt}
+                     OR (c.created_at = #{afterCreatedAt} AND c.id &gt; #{afterId}))
+            </if>
+            ORDER BY c.created_at ASC, c.id ASC
+            LIMIT #{size}
+            </script>
+            """)
+    List<CommentPO> findRepliesByRootIdIncremental(
+            @Param("rootId") Long rootId,
+            @Param("afterCreatedAt") OffsetDateTime afterCreatedAt,
+            @Param("afterId") Long afterId,
             @Param("size") int size
     );
 

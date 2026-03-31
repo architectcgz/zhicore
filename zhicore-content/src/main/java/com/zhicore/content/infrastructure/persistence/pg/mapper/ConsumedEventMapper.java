@@ -6,7 +6,7 @@ import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 已消费事件 Mapper
@@ -24,5 +24,5 @@ public interface ConsumedEventMapper extends BaseMapper<ConsumedEventEntity> {
      * @return 删除的记录数量
      */
     @Delete("DELETE FROM consumed_events WHERE consumed_at < #{before}")
-    int deleteBefore(@Param("before") LocalDateTime before);
+    int deleteBefore(@Param("before") OffsetDateTime before);
 }

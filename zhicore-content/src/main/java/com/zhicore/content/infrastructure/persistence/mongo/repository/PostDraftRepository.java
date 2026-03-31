@@ -4,7 +4,7 @@ import com.zhicore.content.infrastructure.persistence.mongo.document.PostDraft;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,7 +51,7 @@ public interface PostDraftRepository extends MongoRepository<PostDraft, String> 
      * @param expireTime 过期时间
      * @return 删除的数量
      */
-    long deleteBySavedAtBefore(LocalDateTime expireTime);
+    long deleteBySavedAtBefore(OffsetDateTime expireTime);
 
     /**
      * 检查草稿是否存在

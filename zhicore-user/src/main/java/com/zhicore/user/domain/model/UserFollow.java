@@ -3,7 +3,7 @@ package com.zhicore.user.domain.model;
 import lombok.Getter;
 import org.springframework.util.Assert;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Objects;
 
 /**
@@ -27,12 +27,12 @@ public class UserFollow {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
     /**
      * 私有构造函数
      */
-    private UserFollow(Long followerId, Long followingId, LocalDateTime createdAt) {
+    private UserFollow(Long followerId, Long followingId, OffsetDateTime createdAt) {
         Assert.notNull(followerId, "关注者ID不能为空");
         Assert.isTrue(followerId > 0, "关注者ID必须为正数");
         Assert.notNull(followingId, "被关注者ID不能为空");
@@ -44,7 +44,7 @@ public class UserFollow {
         
         this.followerId = followerId;
         this.followingId = followingId;
-        this.createdAt = createdAt != null ? createdAt : LocalDateTime.now();
+        this.createdAt = createdAt != null ? createdAt : OffsetDateTime.now();
     }
 
     /**
@@ -55,7 +55,7 @@ public class UserFollow {
      * @return 关注实体
      */
     public static UserFollow create(Long followerId, Long followingId) {
-        return new UserFollow(followerId, followingId, LocalDateTime.now());
+        return new UserFollow(followerId, followingId, OffsetDateTime.now());
     }
 
     /**
@@ -66,7 +66,7 @@ public class UserFollow {
      * @param createdAt 创建时间
      * @return 关注实体
      */
-    public static UserFollow reconstitute(Long followerId, Long followingId, LocalDateTime createdAt) {
+    public static UserFollow reconstitute(Long followerId, Long followingId, OffsetDateTime createdAt) {
         return new UserFollow(followerId, followingId, createdAt);
     }
 

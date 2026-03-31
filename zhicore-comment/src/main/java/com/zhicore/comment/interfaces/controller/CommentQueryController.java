@@ -89,22 +89,6 @@ public class CommentQueryController {
         return ApiResponse.success(commentQueryService.getTopLevelCommentsByCursor(postId, cursor, size, sort));
     }
 
-    @Operation(summary = "增量获取文章评论", description = "获取比当前游标更新的顶级评论列表，用于实时补拉。")
-    @GetMapping("/post/{postId}/incremental")
-    public ApiResponse<PageResult<CommentVO>> getCommentsIncremental(
-            @Parameter(description = "文章ID", required = true, example = "1234567890")
-            @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId,
-            @Parameter(description = "上次已知最新评论创建时间", example = "2026-03-27T11:00:00")
-            @RequestParam(required = false) String afterCreatedAt,
-            @Parameter(description = "上次已知最新评论ID", example = "1234567890")
-            @RequestParam(required = false) @Min(value = 1, message = "评论ID必须为正数") Long afterId,
-            @Parameter(description = "每次增量拉取数量", example = "20")
-            @RequestParam(defaultValue = "20")
-            @Min(value = 1, message = "每页大小必须为正数")
-            @Max(value = CommonConstants.MAX_PAGE_SIZE, message = "每页大小不能大于100") int size) {
-        return ApiResponse.success(commentQueryService.getTopLevelCommentsIncremental(postId, afterCreatedAt, afterId, size));
-    }
-
     @Operation(summary = "获取评论回复（传统分页）", description = "获取某条评论的所有回复，使用传统分页方式。适用于Web端。")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "查询成功")
@@ -139,19 +123,33 @@ public class CommentQueryController {
         return ApiResponse.success(commentQueryService.getRepliesByCursor(commentId, cursor, size));
     }
 
+    @Operation(summary = "增量获取文章评论", description = "获取比当前游标更新的顶级评论列表，用于实时补拉。")
+    @GetMapping("/post/{postId}/incremental")
+    public ApiResponse<PageResult<CommentVO>> getCommentsIncremental(
+            @Parameter(description = "文章ID", required = true, example = "1234567890")
+            @PathVariable @Min(value = 1, message = "文章ID必须为正数") Long postId,
+            @Parameter(description = "上次已知最新评论创建时间", example = "2026-03-27T11:00:00")
+            @RequestParam(required = false) String afterCreatedAt,
+            @Parameter(description = "上次已知最新评论ID", example = "1234567890")
+            @RequestParam(required = false) @Min(value = 1, message = "评论ID必须为正数") Long afterId,
+            @RequestParam(defaultValue = "20")
+            @Min(value = 1, message = "每页大小必须为正数")
+            @Max(value = CommonConstants.MAX_PAGE_SIZE, message = "每页大小不能大于100") int size) {
+        return ApiResponse.success(commentQueryService.getTopLevelCommentsIncremental(postId, afterCreatedAt, afterId, size));
+    }
+
     @Operation(summary = "增量获取评论回复", description = "获取比当前游标更新的回复列表，用于实时补拉。")
-    @GetMapping("/{commentId}/replies/incremental")
+    @GetMapping("/{rootId}/replies/incremental")
     public ApiResponse<PageResult<CommentVO>> getRepliesIncremental(
             @Parameter(description = "顶级评论ID", required = true, example = "1234567890")
-            @PathVariable @Min(value = 1, message = "评论ID必须为正数") Long commentId,
+            @PathVariable @Min(value = 1, message = "评论ID必须为正数") Long rootId,
             @Parameter(description = "上次已知最新回复创建时间", example = "2026-03-27T11:00:00")
             @RequestParam(required = false) String afterCreatedAt,
             @Parameter(description = "上次已知最新回复ID", example = "1234567890")
             @RequestParam(required = false) @Min(value = 1, message = "评论ID必须为正数") Long afterId,
-            @Parameter(description = "每次增量拉取数量", example = "20")
             @RequestParam(defaultValue = "20")
             @Min(value = 1, message = "每页大小必须为正数")
             @Max(value = CommonConstants.MAX_PAGE_SIZE, message = "每页大小不能大于100") int size) {
-        return ApiResponse.success(commentQueryService.getRepliesIncremental(commentId, afterCreatedAt, afterId, size));
+        return ApiResponse.success(commentQueryService.getRepliesIncremental(rootId, afterCreatedAt, afterId, size));
     }
 }

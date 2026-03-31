@@ -11,7 +11,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -184,7 +185,7 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
         @DisplayName("findByUserIdCursor 游标分页正确")
         void findByUserIdCursorShouldPaginateCorrectly() {
             long userId = 400L;
-            LocalDateTime base = LocalDateTime.of(2026, 1, 1, 12, 0);
+            OffsetDateTime base = java.time.LocalDateTime.of(2026, 1, 1, 12, 0).atOffset(ZoneOffset.UTC);
 
             for (int i = 0; i < 5; i++) {
                 PostLike like = PostLike.reconstitute(50L + i, PostId.of(100L + i), UserId.of(userId), base.plusMinutes(i));
@@ -196,7 +197,7 @@ class PostLikeRepositoryIntegrationTest extends IntegrationTestBase {
             assertThat(page1).hasSize(3);
 
             // 第二页（以第一页最后一条的 createdAt 为游标）
-            LocalDateTime cursor = page1.get(page1.size() - 1).getCreatedAt();
+            OffsetDateTime cursor = page1.get(page1.size() - 1).getCreatedAt();
             List<PostLike> page2 = postLikeRepository.findByUserIdCursor(UserId.of(userId), cursor, 3);
             assertThat(page2).hasSize(2);
 

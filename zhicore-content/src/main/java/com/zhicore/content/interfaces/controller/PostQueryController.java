@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -84,9 +84,17 @@ public class PostQueryController {
         return ApiResponse.success(postQueryFacade.getPostList(query));
     }
 
+    @GetMapping("/authors/{authorId}")
+    public ApiResponse<HybridPageResult<PostDTO>> getPublishedPostsByAuthor(
+            @PathVariable @Min(value = 1, message = "作者ID必须为正数") Long authorId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer size) {
+        return ApiResponse.success(postQueryFacade.getPublishedPostsByAuthor(authorId, page, size));
+    }
+
     @GetMapping("/cursor")
     public ApiResponse<List<PostBriefVO>> getPublishedPostsCursor(
-            @RequestParam(required = false) LocalDateTime cursor,
+            @RequestParam(required = false) OffsetDateTime cursor,
             @RequestParam(defaultValue = "20") int size) {
         return ApiResponse.success(postQueryFacade.getPublishedPostsCursor(cursor, size));
     }

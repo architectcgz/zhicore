@@ -4,7 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -40,6 +40,8 @@ class NotificationTest {
             assertEquals(recipientId, notification.getRecipientId());
             assertEquals(actorId, notification.getActorId());
             assertEquals(NotificationType.LIKE, notification.getType());
+            assertEquals("INTERACTION", notification.getCategory());
+            assertEquals("interaction.like", notification.getEventCode());
             assertEquals(targetType, notification.getTargetType());
             assertEquals(targetId, notification.getTargetId());
             assertEquals("赞了你的文章", notification.getContent());
@@ -144,6 +146,22 @@ class NotificationTest {
             assertNull(notification.getActorId());
             assertEquals("系统维护通知", notification.getContent());
         }
+
+        @Test
+        @DisplayName("创建发布通知 - 成功")
+        void createPostPublishedNotification_Success() {
+            Notification notification = Notification.createPostPublishedNotification(
+                    1L, 123L, 456L, 789L, 1000L);
+
+            assertEquals(NotificationType.POST_PUBLISHED, notification.getType());
+            assertEquals(NotificationCategory.CONTENT.name(), notification.getCategory());
+            assertEquals("content.post-published", notification.getEventCode());
+            assertEquals(456L, notification.getActorId());
+            assertEquals("post", notification.getTargetType());
+            assertEquals(789L, notification.getTargetId());
+            assertEquals("你关注的作者发布了新作品", notification.getContent());
+            assertNotNull(notification.getMetadata());
+        }
     }
 
     @Nested
@@ -173,7 +191,7 @@ class NotificationTest {
             Notification notification = Notification.createFollowNotification(
                     1L, 123L, 456L);
             notification.markAsRead();
-            LocalDateTime firstReadAt = notification.getReadAt();
+            OffsetDateTime firstReadAt = notification.getReadAt();
 
             // When
             notification.markAsRead();
@@ -262,8 +280,8 @@ class NotificationTest {
             Long targetId = 100L;
             String content = "赞了你的文章";
             boolean isRead = true;
-            LocalDateTime readAt = LocalDateTime.now().minusHours(1);
-            LocalDateTime createdAt = LocalDateTime.now().minusDays(1);
+            OffsetDateTime readAt = OffsetDateTime.now().minusHours(1);
+            OffsetDateTime createdAt = OffsetDateTime.now().minusDays(1);
 
             // When
             Notification notification = Notification.reconstitute(
@@ -281,6 +299,35 @@ class NotificationTest {
             assertTrue(notification.isRead());
             assertEquals(readAt, notification.getReadAt());
             assertEquals(createdAt, notification.getCreatedAt());
+        }
+
+        @Test
+        @DisplayName("从持久化重建 - legacy 空 eventCode 应回退到类型默认事件编码")
+        void reconstitute_ShouldFallbackEventCodeWhenLegacyEventCodeIsBlank() {
+            OffsetDateTime createdAt = OffsetDateTime.now().minusDays(1);
+
+            Notification notification = Notification.reconstitute(
+                    1L, 123L, NotificationType.SYSTEM,
+                    "SYSTEM", " ", null,
+                    null, null, null,
+                    "系统通知", false, null, createdAt);
+
+            assertEquals("system.notice", notification.getEventCode());
+        }
+
+        @Test
+        @DisplayName("从持久化重建 - legacy 哨兵 eventCode 应回退到类型默认事件编码")
+        void reconstitute_ShouldFallbackEventCodeWhenLegacySentinelUsed() {
+            OffsetDateTime createdAt = OffsetDateTime.now().minusDays(1);
+
+            Notification notification = Notification.reconstitute(
+                    1L, 123L, NotificationType.LIKE,
+                    "INTERACTION", "__legacy__", null,
+                    456L, "post", 100L,
+                    "赞了你的文章", false, null, createdAt);
+
+            assertEquals("interaction.like", notification.getEventCode());
+            assertEquals("INTERACTION", notification.getCategory());
         }
     }
 }

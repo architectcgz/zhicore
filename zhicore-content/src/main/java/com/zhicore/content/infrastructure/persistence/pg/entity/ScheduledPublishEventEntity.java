@@ -7,7 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 定时发布事件实体（R1）
@@ -39,9 +39,9 @@ public class ScheduledPublishEventEntity {
 
     private Long postId;
 
-    private LocalDateTime scheduledAt;
+    private OffsetDateTime scheduledAt;
 
-    private LocalDateTime nextAttemptAt;
+    private OffsetDateTime nextAttemptAt;
 
     private ScheduledPublishStatus status;
 
@@ -53,7 +53,7 @@ public class ScheduledPublishEventEntity {
      * 当前 claim 时间
      */
     @TableField(updateStrategy = FieldStrategy.IGNORED)
-    private LocalDateTime claimedAt;
+    private OffsetDateTime claimedAt;
 
     /**
      * 当前 claim worker
@@ -69,9 +69,9 @@ public class ScheduledPublishEventEntity {
     @TableField(updateStrategy = FieldStrategy.IGNORED)
     private String lastError;
 
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 
     public enum ScheduledPublishStatus {
         /**

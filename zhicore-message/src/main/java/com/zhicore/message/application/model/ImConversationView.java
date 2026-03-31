@@ -1,6 +1,6 @@
 package com.zhicore.message.application.model;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -32,7 +32,7 @@ public class ImConversationView {
     /**
      * 最后一条消息时间。
      */
-    private final LocalDateTime lastMessageAt;
+    private final OffsetDateTime lastMessageAt;
 
     /**
      * 当前用户未读数。
@@ -42,5 +42,5 @@ public class ImConversationView {
     /**
      * 会话创建时间。
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 }

@@ -77,8 +77,7 @@ public class PostLikeCommandService {
                     postId,
                     userId,
                     authorId,
-                    post.getPublishedAt() == null ? null :
-                            post.getPublishedAt().atZone(java.time.ZoneId.systemDefault()).toInstant()
+                    post.getPublishedAt() == null ? null : post.getPublishedAt().toInstant()
             ));
         });
 

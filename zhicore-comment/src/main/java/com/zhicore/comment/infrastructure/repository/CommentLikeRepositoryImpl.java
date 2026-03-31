@@ -68,7 +68,7 @@ public class CommentLikeRepositoryImpl implements CommentLikeRepository {
         // CommentLike uses composite key (commentId, userId), no separate id field
         po.setCommentId(like.getCommentId());
         po.setUserId(like.getUserId());
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(like.getCreatedAt()));
+        po.setCreatedAt(like.getCreatedAt());
         return po;
     }
 }

@@ -1,8 +1,11 @@
 package com.zhicore.user.interfaces.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhicore.api.dto.post.PostDTO;
+import com.zhicore.common.result.HybridPageResult;
 import com.zhicore.common.exception.GlobalExceptionHandler;
 import com.zhicore.user.application.dto.UserVO;
+import com.zhicore.user.application.service.query.UserPostQueryService;
 import com.zhicore.user.application.port.UserQueryPort;
 import com.zhicore.user.application.query.view.UserSimpleView;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,9 +38,12 @@ class UserQueryControllerTest {
     @Mock
     private UserQueryPort userQueryPort;
 
+    @Mock
+    private UserPostQueryService userPostQueryService;
+
     @BeforeEach
     void setUp() {
-        UserQueryController controller = new UserQueryController(userQueryPort);
+        UserQueryController controller = new UserQueryController(userQueryPort, userPostQueryService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -108,5 +114,38 @@ class UserQueryControllerTest {
                 .andExpect(jsonPath("$.data.1234567890123456789.id").value("1234567890123456789"))
                 .andExpect(jsonPath("$.data.1234567890123456789.userName").value("testuser"))
                 .andExpect(jsonPath("$.data.1234567890123456789.nickname").value("测试用户"));
+    }
+
+    @Test
+    @DisplayName("应该成功获取用户公开文章列表")
+    void shouldGetUserPublishedPosts() throws Exception {
+        PostDTO post = new PostDTO();
+        post.setId(1234567890123456789L);
+        post.setOwnerId(2234567890123456789L);
+        post.setTitle("公开文章");
+
+        HybridPageResult<PostDTO> pageResult = HybridPageResult.<PostDTO>builder()
+                .items(java.util.List.of(post))
+                .page(1)
+                .size(20)
+                .total(1L)
+                .pages(1)
+                .hasMore(false)
+                .paginationMode("offset")
+                .suggestCursorMode(false)
+                .build();
+
+        when(userPostQueryService.getPublishedPostsByAuthor(2234567890123456789L, 1, 20)).thenReturn(pageResult);
+
+        mockMvc.perform(get("/api/v1/users/{userId}/posts", 2234567890123456789L)
+                        .param("page", "1")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].id").value("1234567890123456789"))
+                .andExpect(jsonPath("$.data.items[0].ownerId").value("2234567890123456789"))
+                .andExpect(jsonPath("$.data.items[0].title").value("公开文章"))
+                .andExpect(jsonPath("$.data.page").value(1))
+                .andExpect(jsonPath("$.data.size").value(20))
+                .andExpect(jsonPath("$.data.total").value(1));
     }
 }

@@ -19,6 +19,7 @@ class PostSearchClientContractTest {
         assertGetMapping("getPostSimple", new Class<?>[]{Long.class}, "/api/v1/posts/{postId}/simple");
         assertGetMapping("getPostsSimple", new Class<?>[]{List.class}, "/api/v1/posts/batch/simple");
         assertGetMapping("getPostAuthorId", new Class<?>[]{Long.class}, "/api/v1/posts/{postId}/author");
+        assertGetMapping("getPublishedPostsByAuthor", new Class<?>[]{Long.class, Integer.class, Integer.class}, "/api/v1/posts/authors/{authorId}");
     }
 
     private void assertGetMapping(String methodName, Class<?>[] parameterTypes, String expectedPath)

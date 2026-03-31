@@ -1,10 +1,13 @@
 package com.zhicore.user.interfaces.controller;
 
+import com.zhicore.api.dto.post.PostDTO;
 import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.zhicore.common.result.ApiResponse;
+import com.zhicore.common.result.HybridPageResult;
 import com.zhicore.user.application.assembler.UserAssembler;
 import com.zhicore.user.application.dto.UserVO;
 import com.zhicore.user.application.port.UserQueryPort;
+import com.zhicore.user.application.service.query.UserPostQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -30,6 +33,7 @@ import java.util.stream.Collectors;
 public class UserQueryController {
 
     private final UserQueryPort userQueryPort;
+    private final UserPostQueryService userPostQueryService;
 
     /**
      * 获取用户信息。
@@ -79,6 +83,26 @@ public class UserQueryController {
             @Parameter(description = "用户ID", required = true, example = "1")
             @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId) {
         return ApiResponse.success(UserAssembler.toSimpleDTO(userQueryPort.getUserSimpleById(userId)));
+    }
+
+    /**
+     * 获取指定用户已发布文章列表。
+     *
+     * @param userId 用户 ID
+     * @param page 页码
+     * @param size 每页大小
+     * @return 已发布文章分页结果
+     */
+    @Operation(summary = "获取用户已发布文章列表", description = "分页查询指定用户公开可见的已发布文章")
+    @GetMapping("/{userId}/posts")
+    public ApiResponse<HybridPageResult<PostDTO>> getUserPublishedPosts(
+            @Parameter(description = "用户ID", required = true, example = "1")
+            @PathVariable @Min(value = 1, message = "用户ID必须为正数") Long userId,
+            @Parameter(description = "页码", example = "1")
+            @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "每页大小", example = "20")
+            @RequestParam(defaultValue = "20") int size) {
+        return ApiResponse.success(userPostQueryService.getPublishedPostsByAuthor(userId, page, size));
     }
 
     /**

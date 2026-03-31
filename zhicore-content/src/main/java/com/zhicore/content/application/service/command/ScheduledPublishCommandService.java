@@ -26,7 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -59,13 +59,13 @@ public class ScheduledPublishCommandService {
             + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
 
     @Transactional
-    public void schedulePublish(Long userId, Long postId, LocalDateTime scheduledAt) {
+    public void schedulePublish(Long userId, Long postId, OffsetDateTime scheduledAt) {
         Post post = ownedPostLoadService.load(postId, userId);
 
         post.schedulePublish(scheduledAt);
         postRepository.update(post);
 
-        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
+        OffsetDateTime dbNow = scheduledPublishEventStore.dbNow();
         scheduledPublishEventStore.markTerminalByPostId(
                 postId,
                 ScheduledPublishEventRecord.ScheduledPublishStatus.SUCCEEDED,
@@ -101,7 +101,7 @@ public class ScheduledPublishCommandService {
                 aggregateVersion,
                 postId,
                 userId,
-                scheduledAt.atZone(ZoneId.systemDefault()).toInstant(),
+                scheduledAt.toInstant(),
                 delayLevel,
                 scheduledPublishEventId
         ));
@@ -112,7 +112,7 @@ public class ScheduledPublishCommandService {
                 aggregateVersion,
                 postId,
                 userId,
-                scheduledAt.atZone(ZoneId.systemDefault()).toInstant()
+                scheduledAt.toInstant()
         ));
 
         log.info("Post scheduled: postId={}, userId={}, scheduledAt={}", postId, userId, scheduledAt);
@@ -123,7 +123,7 @@ public class ScheduledPublishCommandService {
         Post post = ownedPostLoadService.load(postId, userId);
         post.cancelSchedule();
         postRepository.update(post);
-        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
+        OffsetDateTime dbNow = scheduledPublishEventStore.dbNow();
         scheduledPublishEventStore.markTerminalByPostId(
                 postId,
                 ScheduledPublishEventRecord.ScheduledPublishStatus.SUCCEEDED,
@@ -160,9 +160,9 @@ public class ScheduledPublishCommandService {
     public void consumeScheduledPublish(PostScheduleExecuteIntegrationEvent message) {
         Long postId = message.getPostId();
 
-        LocalDateTime appNow = LocalDateTime.now();
-        LocalDateTime dbNow = scheduledPublishEventStore.dbNow();
-        LocalDateTime scheduledAt = LocalDateTime.ofInstant(message.getScheduledAt(), ZoneId.systemDefault());
+        OffsetDateTime appNow = OffsetDateTime.now();
+        OffsetDateTime dbNow = scheduledPublishEventStore.dbNow();
+        OffsetDateTime scheduledAt = OffsetDateTime.ofInstant(message.getScheduledAt(), ZoneId.systemDefault());
 
         ScheduledPublishEventRecord record = resolveScheduledPublishRecord(message, postId, scheduledAt, dbNow);
         if (record == null || isTerminal(record)) {
@@ -189,7 +189,7 @@ public class ScheduledPublishCommandService {
             return;
         }
 
-        LocalDateTime effectiveScheduledAt = record.getScheduledAt();
+        OffsetDateTime effectiveScheduledAt = record.getScheduledAt();
         if (effectiveScheduledAt == null) {
             effectiveScheduledAt = scheduledAt;
         }
@@ -213,8 +213,8 @@ public class ScheduledPublishCommandService {
 
     private void handleNotDue(
             ScheduledPublishEventRecord record,
-            LocalDateTime dbNow,
-            LocalDateTime scheduledAt,
+            OffsetDateTime dbNow,
+            OffsetDateTime scheduledAt,
             PostScheduleExecuteIntegrationEvent message
     ) {
         long remainingSeconds = java.time.Duration.between(dbNow, scheduledAt).getSeconds();
@@ -250,7 +250,7 @@ public class ScheduledPublishCommandService {
                     aggregateVersion,
                     record.getPostId(),
                     message.getAuthorId(),
-                    scheduledAt.atZone(ZoneId.systemDefault()).toInstant(),
+                    scheduledAt.toInstant(),
                     delayLevel,
                     record.getEventId()
             ));
@@ -266,7 +266,7 @@ public class ScheduledPublishCommandService {
         scheduledPublishEventStore.update(record);
     }
 
-    private void handleDue(ScheduledPublishEventRecord record, LocalDateTime dbNow, LocalDateTime scheduledAt) {
+    private void handleDue(ScheduledPublishEventRecord record, OffsetDateTime dbNow, OffsetDateTime scheduledAt) {
         try {
             Optional<Long> newVersion = postRepository.publishScheduledIfNeeded(record.getPostId(), dbNow);
             if (newVersion.isPresent()) {
@@ -278,11 +278,15 @@ public class ScheduledPublishCommandService {
                         .withLastError(null);
                 scheduledPublishEventStore.update(record);
 
+                Long postId = record.getPostId();
+                Post publishedPost = postRepository.findById(postId)
+                        .orElseThrow(() -> new IllegalStateException("定时发布成功后文章不存在: " + postId));
                 integrationEventPublisher.publish(new PostPublishedIntegrationEvent(
                         newEventId(),
                         Instant.now(),
-                        record.getPostId(),
-                        dbNow.atZone(ZoneId.systemDefault()).toInstant(),
+                        postId,
+                        publishedPost.getOwnerId().getValue(),
+                        dbNow.toInstant(),
                         newVersion.get()
                 ));
                 return;
@@ -373,8 +377,8 @@ public class ScheduledPublishCommandService {
 
     private ScheduledPublishEventRecord resolveScheduledPublishRecord(PostScheduleExecuteIntegrationEvent message,
                                                                       Long postId,
-                                                                      LocalDateTime scheduledAt,
-                                                                      LocalDateTime dbNow) {
+                                                                      OffsetDateTime scheduledAt,
+                                                                      OffsetDateTime dbNow) {
         Optional<ScheduledPublishEventRecord> existing = Optional.ofNullable(message.getScheduledPublishEventId())
                 .flatMap(scheduledPublishEventStore::findByEventId)
                 .or(() -> scheduledPublishEventStore.findByTriggerEventId(message.getEventId()))
@@ -410,7 +414,7 @@ public class ScheduledPublishCommandService {
         return existing.getStatus() == PostStatus.DRAFT && existing.getScheduledAt() == null;
     }
 
-    private LocalDateTime nextCompensationAt(LocalDateTime dbNow, LocalDateTime scheduledAt) {
+    private OffsetDateTime nextCompensationAt(OffsetDateTime dbNow, OffsetDateTime scheduledAt) {
         return ScheduledPublishNextAttemptResolver.resolveCompensationAt(
                 dbNow,
                 scheduledAt,
@@ -419,7 +423,7 @@ public class ScheduledPublishCommandService {
         );
     }
 
-    private LocalDateTime nextPublishRetryAt(LocalDateTime dbNow, int retryCount) {
+    private OffsetDateTime nextPublishRetryAt(OffsetDateTime dbNow, int retryCount) {
         long backoffMinutes = 1L << Math.min(retryCount - 1, 20);
         long delaySeconds = Math.min(backoffMinutes * 60, scheduledPublishPolicy.maxDelayMinutes() * 60L);
         return dbNow.plusSeconds(delaySeconds);
@@ -429,7 +433,7 @@ public class ScheduledPublishCommandService {
         return executionClaimedByPrefix + "-" + Thread.currentThread().getName();
     }
 
-    private void emitScheduledPublishDlqEvent(ScheduledPublishEventRecord record, LocalDateTime scheduledAt, Exception e)
+    private void emitScheduledPublishDlqEvent(ScheduledPublishEventRecord record, OffsetDateTime scheduledAt, Exception e)
             throws Exception {
         if (record == null || record.getPostId() == null) {
             return;
@@ -443,7 +447,7 @@ public class ScheduledPublishCommandService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("postId", postId);
         payload.put("scheduledTime", scheduledAt != null
-                ? scheduledAt.atZone(ZoneId.systemDefault()).toInstant().toString()
+                ? scheduledAt.toInstant().toString()
                 : null);
         payload.put("failReason", e != null ? e.getMessage() : null);
         payload.put("retryCount", record.getPublishRetryCount());

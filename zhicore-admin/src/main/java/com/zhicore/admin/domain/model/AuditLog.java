@@ -3,7 +3,7 @@ package com.zhicore.admin.domain.model;
 import lombok.Getter;
 import org.springframework.util.Assert;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 审计日志实体
@@ -45,7 +45,7 @@ public class AuditLog {
     /**
      * 创建时间
      */
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
     
     /**
      * 私有构造函数
@@ -82,7 +82,7 @@ public class AuditLog {
         log.targetType = targetType;
         log.targetId = targetId;
         log.reason = reason;
-        log.createdAt = LocalDateTime.now();
+        log.createdAt = OffsetDateTime.now();
         return log;
     }
     
@@ -91,7 +91,7 @@ public class AuditLog {
      */
     public static AuditLog reconstitute(Long id, Long operatorId, AuditAction action,
                                         String targetType, Long targetId, String reason,
-                                        LocalDateTime createdAt) {
+                                        OffsetDateTime createdAt) {
         AuditLog log = new AuditLog();
         log.id = id;
         log.operatorId = operatorId;

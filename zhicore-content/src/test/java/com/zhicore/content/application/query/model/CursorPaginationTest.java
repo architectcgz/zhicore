@@ -5,7 +5,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,7 +29,7 @@ class CursorPaginationTest {
         @Test
         @DisplayName("编码后解码能还原原始值")
         void encodeDecodeShouldRoundTrip() {
-            LocalDateTime publishedAt = LocalDateTime.of(2026, 2, 24, 12, 30, 45);
+            OffsetDateTime publishedAt = java.time.LocalDateTime.of(2026, 2, 24, 12, 30, 45).atOffset(ZoneOffset.UTC);
             Long postId = 12345L;
             CursorToken original = new CursorToken(publishedAt, postId);
 
@@ -43,7 +44,7 @@ class CursorPaginationTest {
         @DisplayName("编码格式为 Base64Url")
         void encodedStringShouldBeBase64Url() {
             CursorToken token = new CursorToken(
-                    LocalDateTime.of(2026, 1, 1, 0, 0), 1L
+                    java.time.LocalDateTime.of(2026, 1, 1, 0, 0).atOffset(ZoneOffset.UTC), 1L
             );
             String encoded = CursorToken.encode(token);
 

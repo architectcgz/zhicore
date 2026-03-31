@@ -33,6 +33,21 @@ public class NotificationPO {
     private Integer type;
 
     /**
+     * 平台化通知分类
+     */
+    private String category;
+
+    /**
+     * 平台化事件编码
+     */
+    private String eventCode;
+
+    /**
+     * 平台化扩展元数据（JSON）
+     */
+    private String metadata;
+
+    /**
      * 触发者ID
      */
     private Long actorId;

@@ -4,7 +4,7 @@ import lombok.Builder;
 import lombok.Value;
 import lombok.With;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 定时发布事件记录模型。
@@ -18,16 +18,16 @@ public class ScheduledPublishEventRecord {
     String eventId;
     String triggerEventId;
     Long postId;
-    LocalDateTime scheduledAt;
-    LocalDateTime nextAttemptAt;
+    OffsetDateTime scheduledAt;
+    OffsetDateTime nextAttemptAt;
     ScheduledPublishStatus status;
     Integer rescheduleRetryCount;
     Integer publishRetryCount;
-    LocalDateTime claimedAt;
+    OffsetDateTime claimedAt;
     String claimedBy;
     String lastError;
-    LocalDateTime createdAt;
-    LocalDateTime updatedAt;
+    OffsetDateTime createdAt;
+    OffsetDateTime updatedAt;
 
     public enum ScheduledPublishStatus {
         PENDING,

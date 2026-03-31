@@ -1,7 +1,7 @@
 package com.zhicore.notification.infrastructure.push;
 
-import com.zhicore.notification.application.dto.CommentStreamHintPayload;
 import com.zhicore.notification.application.dto.AggregatedNotificationVO;
+import com.zhicore.notification.application.dto.CommentStreamHintPayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;

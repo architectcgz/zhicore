@@ -48,14 +48,6 @@ public class CommentCreatedNotificationConsumer extends AbstractEventConsumer<Co
         Long commentId = event.getCommentId();
         String commentContent = event.getCommentContent();
         Long replyToUserId = event.getReplyToUserId();
-        pushService.broadcastCommentStreamHint(String.valueOf(postId), CommentStreamHintPayload.builder()
-                .eventId(event.getEventId())
-                .eventType("COMMENT_CREATED")
-                .postId(postId)
-                .commentId(commentId)
-                .parentId(event.getParentId())
-                .occurredAt(event.getOccurredAt())
-                .build());
 
         // 1. 通知文章作者（如果评论者不是作者本人）
         if (!postOwnerId.equals(commentAuthorId)) {
@@ -87,5 +79,19 @@ public class CommentCreatedNotificationConsumer extends AbstractEventConsumer<Co
             log.info("处理回复通知: commentId={}, author={}, replyTo={}",
                     commentId, commentAuthorId, replyToUserId);
         }
+
+        pushService.broadcastCommentStreamHint(String.valueOf(postId), buildCommentStreamHint(event));
+    }
+
+    private CommentStreamHintPayload buildCommentStreamHint(CommentCreatedIntegrationEvent event) {
+        return CommentStreamHintPayload.builder()
+                .eventId(event.getEventId())
+                .eventType(TopicConstants.TAG_COMMENT_CREATED)
+                .postId(event.getPostId())
+                .commentId(event.getCommentId())
+                .parentId(event.getParentId())
+                .rootId(event.getRootId())
+                .occurredAt(event.getOccurredAt())
+                .build();
     }
 }

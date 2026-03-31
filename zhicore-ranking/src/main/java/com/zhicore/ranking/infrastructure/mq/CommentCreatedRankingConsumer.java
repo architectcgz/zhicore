@@ -10,7 +10,7 @@ import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
 /**
@@ -47,7 +47,7 @@ public class CommentCreatedRankingConsumer extends BaseRankingConsumer
                     event.getPostOwnerId(),
                     RankingMetricType.COMMENT,
                     1,
-                    LocalDateTime.ofInstant(event.getOccurredAt(), ZoneOffset.UTC),
+                    OffsetDateTime.ofInstant(event.getOccurredAt(), ZoneOffset.UTC),
                     null
             );
             if (!created) {

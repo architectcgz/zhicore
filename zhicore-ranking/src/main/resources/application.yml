@@ -1,6 +1,11 @@
 server:
   port: 8108
 
+app:
+  scheduling:
+    pool-size: 4
+    thread-name-prefix: ranking-scheduler-
+
 spring:
   application:
     name: zhicore-ranking

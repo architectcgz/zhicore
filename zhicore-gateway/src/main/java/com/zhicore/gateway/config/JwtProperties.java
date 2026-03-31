@@ -49,6 +49,7 @@ public class JwtProperties {
             "/api/v1/posts/*",
             "/api/v1/users/*/profile",
             "GET:/api/v1/users/*",
+            "GET:/api/v1/users/*/posts",
             "GET:/api/v1/comments/*",
             "GET:/api/v1/comments/post/*/page",
             "GET:/api/v1/comments/*/like-count",

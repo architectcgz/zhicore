@@ -15,7 +15,7 @@ import com.zhicore.common.util.DateTimeUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -98,22 +98,10 @@ public class CommentRepositoryImpl implements CommentRepository {
 
     @Override
     public List<Comment> findTopLevelByPostIdOrderByTimeCursor(Long postId, TimeCursor cursor, int size) {
-        LocalDateTime cursorTime = cursor != null ? cursor.timestamp() : null;
+        OffsetDateTime cursorTime = cursor != null ? cursor.timestamp() : null;
         Long cursorId = cursor != null ? cursor.commentId() : null;
 
         List<CommentPO> poList = commentMapper.findTopLevelByPostIdOrderByTimeCursor(
-                postId, cursorTime, cursorId, size
-        );
-
-        return poList.stream().map(this::toDomain).collect(Collectors.toList());
-    }
-
-    @Override
-    public List<Comment> findTopLevelByPostIdIncremental(Long postId, TimeCursor cursor, int size) {
-        LocalDateTime cursorTime = cursor != null ? cursor.timestamp() : null;
-        Long cursorId = cursor != null ? cursor.commentId() : null;
-
-        List<CommentPO> poList = commentMapper.findTopLevelByPostIdIncremental(
                 postId, cursorTime, cursorId, size
         );
 
@@ -146,13 +134,25 @@ public class CommentRepositoryImpl implements CommentRepository {
 
     @Override
     public List<Comment> findRepliesByRootIdCursor(Long rootId, TimeCursor cursor, int size) {
-        LocalDateTime cursorTime = cursor != null ? cursor.timestamp() : null;
+        OffsetDateTime cursorTime = cursor != null ? cursor.timestamp() : null;
         Long cursorId = cursor != null ? cursor.commentId() : null;
 
         List<CommentPO> poList = commentMapper.findRepliesByRootIdCursor(
                 rootId, cursorTime, cursorId, size
         );
 
+        return poList.stream().map(this::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Comment> findTopLevelByPostIdIncremental(Long postId, OffsetDateTime afterCreatedAt, Long afterId, int size) {
+        List<CommentPO> poList = commentMapper.findTopLevelByPostIdIncremental(postId, afterCreatedAt, afterId, size);
+        return poList.stream().map(this::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Comment> findRepliesByRootIdIncremental(Long rootId, OffsetDateTime afterCreatedAt, Long afterId, int size) {
+        List<CommentPO> poList = commentMapper.findRepliesByRootIdIncremental(rootId, afterCreatedAt, afterId, size);
         return poList.stream().map(this::toDomain).collect(Collectors.toList());
     }
 
@@ -228,8 +228,8 @@ public class CommentRepositoryImpl implements CommentRepository {
                 po.getRootId(),
                 po.getReplyToUserId(),
                 CommentStatus.fromCode(po.getStatus()),
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt()),
-                DateTimeUtils.toLocalDateTime(po.getUpdatedAt()),
+                po.getCreatedAt(),
+                po.getUpdatedAt(),
                 stats
         );
     }
@@ -247,8 +247,8 @@ public class CommentRepositoryImpl implements CommentRepository {
         po.setVoiceId(comment.getVoiceId());
         po.setVoiceDuration(comment.getVoiceDuration());
         po.setStatus(comment.getStatus().getCode());
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(comment.getCreatedAt()));
-        po.setUpdatedAt(DateTimeUtils.toOffsetDateTime(comment.getUpdatedAt()));
+        po.setCreatedAt(comment.getCreatedAt());
+        po.setUpdatedAt(comment.getUpdatedAt());
         return po;
     }
 

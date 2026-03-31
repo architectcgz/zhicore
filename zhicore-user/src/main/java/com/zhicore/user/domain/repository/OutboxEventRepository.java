@@ -3,7 +3,7 @@ package com.zhicore.user.domain.repository;
 import com.zhicore.user.domain.model.OutboxEvent;
 import com.zhicore.user.domain.model.OutboxEventStatus;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -86,13 +86,13 @@ public interface OutboxEventRepository {
      */
     long countByStatus(OutboxEventStatus status);
 
-    LocalDateTime findOldestPendingCreatedAt();
+    OffsetDateTime findOldestPendingCreatedAt();
 
-    long countSucceededSince(LocalDateTime since);
+    long countSucceededSince(OffsetDateTime since);
 
-    long countFailedSince(LocalDateTime since, int defaultMaxRetries);
+    long countFailedSince(OffsetDateTime since, int defaultMaxRetries);
 
-    long countDeadSince(LocalDateTime since, int defaultMaxRetries);
+    long countDeadSince(OffsetDateTime since, int defaultMaxRetries);
 
     /**
      * claim 一批当前可投递事件。
@@ -101,8 +101,8 @@ public interface OutboxEventRepository {
      * - 同一 shardingKey 仅允许最早未完成事件进入处理
      * - PROCESSING 超时事件允许被回收
      */
-    List<OutboxEvent> claimRetryableEvents(LocalDateTime now,
-                                           LocalDateTime reclaimBefore,
+    List<OutboxEvent> claimRetryableEvents(OffsetDateTime now,
+                                           OffsetDateTime reclaimBefore,
                                            String claimedBy,
                                            int limit);
 }

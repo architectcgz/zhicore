@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
@@ -23,12 +23,12 @@ public class OutboxEvent {
     private OutboxEventStatus status;
     private Integer retryCount;
     private Integer maxRetries;
-    private LocalDateTime nextAttemptAt;
-    private LocalDateTime createdAt;
-    private LocalDateTime sentAt;
+    private OffsetDateTime nextAttemptAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime sentAt;
     private String errorMessage;
     private String claimedBy;
-    private LocalDateTime claimedAt;
+    private OffsetDateTime claimedAt;
 
     public static OutboxEvent of(String topic, String tag, String shardingKey, String payload) {
         return new OutboxEvent(
@@ -38,12 +38,12 @@ public class OutboxEvent {
                 shardingKey,
                 payload,
                 OutboxEventStatus.PENDING,
-                LocalDateTime.now()
+                OffsetDateTime.now()
         );
     }
 
     public OutboxEvent(String id, String topic, String tag, String shardingKey,
-                       String payload, OutboxEventStatus status, LocalDateTime createdAt) {
+                       String payload, OutboxEventStatus status, OffsetDateTime createdAt) {
         this.id = id;
         this.topic = topic;
         this.tag = tag;
@@ -59,7 +59,7 @@ public class OutboxEvent {
     public void scheduleNextRetry() {
         this.retryCount++;
         long delaySeconds = Math.min((long) Math.pow(2, this.retryCount - 1), 300);
-        this.nextAttemptAt = LocalDateTime.now().plusSeconds(delaySeconds);
+        this.nextAttemptAt = OffsetDateTime.now().plusSeconds(delaySeconds);
     }
 
     public boolean isExhausted() {

@@ -7,7 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文件上传响应模型
@@ -55,7 +55,7 @@ public class FileUploadResponse {
      * 上传时间
      */
     @Schema(description = "文件上传时间", example = "2026-02-08T00:00:00")
-    private LocalDateTime uploadTime;
+    private OffsetDateTime uploadTime;
 
     /**
      * 文件访问级别

@@ -3,7 +3,7 @@ package com.zhicore.ranking.application.model;
 import lombok.Builder;
 import lombok.Value;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * Ranking 窗口聚合记录。
@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Builder(toBuilder = true)
 public class RankingBucketRecord {
 
-    LocalDateTime bucketStart;
+    OffsetDateTime bucketStart;
     Long postId;
     long viewDelta;
     int likeDelta;
@@ -23,9 +23,9 @@ public class RankingBucketRecord {
     int appliedFavoriteDelta;
     int appliedCommentDelta;
     String flushOwner;
-    LocalDateTime flushStartedAt;
-    LocalDateTime flushedAt;
-    LocalDateTime updatedAt;
+    OffsetDateTime flushStartedAt;
+    OffsetDateTime flushedAt;
+    OffsetDateTime updatedAt;
 
     public long pendingViewDelta() {
         return viewDelta - appliedViewDelta;

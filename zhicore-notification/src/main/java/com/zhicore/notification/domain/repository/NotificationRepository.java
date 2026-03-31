@@ -106,15 +106,17 @@ public interface NotificationRepository {
      *
      * @param id 通知ID
      * @param recipientId 接收者ID
+     * @return true 表示状态发生变更，false 表示未命中或已是已读
      */
-    void markAsRead(Long id, Long recipientId);
+    boolean markAsRead(Long id, Long recipientId);
 
     /**
      * 批量标记所有通知为已读
      *
      * @param recipientId 接收者ID
+     * @return 实际更新的未读数量
      */
-    void markAllAsRead(Long recipientId);
+    int markAllAsRead(Long recipientId);
 
     /**
      * 删除通知

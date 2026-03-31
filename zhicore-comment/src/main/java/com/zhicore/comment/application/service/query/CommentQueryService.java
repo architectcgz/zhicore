@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 
@@ -123,32 +124,6 @@ public class CommentQueryService {
     }
 
     /**
-     * 增量查询顶级评论。
-     */
-    @Transactional(readOnly = true)
-    public PageResult<CommentVO> getTopLevelCommentsIncremental(Long postId,
-                                                                String afterCreatedAt,
-                                                                Long afterId,
-                                                                int size) {
-        TimeCursor timeCursor = buildAfterCursor(afterCreatedAt, afterId);
-        List<Comment> comments = commentRepository.findTopLevelByPostIdIncremental(postId, timeCursor, size + 1);
-
-        boolean hasMore = comments.size() > size;
-        String nextCursor = null;
-        if (hasMore) {
-            comments = comments.subList(0, size);
-            Comment lastComment = comments.get(comments.size() - 1);
-            nextCursor = timeCursorCodec.encode(lastComment);
-        } else if (!comments.isEmpty()) {
-            Comment lastComment = comments.get(comments.size() - 1);
-            nextCursor = timeCursorCodec.encode(lastComment);
-        }
-
-        List<CommentVO> voList = commentViewAssembler.assembleCommentVOList(comments);
-        return PageResult.cursor(voList, nextCursor, hasMore);
-    }
-
-    /**
      * 传统分页查询回复。
      */
     @SentinelResource(
@@ -191,30 +166,24 @@ public class CommentQueryService {
         return CursorPage.of(voList, nextCursor, hasMore);
     }
 
-    /**
-     * 增量查询回复。
-     */
+    @Transactional(readOnly = true)
+    public PageResult<CommentVO> getTopLevelCommentsIncremental(Long postId,
+                                                                String afterCreatedAt,
+                                                                Long afterId,
+                                                                int size) {
+        OffsetDateTime parsedAfterCreatedAt = parseIncrementalCursor(afterCreatedAt, afterId);
+        List<Comment> comments = commentRepository.findTopLevelByPostIdIncremental(postId, parsedAfterCreatedAt, afterId, size + 1);
+        return buildIncrementalPage(comments, commentViewAssembler::assembleCommentVOList, size);
+    }
+
     @Transactional(readOnly = true)
     public PageResult<CommentVO> getRepliesIncremental(Long rootId,
                                                        String afterCreatedAt,
                                                        Long afterId,
                                                        int size) {
-        TimeCursor timeCursor = buildAfterCursor(afterCreatedAt, afterId);
-        List<Comment> replies = commentRepository.findRepliesByRootIdCursor(rootId, timeCursor, size + 1);
-
-        boolean hasMore = replies.size() > size;
-        String nextCursor = null;
-        if (hasMore) {
-            replies = replies.subList(0, size);
-            Comment lastReply = replies.get(replies.size() - 1);
-            nextCursor = timeCursorCodec.encode(lastReply);
-        } else if (!replies.isEmpty()) {
-            Comment lastReply = replies.get(replies.size() - 1);
-            nextCursor = timeCursorCodec.encode(lastReply);
-        }
-
-        List<CommentVO> voList = commentViewAssembler.assembleReplyVOList(replies);
-        return PageResult.cursor(voList, nextCursor, hasMore);
+        OffsetDateTime parsedAfterCreatedAt = parseIncrementalCursor(afterCreatedAt, afterId);
+        List<Comment> replies = commentRepository.findRepliesByRootIdIncremental(rootId, parsedAfterCreatedAt, afterId, size + 1);
+        return buildIncrementalPage(replies, commentViewAssembler::assembleReplyVOList, size);
     }
 
     private void validateTraditionalPaginationWindow(int page, int size) {
@@ -227,24 +196,44 @@ public class CommentQueryService {
         }
     }
 
-    private TimeCursor buildAfterCursor(String afterCreatedAt, Long afterId) {
+    private OffsetDateTime parseIncrementalCursor(String afterCreatedAt, Long afterId) {
         if (!StringUtils.hasText(afterCreatedAt) && afterId == null) {
             return null;
         }
-
         if (!StringUtils.hasText(afterCreatedAt) || afterId == null) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "增量游标参数必须同时传入");
         }
 
         try {
-            LocalDateTime utcCursorTime = LocalDateTime.parse(afterCreatedAt);
-            LocalDateTime businessCursorTime = utcCursorTime.atOffset(ZoneOffset.UTC)
-                    .atZoneSameInstant(DateTimeUtils.BUSINESS_ZONE)
-                    .toLocalDateTime();
-            return new TimeCursor(businessCursorTime, afterId);
-        } catch (Exception exception) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "无效的时间游标参数");
+            return OffsetDateTime.parse(afterCreatedAt);
+        } catch (Exception ignore) {
+            try {
+                LocalDateTime legacyUtcCursorTime = LocalDateTime.parse(afterCreatedAt);
+                return legacyUtcCursorTime.atOffset(ZoneOffset.UTC)
+                        .atZoneSameInstant(DateTimeUtils.BUSINESS_ZONE)
+                        .toOffsetDateTime();
+            } catch (Exception exception) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "无效的时间游标参数");
+            }
         }
+    }
+
+    private PageResult<CommentVO> buildIncrementalPage(List<Comment> comments,
+                                                       java.util.function.Function<List<Comment>, List<CommentVO>> assembler,
+                                                       int size) {
+        boolean hasMore = comments.size() > size;
+        String nextCursor = null;
+        if (hasMore) {
+            comments = comments.subList(0, size);
+            Comment lastComment = comments.get(comments.size() - 1);
+            nextCursor = timeCursorCodec.encode(lastComment);
+        } else if (!comments.isEmpty()) {
+            Comment lastComment = comments.get(comments.size() - 1);
+            nextCursor = timeCursorCodec.encode(lastComment);
+        }
+
+        List<CommentVO> voList = assembler.apply(comments);
+        return PageResult.cursor(voList, nextCursor, hasMore);
     }
 
     private PageResult<CommentVO> queryTopLevelCommentsByPage(Long postId, int page, int size, CommentSortType sortType) {

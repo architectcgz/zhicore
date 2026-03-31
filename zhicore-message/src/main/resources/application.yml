@@ -1,6 +1,11 @@
 server:
   port: ${SERVER_PORT:8105}
 
+app:
+  scheduling:
+    pool-size: 4
+    thread-name-prefix: message-scheduler-
+
 spring:
   application:
     name: zhicore-message

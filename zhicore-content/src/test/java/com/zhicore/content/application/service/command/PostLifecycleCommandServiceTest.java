@@ -16,7 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -57,10 +57,10 @@ class PostLifecycleCommandServiceTest {
                 PostStatus.PUBLISHED,
                 null,
                 Set.of(),
-                LocalDateTime.now(),
+                OffsetDateTime.now(),
                 null,
-                LocalDateTime.now(),
-                LocalDateTime.now(),
+                OffsetDateTime.now(),
+                OffsetDateTime.now(),
                 false,
                 PostStats.empty(PostId.of(2001L)),
                 WriteState.PUBLISHED,

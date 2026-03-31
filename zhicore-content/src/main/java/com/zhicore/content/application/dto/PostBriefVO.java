@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章简要视图对象（用于列表）
@@ -32,9 +32,9 @@ public class PostBriefVO {
 
     private String status;
 
-    private LocalDateTime publishedAt;
+    private OffsetDateTime publishedAt;
 
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     // 统计数据
     private int likeCount;

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import org.springframework.util.Assert;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * Post-Tag 关联值对象
@@ -34,7 +34,7 @@ public class PostTag {
     /**
      * 关联创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
     // ==================== 构造函数 ====================
 
@@ -50,7 +50,7 @@ public class PostTag {
 
         this.postId = postId;
         this.tagId = tagId;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now();
     }
 
     /**
@@ -60,7 +60,7 @@ public class PostTag {
     @JsonCreator
     private PostTag(@JsonProperty("postId") PostId postId,
                     @JsonProperty("tagId") TagId tagId,
-                    @JsonProperty("createdAt") LocalDateTime createdAt) {
+                    @JsonProperty("createdAt") OffsetDateTime createdAt) {
         Assert.notNull(postId, "文章ID不能为空");
         Assert.notNull(tagId, "标签ID不能为空");
         Assert.notNull(createdAt, "创建时间不能为空");
@@ -91,7 +91,7 @@ public class PostTag {
      * @param createdAt 创建时间
      * @return PostTag 实例
      */
-    public static PostTag reconstitute(PostId postId, TagId tagId, LocalDateTime createdAt) {
+    public static PostTag reconstitute(PostId postId, TagId tagId, OffsetDateTime createdAt) {
         return new PostTag(postId, tagId, createdAt);
     }
 

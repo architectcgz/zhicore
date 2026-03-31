@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -26,6 +26,6 @@ public class UserManageDTO implements Serializable {
     private String nickname;
     private String avatar;
     private String status;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
     private List<String> roles;
 }

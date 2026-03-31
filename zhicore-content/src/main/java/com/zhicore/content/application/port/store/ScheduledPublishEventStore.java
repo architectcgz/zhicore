@@ -2,7 +2,7 @@ package com.zhicore.content.application.port.store;
 
 import com.zhicore.content.application.model.ScheduledPublishEventRecord;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -11,7 +11,7 @@ import java.util.Optional;
  */
 public interface ScheduledPublishEventStore {
 
-    LocalDateTime dbNow();
+    OffsetDateTime dbNow();
 
     void save(ScheduledPublishEventRecord eventRecord);
 
@@ -22,16 +22,16 @@ public interface ScheduledPublishEventStore {
     void update(ScheduledPublishEventRecord eventRecord);
 
     List<ScheduledPublishEventRecord> claimCompensationBatch(
-            LocalDateTime dbNow,
-            LocalDateTime reclaimBefore,
+            OffsetDateTime dbNow,
+            OffsetDateTime reclaimBefore,
             String claimedBy,
             int limit
     );
 
     Optional<ScheduledPublishEventRecord> claimForConsumption(
             String eventId,
-            LocalDateTime dbNow,
-            LocalDateTime reclaimBefore,
+            OffsetDateTime dbNow,
+            OffsetDateTime reclaimBefore,
             String claimedBy
     );
 
@@ -40,7 +40,7 @@ public interface ScheduledPublishEventStore {
     int markTerminalByPostId(
             Long postId,
             ScheduledPublishEventRecord.ScheduledPublishStatus status,
-            LocalDateTime dbNow,
+            OffsetDateTime dbNow,
             String lastError
     );
 }

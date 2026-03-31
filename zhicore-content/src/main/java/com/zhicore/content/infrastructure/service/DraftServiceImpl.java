@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -54,7 +54,7 @@ public class DraftServiceImpl implements DraftQueryService, DraftCommandService 
                 // 更新现有草稿
                 draft = existingDraft.get();
                 draft.setContent(content);
-                draft.setSavedAt(LocalDateTime.now());
+                draft.setSavedAt(OffsetDateTime.now());
                 draft.setIsAutoSave(isAutoSave);
                 draft.setWordCount(calculateWordCount(content));
             } else {
@@ -64,7 +64,7 @@ public class DraftServiceImpl implements DraftQueryService, DraftCommandService 
                         .userId(String.valueOf(userId))
                         .content(content)
                         .contentType(ContentType.MARKDOWN.getValue()) // 默认为markdown
-                        .savedAt(LocalDateTime.now())
+                        .savedAt(OffsetDateTime.now())
                         .isAutoSave(isAutoSave)
                         .wordCount(calculateWordCount(content))
                         .build();
@@ -167,7 +167,7 @@ public class DraftServiceImpl implements DraftQueryService, DraftCommandService 
         log.info("Cleaning expired drafts older than {} days", expireDays);
         
         try {
-            LocalDateTime expireTime = LocalDateTime.now().minusDays(expireDays);
+            OffsetDateTime expireTime = OffsetDateTime.now().minusDays(expireDays);
             long deletedCount = draftRepository.deleteBySavedAtBefore(expireTime);
             
             log.info("Cleaned {} expired drafts", deletedCount);

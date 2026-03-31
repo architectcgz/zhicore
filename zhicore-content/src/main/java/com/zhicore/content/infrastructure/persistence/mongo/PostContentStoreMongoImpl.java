@@ -11,7 +11,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 /**
@@ -44,7 +44,7 @@ public class PostContentStoreMongoImpl implements PostContentStore {
                 // 更新现有文档
                 document.setId(existing.getId());
                 document.setCreatedAt(existing.getCreatedAt());
-                document.setUpdatedAt(LocalDateTime.now());
+                document.setUpdatedAt(OffsetDateTime.now());
                 mongoTemplate.save(document);
                 log.info("更新文章内容成功: postId={}", postId.getValue());
             } else {

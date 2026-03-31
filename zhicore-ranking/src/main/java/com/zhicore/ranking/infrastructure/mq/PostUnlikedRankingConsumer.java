@@ -10,7 +10,7 @@ import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
 /**
@@ -47,7 +47,7 @@ public class PostUnlikedRankingConsumer extends BaseRankingConsumer
                     event.getAuthorId(),
                     RankingMetricType.LIKE,
                     -1,
-                    LocalDateTime.ofInstant(event.getOccurredAt(), ZoneId.systemDefault()),
+                    OffsetDateTime.ofInstant(event.getOccurredAt(), ZoneId.systemDefault()),
                     null
             );
             if (!created) {

@@ -73,7 +73,7 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
         po.setTargetType(auditLog.getTargetType());
         po.setTargetId(auditLog.getTargetId());
         po.setReason(auditLog.getReason());
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(auditLog.getCreatedAt()));
+        po.setCreatedAt(auditLog.getCreatedAt());
         return po;
     }
     
@@ -85,7 +85,7 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
                 po.getTargetType(),
                 po.getTargetId(),
                 po.getReason(),
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt())
+                po.getCreatedAt()
         );
     }
 }

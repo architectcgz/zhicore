@@ -3,7 +3,7 @@ package com.zhicore.comment.domain.model;
 import lombok.Getter;
 import org.springframework.util.Assert;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 评论点赞实体
@@ -27,7 +27,7 @@ public class CommentLike {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
     public CommentLike(Long commentId, Long userId) {
         Assert.notNull(commentId, "评论ID不能为空");
@@ -37,10 +37,10 @@ public class CommentLike {
 
         this.commentId = commentId;
         this.userId = userId;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now();
     }
 
-    public CommentLike(Long commentId, Long userId, LocalDateTime createdAt) {
+    public CommentLike(Long commentId, Long userId, OffsetDateTime createdAt) {
         this.commentId = commentId;
         this.userId = userId;
         this.createdAt = createdAt;
@@ -49,7 +49,7 @@ public class CommentLike {
     /**
      * 从持久化恢复
      */
-    public static CommentLike reconstitute(Long commentId, Long userId, LocalDateTime createdAt) {
+    public static CommentLike reconstitute(Long commentId, Long userId, OffsetDateTime createdAt) {
         return new CommentLike(commentId, userId, createdAt);
     }
 }

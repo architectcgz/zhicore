@@ -1,6 +1,11 @@
 server:
   port: 8103
 
+app:
+  scheduling:
+    pool-size: 4
+    thread-name-prefix: comment-scheduler-
+
 spring:
   application:
     name: zhicore-comment

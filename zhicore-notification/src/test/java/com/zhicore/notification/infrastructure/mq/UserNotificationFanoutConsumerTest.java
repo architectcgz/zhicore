@@ -11,8 +11,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,7 +35,7 @@ class UserNotificationFanoutConsumerTest {
                 .targetId(202L)
                 .totalCount(1)
                 .unreadCount(1)
-                .latestTime(LocalDateTime.of(2026, 3, 27, 10, 0))
+                .latestTime(OffsetDateTime.parse("2026-03-27T10:00:00+08:00"))
                 .latestContent("关注了你")
                 .aggregatedContent("alice关注了你")
                 .build();
@@ -46,6 +47,18 @@ class UserNotificationFanoutConsumerTest {
 
         consumer.onMessage(com.zhicore.common.util.JsonUtils.toJson(event));
 
-        verify(webSocketNotificationHandler).sendNotification("202", payload);
+        verify(webSocketNotificationHandler).sendNotification(
+                org.mockito.ArgumentMatchers.eq("202"),
+                argThat(actual -> actual != null
+                        && actual.getType() == NotificationType.FOLLOW
+                        && "USER".equals(actual.getTargetType())
+                        && Long.valueOf(202L).equals(actual.getTargetId())
+                        && actual.getTotalCount() == 1
+                        && actual.getUnreadCount() == 1
+                        && "关注了你".equals(actual.getLatestContent())
+                        && "alice关注了你".equals(actual.getAggregatedContent())
+                        && actual.getLatestTime() != null
+                        && actual.getLatestTime().toInstant().equals(payload.getLatestTime().toInstant()))
+        );
     }
 }

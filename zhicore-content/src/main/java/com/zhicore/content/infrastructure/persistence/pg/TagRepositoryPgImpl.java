@@ -2,6 +2,7 @@ package com.zhicore.content.infrastructure.persistence.pg;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.zhicore.common.util.DateTimeUtils;
 import com.zhicore.content.domain.model.Tag;
 import com.zhicore.content.domain.repository.TagRepository;
 import com.zhicore.content.infrastructure.persistence.pg.entity.TagEntity;
@@ -167,8 +168,8 @@ public class TagRepositoryPgImpl implements TagRepository {
             entity.setName((String) getIgnoreCase(row, "name"));
             entity.setSlug((String) getIgnoreCase(row, "slug"));
             entity.setDescription((String) getIgnoreCase(row, "description"));
-            entity.setCreatedAt(toLocalDateTime(getIgnoreCase(row, "created_at")));
-            entity.setUpdatedAt(toLocalDateTime(getIgnoreCase(row, "updated_at")));
+            entity.setCreatedAt(toOffsetDateTime(getIgnoreCase(row, "created_at")));
+            entity.setUpdatedAt(toOffsetDateTime(getIgnoreCase(row, "updated_at")));
             
             Tag tag = entityMapper.toDomain(entity);
             
@@ -187,21 +188,21 @@ public class TagRepositoryPgImpl implements TagRepository {
         return null;
     }
 
-    private static java.time.LocalDateTime toLocalDateTime(Object value) {
+    private static java.time.OffsetDateTime toOffsetDateTime(Object value) {
         if (value == null) {
             return null;
         }
 
-        if (value instanceof java.time.LocalDateTime localDateTime) {
+        if (value instanceof java.time.OffsetDateTime localDateTime) {
             return localDateTime;
         }
 
         if (value instanceof java.sql.Timestamp timestamp) {
-            return timestamp.toLocalDateTime();
+            return DateTimeUtils.toOffsetDateTime(timestamp);
         }
 
         if (value instanceof java.util.Date date) {
-            return java.time.LocalDateTime.ofInstant(date.toInstant(), java.time.ZoneId.systemDefault());
+            return java.time.OffsetDateTime.ofInstant(date.toInstant(), java.time.ZoneId.systemDefault());
         }
 
         throw new IllegalArgumentException("不支持的时间类型: " + value.getClass().getName());

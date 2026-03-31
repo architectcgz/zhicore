@@ -4,7 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -155,8 +155,8 @@ class TagTest {
             String name = "PostgreSQL";
             String slug = "postgresql";
             String description = "关系型数据库";
-            LocalDateTime createdAt = LocalDateTime.now().minusDays(1);
-            LocalDateTime updatedAt = LocalDateTime.now();
+            OffsetDateTime createdAt = OffsetDateTime.now().minusDays(1);
+            OffsetDateTime updatedAt = OffsetDateTime.now();
 
             // When
             Tag tag = Tag.reconstitute(id, name, slug, description, createdAt, updatedAt);
@@ -179,8 +179,8 @@ class TagTest {
             Long id = 1001L;
             String name = "Java";
             String slug = "java";
-            LocalDateTime createdAt = LocalDateTime.now().minusDays(1);
-            LocalDateTime updatedAt = LocalDateTime.now();
+            OffsetDateTime createdAt = OffsetDateTime.now().minusDays(1);
+            OffsetDateTime updatedAt = OffsetDateTime.now();
 
             // When
             Tag tag = Tag.reconstitute(id, name, slug, null, createdAt, updatedAt);
@@ -201,7 +201,7 @@ class TagTest {
         void shouldUpdateNameSuccessfully() {
             // Given
             Tag tag = Tag.create(1001L, "PostgreSQL", "postgresql");
-            LocalDateTime originalUpdatedAt = tag.getUpdatedAt();
+            OffsetDateTime originalUpdatedAt = tag.getUpdatedAt();
             
             // Wait a bit to ensure timestamp changes
             try {
@@ -306,7 +306,7 @@ class TagTest {
         void shouldUpdateDescriptionSuccessfully() {
             // Given
             Tag tag = Tag.create(1001L, "PostgreSQL", "postgresql");
-            LocalDateTime originalUpdatedAt = tag.getUpdatedAt();
+            OffsetDateTime originalUpdatedAt = tag.getUpdatedAt();
             
             // Wait a bit to ensure timestamp changes
             try {
@@ -562,7 +562,7 @@ class TagTest {
         void shouldHaveImmutableCreatedAt() {
             // Given
             Tag tag = Tag.create(1001L, "Java", "java");
-            LocalDateTime originalCreatedAt = tag.getCreatedAt();
+            OffsetDateTime originalCreatedAt = tag.getCreatedAt();
 
             // When - 更新名称不应该影响createdAt
             tag.updateName("Java SE");

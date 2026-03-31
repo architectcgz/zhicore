@@ -29,8 +29,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -65,8 +64,8 @@ class ScheduledPublishCommandServiceTest {
     void schedulePublishShouldSaveRecordAndPublishEvents() {
         Long userId = 1001L;
         Long postId = 123L;
-        LocalDateTime dbNow = LocalDateTime.now();
-        LocalDateTime scheduledAt = dbNow.plusMinutes(5);
+        OffsetDateTime dbNow = OffsetDateTime.now();
+        OffsetDateTime scheduledAt = dbNow.plusMinutes(5);
         Post post = Post.createDraft(PostId.of(postId), UserId.of(userId), "title");
 
         when(ownedPostLoadService.load(postId, userId)).thenReturn(post);
@@ -96,8 +95,8 @@ class ScheduledPublishCommandServiceTest {
         when(scheduledPublishPolicy.maxPublishRetries()).thenReturn(0);
 
         Long postId = 123L;
-        LocalDateTime dbNow = LocalDateTime.now();
-        LocalDateTime scheduledAt = dbNow.minusSeconds(1);
+        OffsetDateTime dbNow = OffsetDateTime.now();
+        OffsetDateTime scheduledAt = dbNow.minusSeconds(1);
 
         ScheduledPublishEventRecord record = ScheduledPublishEventRecord.builder()
                 .eventId("task-evt-1")
@@ -125,7 +124,7 @@ class ScheduledPublishCommandServiceTest {
                 0L,
                 postId,
                 null,
-                scheduledAt.atZone(ZoneId.systemDefault()).toInstant(),
+                scheduledAt.toInstant(),
                 0,
                 "task-evt-1"
         );
@@ -154,8 +153,8 @@ class ScheduledPublishCommandServiceTest {
         when(scheduledPublishPolicy.maxRescheduleRetries()).thenReturn(0);
 
         Long postId = 456L;
-        LocalDateTime dbNow = LocalDateTime.now();
-        LocalDateTime scheduledAt = dbNow.plusMinutes(5);
+        OffsetDateTime dbNow = OffsetDateTime.now();
+        OffsetDateTime scheduledAt = dbNow.plusMinutes(5);
 
         ScheduledPublishEventRecord record = ScheduledPublishEventRecord.builder()
                 .id(1L)
@@ -180,7 +179,7 @@ class ScheduledPublishCommandServiceTest {
                 0L,
                 postId,
                 1001L,
-                scheduledAt.atZone(ZoneId.systemDefault()).toInstant(),
+                scheduledAt.toInstant(),
                 5,
                 "task-evt-future"
         );
@@ -204,7 +203,7 @@ class ScheduledPublishCommandServiceTest {
     void cancelScheduleShouldMarkTaskAsSucceeded() {
         Long userId = 1001L;
         Long postId = 987L;
-        LocalDateTime dbNow = LocalDateTime.now();
+        OffsetDateTime dbNow = OffsetDateTime.now();
         Post post = Post.createDraft(PostId.of(postId), UserId.of(userId), "title");
         post.schedulePublish(dbNow.plusMinutes(10));
 

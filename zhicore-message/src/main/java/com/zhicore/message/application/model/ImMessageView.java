@@ -2,7 +2,7 @@ package com.zhicore.message.application.model;
 
 import com.zhicore.message.domain.model.MessageStatus;
 import com.zhicore.message.domain.model.MessageType;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -37,9 +37,9 @@ public class ImMessageView {
 
     private final boolean read;
 
-    private final LocalDateTime readAt;
+    private final OffsetDateTime readAt;
 
     private final MessageStatus status;
 
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 }

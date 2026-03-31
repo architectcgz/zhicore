@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章管理视图对象
@@ -59,10 +59,10 @@ public class PostManageVO {
     /**
      * 创建时间
      */
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
     
     /**
      * 发布时间
      */
-    private LocalDateTime publishedAt;
+    private OffsetDateTime publishedAt;
 }

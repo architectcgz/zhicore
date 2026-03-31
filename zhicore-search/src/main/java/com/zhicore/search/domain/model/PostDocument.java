@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -113,15 +113,15 @@ public class PostDocument {
     /**
      * 发布时间
      */
-    private LocalDateTime publishedAt;
+    private OffsetDateTime publishedAt;
 
     /**
      * 创建时间
      */
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     /**
      * 更新时间
      */
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 }

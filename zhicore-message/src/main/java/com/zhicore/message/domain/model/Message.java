@@ -7,7 +7,7 @@ import lombok.Getter;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 消息聚合根（充血模型）
@@ -50,7 +50,7 @@ public class Message {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
     /**
      * 消息类型
@@ -75,7 +75,7 @@ public class Message {
     /**
      * 已读时间
      */
-    private LocalDateTime readAt;
+    private OffsetDateTime readAt;
 
     /**
      * 消息状态
@@ -115,7 +115,7 @@ public class Message {
         this.content = content;
         this.isRead = false;
         this.status = MessageStatus.SENT;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now();
     }
 
     /**
@@ -131,9 +131,9 @@ public class Message {
                     @JsonProperty("content") String content,
                     @JsonProperty("mediaUrl") String mediaUrl,
                     @JsonProperty("isRead") boolean isRead,
-                    @JsonProperty("readAt") LocalDateTime readAt,
+                    @JsonProperty("readAt") OffsetDateTime readAt,
                     @JsonProperty("status") MessageStatus status,
-                    @JsonProperty("createdAt") LocalDateTime createdAt) {
+                    @JsonProperty("createdAt") OffsetDateTime createdAt) {
         this.id = id;
         this.conversationId = conversationId;
         this.senderId = senderId;
@@ -210,8 +210,8 @@ public class Message {
      */
     public static Message reconstitute(Long id, Long conversationId, Long senderId, Long receiverId,
                                        MessageType type, String content, String mediaUrl,
-                                       boolean isRead, LocalDateTime readAt, MessageStatus status,
-                                       LocalDateTime createdAt) {
+                                       boolean isRead, OffsetDateTime readAt, MessageStatus status,
+                                       OffsetDateTime createdAt) {
         return new Message(id, conversationId, senderId, receiverId, type, content, mediaUrl,
                 isRead, readAt, status, createdAt);
     }
@@ -224,7 +224,7 @@ public class Message {
     public void markAsRead() {
         if (!this.isRead) {
             this.isRead = true;
-            this.readAt = LocalDateTime.now();
+            this.readAt = OffsetDateTime.now();
         }
     }
 
@@ -241,7 +241,7 @@ public class Message {
             throw new DomainException("消息已经撤回");
         }
         // 检查是否在可撤回时间内
-        if (this.createdAt.plusMinutes(RECALL_TIME_LIMIT_MINUTES).isBefore(LocalDateTime.now())) {
+        if (this.createdAt.plusMinutes(RECALL_TIME_LIMIT_MINUTES).isBefore(OffsetDateTime.now())) {
             throw new DomainException("消息发送超过" + RECALL_TIME_LIMIT_MINUTES + "分钟，无法撤回");
         }
 

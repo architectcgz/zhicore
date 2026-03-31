@@ -8,6 +8,8 @@ import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 
@@ -22,12 +24,14 @@ import java.util.Base64;
 public class TimeCursorCodec {
 
     private static final String SEPARATOR = "_";
+    private static final DateTimeFormatter OFFSET_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+    private static final DateTimeFormatter LEGACY_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     /**
      * 编码游标
      */
-    public String encode(LocalDateTime timestamp, Long commentId) {
-        String raw = timestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + SEPARATOR + commentId;
+    public String encode(OffsetDateTime timestamp, Long commentId) {
+        String raw = timestamp.format(OFFSET_FORMATTER) + SEPARATOR + commentId;
         return Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
     }
@@ -53,7 +57,7 @@ public class TimeCursorCodec {
 
             String timestampStr = raw.substring(0, lastSeparator);
             String commentIdStr = raw.substring(lastSeparator + 1);
-            LocalDateTime timestamp = LocalDateTime.parse(timestampStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            OffsetDateTime timestamp = decodeTimestamp(timestampStr);
             Long commentId = Long.parseLong(commentIdStr);
 
             return new TimeCursor(timestamp, commentId);
@@ -62,8 +66,17 @@ public class TimeCursorCodec {
         }
     }
 
+    private OffsetDateTime decodeTimestamp(String timestampStr) {
+        try {
+            return OffsetDateTime.parse(timestampStr, OFFSET_FORMATTER);
+        } catch (Exception ignore) {
+            LocalDateTime legacy = LocalDateTime.parse(timestampStr, LEGACY_FORMATTER);
+            return legacy.atOffset(ZoneOffset.ofHours(8));
+        }
+    }
+
     /**
      * 时间游标记录
      */
-    public record TimeCursor(LocalDateTime timestamp, Long commentId) {}
+    public record TimeCursor(OffsetDateTime timestamp, Long commentId) {}
 }

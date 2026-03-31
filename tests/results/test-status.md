@@ -1,6 +1,6 @@
 ﻿# 测试状态追踪
 
-> 最后更新时间: 2026-01-15 15:05:02
+> 最后更新时间: 2026-03-27 12:19:02
 
 ## 测试汇总
 
@@ -10,13 +10,13 @@
 | 文章服务 | 10 | 0 | 0 | 0 | 0% |
 | 评论服务 | 10 | 0 | 0 | 0 | 0% |
 | 消息服务 | 4 | 0 | 0 | 0 | 0% |
-| 通知服务 | 4 | 0 | 0 | 0 | 0% |
+| 通知服务 | 7 | 7 | 0 | 0 | 100% |
 | 搜索服务 | 2 | 0 | 0 | 0 | 0% |
 | 排行榜服务 | 3 | 0 | 0 | 0 | 0% |
 | 上传服务 | 2 | 0 | 0 | 0 | 0% |
 | 管理后台 | 8 | 0 | 0 | 0 | 0% |
 | 网关服务 | 3 | 0 | 0 | 0 | 0% |
-| **总计** | **81** | **35** | **0** | **0** | **43.2%** |
+| **总计** | **84** | **42** | **0** | **0** | **50.0%** |
 
 ---
 
@@ -167,14 +167,22 @@
 | MSG-020 | Batch Mark as Read | ? PASS | 51ms | Batch marked as read |
 
 **统计**: 总计 20 | 通过 20 | 失败 0 | 跳过 0
-**执行时间**: 2026-01-16 13:18:50## 通知服务测试 (ZhiCore-notification)
+**执行时间**: 2026-01-16 13:18:50
+
+## 通知服务测试 (ZhiCore-notification)
 
 | 测试ID | 测试名称 | 状态 | 响应时间 | 执行时间 | 备注 |
 |--------|----------|------|----------|----------|------|
-| NOTIF-001 | 获取通知列表 | ? PENDING | - | - | - |
-| NOTIF-002 | 标记通知已读 | ? PENDING | - | - | - |
-| NOTIF-003 | 批量标记已读 | ? PENDING | - | - | - |
-| NOTIF-004 | 获取未读数量 | ? PENDING | - | - | - |
+| NOTIF-P1-001 | 获取通知列表 | ? PASS | - | 2026-03-27 | `NotificationApplicationServiceTest` 覆盖互动通知查询与聚合链路 |
+| NOTIF-P1-002 | 标记通知已读 | ? PASS | - | 2026-03-27 | `NotificationApplicationServiceTest` 验证单条已读仅按真实更新扣减未读数 |
+| NOTIF-P1-003 | 批量标记已读 | ? PASS | - | 2026-03-27 | `NotificationApplicationServiceTest` 验证批量已读按更新行数递减未读数 |
+| NOTIF-P1-004 | 获取未读数量 | ? PASS | - | 2026-03-27 | `NotificationUnreadCountContractTest` 与 `RedisNotificationUnreadCountStoreTest` 验证缓存未命中回源与命中后原子增减 |
+| NOTIF-P1-005 | 获取/更新通知偏好 | ? PASS | - | 2026-03-27 | `NotificationPreferenceServiceTest` 与 `NotificationPreferenceControllerTest` 覆盖默认值与更新接口 |
+| NOTIF-P1-006 | 获取/更新免打扰 | ? PASS | - | 2026-03-27 | `NotificationPreferenceServiceTest` 与 `NotificationPreferenceControllerTest` 覆盖 DND 默认值、校验与更新接口 |
+| NOTIF-P1-007 | 通知平台元数据契约 | ? PASS | - | 2026-03-27 | `NotificationPlatformMetadataContractTest` 验证 `category/event_code/metadata` 扩展位 |
+
+**统计**: 总计 7 | 通过 7 | 失败 0 | 跳过 0
+**执行时间**: 2026-03-27
 
 ---
 
@@ -1713,4 +1721,3 @@
 
 **Test Time**: 2026-01-21 12:58:33
 **Test Result**: 11 passed, 0 failed, 4 skipped
-

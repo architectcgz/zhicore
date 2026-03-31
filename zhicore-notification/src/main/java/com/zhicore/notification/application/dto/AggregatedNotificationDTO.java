@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -48,7 +48,7 @@ public class AggregatedNotificationDTO {
     /**
      * 最新通知时间
      */
-    private LocalDateTime latestTime;
+    private OffsetDateTime latestTime;
 
     /**
      * 最新通知ID

@@ -1,6 +1,5 @@
 package com.zhicore.user.infrastructure.repository;
 
-import com.zhicore.common.util.DateTimeUtils;
 import com.zhicore.user.domain.model.UserCheckIn;
 import com.zhicore.user.domain.model.UserCheckInStats;
 import com.zhicore.user.domain.repository.UserCheckInRepository;
@@ -56,7 +55,7 @@ public class UserCheckInRepositoryImpl implements UserCheckInRepository {
         UserCheckInPO po = new UserCheckInPO();
         po.setUserId(checkIn.getUserId());
         po.setCheckInDate(checkIn.getCheckInDate());
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(checkIn.getCreatedAt()));
+        po.setCreatedAt(checkIn.getCreatedAt());
         return po;
     }
 

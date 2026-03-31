@@ -1,7 +1,9 @@
 package com.zhicore.notification.infrastructure.mq;
 
+import com.zhicore.common.mq.TopicConstants;
 import com.zhicore.common.mq.StatefulIdempotentHandler;
 import com.zhicore.integration.messaging.comment.CommentCreatedIntegrationEvent;
+import com.zhicore.common.util.JsonUtils;
 import com.zhicore.notification.application.dto.CommentStreamHintPayload;
 import com.zhicore.notification.application.service.command.NotificationCommandService;
 import com.zhicore.notification.domain.model.Notification;
@@ -14,8 +16,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.Optional;
-
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
@@ -36,60 +38,67 @@ class CommentCreatedNotificationConsumerTest {
     private NotificationPushService pushService;
 
     @Test
-    @DisplayName("顶级评论时应该广播评论流提示并通知文章作者")
-    void shouldBroadcastStreamHintAndNotifyPostOwner() {
+    @DisplayName("评论事件应保留私有通知并追加评论流 hint 广播")
+    void shouldKeepPrivateNotificationsAndBroadcastHint() {
         CommentCreatedNotificationConsumer consumer = new CommentCreatedNotificationConsumer(
                 idempotentHandler, notificationService, pushService);
         CommentCreatedIntegrationEvent event = new CommentCreatedIntegrationEvent(
                 "evt-1",
-                Instant.parse("2026-03-27T10:00:00Z"),
+                Instant.parse("2026-03-31T08:00:00Z"),
                 1001L,
                 2002L,
                 3003L,
                 4004L,
-                null,
-                null,
-                "新的顶级评论",
+                5005L,
+                5005L,
+                6006L,
+                "reply content",
                 null
         );
-        Notification notification = Notification.createCommentNotification(1L, 3003L, 4004L, 2002L, 1001L, "新的顶级评论");
+        Notification ownerNotification = Notification.createCommentNotification(11L, 3003L, 4004L, 2002L, 1001L, "reply content");
+        Notification replyNotification = Notification.createReplyNotification(12L, 6006L, 4004L, 1001L, "reply content");
 
         doAnswer(invocation -> {
             Runnable runnable = invocation.getArgument(1);
             runnable.run();
             return true;
         }).when(idempotentHandler).handleIdempotent(eq(event.getEventId()), any(Runnable.class));
-        when(notificationService.createCommentNotificationIfAbsent(
-                NotificationEventKeys.notificationId(event.getEventId(), "comment-owner"),
-                3003L,
-                4004L,
-                2002L,
-                1001L,
-                "新的顶级评论"
-        )).thenReturn(Optional.of(notification));
+        when(notificationService.createCommentNotificationIfAbsent(anyLong(), eq(3003L), eq(4004L), eq(2002L), eq(1001L), eq("reply content")))
+                .thenReturn(Optional.of(ownerNotification));
+        when(notificationService.createReplyNotificationIfAbsent(anyLong(), eq(6006L), eq(4004L), eq(1001L), eq("reply content")))
+                .thenReturn(Optional.of(replyNotification));
 
-        consumer.onMessage(com.zhicore.common.util.JsonUtils.toJson(event));
+        consumer.onMessage(JsonUtils.toJson(event));
 
-        verify(pushService).broadcastCommentStreamHint(eq("2002"), any(CommentStreamHintPayload.class));
-        verify(pushService).push("3003", notification);
-        verify(notificationService, never()).createReplyNotificationIfAbsent(any(), any(), any(), any(), any());
+        verify(pushService).push("3003", ownerNotification);
+        verify(pushService).push("6006", replyNotification);
+        verify(pushService).broadcastCommentStreamHint("2002", CommentStreamHintPayload.builder()
+                .eventId("evt-1")
+                .eventType(TopicConstants.TAG_COMMENT_CREATED)
+                .postId(2002L)
+                .commentId(1001L)
+                .parentId(5005L)
+                .rootId(5005L)
+                .occurredAt(Instant.parse("2026-03-31T08:00:00Z"))
+                .build());
     }
 
     @Test
-    @DisplayName("回复评论时即使跳过通知也应该广播评论流提示")
-    void shouldBroadcastStreamHintForReplyEvenWhenNotificationSkipped() {
+    @DisplayName("作者自评时不发私有通知但仍广播评论流 hint")
+    void shouldOnlyBroadcastHintWhenNoPrivateNotificationNeeded() {
         CommentCreatedNotificationConsumer consumer = new CommentCreatedNotificationConsumer(
                 idempotentHandler, notificationService, pushService);
         CommentCreatedIntegrationEvent event = new CommentCreatedIntegrationEvent(
                 "evt-2",
-                Instant.parse("2026-03-27T10:05:00Z"),
+                Instant.parse("2026-03-31T08:01:00Z"),
                 1002L,
-                2002L,
-                3003L,
-                3003L,
-                1001L,
-                5005L,
-                "新的回复",
+                2003L,
+                4004L,
+                4004L,
+                null,
+                1002L,
+                null,
+                "self comment",
                 null
         );
 
@@ -98,24 +107,20 @@ class CommentCreatedNotificationConsumerTest {
             runnable.run();
             return true;
         }).when(idempotentHandler).handleIdempotent(eq(event.getEventId()), any(Runnable.class));
-        when(notificationService.createReplyNotificationIfAbsent(
-                NotificationEventKeys.notificationId(event.getEventId(), "comment-reply"),
-                5005L,
-                3003L,
-                1002L,
-                "新的回复"
-        )).thenReturn(Optional.empty());
 
-        consumer.onMessage(com.zhicore.common.util.JsonUtils.toJson(event));
+        consumer.onMessage(JsonUtils.toJson(event));
 
-        verify(pushService).broadcastCommentStreamHint(eq("2002"), any(CommentStreamHintPayload.class));
-        verify(notificationService).createReplyNotificationIfAbsent(
-                NotificationEventKeys.notificationId(event.getEventId(), "comment-reply"),
-                5005L,
-                3003L,
-                1002L,
-                "新的回复"
-        );
-        verify(pushService, never()).push(eq("5005"), any(Notification.class));
+        verify(notificationService, never()).createCommentNotificationIfAbsent(anyLong(), anyLong(), anyLong(), anyLong(), anyLong(), any());
+        verify(notificationService, never()).createReplyNotificationIfAbsent(anyLong(), anyLong(), anyLong(), anyLong(), any());
+        verify(pushService, never()).push(any(), any(Notification.class));
+        verify(pushService).broadcastCommentStreamHint("2003", CommentStreamHintPayload.builder()
+                .eventId("evt-2")
+                .eventType(TopicConstants.TAG_COMMENT_CREATED)
+                .postId(2003L)
+                .commentId(1002L)
+                .parentId(null)
+                .rootId(1002L)
+                .occurredAt(Instant.parse("2026-03-31T08:01:00Z"))
+                .build());
     }
 }

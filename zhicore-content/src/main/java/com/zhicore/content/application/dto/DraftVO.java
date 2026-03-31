@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 草稿视图对象。
@@ -26,7 +26,7 @@ public class DraftVO {
 
     private String contentType;
 
-    private LocalDateTime savedAt;
+    private OffsetDateTime savedAt;
 
     private String deviceId;
 

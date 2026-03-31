@@ -7,7 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -97,7 +97,7 @@ public interface PostEntityMyBatisMapper extends BaseMapper<PostEntity> {
             </script>
             """)
     List<PostEntity> selectPublishedCursor(
-            @Param("cursorPublishedAt") LocalDateTime cursorPublishedAt,
+            @Param("cursorPublishedAt") OffsetDateTime cursorPublishedAt,
             @Param("cursorPostId") Long cursorPostId,
             @Param("limit") int limit
     );
@@ -136,7 +136,7 @@ public interface PostEntityMyBatisMapper extends BaseMapper<PostEntity> {
             """)
     Long publishScheduledIfNeeded(
             @Param("postId") Long postId,
-            @Param("publishedAt") LocalDateTime publishedAt
+            @Param("publishedAt") OffsetDateTime publishedAt
     );
 
     /**

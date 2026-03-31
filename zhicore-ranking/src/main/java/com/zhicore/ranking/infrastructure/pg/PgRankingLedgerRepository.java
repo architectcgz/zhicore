@@ -1,5 +1,6 @@
 package com.zhicore.ranking.infrastructure.pg;
 
+import com.zhicore.common.util.DateTimeUtils;
 import com.zhicore.ranking.application.model.RankingBucketRecord;
 import com.zhicore.ranking.application.model.RankingLedgerEventRecord;
 import com.zhicore.ranking.application.model.RankingPostStateRecord;
@@ -13,7 +14,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,17 +45,17 @@ public class PgRankingLedgerRepository {
                     .authorId(getLongOrNull(rs.getObject("author_id")))
                     .metricType(RankingMetricType.valueOf(rs.getString("metric_type")))
                     .delta(rs.getInt("delta"))
-                    .occurredAt(rs.getTimestamp("occurred_at").toLocalDateTime())
-                    .publishedAt(toLocalDateTime(rs.getTimestamp("published_at")))
+                    .occurredAt(DateTimeUtils.toOffsetDateTime(rs.getTimestamp("occurred_at")))
+                    .publishedAt(toOffsetDateTime(rs.getTimestamp("published_at")))
                     .partitionKey(rs.getString("partition_key"))
                     .sourceService(rs.getString("source_service"))
                     .sourceOpId(rs.getString("source_op_id"))
-                    .createdAt(rs.getTimestamp("created_at").toLocalDateTime())
+                    .createdAt(DateTimeUtils.toOffsetDateTime(rs.getTimestamp("created_at")))
                     .build();
 
     private static final RowMapper<RankingBucketRecord> BUCKET_ROW_MAPPER = (rs, rowNum) ->
             RankingBucketRecord.builder()
-                    .bucketStart(rs.getTimestamp("bucket_start").toLocalDateTime())
+                    .bucketStart(DateTimeUtils.toOffsetDateTime(rs.getTimestamp("bucket_start")))
                     .postId(rs.getLong("post_id"))
                     .viewDelta(rs.getLong("view_delta"))
                     .likeDelta(rs.getInt("like_delta"))
@@ -65,16 +66,16 @@ public class PgRankingLedgerRepository {
                     .appliedFavoriteDelta(rs.getInt("applied_favorite_delta"))
                     .appliedCommentDelta(rs.getInt("applied_comment_delta"))
                     .flushOwner(rs.getString("flush_owner"))
-                    .flushStartedAt(toLocalDateTime(rs.getTimestamp("flush_started_at")))
-                    .flushedAt(toLocalDateTime(rs.getTimestamp("flushed_at")))
-                    .updatedAt(rs.getTimestamp("updated_at").toLocalDateTime())
+                    .flushStartedAt(toOffsetDateTime(rs.getTimestamp("flush_started_at")))
+                    .flushedAt(toOffsetDateTime(rs.getTimestamp("flushed_at")))
+                    .updatedAt(DateTimeUtils.toOffsetDateTime(rs.getTimestamp("updated_at")))
                     .build();
 
     private static final RowMapper<RankingPostStateRecord> POST_STATE_ROW_MAPPER = (rs, rowNum) ->
             RankingPostStateRecord.builder()
                     .postId(rs.getLong("post_id"))
                     .authorId(getLongOrNull(rs.getObject("author_id")))
-                    .publishedAt(toLocalDateTime(rs.getTimestamp("published_at")))
+                    .publishedAt(toOffsetDateTime(rs.getTimestamp("published_at")))
                     .topicIds(parseTopicIds(rs.getString("topic_ids")))
                     .viewCount(rs.getLong("view_count"))
                     .likeCount(rs.getInt("like_count"))
@@ -83,8 +84,8 @@ public class PgRankingLedgerRepository {
                     .rawScore(rs.getDouble("raw_score"))
                     .hotScore(rs.getDouble("hot_score"))
                     .version(rs.getLong("version"))
-                    .lastBucketStart(toLocalDateTime(rs.getTimestamp("last_bucket_start")))
-                    .updatedAt(rs.getTimestamp("updated_at").toLocalDateTime())
+                    .lastBucketStart(toOffsetDateTime(rs.getTimestamp("last_bucket_start")))
+                    .updatedAt(DateTimeUtils.toOffsetDateTime(rs.getTimestamp("updated_at")))
                     .build();
 
     private static final RowMapper<SnapshotPostHotState> SNAPSHOT_POST_STATE_ROW_MAPPER = (rs, rowNum) ->
@@ -92,7 +93,7 @@ public class PgRankingLedgerRepository {
                     .postId(rs.getLong("post_id"))
                     .authorId(getLongOrNull(rs.getObject("author_id")))
                     .topicIds(parseTopicIds(rs.getString("topic_ids")))
-                    .publishedAt(toLocalDateTime(rs.getTimestamp("published_at")))
+                    .publishedAt(toOffsetDateTime(rs.getTimestamp("published_at")))
                     .viewCount(rs.getLong("view_count"))
                     .likeCount(rs.getInt("like_count"))
                     .favoriteCount(rs.getInt("favorite_count"))
@@ -129,7 +130,7 @@ public class PgRankingLedgerRepository {
         });
     }
 
-    public boolean saveEventAndAccumulateBucket(RankingLedgerEventRecord event, LocalDateTime bucketStart) {
+    public boolean saveEventAndAccumulateBucket(RankingLedgerEventRecord event, OffsetDateTime bucketStart) {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("eventId", event.getEventId())
                 .addValue("eventType", event.getEventType())
@@ -138,12 +139,12 @@ public class PgRankingLedgerRepository {
                 .addValue("authorId", event.getAuthorId())
                 .addValue("metricType", event.getMetricType().name())
                 .addValue("delta", event.getDelta())
-                .addValue("occurredAt", Timestamp.valueOf(event.getOccurredAt()))
+                .addValue("occurredAt", com.zhicore.common.util.DateTimeUtils.toTimestamp(event.getOccurredAt()))
                 .addValue("publishedAt", toTimestamp(event.getPublishedAt()))
                 .addValue("partitionKey", event.getPartitionKey())
                 .addValue("sourceService", event.getSourceService())
                 .addValue("sourceOpId", event.getSourceOpId())
-                .addValue("createdAt", Timestamp.valueOf(event.getCreatedAt()));
+                .addValue("createdAt", com.zhicore.common.util.DateTimeUtils.toTimestamp(event.getCreatedAt()));
 
         int inserted = jdbcTemplate.update("""
                 insert into ranking_event_ledger (
@@ -163,15 +164,15 @@ public class PgRankingLedgerRepository {
         return true;
     }
 
-    public void accumulateBucket(RankingLedgerEventRecord event, LocalDateTime bucketStart) {
+    public void accumulateBucket(RankingLedgerEventRecord event, OffsetDateTime bucketStart) {
         MapSqlParameterSource bucketParams = new MapSqlParameterSource()
-                .addValue("bucketStart", Timestamp.valueOf(bucketStart))
+                .addValue("bucketStart", com.zhicore.common.util.DateTimeUtils.toTimestamp(bucketStart))
                 .addValue("postId", event.getPostId())
                 .addValue("viewDelta", event.getMetricType() == RankingMetricType.VIEW ? event.getDelta() : 0)
                 .addValue("likeDelta", event.getMetricType() == RankingMetricType.LIKE ? event.getDelta() : 0)
                 .addValue("favoriteDelta", event.getMetricType() == RankingMetricType.FAVORITE ? event.getDelta() : 0)
                 .addValue("commentDelta", event.getMetricType() == RankingMetricType.COMMENT ? event.getDelta() : 0)
-                .addValue("updatedAt", Timestamp.valueOf(event.getCreatedAt()));
+                .addValue("updatedAt", com.zhicore.common.util.DateTimeUtils.toTimestamp(event.getCreatedAt()));
         jdbcTemplate.update("""
                 insert into ranking_delta_bucket (
                     bucket_start, post_id, view_delta, like_delta, favorite_delta, comment_delta,
@@ -195,9 +196,9 @@ public class PgRankingLedgerRepository {
 
     public List<RankingBucketRecord> claimFlushableBuckets(int limit,
                                                            String flushOwner,
-                                                           LocalDateTime flushStartedAt,
-                                                           LocalDateTime bucketUpperBound,
-                                                           LocalDateTime staleBefore) {
+                                                           OffsetDateTime flushStartedAt,
+                                                           OffsetDateTime bucketUpperBound,
+                                                           OffsetDateTime staleBefore) {
         List<RankingBucketRecord> candidates = jdbcTemplate.query("""
                 select bucket_start, post_id, view_delta, like_delta, favorite_delta, comment_delta,
                        applied_view_delta, applied_like_delta, applied_favorite_delta, applied_comment_delta,
@@ -214,8 +215,8 @@ public class PgRankingLedgerRepository {
                 limit :limit
                 """, new MapSqlParameterSource()
                 .addValue("limit", limit)
-                .addValue("bucketUpperBound", Timestamp.valueOf(bucketUpperBound))
-                .addValue("staleBefore", Timestamp.valueOf(staleBefore)), BUCKET_ROW_MAPPER);
+                .addValue("bucketUpperBound", com.zhicore.common.util.DateTimeUtils.toTimestamp(bucketUpperBound))
+                .addValue("staleBefore", com.zhicore.common.util.DateTimeUtils.toTimestamp(staleBefore)), BUCKET_ROW_MAPPER);
         if (candidates.isEmpty()) {
             return Collections.emptyList();
         }
@@ -234,12 +235,12 @@ public class PgRankingLedgerRepository {
                       and (flush_started_at is null or flush_started_at < :staleBefore)
                     """, new MapSqlParameterSource()
                     .addValue("flushOwner", flushOwner)
-                    .addValue("flushStartedAt", Timestamp.valueOf(flushStartedAt))
-                    .addValue("updatedAt", Timestamp.valueOf(flushStartedAt))
-                    .addValue("bucketStart", Timestamp.valueOf(candidate.getBucketStart()))
+                    .addValue("flushStartedAt", com.zhicore.common.util.DateTimeUtils.toTimestamp(flushStartedAt))
+                    .addValue("updatedAt", com.zhicore.common.util.DateTimeUtils.toTimestamp(flushStartedAt))
+                    .addValue("bucketStart", com.zhicore.common.util.DateTimeUtils.toTimestamp(candidate.getBucketStart()))
                     .addValue("postId", candidate.getPostId())
-                    .addValue("bucketUpperBound", Timestamp.valueOf(bucketUpperBound))
-                    .addValue("staleBefore", Timestamp.valueOf(staleBefore)));
+                    .addValue("bucketUpperBound", com.zhicore.common.util.DateTimeUtils.toTimestamp(bucketUpperBound))
+                    .addValue("staleBefore", com.zhicore.common.util.DateTimeUtils.toTimestamp(staleBefore)));
             if (updated == 1) {
                 claimed.add(candidate.toBuilder()
                         .flushOwner(flushOwner)
@@ -282,7 +283,7 @@ public class PgRankingLedgerRepository {
                 .addValue("hotScore", state.getHotScore())
                 .addValue("version", state.getVersion())
                 .addValue("lastBucketStart", toTimestamp(state.getLastBucketStart()))
-                .addValue("updatedAt", Timestamp.valueOf(state.getUpdatedAt()));
+                .addValue("updatedAt", com.zhicore.common.util.DateTimeUtils.toTimestamp(state.getUpdatedAt()));
         if (state.getVersion() == 0L) {
             int inserted = jdbcTemplate.update("""
                     insert into ranking_post_state (
@@ -323,13 +324,13 @@ public class PgRankingLedgerRepository {
         }
     }
 
-    public void incrementPeriodScore(String periodType, String periodKey, Long postId, double deltaScore, LocalDateTime updatedAt) {
+    public void incrementPeriodScore(String periodType, String periodKey, Long postId, double deltaScore, OffsetDateTime updatedAt) {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("periodType", periodType)
                 .addValue("periodKey", periodKey)
                 .addValue("postId", postId)
                 .addValue("deltaScore", deltaScore)
-                .addValue("updatedAt", Timestamp.valueOf(updatedAt));
+                .addValue("updatedAt", com.zhicore.common.util.DateTimeUtils.toTimestamp(updatedAt));
         jdbcTemplate.update("""
                 insert into ranking_period_score (period_type, period_key, post_id, delta_score, updated_at)
                 values (:periodType, :periodKey, :postId, :deltaScore, :updatedAt)
@@ -339,7 +340,7 @@ public class PgRankingLedgerRepository {
                 """, params);
     }
 
-    public void markBucketFlushed(RankingBucketRecord bucket, String flushOwner, LocalDateTime updatedAt) {
+    public void markBucketFlushed(RankingBucketRecord bucket, String flushOwner, OffsetDateTime updatedAt) {
         int updated = jdbcTemplate.update("""
                 update ranking_delta_bucket
                 set applied_view_delta = :appliedViewDelta,
@@ -365,14 +366,14 @@ public class PgRankingLedgerRepository {
                   and post_id = :postId
                   and flush_owner = :flushOwner
                 """, new MapSqlParameterSource()
-                .addValue("bucketStart", Timestamp.valueOf(bucket.getBucketStart()))
+                .addValue("bucketStart", com.zhicore.common.util.DateTimeUtils.toTimestamp(bucket.getBucketStart()))
                 .addValue("postId", bucket.getPostId())
                 .addValue("flushOwner", flushOwner)
                 .addValue("appliedViewDelta", bucket.getViewDelta())
                 .addValue("appliedLikeDelta", bucket.getLikeDelta())
                 .addValue("appliedFavoriteDelta", bucket.getFavoriteDelta())
                 .addValue("appliedCommentDelta", bucket.getCommentDelta())
-                .addValue("updatedAt", Timestamp.valueOf(updatedAt)));
+                .addValue("updatedAt", com.zhicore.common.util.DateTimeUtils.toTimestamp(updatedAt)));
         if (updated != 1) {
             throw new IllegalStateException("标记 bucket flush 完成失败: bucketStart=%s, postId=%s"
                     .formatted(bucket.getBucketStart(), bucket.getPostId()));
@@ -385,7 +386,7 @@ public class PgRankingLedgerRepository {
         jdbcTemplate.getJdbcOperations().update("delete from ranking_delta_bucket");
     }
 
-    public List<RankingLedgerEventRecord> listLedgerEventsAfter(LocalDateTime afterOccurredAt,
+    public List<RankingLedgerEventRecord> listLedgerEventsAfter(OffsetDateTime afterOccurredAt,
                                                                 String afterEventId,
                                                                 int limit) {
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -400,7 +401,7 @@ public class PgRankingLedgerRepository {
                     where occurred_at > :afterOccurredAt
                        or (occurred_at = :afterOccurredAt and event_id > :afterEventId)
                     """);
-            params.addValue("afterOccurredAt", Timestamp.valueOf(afterOccurredAt));
+            params.addValue("afterOccurredAt", com.zhicore.common.util.DateTimeUtils.toTimestamp(afterOccurredAt));
             params.addValue("afterEventId", afterEventId == null ? "" : afterEventId);
         }
         sql.append("""
@@ -438,12 +439,12 @@ public class PgRankingLedgerRepository {
         return Long.valueOf(value.toString());
     }
 
-    private static LocalDateTime toLocalDateTime(Timestamp value) {
-        return value != null ? value.toLocalDateTime() : null;
+    private static OffsetDateTime toOffsetDateTime(Timestamp value) {
+        return DateTimeUtils.toOffsetDateTime(value);
     }
 
-    private static Timestamp toTimestamp(LocalDateTime value) {
-        return value != null ? Timestamp.valueOf(value) : null;
+    private static Timestamp toTimestamp(OffsetDateTime value) {
+        return value != null ? com.zhicore.common.util.DateTimeUtils.toTimestamp(value) : null;
     }
 
     private static List<Long> parseTopicIds(String raw) {

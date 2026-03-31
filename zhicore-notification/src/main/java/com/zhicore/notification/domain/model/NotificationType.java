@@ -13,34 +13,43 @@ public enum NotificationType {
     /**
      * 点赞通知
      */
-    LIKE(0, "点赞"),
+    LIKE(0, "点赞", NotificationCategory.INTERACTION, "interaction.like"),
 
     /**
      * 评论通知
      */
-    COMMENT(1, "评论"),
+    COMMENT(1, "评论", NotificationCategory.INTERACTION, "interaction.comment"),
 
     /**
      * 关注通知
      */
-    FOLLOW(2, "关注"),
+    FOLLOW(2, "关注", NotificationCategory.INTERACTION, "interaction.follow"),
 
     /**
      * 回复通知
      */
-    REPLY(3, "回复"),
+    REPLY(3, "回复", NotificationCategory.INTERACTION, "interaction.reply"),
 
     /**
      * 系统通知
      */
-    SYSTEM(4, "系统");
+    SYSTEM(4, "系统", NotificationCategory.SYSTEM, "system.notice"),
+
+    /**
+     * 关注作者发布作品通知
+     */
+    POST_PUBLISHED(5, "发布", NotificationCategory.CONTENT, "content.post-published");
 
     private final int code;
     private final String description;
+    private final NotificationCategory category;
+    private final String eventCode;
 
-    NotificationType(int code, String description) {
+    NotificationType(int code, String description, NotificationCategory category, String eventCode) {
         this.code = code;
         this.description = description;
+        this.category = category;
+        this.eventCode = eventCode;
     }
 
     /**

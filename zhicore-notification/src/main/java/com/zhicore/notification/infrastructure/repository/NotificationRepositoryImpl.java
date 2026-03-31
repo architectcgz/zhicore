@@ -100,13 +100,13 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public void markAsRead(Long id, Long recipientId) {
-        notificationMapper.markAsRead(id, recipientId);
+    public boolean markAsRead(Long id, Long recipientId) {
+        return notificationMapper.markAsRead(id, recipientId) > 0;
     }
 
     @Override
-    public void markAllAsRead(Long recipientId) {
-        notificationMapper.markAllAsRead(recipientId);
+    public int markAllAsRead(Long recipientId) {
+        return notificationMapper.markAllAsRead(recipientId);
     }
 
     @Override
@@ -121,13 +121,16 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         po.setId(notification.getId());
         po.setRecipientId(notification.getRecipientId());
         po.setType(notification.getType().getCode());
+        po.setCategory(notification.getCategory());
+        po.setEventCode(notification.getEventCode());
+        po.setMetadata(notification.getMetadata());
         po.setActorId(notification.getActorId());
         po.setTargetType(notification.getTargetType());
         po.setTargetId(notification.getTargetId());
         po.setContent(notification.getContent());
         po.setIsRead(notification.isRead());
-        po.setReadAt(DateTimeUtils.toOffsetDateTime(notification.getReadAt()));
-        po.setCreatedAt(DateTimeUtils.toOffsetDateTime(notification.getCreatedAt()));
+        po.setReadAt(notification.getReadAt());
+        po.setCreatedAt(notification.getCreatedAt());
         return po;
     }
 
@@ -136,13 +139,16 @@ public class NotificationRepositoryImpl implements NotificationRepository {
                 po.getId(),
                 po.getRecipientId(),
                 NotificationType.fromCode(po.getType()),
+                po.getCategory(),
+                po.getEventCode(),
+                po.getMetadata(),
                 po.getActorId(),
                 po.getTargetType(),
                 po.getTargetId(),
                 po.getContent(),
                 po.getIsRead(),
-                DateTimeUtils.toLocalDateTime(po.getReadAt()),
-                DateTimeUtils.toLocalDateTime(po.getCreatedAt())
+                po.getReadAt(),
+                po.getCreatedAt()
         );
     }
 }

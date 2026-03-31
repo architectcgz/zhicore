@@ -21,6 +21,7 @@ public class PostPublishedIntegrationEvent extends IntegrationEvent {
     private static final long serialVersionUID = 1L;
 
     private final Long postId;              // 原始类型
+    private final Long authorId;
     private final Instant publishedAt;
 
     /**
@@ -36,10 +37,12 @@ public class PostPublishedIntegrationEvent extends IntegrationEvent {
     public PostPublishedIntegrationEvent(@JsonProperty("eventId") String eventId,
                                          @JsonProperty("occurredAt") Instant occurredAt,
                                          @JsonProperty("postId") Long postId,
+                                         @JsonProperty("authorId") Long authorId,
                                          @JsonProperty("publishedAt") Instant publishedAt,
                                          @JsonProperty("aggregateVersion") Long aggregateVersion) {
         super(eventId, occurredAt, aggregateVersion, 1);  // schemaVersion = 1
         this.postId = postId;
+        this.authorId = authorId;
         this.publishedAt = publishedAt;
     }
 

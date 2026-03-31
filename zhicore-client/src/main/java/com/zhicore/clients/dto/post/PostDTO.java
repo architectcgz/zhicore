@@ -4,7 +4,7 @@ import com.zhicore.api.dto.user.UserSimpleDTO;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -22,9 +22,9 @@ public class PostDTO implements Serializable {
     private String coverImage;
     private String status;
     private String editorType;
-    private LocalDateTime publishedAt;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private OffsetDateTime publishedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 
     // 作者信息
     private UserSimpleDTO author;

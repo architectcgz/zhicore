@@ -5,6 +5,7 @@ import com.zhicore.user.infrastructure.repository.po.UserFollowStatsPO;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.*;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -32,6 +33,26 @@ public interface UserFollowMapper extends BaseMapper<UserFollowPO> {
      */
     @Select("SELECT * FROM user_follows WHERE following_id = #{userId} ORDER BY created_at DESC LIMIT #{size} OFFSET #{offset}")
     List<UserFollowPO> selectFollowers(@Param("userId") Long userId, @Param("offset") int offset, @Param("size") int size);
+
+    @Select("""
+            <script>
+            SELECT *
+            FROM user_follows
+            WHERE following_id = #{userId}
+            <if test="afterCreatedAt != null and afterFollowerId != null">
+                AND (
+                    created_at &lt; #{afterCreatedAt}
+                    OR (created_at = #{afterCreatedAt} AND follower_id &lt; #{afterFollowerId})
+                )
+            </if>
+            ORDER BY created_at DESC, follower_id DESC
+            LIMIT #{limit}
+            </script>
+            """)
+    List<UserFollowPO> selectFollowersByCursor(@Param("userId") Long userId,
+                                               @Param("afterCreatedAt") OffsetDateTime afterCreatedAt,
+                                               @Param("afterFollowerId") Long afterFollowerId,
+                                               @Param("limit") int limit);
 
     /**
      * 查询关注列表

@@ -13,7 +13,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +45,7 @@ public class PostTagRepositoryPgImpl implements PostTagRepository {
         PostTagEntity entity = new PostTagEntity();
         entity.setPostId(postId.getValue());
         entity.setTagId(tagId.getValue());
-        entity.setCreatedAt(LocalDateTime.now());
+        entity.setCreatedAt(OffsetDateTime.now());
 
         int rows = mybatisMapper.insertOneIgnoreConflict(entity);
         
@@ -75,7 +75,7 @@ public class PostTagRepositoryPgImpl implements PostTagRepository {
         }
 
         // 批量插入
-        LocalDateTime now = LocalDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
         List<PostTagEntity> entities = newTagIds.stream()
                 .map(tagId -> {
                     PostTagEntity entity = new PostTagEntity();

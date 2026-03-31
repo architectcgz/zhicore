@@ -3,7 +3,7 @@ package com.zhicore.content.domain.model;
 import lombok.Getter;
 import org.springframework.util.Assert;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章收藏实体
@@ -31,7 +31,7 @@ public class PostFavorite {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
     public PostFavorite(Long id, PostId postId, UserId userId) {
         Assert.notNull(id, "收藏ID不能为空");
@@ -42,10 +42,10 @@ public class PostFavorite {
         this.id = id;
         this.postId = postId;
         this.userId = userId;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now();
     }
 
-    public PostFavorite(Long id, PostId postId, UserId userId, LocalDateTime createdAt) {
+    public PostFavorite(Long id, PostId postId, UserId userId, OffsetDateTime createdAt) {
         Assert.notNull(id, "收藏ID不能为空");
         Assert.isTrue(id > 0, "收藏ID必须为正数");
         Assert.notNull(postId, "文章ID不能为空");
@@ -61,7 +61,7 @@ public class PostFavorite {
     /**
      * 从持久化恢复
      */
-    public static PostFavorite reconstitute(Long id, PostId postId, UserId userId, LocalDateTime createdAt) {
+    public static PostFavorite reconstitute(Long id, PostId postId, UserId userId, OffsetDateTime createdAt) {
         return new PostFavorite(id, postId, userId, createdAt);
     }
 }

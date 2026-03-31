@@ -5,7 +5,7 @@ import lombok.Getter;
 import org.springframework.util.Assert;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Objects;
 
 /**
@@ -29,29 +29,29 @@ public class UserCheckIn {
     /**
      * 创建时间
      */
-    private final LocalDateTime createdAt;
+    private final OffsetDateTime createdAt;
 
-    private UserCheckIn(Long userId, LocalDate checkInDate, LocalDateTime createdAt) {
+    private UserCheckIn(Long userId, LocalDate checkInDate, OffsetDateTime createdAt) {
         Assert.notNull(userId, "用户ID不能为空");
         Assert.isTrue(userId > 0, "用户ID必须为正数");
         Assert.notNull(checkInDate, "签到日期不能为空");
         
         this.userId = userId;
         this.checkInDate = checkInDate;
-        this.createdAt = createdAt != null ? createdAt : DateTimeUtils.businessDateTime();
+        this.createdAt = createdAt != null ? createdAt : DateTimeUtils.businessOffsetDateTime();
     }
 
     /**
      * 创建新的签到记录（使用业务时区）
      */
     public static UserCheckIn create(Long userId, LocalDate checkInDate) {
-        return new UserCheckIn(userId, checkInDate, DateTimeUtils.businessDateTime());
+        return new UserCheckIn(userId, checkInDate, DateTimeUtils.businessOffsetDateTime());
     }
 
     /**
      * 从持久化恢复
      */
-    public static UserCheckIn reconstitute(Long userId, LocalDate checkInDate, LocalDateTime createdAt) {
+    public static UserCheckIn reconstitute(Long userId, LocalDate checkInDate, OffsetDateTime createdAt) {
         return new UserCheckIn(userId, checkInDate, createdAt);
     }
 

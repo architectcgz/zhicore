@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zhicore.api.event.DomainEvent;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 文章定时发布事件
@@ -30,21 +30,21 @@ public class PostScheduledEvent extends DomainEvent {
     /**
      * 定时发布时间
      */
-    private final LocalDateTime scheduledAt;
+    private final OffsetDateTime scheduledAt;
 
     @JsonCreator
     public PostScheduledEvent(@JsonProperty("eventId") String eventId,
                               @JsonProperty("occurredAt") java.time.Instant occurredAt,
                               @JsonProperty("postId") Long postId,
                               @JsonProperty("authorId") Long authorId,
-                              @JsonProperty("scheduledAt") LocalDateTime scheduledAt) {
+                              @JsonProperty("scheduledAt") OffsetDateTime scheduledAt) {
         super(eventId, occurredAt);
         this.postId = postId;
         this.authorId = authorId;
         this.scheduledAt = scheduledAt;
     }
 
-    public PostScheduledEvent(Long postId, Long authorId, LocalDateTime scheduledAt) {
+    public PostScheduledEvent(Long postId, Long authorId, OffsetDateTime scheduledAt) {
         this(null, null, postId, authorId, scheduledAt);
     }
 

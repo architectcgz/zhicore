@@ -1,5 +1,7 @@
 package com.zhicore.content.application.service.query;
 
+import com.zhicore.api.dto.post.PostDTO;
+import com.zhicore.api.dto.user.UserSimpleDTO;
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.zhicore.common.result.HybridPageRequest;
 import com.zhicore.common.result.HybridPageResult;
@@ -13,12 +15,13 @@ import com.zhicore.content.application.service.PostFileUrlResolver;
 import com.zhicore.content.application.sentinel.ContentSentinelHandlers;
 import com.zhicore.content.application.sentinel.ContentSentinelResources;
 import com.zhicore.content.domain.model.Post;
+import com.zhicore.content.domain.model.PostStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -38,7 +41,7 @@ public class PublishedPostQueryService {
     private final PostFileUrlResolver postFileUrlResolver;
 
     @Transactional(readOnly = true)
-    public List<PostBriefVO> getPublishedPostsCursor(LocalDateTime cursor, int size) {
+    public List<PostBriefVO> getPublishedPostsCursor(OffsetDateTime cursor, int size) {
         return postRepository.findPublishedCursor(cursor, size).stream()
                 .map(this::toBriefVO)
                 .collect(Collectors.toList());
@@ -82,6 +85,16 @@ public class PublishedPostQueryService {
         List<Post> posts = postRepository.findPublishedPopular(offset, size);
         long total = postRepository.countPublished();
         return HybridPageResult.ofOffset(enrichPostsWithAuthorInfo(posts), page, size, total);
+    }
+
+    @Transactional(readOnly = true)
+    public HybridPageResult<PostDTO> getPublishedPostsByAuthor(Long authorId, int page, int size) {
+        int safePage = page < 1 ? 1 : page;
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        int offset = (safePage - 1) * safeSize;
+        List<Post> posts = postRepository.findPublishedByAuthor(authorId, offset, safeSize);
+        long total = postRepository.countPublishedByAuthor(authorId);
+        return HybridPageResult.ofOffset(toClientPostDtos(posts), safePage, safeSize, total);
     }
 
     private HybridPageResult<PostBriefVO> queryPublishedPostsOffset(int page, int size) {
@@ -136,6 +149,50 @@ public class PublishedPostQueryService {
                         vo.setOwnerAvatar(null);
                     }
                     return vo;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<PostDTO> toClientPostDtos(List<Post> posts) {
+        if (posts == null || posts.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return posts.stream()
+                .filter(post -> post.getStatus() == PostStatus.PUBLISHED)
+                .map(post -> {
+                    PostDTO dto = new PostDTO();
+                    dto.setId(post.getId().getValue());
+                    dto.setOwnerId(post.getOwnerId().getValue());
+                    dto.setTitle(post.getTitle());
+                    dto.setExcerpt(post.getExcerpt());
+                    dto.setStatus(post.getStatus().name());
+                    dto.setCreatedAt(post.getCreatedAt());
+                    dto.setUpdatedAt(post.getUpdatedAt());
+                    dto.setPublishedAt(post.getPublishedAt());
+                    dto.setCoverImage(post.getCoverImageId() != null && !post.getCoverImageId().isEmpty()
+                            ? postFileUrlResolver.resolve(post.getCoverImageId())
+                            : null);
+
+                    UserSimpleDTO author = new UserSimpleDTO();
+                    author.setId(post.getOwnerId().getValue());
+                    author.setUserName(post.getOwnerSnapshot() != null ? post.getOwnerSnapshot().getName() : null);
+                    author.setNickname(post.getOwnerSnapshot() != null ? post.getOwnerSnapshot().getName() : null);
+                    author.setAvatarId(post.getOwnerSnapshot() != null
+                            && post.getOwnerSnapshot().getAvatarId() != null
+                            && !post.getOwnerSnapshot().getAvatarId().isEmpty()
+                            ? postFileUrlResolver.resolve(post.getOwnerSnapshot().getAvatarId())
+                            : null);
+                    dto.setAuthor(author);
+
+                    if (post.getStats() != null) {
+                        dto.setLikeCount(post.getStats().getLikeCount());
+                        dto.setCommentCount(post.getStats().getCommentCount());
+                        dto.setFavoriteCount(post.getStats().getFavoriteCount());
+                        dto.setViewCount(post.getStats().getViewCount());
+                    }
+
+                    return dto;
                 })
                 .collect(Collectors.toList());
     }

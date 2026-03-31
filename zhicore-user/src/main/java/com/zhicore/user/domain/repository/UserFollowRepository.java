@@ -3,6 +3,7 @@ package com.zhicore.user.domain.repository;
 import com.zhicore.user.domain.model.UserFollow;
 import com.zhicore.user.domain.model.UserFollowStats;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,6 +47,17 @@ public interface UserFollowRepository {
      * @return 粉丝列表
      */
     List<UserFollow> findFollowers(Long userId, int page, int size);
+
+    /**
+     * 按稳定游标查询粉丝列表。
+     *
+     * @param userId 被关注用户 ID
+     * @param afterCreatedAt 上一页最后一条关注时间
+     * @param afterFollowerId 上一页最后一条粉丝 ID
+     * @param limit 每页数量
+     * @return 粉丝列表
+     */
+    List<UserFollow> findFollowersByCursor(Long userId, OffsetDateTime afterCreatedAt, Long afterFollowerId, int limit);
 
     /**
      * 查询用户的关注列表

@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 已消费事件清理调度器
@@ -57,7 +57,7 @@ public class ConsumedEventCleanupScheduler {
         
         try {
             // 清理 30 天前的记录
-            LocalDateTime cutoff = LocalDateTime.now().minusDays(30);
+            OffsetDateTime cutoff = OffsetDateTime.now().minusDays(30);
             
             log.info("开始清理过期的消费记录，截止时间: {}", cutoff);
             

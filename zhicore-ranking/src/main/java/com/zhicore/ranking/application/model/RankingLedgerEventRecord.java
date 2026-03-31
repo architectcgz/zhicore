@@ -4,7 +4,7 @@ import com.zhicore.ranking.domain.model.RankingMetricType;
 import lombok.Builder;
 import lombok.Value;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * Ranking 事实事件账本记录。
@@ -20,10 +20,10 @@ public class RankingLedgerEventRecord {
     Long authorId;
     RankingMetricType metricType;
     int delta;
-    LocalDateTime occurredAt;
-    LocalDateTime publishedAt;
+    OffsetDateTime occurredAt;
+    OffsetDateTime publishedAt;
     String partitionKey;
     String sourceService;
     String sourceOpId;
-    LocalDateTime createdAt;
+    OffsetDateTime createdAt;
 }

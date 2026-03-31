@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zhicore.notification.application.dto.AggregatedNotificationDTO;
 import com.zhicore.notification.infrastructure.repository.po.NotificationPO;
 import com.zhicore.notification.infrastructure.repository.typehandler.NotificationTypeCodeTypeHandler;
-import com.zhicore.notification.infrastructure.repository.typehandler.OffsetDateTimeToLocalDateTimeTypeHandler;
+import com.zhicore.notification.infrastructure.repository.typehandler.OffsetDateTimeTypeHandler;
 import com.zhicore.notification.infrastructure.repository.typehandler.StringArrayTypeHandler;
 import org.apache.ibatis.annotations.*;
 
@@ -25,10 +25,10 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
      */
     @Insert("""
         INSERT INTO notifications (
-            id, recipient_id, type, actor_id, target_type, target_id,
+            id, recipient_id, type, category, event_code, metadata, actor_id, target_type, target_id,
             content, is_read, read_at, created_at
         ) VALUES (
-            #{id}, #{recipientId}, #{type}, #{actorId}, #{targetType}, #{targetId},
+            #{id}, #{recipientId}, #{type}, #{category}, #{eventCode}, #{metadata}, #{actorId}, #{targetType}, #{targetId},
             #{content}, #{isRead}, #{readAt}, #{createdAt}
         )
         ON CONFLICT (id) DO NOTHING
@@ -79,7 +79,7 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
         """)
     @Results({
         @Result(property = "type", column = "type", typeHandler = NotificationTypeCodeTypeHandler.class),
-        @Result(property = "latestTime", column = "latestTime", typeHandler = OffsetDateTimeToLocalDateTimeTypeHandler.class),
+        @Result(property = "latestTime", column = "latestTime", typeHandler = OffsetDateTimeTypeHandler.class),
         @Result(property = "actorIds", column = "actorIds", typeHandler = StringArrayTypeHandler.class)
     })
     List<AggregatedNotificationDTO> findAggregatedNotifications(
@@ -131,7 +131,7 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
         """)
     @Results({
         @Result(property = "type", column = "type", typeHandler = NotificationTypeCodeTypeHandler.class),
-        @Result(property = "latestTime", column = "latestTime", typeHandler = OffsetDateTimeToLocalDateTimeTypeHandler.class),
+        @Result(property = "latestTime", column = "latestTime", typeHandler = OffsetDateTimeTypeHandler.class),
         @Result(property = "actorIds", column = "actorIds", typeHandler = StringArrayTypeHandler.class)
     })
     AggregatedNotificationDTO findAggregatedNotificationByGroup(
@@ -186,6 +186,7 @@ public interface NotificationMapper extends BaseMapper<NotificationPO> {
     /**
      * 标记单条通知为已读
      */
-    @Update("UPDATE notifications SET is_read = true, read_at = NOW() WHERE id = #{id} AND recipient_id = #{recipientId}")
+    @Update("UPDATE notifications SET is_read = true, read_at = NOW() " +
+            "WHERE id = #{id} AND recipient_id = #{recipientId} AND is_read = false")
     int markAsRead(@Param("id") Long id, @Param("recipientId") Long recipientId);
 }
